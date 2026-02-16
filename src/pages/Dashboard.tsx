@@ -58,31 +58,11 @@ export default function Dashboard() {
   const { data: saidasMaterial = [] } = useSaidasMaterial();
   const { data: insumos = [] } = useInsumos();
 
-  // Filtros (must be before any early return to respect React hooks rules)
+  // ALL hooks must be called before any early return
   const [filtroObraId, setFiltroObraId] = useState('');
   const [filtroEtapaIds, setFiltroEtapaIds] = useState<string[]>([]);
   const [etapasDropdownOpen, setEtapasDropdownOpen] = useState(false);
 
-  if (loadingObras) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <p className="text-gray-500">Carregando...</p>
-      </div>
-    );
-  }
-
-  function toggleEtapa(id: string) {
-    setFiltroEtapaIds((prev) =>
-      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
-    );
-  }
-
-  function limparFiltros() {
-    setFiltroObraId('');
-    setFiltroEtapaIds([]);
-  }
-
-  const temFiltro = filtroObraId !== '' || filtroEtapaIds.length > 0;
   const etapaIdsSet = useMemo(() => new Set(filtroEtapaIds), [filtroEtapaIds]);
   const etapasDaObra = useMemo(
     () => (filtroObraId ? etapas.filter((e) => e.obraId === filtroObraId) : []),
@@ -92,7 +72,6 @@ export default function Dashboard() {
   const insumosMap = useMemo(() => new Map(insumos.map((i) => [i.id, i.nome])), [insumos]);
   const etapasMap = useMemo(() => new Map(etapas.map((e) => [e.id, e.nome])), [etapas]);
 
-  // Filtrar dados
   const abastFiltrados = useMemo(() => {
     let dados = abastecimentos;
     if (filtroObraId) dados = dados.filter((a) => a.obraId === filtroObraId);
@@ -111,10 +90,6 @@ export default function Dashboard() {
     return dados;
   }, [saidasMaterial, filtroObraId, filtroEtapaIds, etapaIdsSet]);
 
-  const emAndamento = obras.filter((o) => o.status === 'em_andamento').length;
-  const concluidas = obras.filter((o) => o.status === 'concluida').length;
-
-  // Calcular totais (proporcional quando filtrando por etapa)
   const totalCombustivel = useMemo(() => {
     if (filtroEtapaIds.length > 0) {
       return abastFiltrados.reduce((sum, a) => sum + valorProporcionalAbastecimento(a, etapaIdsSet), 0);
@@ -131,7 +106,6 @@ export default function Dashboard() {
 
   const gastoTotal = totalCombustivel + totalInsumos;
 
-  // Gasto por tipo (combustivel + insumos)
   const chartData = useMemo(() => {
     const gastoMap = new Map<string, number>();
     const usaProporcional = filtroEtapaIds.length > 0;
@@ -153,6 +127,30 @@ export default function Dashboard() {
       .filter((d) => d.valor > 0)
       .sort((a, b) => b.valor - a.valor);
   }, [abastFiltrados, saidasFiltradas, insumosMap, filtroEtapaIds, etapaIdsSet]);
+
+  // Safe to do early return now — all hooks have been called
+  if (loadingObras) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <p className="text-gray-500">Carregando...</p>
+      </div>
+    );
+  }
+
+  const emAndamento = obras.filter((o) => o.status === 'em_andamento').length;
+  const concluidas = obras.filter((o) => o.status === 'concluida').length;
+  const temFiltro = filtroObraId !== '' || filtroEtapaIds.length > 0;
+
+  function toggleEtapa(id: string) {
+    setFiltroEtapaIds((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+    );
+  }
+
+  function limparFiltros() {
+    setFiltroObraId('');
+    setFiltroEtapaIds([]);
+  }
 
   return (
     <div>
