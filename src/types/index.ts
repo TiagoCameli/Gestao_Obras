@@ -238,6 +238,7 @@ export interface LoginAttemptTracker {
 export interface Localidade {
   id: string;
   nome: string;
+  endereco: string;
   ativo: boolean;
 }
 

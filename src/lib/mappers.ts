@@ -428,6 +428,7 @@ export function dbToLocalidade(row: any): Localidade {
   return {
     id: row.id,
     nome: row.nome,
+    endereco: row.endereco ?? '',
     ativo: row.ativo,
   };
 }
@@ -436,6 +437,7 @@ export function localidadeToDb(l: Localidade) {
   return {
     id: l.id,
     nome: l.nome,
+    endereco: l.endereco,
     ativo: l.ativo,
   };
 }

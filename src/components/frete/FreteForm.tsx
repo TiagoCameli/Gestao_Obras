@@ -157,6 +157,7 @@ export default function FreteForm({
                     const nova: Localidade = {
                       id: gerarId(),
                       nome: novaOrigemNome.trim(),
+                      endereco: '',
                       ativo: true,
                     };
                     adicionarLocalidadeMutation.mutate(nova);
@@ -223,6 +224,7 @@ export default function FreteForm({
                     const nova: Localidade = {
                       id: gerarId(),
                       nome: novaDestinoNome.trim(),
+                      endereco: '',
                       ativo: true,
                     };
                     adicionarLocalidadeMutation.mutate(nova);

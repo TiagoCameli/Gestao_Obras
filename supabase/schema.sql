@@ -261,6 +261,7 @@ CREATE POLICY "Authenticated full access" ON audit_log FOR ALL TO authenticated 
 CREATE TABLE IF NOT EXISTS localidades (
   id text PRIMARY KEY,
   nome text NOT NULL,
+  endereco text NOT NULL DEFAULT '',
   ativo boolean NOT NULL DEFAULT true
 );
 
