@@ -3,6 +3,7 @@ import type { Frete as FreteType, FiltrosFrete } from '../types';
 import { useFretes, useAdicionarFrete, useAtualizarFrete, useExcluirFrete } from '../hooks/useFretes';
 import { useObras } from '../hooks/useObras';
 import { useInsumos } from '../hooks/useInsumos';
+import { useLocalidades } from '../hooks/useLocalidades';
 import { useAuth } from '../contexts/AuthContext';
 import Button from '../components/ui/Button';
 import Modal from '../components/ui/Modal';
@@ -19,6 +20,7 @@ export default function Frete() {
   const { data: fretes = [], isLoading } = useFretes();
   const { data: obras = [] } = useObras();
   const { data: insumos = [] } = useInsumos();
+  const { data: localidades = [] } = useLocalidades();
   const adicionarMutation = useAdicionarFrete();
   const atualizarMutation = useAtualizarFrete();
   const excluirMutation = useExcluirFrete();
@@ -146,6 +148,7 @@ export default function Frete() {
           onCancel={() => { setModalOpen(false); setEditando(null); }}
           obras={obras}
           insumos={insumosAtivos}
+          localidades={localidades}
         />
       </Modal>
 

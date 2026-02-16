@@ -235,6 +235,12 @@ export interface LoginAttemptTracker {
   bloqueadoAte: number;
 }
 
+export interface Localidade {
+  id: string;
+  nome: string;
+  ativo: boolean;
+}
+
 export interface Frete {
   id: string;
   data: string;

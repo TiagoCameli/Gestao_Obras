@@ -13,6 +13,7 @@ import type {
   EntradaMaterial,
   SaidaMaterial,
   TransferenciaMaterial,
+  Localidade,
   Frete,
   Funcionario,
   PerfilPermissao,
@@ -417,6 +418,25 @@ export function transferenciaMaterialToDb(t: TransferenciaMaterial) {
     quantidade: t.quantidade,
     valor_total: t.valorTotal,
     observacoes: t.observacoes,
+  };
+}
+
+// ── Localidades ──
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function dbToLocalidade(row: any): Localidade {
+  return {
+    id: row.id,
+    nome: row.nome,
+    ativo: row.ativo,
+  };
+}
+
+export function localidadeToDb(l: Localidade) {
+  return {
+    id: l.id,
+    nome: l.nome,
+    ativo: l.ativo,
   };
 }
 

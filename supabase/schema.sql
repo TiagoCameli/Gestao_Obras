@@ -257,7 +257,17 @@ CREATE TABLE IF NOT EXISTS audit_log (
 ALTER TABLE audit_log ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Authenticated full access" ON audit_log FOR ALL TO authenticated USING (true) WITH CHECK (true);
 
--- ── 18. Login Attempts ──
+-- ── 18. Localidades ──
+CREATE TABLE IF NOT EXISTS localidades (
+  id text PRIMARY KEY,
+  nome text NOT NULL,
+  ativo boolean NOT NULL DEFAULT true
+);
+
+ALTER TABLE localidades ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Authenticated full access" ON localidades FOR ALL TO authenticated USING (true) WITH CHECK (true);
+
+-- ── 19. Login Attempts ──
 CREATE TABLE IF NOT EXISTS login_attempts (
   email text PRIMARY KEY,
   tentativas integer NOT NULL DEFAULT 0,
