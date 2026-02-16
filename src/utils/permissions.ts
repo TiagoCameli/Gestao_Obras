@@ -29,7 +29,6 @@ const TODAS: AcaoPermissao[] = ['visualizar', 'criar', 'editar', 'excluir', 'exp
 const V: AcaoPermissao[] = ['visualizar'];
 const VF: AcaoPermissao[] = ['visualizar', 'ajustar_filtros'];
 const VCE: AcaoPermissao[] = ['visualizar', 'criar', 'editar'];
-const VCEE: AcaoPermissao[] = ['visualizar', 'criar', 'editar', 'excluir'];
 const VCEEX: AcaoPermissao[] = ['visualizar', 'criar', 'editar', 'excluir', 'exportar'];
 const VE: AcaoPermissao[] = ['visualizar', 'exportar'];
 const NENHUMA: AcaoPermissao[] = [];

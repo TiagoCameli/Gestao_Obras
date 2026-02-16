@@ -790,8 +790,6 @@ function FornecedorForm({
 export default function Obras() {
   const { temAcao } = useAuth();
   const canCreate = temAcao('criar_cadastros');
-  const canEdit = temAcao('editar_cadastros');
-  const canDelete = temAcao('excluir_cadastros');
 
   // ---- Supabase query hooks ----
   const { data: obras = [], isLoading: loadingObras } = useObras();
@@ -803,7 +801,6 @@ export default function Obras() {
   const { data: todasUnidades = [], isLoading: loadingUnidades } = useUnidades();
   const { data: todosDepositosMat = [], isLoading: loadingDepositosMat } = useDepositosMaterial();
 
-  const insumosMap = useMemo(() => new Map(todosInsumos.map((i) => [i.id, i.nome])), [todosInsumos]);
   const unidadesMap = useMemo(() => new Map(todasUnidades.map((u) => [u.sigla, u.nome])), [todasUnidades]);
 
   // ---- Supabase mutation hooks (must be called at top level) ----
@@ -1339,6 +1336,7 @@ export default function Obras() {
           initial={editando}
           initialEtapas={editando ? todasEtapas.filter((e) => e.obraId === editando.id) : []}
           initialDepositos={editando ? todosDepositos.filter((d) => d.obraId === editando.id) : []}
+          unidades={todasUnidades}
           onSubmit={handleSubmit}
           onCancel={() => {
             setModalOpen(false);

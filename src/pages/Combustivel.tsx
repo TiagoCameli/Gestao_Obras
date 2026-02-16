@@ -18,7 +18,6 @@ import TransferenciaList from '../components/combustivel/TransferenciaList';
 import CombustivelDashboard from '../components/combustivel/CombustivelDashboard';
 import ExportarPDFModal from '../components/combustivel/ExportarPDFModal';
 import PasswordDialog from '../components/ui/PasswordDialog';
-import PermissionGate from '../components/auth/PermissionGate';
 import { useAuth } from '../contexts/AuthContext';
 
 type Tab = 'dashboard' | 'saidas' | 'entradas' | 'transferencias';

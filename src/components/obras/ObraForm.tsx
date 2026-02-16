@@ -233,7 +233,7 @@ export default function ObraForm({
             label="Status"
             id="status"
             value={status}
-            onChange={(e) => setStatus(e.target.value)}
+            onChange={(e) => setStatus(e.target.value as Obra['status'])}
             options={STATUS_OPTIONS}
             placeholder="Selecione o status"
             required
