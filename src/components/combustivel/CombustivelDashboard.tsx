@@ -138,12 +138,12 @@ export default function CombustivelDashboard({
             {Array.from(saldoGlobalPorTipo.entries()).map(([tipoId, qtd]) => (
               <div
                 key={tipoId}
-                className="flex items-center gap-2 px-4 py-3 rounded-lg bg-blue-50 border border-blue-200"
+                className="flex items-center gap-2 px-4 py-3 rounded-lg bg-emt-verde-claro border border-emt-verde"
               >
-                <span className="text-sm font-medium text-blue-800">
+                <span className="text-sm font-medium text-emt-verde-escuro">
                   {insumosMap.get(tipoId) || tipoId}
                 </span>
-                <span className="text-lg font-bold text-blue-900">
+                <span className="text-lg font-bold text-emt-verde-escuro">
                   {qtd.toFixed(0)} L
                 </span>
               </div>
@@ -355,7 +355,7 @@ function ConsumoPorEquipamento({
         <div>
           <label className="block text-xs font-medium text-gray-500 mb-1">Obra</label>
           <select
-            className="border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+            className="border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-emt-verde bg-white"
             value={filtroObraId}
             onChange={(e) => {
               setFiltroObraId(e.target.value);
@@ -371,7 +371,7 @@ function ConsumoPorEquipamento({
         <div>
           <label className="block text-xs font-medium text-gray-500 mb-1">Etapa</label>
           <select
-            className="border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+            className="border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-emt-verde bg-white"
             value={filtroEtapaId}
             onChange={(e) => setFiltroEtapaId(e.target.value)}
             disabled={!filtroObraId}
@@ -386,7 +386,7 @@ function ConsumoPorEquipamento({
           <label className="block text-xs font-medium text-gray-500 mb-1">De</label>
           <input
             type="date"
-            className="border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-emt-verde"
             value={filtroDataInicio}
             onChange={(e) => setFiltroDataInicio(e.target.value)}
           />
@@ -395,7 +395,7 @@ function ConsumoPorEquipamento({
           <label className="block text-xs font-medium text-gray-500 mb-1">Ate</label>
           <input
             type="date"
-            className="border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-emt-verde"
             value={filtroDataFim}
             onChange={(e) => setFiltroDataFim(e.target.value)}
           />

@@ -50,7 +50,7 @@ export default function MigrarDados() {
           <input
             id="senhaDefault"
             type="text"
-            className="w-full max-w-xs border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full max-w-xs border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emt-verde"
             value={senha}
             onChange={(e) => setSenha(e.target.value)}
             disabled={running}

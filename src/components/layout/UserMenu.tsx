@@ -31,15 +31,15 @@ export default function UserMenu() {
     <>
       <div className="relative" ref={ref}>
         <button
-          className="flex items-center gap-2 text-blue-100 hover:text-white transition-colors"
+          className="flex items-center gap-2 text-white/80 hover:text-white transition-colors"
           onClick={() => setOpen((v) => !v)}
         >
-          <div className="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center text-xs font-bold text-white">
+          <div className="w-8 h-8 rounded-full bg-emt-verde-escuro flex items-center justify-center text-xs font-bold text-white">
             {iniciais}
           </div>
           <div className="hidden sm:block text-left">
             <div className="text-sm font-medium leading-tight">{usuario.nome}</div>
-            <div className="text-xs text-blue-300">{usuario.cargo}</div>
+            <div className="text-xs text-white/60">{usuario.cargo}</div>
           </div>
           <svg className={`w-4 h-4 transition-transform ${open ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />

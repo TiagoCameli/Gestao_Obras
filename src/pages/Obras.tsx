@@ -28,7 +28,7 @@ const STATUS_LABELS: Record<Obra['status'], string> = {
 };
 
 const STATUS_COLORS: Record<Obra['status'], string> = {
-  planejamento: 'bg-blue-100 text-blue-800',
+  planejamento: 'bg-emt-verde-claro text-emt-verde-escuro',
   em_andamento: 'bg-yellow-100 text-yellow-800',
   concluida: 'bg-green-100 text-green-800',
   pausada: 'bg-gray-100 text-gray-800',
@@ -508,7 +508,7 @@ function InsumoForm({
         </label>
         <textarea
           id="insumoDescricao"
-          className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emt-verde"
           rows={2}
           value={descricao}
           onChange={(e) => setDescricao(e.target.value)}
@@ -737,7 +737,7 @@ function FornecedorForm({
         </label>
         <textarea
           id="fornecedorObs"
-          className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emt-verde"
           rows={3}
           value={observacoes}
           onChange={(e) => setObservacoes(e.target.value)}
@@ -1154,7 +1154,7 @@ export default function Obras() {
                     </div>
                     <div className="flex items-center gap-3">
                       <div className="text-right mr-2">
-                        <p className="text-lg font-bold text-blue-800">
+                        <p className="text-lg font-bold text-emt-verde-escuro">
                           {formatCurrency(obra.orcamento)}
                         </p>
                         <p className="text-xs text-gray-400">
@@ -1208,14 +1208,14 @@ export default function Obras() {
                         <p className="text-xs text-gray-500 mb-2">Etapas</p>
                         <div className="border border-gray-200 rounded-lg overflow-hidden">
                           <table className="w-full text-xs">
-                            <thead className="bg-gray-100">
+                            <thead className="bg-emt-verde text-white">
                               <tr>
-                                <th className="text-left px-3 py-1.5 font-medium text-gray-600">#</th>
-                                <th className="text-left px-3 py-1.5 font-medium text-gray-600">Etapa</th>
-                                <th className="text-left px-3 py-1.5 font-medium text-gray-600">Unidade</th>
-                                <th className="text-right px-3 py-1.5 font-medium text-gray-600">Qtd</th>
-                                <th className="text-right px-3 py-1.5 font-medium text-gray-600">Valor Unit.</th>
-                                <th className="text-right px-3 py-1.5 font-medium text-gray-600">Valor Total</th>
+                                <th className="text-left px-3 py-1.5 text-white font-medium uppercase text-xs">#</th>
+                                <th className="text-left px-3 py-1.5 text-white font-medium uppercase text-xs">Etapa</th>
+                                <th className="text-left px-3 py-1.5 text-white font-medium uppercase text-xs">Unidade</th>
+                                <th className="text-right px-3 py-1.5 text-white font-medium uppercase text-xs">Qtd</th>
+                                <th className="text-right px-3 py-1.5 text-white font-medium uppercase text-xs">Valor Unit.</th>
+                                <th className="text-right px-3 py-1.5 text-white font-medium uppercase text-xs">Valor Total</th>
                               </tr>
                             </thead>
                             <tbody className="divide-y divide-gray-100 bg-white">
@@ -1719,7 +1719,7 @@ export default function Obras() {
                         className={`px-2 py-0.5 rounded-full text-xs font-medium ${
                           insumo.tipo === 'combustivel'
                             ? 'bg-orange-100 text-orange-800'
-                            : 'bg-blue-100 text-blue-800'
+                            : 'bg-emt-verde-claro text-emt-verde-escuro'
                         }`}
                       >
                         {insumo.tipo === 'combustivel' ? 'Combustivel' : 'Material'}

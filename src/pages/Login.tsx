@@ -70,11 +70,11 @@ export default function Login() {
   const isBloqueado = bloqueadoAte > 0 && Date.now() < bloqueadoAte;
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-700 to-blue-900 px-4">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-emt-verde to-emt-verde-escuro px-4">
       <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-8">
         <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-blue-800 mb-1">Gestao Obras</h1>
-          <p className="text-gray-500 text-sm">Acesse sua conta para continuar</p>
+          <h1 className="text-3xl font-bold text-emt-verde-escuro mb-1">EMT Construtora</h1>
+          <p className="text-gray-500 text-sm">Sistema de Controle de Obras</p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-5">
@@ -85,7 +85,7 @@ export default function Login() {
             <input
               id="loginEmail"
               type="email"
-              className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emt-verde"
               value={email}
               onChange={(e) => { setEmail(e.target.value); setErro(''); }}
               placeholder="seu@email.com"
@@ -102,7 +102,7 @@ export default function Login() {
               <input
                 id="loginSenha"
                 type={mostrarSenha ? 'text' : 'password'}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2.5 pr-10 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full border border-gray-300 rounded-lg px-3 py-2.5 pr-10 text-sm focus:outline-none focus:ring-2 focus:ring-emt-verde"
                 value={senha}
                 onChange={(e) => { setSenha(e.target.value); setErro(''); }}
                 placeholder="Sua senha"
@@ -132,7 +132,7 @@ export default function Login() {
             <input
               id="lembrarMe"
               type="checkbox"
-              className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+              className="w-4 h-4 text-emt-verde border-gray-300 rounded focus:ring-emt-verde"
               checked={lembrarMe}
               onChange={(e) => setLembrarMe(e.target.checked)}
             />
@@ -158,7 +158,7 @@ export default function Login() {
             className={`w-full py-2.5 rounded-lg text-sm font-semibold transition-colors ${
               isBloqueado || carregando
                 ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                : 'bg-blue-700 text-white hover:bg-blue-800'
+                : 'bg-emt-verde text-white hover:bg-emt-verde-escuro'
             }`}
           >
             {carregando ? 'Entrando...' : isBloqueado ? `Bloqueado (${countdown})` : 'Entrar'}

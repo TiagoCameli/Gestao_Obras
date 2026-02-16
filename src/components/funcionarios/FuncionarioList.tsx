@@ -35,7 +35,7 @@ export default function FuncionarioList({ funcionarios, onEdit, onDelete, canEdi
 
   const CARGO_COLORS: Record<CargoFuncionario, string> = {
     Administrador: 'bg-purple-100 text-purple-800',
-    Gerente: 'bg-blue-100 text-blue-800',
+    Gerente: 'bg-emt-verde-claro text-emt-verde-escuro',
     Supervisor: 'bg-cyan-100 text-cyan-800',
     Operador: 'bg-gray-100 text-gray-800',
     Financeiro: 'bg-amber-100 text-amber-800',
@@ -46,13 +46,13 @@ export default function FuncionarioList({ funcionarios, onEdit, onDelete, canEdi
       {/* Filtros */}
       <div className="flex flex-wrap gap-3 mb-4">
         <input
-          className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 w-64"
+          className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emt-verde w-64"
           placeholder="Buscar por nome ou e-mail..."
           value={busca}
           onChange={(e) => { setBusca(e.target.value); setPagina(0); }}
         />
         <select
-          className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emt-verde"
           value={filtroCargo}
           onChange={(e) => { setFiltroCargo(e.target.value); setPagina(0); }}
         >
@@ -60,7 +60,7 @@ export default function FuncionarioList({ funcionarios, onEdit, onDelete, canEdi
           {CARGOS.map((c) => <option key={c.valor} value={c.valor}>{c.label}</option>)}
         </select>
         <select
-          className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emt-verde"
           value={filtroStatus}
           onChange={(e) => { setFiltroStatus(e.target.value); setPagina(0); }}
         >
@@ -79,24 +79,24 @@ export default function FuncionarioList({ funcionarios, onEdit, onDelete, canEdi
           <div className="bg-white rounded-lg shadow overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
-                <thead className="bg-gray-50 border-b">
+                <thead className="bg-emt-verde text-white">
                   <tr>
-                    <th className="text-left px-4 py-3 font-medium text-gray-600">Funcionario</th>
-                    <th className="text-left px-4 py-3 font-medium text-gray-600">E-mail</th>
-                    <th className="text-left px-4 py-3 font-medium text-gray-600">Cargo</th>
-                    <th className="text-center px-4 py-3 font-medium text-gray-600">Status</th>
-                    <th className="text-center px-4 py-3 font-medium text-gray-600">Acoes</th>
+                    <th className="text-left px-4 py-3 text-white font-medium uppercase text-xs">Funcionario</th>
+                    <th className="text-left px-4 py-3 text-white font-medium uppercase text-xs">E-mail</th>
+                    <th className="text-left px-4 py-3 text-white font-medium uppercase text-xs">Cargo</th>
+                    <th className="text-center px-4 py-3 text-white font-medium uppercase text-xs">Status</th>
+                    <th className="text-center px-4 py-3 text-white font-medium uppercase text-xs">Acoes</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-100">
+                <tbody className="divide-y divide-gray-100 [&>tr:nth-child(even)]:bg-emt-cinza-claro">
                   {paginados.map((func) => {
                     const iniciais = func.nome.split(' ').map((p) => p[0]).slice(0, 2).join('').toUpperCase();
                     return (
-                      <tr key={func.id} className="hover:bg-gray-50">
+                      <tr key={func.id} className="hover:bg-emt-verde-claro">
                         <td className="px-4 py-3">
                           <div className="flex items-center gap-3">
                             <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold ${
-                              func.status === 'ativo' ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-500'
+                              func.status === 'ativo' ? 'bg-emt-verde-claro text-emt-verde' : 'bg-gray-100 text-gray-500'
                             }`}>
                               {iniciais}
                             </div>

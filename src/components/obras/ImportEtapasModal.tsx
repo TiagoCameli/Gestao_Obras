@@ -252,7 +252,7 @@ export default function ImportEtapasModal({
               <button
                 type="button"
                 onClick={baixarTemplate}
-                className="inline-flex items-center gap-2 text-sm text-blue-700 hover:text-blue-900 font-medium transition-colors"
+                className="inline-flex items-center gap-2 text-sm text-emt-verde hover:text-emt-verde-escuro font-medium transition-colors"
               >
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
@@ -263,7 +263,7 @@ export default function ImportEtapasModal({
               <div
                 className={`border-2 border-dashed rounded-xl p-10 text-center transition-colors cursor-pointer ${
                   dragAtivo
-                    ? 'border-blue-500 bg-blue-50'
+                    ? 'border-emt-verde bg-emt-verde-claro/20'
                     : 'border-gray-300 hover:border-gray-400 bg-gray-50'
                 }`}
                 onDragOver={(e) => {
@@ -283,7 +283,7 @@ export default function ImportEtapasModal({
                 />
                 {processando ? (
                   <div className="space-y-2">
-                    <div className="inline-block w-8 h-8 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin" />
+                    <div className="inline-block w-8 h-8 border-4 border-emt-verde-claro border-t-emt-verde rounded-full animate-spin" />
                     <p className="text-sm text-gray-500">Processando arquivo...</p>
                   </div>
                 ) : (

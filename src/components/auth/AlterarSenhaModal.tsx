@@ -88,7 +88,7 @@ export default function AlterarSenhaModal({ open, onClose }: AlterarSenhaModalPr
             <input
               id="senhaAtual"
               type="password"
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emt-verde"
               value={senhaAtual}
               onChange={(e) => { setSenhaAtual(e.target.value); setErro(''); }}
               autoFocus
@@ -102,7 +102,7 @@ export default function AlterarSenhaModal({ open, onClose }: AlterarSenhaModalPr
             <input
               id="novaSenha"
               type="password"
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emt-verde"
               value={novaSenha}
               onChange={(e) => { setNovaSenha(e.target.value); setErro(''); }}
               placeholder="Minimo 6 caracteres"
@@ -116,7 +116,7 @@ export default function AlterarSenhaModal({ open, onClose }: AlterarSenhaModalPr
             <input
               id="confirmarSenha"
               type="password"
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emt-verde"
               value={confirmarSenha}
               onChange={(e) => { setConfirmarSenha(e.target.value); setErro(''); }}
               disabled={loading}

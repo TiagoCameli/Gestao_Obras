@@ -62,37 +62,37 @@ export default function AbastecimentoList({
       <div className="bg-white rounded-lg shadow overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
-            <thead className="bg-gray-50 border-b">
+            <thead className="bg-emt-verde text-white">
               <tr>
-                <th className="text-left px-4 py-3 font-medium text-gray-600">
+                <th className="text-left px-4 py-3 text-white font-medium uppercase text-xs">
                   Data/Hora
                 </th>
-                <th className="text-left px-4 py-3 font-medium text-gray-600">
+                <th className="text-left px-4 py-3 text-white font-medium uppercase text-xs">
                   Obra
                 </th>
-                <th className="text-left px-4 py-3 font-medium text-gray-600">
+                <th className="text-left px-4 py-3 text-white font-medium uppercase text-xs">
                   Etapas
                 </th>
-                <th className="text-left px-4 py-3 font-medium text-gray-600">
+                <th className="text-left px-4 py-3 text-white font-medium uppercase text-xs">
                   Equipamento
                 </th>
-                <th className="text-left px-4 py-3 font-medium text-gray-600">
+                <th className="text-left px-4 py-3 text-white font-medium uppercase text-xs">
                   Combustivel
                 </th>
-                <th className="text-right px-4 py-3 font-medium text-gray-600">
+                <th className="text-right px-4 py-3 text-white font-medium uppercase text-xs">
                   Litros
                 </th>
-                <th className="text-right px-4 py-3 font-medium text-gray-600">
+                <th className="text-right px-4 py-3 text-white font-medium uppercase text-xs">
                   Valor
                 </th>
-                <th className="text-center px-4 py-3 font-medium text-gray-600">
+                <th className="text-center px-4 py-3 text-white font-medium uppercase text-xs">
                   Acoes
                 </th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-100">
+            <tbody className="divide-y divide-gray-100 [&>tr:nth-child(even)]:bg-emt-cinza-claro">
               {sorted.map((a) => (
-                <tr key={a.id} className="hover:bg-gray-50">
+                <tr key={a.id} className="hover:bg-emt-verde-claro">
                   <td className="px-4 py-3">{formatDateTime(a.dataHora)}</td>
                   <td className="px-4 py-3">{obrasMap.get(a.obraId) || '-'}</td>
                   <td className="px-4 py-3">
@@ -100,7 +100,7 @@ export default function AbastecimentoList({
                       {getEtapasDisplay(a).map((aloc, i) => (
                         <span
                           key={i}
-                          className="inline-block px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800"
+                          className="inline-block px-2 py-0.5 rounded-full text-xs font-medium bg-emt-verde-claro text-emt-verde-escuro"
                         >
                           {etapasMap.get(aloc.etapaId) || 'Etapa?'}: {aloc.percentual}%
                         </span>

@@ -136,7 +136,7 @@ export default function ExportarPDFModal({
                 type="button"
                 className={`flex-1 px-4 py-2.5 rounded-lg text-sm font-medium border transition-colors ${
                   tipo === opt.key
-                    ? 'bg-blue-600 text-white border-blue-600'
+                    ? 'bg-emt-verde text-white border-emt-verde'
                     : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
                 }`}
                 onClick={() => {
@@ -168,7 +168,7 @@ export default function ExportarPDFModal({
                   type="button"
                   className={`flex-1 px-4 py-2.5 rounded-lg text-sm font-medium border transition-colors ${
                     formato === opt.key
-                      ? 'bg-blue-600 text-white border-blue-600'
+                      ? 'bg-emt-verde text-white border-emt-verde'
                       : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
                   }`}
                   onClick={() => setFormato(opt.key)}
@@ -197,7 +197,7 @@ export default function ExportarPDFModal({
                   type="button"
                   className={`flex-1 px-4 py-2.5 rounded-lg text-sm font-medium border transition-colors ${
                     filtro === opt.key
-                      ? 'bg-blue-600 text-white border-blue-600'
+                      ? 'bg-emt-verde text-white border-emt-verde'
                       : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
                   }`}
                   onClick={() => {
@@ -229,7 +229,7 @@ export default function ExportarPDFModal({
                     type="checkbox"
                     checked={obraIds.includes(o.id)}
                     onChange={() => toggleObra(o.id)}
-                    className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                    className="h-4 w-4 rounded border-gray-300 text-emt-verde focus:ring-emt-verde"
                   />
                   <span className="text-sm text-gray-700">{o.nome}</span>
                 </label>
@@ -239,7 +239,7 @@ export default function ExportarPDFModal({
               )}
             </div>
             {obraIds.length > 0 && (
-              <p className="text-xs text-blue-600 mt-1">
+              <p className="text-xs text-emt-verde mt-1">
                 {obraIds.length} obra{obraIds.length > 1 ? 's' : ''} selecionada{obraIds.length > 1 ? 's' : ''}
               </p>
             )}
@@ -262,7 +262,7 @@ export default function ExportarPDFModal({
                     type="checkbox"
                     checked={depositoIds.includes(d.id)}
                     onChange={() => toggleDeposito(d.id)}
-                    className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                    className="h-4 w-4 rounded border-gray-300 text-emt-verde focus:ring-emt-verde"
                   />
                   <span className="text-sm text-gray-700">{d.nome}</span>
                 </label>
@@ -272,7 +272,7 @@ export default function ExportarPDFModal({
               )}
             </div>
             {depositoIds.length > 0 && (
-              <p className="text-xs text-blue-600 mt-1">
+              <p className="text-xs text-emt-verde mt-1">
                 {depositoIds.length} tanque{depositoIds.length > 1 ? 's' : ''} selecionado{depositoIds.length > 1 ? 's' : ''}
               </p>
             )}
@@ -293,7 +293,7 @@ export default function ExportarPDFModal({
                 <input
                   id="pdfDataInicio"
                   type="date"
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emt-verde"
                   value={dataInicio}
                   onChange={(e) => setDataInicio(e.target.value)}
                 />
@@ -305,7 +305,7 @@ export default function ExportarPDFModal({
                 <input
                   id="pdfDataFim"
                   type="date"
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emt-verde"
                   value={dataFim}
                   onChange={(e) => setDataFim(e.target.value)}
                 />

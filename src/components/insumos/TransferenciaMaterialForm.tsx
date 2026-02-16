@@ -201,7 +201,7 @@ export default function TransferenciaMaterialForm({
         </label>
         <textarea
           id="transfMatObs"
-          className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emt-verde"
           rows={3}
           value={observacoes}
           onChange={(e) => setObservacoes(e.target.value)}

@@ -7,7 +7,7 @@ export default function NotFound() {
       <p className="text-gray-500 mt-4 mb-8">Pagina nao encontrada</p>
       <Link
         to="/"
-        className="bg-blue-800 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+        className="bg-emt-verde text-white px-6 py-2 rounded-lg hover:bg-emt-verde-escuro transition-colors"
       >
         Voltar ao Dashboard
       </Link>

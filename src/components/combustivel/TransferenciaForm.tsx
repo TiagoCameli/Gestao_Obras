@@ -184,7 +184,7 @@ export default function TransferenciaForm({
             <div className="mt-1.5 flex items-center gap-2">
               <div className="flex-1 bg-gray-200 rounded-full h-1.5">
                 <div
-                  className="h-1.5 rounded-full bg-blue-500"
+                  className="h-1.5 rounded-full bg-emt-verde"
                   style={{
                     width: `${Math.min(Math.max((estoqueDestinoNaData / depositoDestino.capacidadeLitros) * 100, 0), 100)}%`,
                   }}
@@ -242,7 +242,7 @@ export default function TransferenciaForm({
         </label>
         <textarea
           id="observacoesTransf"
-          className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emt-verde"
           rows={3}
           value={observacoes}
           onChange={(e) => setObservacoes(e.target.value)}

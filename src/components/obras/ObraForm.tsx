@@ -266,7 +266,7 @@ export default function ObraForm({
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Orcamento (R$)
             </label>
-            <div className="border border-gray-200 bg-gray-50 rounded-lg px-3 py-2 text-sm font-semibold text-blue-800">
+            <div className="border border-gray-200 bg-gray-50 rounded-lg px-3 py-2 text-sm font-semibold text-emt-verde-escuro">
               {formatCurrency(orcamentoCalculado)}
             </div>
             <p className="text-xs text-gray-400 mt-1">Calculado automaticamente pela soma das etapas</p>
@@ -292,13 +292,13 @@ export default function ObraForm({
         <div className="grid grid-cols-1 md:grid-cols-5 gap-2 mb-3">
           <input
             type="text"
-            className="md:col-span-2 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="md:col-span-2 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emt-verde"
             placeholder="Nome da etapa (Ex: Fundacao, Estrutura...)"
             value={novaEtapa}
             onChange={(e) => setNovaEtapa(e.target.value)}
           />
           <select
-            className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emt-verde"
             value={novaEtapaUnidade}
             onChange={(e) => setNovaEtapaUnidade(e.target.value)}
           >
@@ -309,7 +309,7 @@ export default function ObraForm({
           </select>
           <input
             type="number"
-            className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emt-verde"
             placeholder="Quantidade"
             step="0.01"
             min="0"
@@ -318,7 +318,7 @@ export default function ObraForm({
           />
           <input
             type="number"
-            className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emt-verde"
             placeholder="Valor Unitario (R$)"
             step="0.01"
             min="0"
@@ -359,7 +359,7 @@ export default function ObraForm({
                     <div className="grid grid-cols-1 md:grid-cols-5 gap-2">
                       <input
                         type="text"
-                        className="md:col-span-2 border border-gray-300 rounded px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="md:col-span-2 border border-gray-300 rounded px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-emt-verde"
                         placeholder="Nome da etapa"
                         value={editandoEtapaNome}
                         onChange={(e) => setEditandoEtapaNome(e.target.value)}
@@ -369,7 +369,7 @@ export default function ObraForm({
                         autoFocus
                       />
                       <select
-                        className="border border-gray-300 rounded px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="border border-gray-300 rounded px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-emt-verde"
                         value={editandoEtapaUnidade}
                         onChange={(e) => setEditandoEtapaUnidade(e.target.value)}
                       >
@@ -380,7 +380,7 @@ export default function ObraForm({
                       </select>
                       <input
                         type="number"
-                        className="border border-gray-300 rounded px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="border border-gray-300 rounded px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-emt-verde"
                         placeholder="Quantidade"
                         step="0.01"
                         min="0"
@@ -389,7 +389,7 @@ export default function ObraForm({
                       />
                       <input
                         type="number"
-                        className="border border-gray-300 rounded px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="border border-gray-300 rounded px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-emt-verde"
                         placeholder="Valor Unitario"
                         step="0.01"
                         min="0"
@@ -450,14 +450,14 @@ export default function ObraForm({
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
           <input
             type="text"
-            className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emt-verde"
             placeholder="Nome do tanque (Ex: Tanque Diesel 01)"
             value={novoDepNome}
             onChange={(e) => setNovoDepNome(e.target.value)}
           />
           <input
             type="number"
-            className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emt-verde"
             placeholder="Capacidade (litros)"
             min="0"
             step="1"
@@ -467,7 +467,7 @@ export default function ObraForm({
           <div className="flex gap-2">
             <input
               type="number"
-              className="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emt-verde"
               placeholder="Nivel atual (litros)"
               min="0"
               step="1"
@@ -508,14 +508,14 @@ export default function ObraForm({
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
                       <input
                         type="text"
-                        className="border border-gray-300 rounded px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="border border-gray-300 rounded px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-emt-verde"
                         value={editandoDepNome}
                         onChange={(e) => setEditandoDepNome(e.target.value)}
                         autoFocus
                       />
                       <input
                         type="number"
-                        className="border border-gray-300 rounded px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="border border-gray-300 rounded px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-emt-verde"
                         placeholder="Capacidade"
                         value={editandoDepCapacidade}
                         onChange={(e) => setEditandoDepCapacidade(e.target.value)}
@@ -523,7 +523,7 @@ export default function ObraForm({
                       <div className="flex gap-2">
                         <input
                           type="number"
-                          className="flex-1 border border-gray-300 rounded px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          className="flex-1 border border-gray-300 rounded px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-emt-verde"
                           placeholder="Nivel atual"
                           value={editandoDepNivel}
                           onChange={(e) => setEditandoDepNivel(e.target.value)}

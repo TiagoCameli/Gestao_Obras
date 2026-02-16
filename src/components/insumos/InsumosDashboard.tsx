@@ -169,12 +169,12 @@ export default function InsumosDashboard({
               return (
                 <div
                   key={insumoId}
-                  className="flex items-center gap-2 px-4 py-3 rounded-lg bg-blue-50 border border-blue-200"
+                  className="flex items-center gap-2 px-4 py-3 rounded-lg bg-emt-verde-claro border border-emt-verde"
                 >
-                  <span className="text-sm font-medium text-blue-800">
+                  <span className="text-sm font-medium text-emt-verde-escuro">
                     {insumo?.nome || insumoId}
                   </span>
-                  <span className="text-lg font-bold text-blue-900">
+                  <span className="text-lg font-bold text-emt-verde-escuro">
                     {qtd.toFixed(qtd % 1 === 0 ? 0 : 2)} {insumo?.unidade || ''}
                   </span>
                 </div>

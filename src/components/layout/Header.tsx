@@ -19,10 +19,10 @@ export default function Header() {
   );
 
   return (
-    <header className="bg-blue-800 text-white shadow-md">
+    <header className="bg-emt-verde text-white shadow-md border-b-2 border-emt-amarelo">
       <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
         <Link to="/" className="text-2xl font-bold tracking-tight">
-          Gestao Obras
+          EMT Construtora
         </Link>
         <div className="flex items-center gap-6">
           <nav className="flex gap-6">
@@ -33,7 +33,7 @@ export default function Header() {
                 className={`transition-colors ${
                   pathname === link.to
                     ? 'text-white font-semibold'
-                    : 'text-blue-200 hover:text-white'
+                    : 'text-white/70 hover:text-white'
                 }`}
               >
                 {link.label}

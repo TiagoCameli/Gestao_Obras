@@ -238,7 +238,7 @@ export default function FuncionarioForm({ initial, onSubmit, onCancel }: Funcion
           <div className="flex gap-2">
             <button
               type="button"
-              className="text-xs text-blue-600 hover:text-blue-800 font-medium"
+              className="text-xs text-emt-verde hover:text-emt-verde-escuro font-medium"
               onClick={() => setAcoesPermitidas([...TODAS_ACOES_PLATAFORMA])}
             >
               Selecionar Todos
@@ -266,7 +266,7 @@ export default function FuncionarioForm({ initial, onSubmit, onCancel }: Funcion
                     checked={todasMarcadas}
                     ref={(el) => { if (el) el.indeterminate = algumaMarcada && !todasMarcadas; }}
                     onChange={() => toggleGrupo(grupo)}
-                    className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                    className="w-4 h-4 text-emt-verde border-gray-300 rounded focus:ring-emt-verde"
                   />
                   <span className="text-sm font-semibold text-gray-700">{grupo}</span>
                 </label>
@@ -277,7 +277,7 @@ export default function FuncionarioForm({ initial, onSubmit, onCancel }: Funcion
                         type="checkbox"
                         checked={acoesPermitidas.includes(acao.chave)}
                         onChange={() => toggleAcao(acao.chave)}
-                        className="w-3.5 h-3.5 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                        className="w-3.5 h-3.5 text-emt-verde border-gray-300 rounded focus:ring-emt-verde"
                       />
                       <span className="text-sm text-gray-600">{acao.label}</span>
                     </label>
@@ -294,7 +294,7 @@ export default function FuncionarioForm({ initial, onSubmit, onCancel }: Funcion
         <label htmlFor="funcObs" className="block text-sm font-medium text-gray-700 mb-1">Observacoes</label>
         <textarea
           id="funcObs"
-          className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emt-verde"
           rows={2}
           value={observacoes}
           onChange={(e) => setObservacoes(e.target.value)}

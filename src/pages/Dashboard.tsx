@@ -11,9 +11,9 @@ import {
 } from 'recharts';
 
 const CORES_BARRAS = [
-  '#1e40af', '#7c3aed', '#059669', '#d97706', '#dc2626',
-  '#0891b2', '#be185d', '#4f46e5', '#ca8a04', '#16a34a',
-  '#9333ea', '#e11d48', '#0d9488', '#ea580c', '#2563eb',
+  '#2D7F4F', '#FDB933', '#1E5A38', '#3E3E3E', '#059669',
+  '#d97706', '#0891b2', '#7c3aed', '#dc2626', '#be185d',
+  '#4f46e5', '#ca8a04', '#9333ea', '#e11d48', '#0d9488',
 ];
 import { formatCurrency } from '../utils/formatters';
 import type { Abastecimento, SaidaMaterial } from '../types';
@@ -188,7 +188,7 @@ export default function Dashboard() {
                 <div className="relative">
                   <button
                     type="button"
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm text-left bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 flex items-center justify-between"
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm text-left bg-white focus:outline-none focus:ring-2 focus:ring-emt-verde flex items-center justify-between"
                     onClick={() => setEtapasDropdownOpen(!etapasDropdownOpen)}
                   >
                     <span className={filtroEtapaIds.length === 0 ? 'text-gray-500' : 'text-gray-800'}>
@@ -211,7 +211,7 @@ export default function Dashboard() {
                             type="checkbox"
                             checked={filtroEtapaIds.includes(e.id)}
                             onChange={() => toggleEtapa(e.id)}
-                            className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                            className="h-4 w-4 rounded border-gray-300 text-emt-verde focus:ring-emt-verde"
                           />
                           <span className="text-sm text-gray-700">{e.nome}</span>
                         </label>
@@ -227,13 +227,13 @@ export default function Dashboard() {
                     {filtroEtapaIds.map((id) => (
                       <span
                         key={id}
-                        className="inline-flex items-center gap-1 bg-blue-100 text-blue-800 text-xs px-2 py-0.5 rounded-full"
+                        className="inline-flex items-center gap-1 bg-emt-verde-claro text-emt-verde-escuro text-xs px-2 py-0.5 rounded-full"
                       >
                         {etapasMap.get(id) || id}
                         <button
                           type="button"
                           onClick={() => toggleEtapa(id)}
-                          className="hover:text-blue-600"
+                          className="hover:text-emt-verde"
                         >
                           x
                         </button>
@@ -250,11 +250,11 @@ export default function Dashboard() {
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
         <div className="bg-white rounded-lg shadow p-6">
           <h2 className="text-sm font-medium text-gray-500">Total de Obras</h2>
-          <p className="text-3xl font-bold text-blue-800 mt-2">{obras.length}</p>
+          <p className="text-3xl font-bold text-emt-verde-escuro mt-2">{obras.length}</p>
         </div>
         <div className="bg-white rounded-lg shadow p-6">
           <h2 className="text-sm font-medium text-gray-500">Em Andamento</h2>
-          <p className="text-3xl font-bold text-yellow-600 mt-2">{emAndamento}</p>
+          <p className="text-3xl font-bold text-emt-amarelo mt-2">{emAndamento}</p>
         </div>
         <div className="bg-white rounded-lg shadow p-6">
           <h2 className="text-sm font-medium text-gray-500">Concluidas</h2>
@@ -264,7 +264,7 @@ export default function Dashboard() {
           <h2 className="text-sm font-medium text-gray-500">
             Gasto Total
           </h2>
-          <p className="text-3xl font-bold text-orange-600 mt-2">
+          <p className="text-3xl font-bold text-emt-cinza mt-2">
             {formatCurrency(gastoTotal)}
           </p>
           <p className="text-xs text-gray-400 mt-1">

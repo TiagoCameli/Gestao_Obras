@@ -13,7 +13,7 @@ export default function Input({ label, error, id, ...props }: InputProps) {
       </label>
       <input
         id={id}
-        className={`w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+        className={`w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emt-verde ${
           error ? 'border-red-500' : 'border-gray-300'
         }`}
         {...props}

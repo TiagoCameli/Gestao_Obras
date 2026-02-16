@@ -37,34 +37,34 @@ export default function TransferenciaList({
       <div className="bg-white rounded-lg shadow overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
-            <thead className="bg-gray-50 border-b">
+            <thead className="bg-emt-verde text-white">
               <tr>
-                <th className="text-left px-4 py-3 font-medium text-gray-600">
+                <th className="text-left px-4 py-3 text-white font-medium uppercase text-xs">
                   Data/Hora
                 </th>
-                <th className="text-left px-4 py-3 font-medium text-gray-600">
+                <th className="text-left px-4 py-3 text-white font-medium uppercase text-xs">
                   Origem
                 </th>
-                <th className="text-left px-4 py-3 font-medium text-gray-600">
+                <th className="text-left px-4 py-3 text-white font-medium uppercase text-xs">
                   Destino
                 </th>
-                <th className="text-right px-4 py-3 font-medium text-gray-600">
+                <th className="text-right px-4 py-3 text-white font-medium uppercase text-xs">
                   Litros
                 </th>
-                <th className="text-right px-4 py-3 font-medium text-gray-600">
+                <th className="text-right px-4 py-3 text-white font-medium uppercase text-xs">
                   Valor
                 </th>
-                <th className="text-center px-4 py-3 font-medium text-gray-600">
+                <th className="text-center px-4 py-3 text-white font-medium uppercase text-xs">
                   Acoes
                 </th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-100">
+            <tbody className="divide-y divide-gray-100 [&>tr:nth-child(even)]:bg-emt-cinza-claro">
               {sorted.map((t) => {
                 const origem = depositosMap.get(t.depositoOrigemId);
                 const destino = depositosMap.get(t.depositoDestinoId);
                 return (
-                  <tr key={t.id} className="hover:bg-gray-50">
+                  <tr key={t.id} className="hover:bg-emt-verde-claro">
                     <td className="px-4 py-3">{formatDateTime(t.dataHora)}</td>
                     <td className="px-4 py-3">
                       {origem?.nome || '-'}
@@ -72,7 +72,7 @@ export default function TransferenciaList({
                     <td className="px-4 py-3">
                       {destino?.nome || '-'}
                     </td>
-                    <td className="px-4 py-3 text-right font-medium text-blue-700">
+                    <td className="px-4 py-3 text-right font-medium text-emt-verde">
                       {t.quantidadeLitros.toFixed(1)} L
                     </td>
                     <td className="px-4 py-3 text-right font-medium">

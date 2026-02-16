@@ -58,7 +58,7 @@ export default function PermissoesMatrix({ funcionario, perfilPermissao, onClose
         <div className="flex items-center gap-2">
           <span className="text-sm text-gray-600">Aplicar perfil:</span>
           <select
-            className="border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-emt-verde"
             value=""
             onChange={(e) => {
               if (e.target.value) aplicarPerfil(e.target.value as CargoFuncionario);
@@ -106,7 +106,7 @@ export default function PermissoesMatrix({ funcionario, perfilPermissao, onClose
                         type="checkbox"
                         checked={checked}
                         onChange={() => toggle(m.valor, a.valor)}
-                        className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                        className="w-4 h-4 text-emt-verde border-gray-300 rounded focus:ring-emt-verde"
                       />
                     </td>
                   );

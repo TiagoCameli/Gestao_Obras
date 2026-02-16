@@ -52,39 +52,39 @@ export default function EntradaList({
       <div className="bg-white rounded-lg shadow overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
-            <thead className="bg-gray-50 border-b">
+            <thead className="bg-emt-verde text-white">
               <tr>
-                <th className="text-left px-4 py-3 font-medium text-gray-600">
+                <th className="text-left px-4 py-3 text-white font-medium uppercase text-xs">
                   Data/Hora
                 </th>
-                <th className="text-left px-4 py-3 font-medium text-gray-600">
+                <th className="text-left px-4 py-3 text-white font-medium uppercase text-xs">
                   Obra
                 </th>
-                <th className="text-left px-4 py-3 font-medium text-gray-600">
+                <th className="text-left px-4 py-3 text-white font-medium uppercase text-xs">
                   Tanque
                 </th>
-                <th className="text-left px-4 py-3 font-medium text-gray-600">
+                <th className="text-left px-4 py-3 text-white font-medium uppercase text-xs">
                   Combustivel
                 </th>
-                <th className="text-left px-4 py-3 font-medium text-gray-600">
+                <th className="text-left px-4 py-3 text-white font-medium uppercase text-xs">
                   Fornecedor
                 </th>
-                <th className="text-right px-4 py-3 font-medium text-gray-600">
+                <th className="text-right px-4 py-3 text-white font-medium uppercase text-xs">
                   Litros
                 </th>
-                <th className="text-right px-4 py-3 font-medium text-gray-600">
+                <th className="text-right px-4 py-3 text-white font-medium uppercase text-xs">
                   Valor
                 </th>
-                <th className="text-center px-4 py-3 font-medium text-gray-600">
+                <th className="text-center px-4 py-3 text-white font-medium uppercase text-xs">
                   Acoes
                 </th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-100">
+            <tbody className="divide-y divide-gray-100 [&>tr:nth-child(even)]:bg-emt-cinza-claro">
               {sorted.map((e) => {
                 const dep = depositosMap.get(e.depositoId);
                 return (
-                  <tr key={e.id} className="hover:bg-gray-50">
+                  <tr key={e.id} className="hover:bg-emt-verde-claro">
                     <td className="px-4 py-3">{formatDateTime(e.dataHora)}</td>
                     <td className="px-4 py-3">
                       {obrasMap.get(e.obraId) || '-'}

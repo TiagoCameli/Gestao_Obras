@@ -198,7 +198,7 @@ export default function EntradaForm({
           {!novoCombustivelAberto ? (
             <button
               type="button"
-              className="mt-1 text-xs text-blue-600 hover:text-blue-800 font-medium"
+              className="mt-1 text-xs text-emt-verde hover:text-emt-verde-escuro font-medium"
               onClick={() => setNovoCombustivelAberto(true)}
             >
               + Novo Tipo de Combustivel
@@ -207,7 +207,7 @@ export default function EntradaForm({
             <div className="mt-2 flex items-center gap-2">
               <input
                 type="text"
-                className="flex-1 border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="flex-1 border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-emt-verde"
                 placeholder="Nome do combustivel"
                 value={novoCombustivelNome}
                 onChange={(e) => setNovoCombustivelNome(e.target.value)}
@@ -286,7 +286,7 @@ export default function EntradaForm({
           {!novoFornecedorAberto ? (
             <button
               type="button"
-              className="mt-1 text-xs text-blue-600 hover:text-blue-800 font-medium"
+              className="mt-1 text-xs text-emt-verde hover:text-emt-verde-escuro font-medium"
               onClick={() => setNovoFornecedorAberto(true)}
             >
               + Novo Fornecedor
@@ -295,7 +295,7 @@ export default function EntradaForm({
             <div className="mt-2 flex items-center gap-2">
               <input
                 type="text"
-                className="flex-1 border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="flex-1 border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-emt-verde"
                 placeholder="Nome do fornecedor"
                 value={novoFornecedorNome}
                 onChange={(e) => setNovoFornecedorNome(e.target.value)}
@@ -355,7 +355,7 @@ export default function EntradaForm({
         </label>
         <textarea
           id="entradaObs"
-          className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emt-verde"
           rows={3}
           value={observacoes}
           onChange={(e) => setObservacoes(e.target.value)}
