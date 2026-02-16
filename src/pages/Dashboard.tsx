@@ -58,6 +58,11 @@ export default function Dashboard() {
   const { data: saidasMaterial = [] } = useSaidasMaterial();
   const { data: insumos = [] } = useInsumos();
 
+  // Filtros (must be before any early return to respect React hooks rules)
+  const [filtroObraId, setFiltroObraId] = useState('');
+  const [filtroEtapaIds, setFiltroEtapaIds] = useState<string[]>([]);
+  const [etapasDropdownOpen, setEtapasDropdownOpen] = useState(false);
+
   if (loadingObras) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -65,11 +70,6 @@ export default function Dashboard() {
       </div>
     );
   }
-
-  // Filtros
-  const [filtroObraId, setFiltroObraId] = useState('');
-  const [filtroEtapaIds, setFiltroEtapaIds] = useState<string[]>([]);
-  const [etapasDropdownOpen, setEtapasDropdownOpen] = useState(false);
 
   function toggleEtapa(id: string) {
     setFiltroEtapaIds((prev) =>
