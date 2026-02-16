@@ -68,23 +68,32 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     let mounted = true;
 
     async function init() {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session?.user) {
-        const sessao = await buildSessao(session.user.id, true);
-        if (mounted) setUsuario(sessao);
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session?.user) {
+          const sessao = await buildSessao(session.user.id, true);
+          if (mounted) setUsuario(sessao);
+        }
+      } catch {
+        // Session expired or corrupt — ignore and show login
+      } finally {
+        if (mounted) setLoading(false);
       }
-      if (mounted) setLoading(false);
     }
 
     init();
 
     // Listen for auth state changes (e.g. token refresh)
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      if (event === 'SIGNED_OUT') {
-        if (mounted) setUsuario(null);
-      } else if (event === 'SIGNED_IN' && session?.user && !usuario) {
-        const sessao = await buildSessao(session.user.id, true);
-        if (mounted) setUsuario(sessao);
+      try {
+        if (event === 'SIGNED_OUT') {
+          if (mounted) setUsuario(null);
+        } else if (event === 'SIGNED_IN' && session?.user && !usuario) {
+          const sessao = await buildSessao(session.user.id, true);
+          if (mounted) setUsuario(sessao);
+        }
+      } catch {
+        // ignore auth state errors
       }
     });
 
