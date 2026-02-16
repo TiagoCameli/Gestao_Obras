@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback, useRef, type ReactNode } from 'react';
 import type { AcaoPermissao, ModuloPermissao, PermissoesFuncionario, SessaoUsuario } from '../types';
 import { supabase } from '../lib/supabase';
 import { dbToFuncionario, dbToPerfilPermissao } from '../lib/mappers';
@@ -20,7 +20,6 @@ interface AuthContextValue {
 const AuthContext = createContext<AuthContextValue | null>(null);
 
 async function buildSessao(authUserId: string, lembrarMe: boolean): Promise<SessaoUsuario | null> {
-  // Fetch funcionario by auth_user_id
   const { data: funcRow, error: funcError } = await supabase
     .from('funcionarios')
     .select('*')
@@ -31,7 +30,6 @@ async function buildSessao(authUserId: string, lembrarMe: boolean): Promise<Sess
 
   const func = dbToFuncionario(funcRow);
 
-  // Fetch permissions
   const { data: permRow } = await supabase
     .from('perfis_permissao')
     .select('*')
@@ -62,6 +60,7 @@ async function buildSessao(authUserId: string, lembrarMe: boolean): Promise<Sess
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [usuario, setUsuario] = useState<SessaoUsuario | null>(null);
   const [loading, setLoading] = useState(true);
+  const loginHandledRef = useRef(false);
 
   // Bootstrap: check if there's an existing Supabase session
   useEffect(() => {
@@ -70,7 +69,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     async function init() {
       try {
         const { data: { session } } = await supabase.auth.getSession();
-        if (session?.user) {
+        if (session?.user && !loginHandledRef.current) {
           const sessao = await buildSessao(session.user.id, true);
           if (mounted) setUsuario(sessao);
         }
@@ -83,17 +82,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     init();
 
-    // Listen for auth state changes (e.g. token refresh)
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      try {
-        if (event === 'SIGNED_OUT') {
-          if (mounted) setUsuario(null);
-        } else if (event === 'SIGNED_IN' && session?.user && !usuario) {
-          const sessao = await buildSessao(session.user.id, true);
-          if (mounted) setUsuario(sessao);
+    // Listen only for sign-out events.
+    // SIGNED_IN is NOT handled here to avoid race conditions with the login() function
+    // (the onAuthStateChange closure captures a stale `usuario` value).
+    // Session restoration on page refresh is handled by init() above.
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
+      if (event === 'SIGNED_OUT') {
+        if (mounted) {
+          loginHandledRef.current = false;
+          setUsuario(null);
         }
-      } catch {
-        // ignore auth state errors
       }
     });
 
@@ -101,7 +99,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       mounted = false;
       subscription.unsubscribe();
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const login = useCallback(async (email: string, senha: string, lembrarMe: boolean) => {
@@ -163,6 +160,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return { ok: false, erro: 'Erro ao carregar dados do funcionario.' };
     }
 
+    loginHandledRef.current = true;
     setUsuario(sessao);
 
     adicionarAuditLogAsync({
