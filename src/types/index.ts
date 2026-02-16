@@ -176,7 +176,7 @@ export interface FiltrosInsumos {
 
 export type CargoFuncionario = 'Administrador' | 'Gerente' | 'Supervisor' | 'Operador' | 'Financeiro';
 
-export type ModuloPermissao = 'dashboard' | 'cadastros' | 'combustivel' | 'insumos' | 'funcionarios';
+export type ModuloPermissao = 'dashboard' | 'cadastros' | 'combustivel' | 'insumos' | 'frete' | 'funcionarios';
 
 export type AcaoPermissao = 'visualizar' | 'criar' | 'editar' | 'excluir' | 'exportar' | 'ajustar_filtros';
 
@@ -233,6 +233,29 @@ export interface LoginAttemptTracker {
   tentativas: number;
   ultimaTentativa: number;
   bloqueadoAte: number;
+}
+
+export interface Frete {
+  id: string;
+  data: string;
+  obraId: string;
+  origem: string;
+  destino: string;
+  transportadora: string;
+  insumoId: string;
+  pesoToneladas: number;
+  kmRodados: number;
+  valorTkm: number;
+  valorTotal: number;
+  notaFiscal: string;
+  observacoes: string;
+}
+
+export interface FiltrosFrete {
+  obraId: string;
+  transportadora: string;
+  dataInicio: string;
+  dataFim: string;
 }
 
 export interface AuditLogEntry {

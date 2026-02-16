@@ -13,6 +13,7 @@ import type {
   EntradaMaterial,
   SaidaMaterial,
   TransferenciaMaterial,
+  Frete,
   Funcionario,
   PerfilPermissao,
   AuditLogEntry,
@@ -416,6 +417,45 @@ export function transferenciaMaterialToDb(t: TransferenciaMaterial) {
     quantidade: t.quantidade,
     valor_total: t.valorTotal,
     observacoes: t.observacoes,
+  };
+}
+
+// ── Fretes ──
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function dbToFrete(row: any): Frete {
+  return {
+    id: row.id,
+    data: row.data,
+    obraId: row.obra_id ?? '',
+    origem: row.origem,
+    destino: row.destino,
+    transportadora: row.transportadora,
+    insumoId: row.insumo_id,
+    pesoToneladas: Number(row.peso_toneladas),
+    kmRodados: Number(row.km_rodados),
+    valorTkm: Number(row.valor_tkm),
+    valorTotal: Number(row.valor_total),
+    notaFiscal: row.nota_fiscal,
+    observacoes: row.observacoes,
+  };
+}
+
+export function freteToDb(f: Frete) {
+  return {
+    id: f.id,
+    data: f.data,
+    obra_id: f.obraId || null,
+    origem: f.origem,
+    destino: f.destino,
+    transportadora: f.transportadora,
+    insumo_id: f.insumoId,
+    peso_toneladas: f.pesoToneladas,
+    km_rodados: f.kmRodados,
+    valor_tkm: f.valorTkm,
+    valor_total: f.valorTotal,
+    nota_fiscal: f.notaFiscal,
+    observacoes: f.observacoes,
   };
 }
 

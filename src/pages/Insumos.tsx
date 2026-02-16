@@ -45,7 +45,8 @@ export default function Insumos() {
   const canCreateSaida = temAcao('criar_saida_material');
   const canCreateTransferencia = temAcao('criar_transferencia_material');
   const canExport = temAcao('exportar_insumos');
-  const [tab, setTab] = useState<Tab>('dashboard');
+  const canViewDashboard = temAcao('ver_dashboard_insumos');
+  const [tab, setTab] = useState<Tab>(canViewDashboard ? 'dashboard' : 'entradas');
 
   const { data: obras = [] } = useObras();
   const { data: etapas = [] } = useEtapas();
@@ -202,7 +203,7 @@ export default function Insumos() {
   }
 
   const tabs: { key: Tab; label: string }[] = [
-    { key: 'dashboard', label: 'Dashboard' },
+    ...(canViewDashboard ? [{ key: 'dashboard' as Tab, label: 'Dashboard' }] : []),
     { key: 'entradas', label: 'Entradas' },
     { key: 'saidas', label: 'Saidas' },
     { key: 'transferencias', label: 'Transferencias' },

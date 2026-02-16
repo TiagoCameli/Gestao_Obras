@@ -37,7 +37,8 @@ export default function Combustivel() {
   const canCreateSaida = temAcao('criar_saida_combustivel');
   const canCreateTransferencia = temAcao('criar_transferencia_combustivel');
   const canExport = temAcao('exportar_combustivel');
-  const [tab, setTab] = useState<Tab>('dashboard');
+  const canViewDashboard = temAcao('ver_dashboard_combustivel');
+  const [tab, setTab] = useState<Tab>(canViewDashboard ? 'dashboard' : 'entradas');
 
   const { data: obras = [] } = useObras();
   const { data: etapas = [] } = useEtapas();
@@ -184,7 +185,7 @@ export default function Combustivel() {
   }
 
   const tabs: { key: Tab; label: string }[] = [
-    { key: 'dashboard', label: 'Dashboard' },
+    ...(canViewDashboard ? [{ key: 'dashboard' as Tab, label: 'Dashboard' }] : []),
     { key: 'entradas', label: 'Entradas' },
     { key: 'saidas', label: 'Saidas' },
     { key: 'transferencias', label: 'Transferencias' },

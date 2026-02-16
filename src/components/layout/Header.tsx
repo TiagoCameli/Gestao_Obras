@@ -7,6 +7,7 @@ const links: { to: string; label: string; acao?: string }[] = [
   { to: '/obras', label: 'Cadastros', acao: 'ver_cadastros' },
   { to: '/combustivel', label: 'Combustivel', acao: 'ver_combustivel' },
   { to: '/insumos', label: 'Insumos', acao: 'ver_insumos' },
+  { to: '/frete', label: 'Frete', acao: 'ver_frete' },
   { to: '/funcionarios', label: 'Funcionarios', acao: 'ver_funcionarios' },
 ];
 

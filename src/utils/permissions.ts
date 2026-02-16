@@ -5,6 +5,7 @@ export const MODULOS: { valor: ModuloPermissao; label: string }[] = [
   { valor: 'cadastros', label: 'Cadastros' },
   { valor: 'combustivel', label: 'Combustiveis' },
   { valor: 'insumos', label: 'Insumos' },
+  { valor: 'frete', label: 'Frete' },
   { valor: 'funcionarios', label: 'Funcionarios' },
 ];
 
@@ -38,6 +39,7 @@ export const PERFIL_ADMINISTRADOR: PermissoesFuncionario = {
   cadastros: TODAS,
   combustivel: TODAS,
   insumos: TODAS,
+  frete: TODAS,
   funcionarios: TODAS,
 };
 
@@ -46,6 +48,7 @@ export const PERFIL_GERENTE: PermissoesFuncionario = {
   cadastros: VCE,
   combustivel: VCEEX,
   insumos: VCEEX,
+  frete: VCEEX,
   funcionarios: VCE,
 };
 
@@ -54,6 +57,7 @@ export const PERFIL_SUPERVISOR: PermissoesFuncionario = {
   cadastros: VCE,
   combustivel: VCE,
   insumos: VCE,
+  frete: VCE,
   funcionarios: V,
 };
 
@@ -62,6 +66,7 @@ export const PERFIL_OPERADOR: PermissoesFuncionario = {
   cadastros: V,
   combustivel: VCE,
   insumos: VCE,
+  frete: VCE,
   funcionarios: NENHUMA,
 };
 
@@ -70,6 +75,7 @@ export const PERFIL_FINANCEIRO: PermissoesFuncionario = {
   cadastros: V,
   combustivel: VE,
   insumos: VE,
+  frete: VE,
   funcionarios: V,
 };
 
@@ -104,6 +110,7 @@ export const ACOES_PLATAFORMA: AcaoPlataforma[] = [
   { chave: 'excluir_cadastros', label: 'Excluir cadastros', grupo: 'Cadastros' },
   // Combustivel
   { chave: 'ver_combustivel', label: 'Visualizar pagina de combustivel', grupo: 'Combustivel' },
+  { chave: 'ver_dashboard_combustivel', label: 'Visualizar dashboard de combustivel', grupo: 'Combustivel' },
   { chave: 'criar_entrada_combustivel', label: 'Adicionar entrada de combustivel', grupo: 'Combustivel' },
   { chave: 'criar_saida_combustivel', label: 'Adicionar saida de combustivel', grupo: 'Combustivel' },
   { chave: 'criar_transferencia_combustivel', label: 'Adicionar transferencia de combustivel', grupo: 'Combustivel' },
@@ -112,12 +119,18 @@ export const ACOES_PLATAFORMA: AcaoPlataforma[] = [
   { chave: 'exportar_combustivel', label: 'Exportar relatorio de combustivel', grupo: 'Combustivel' },
   // Insumos
   { chave: 'ver_insumos', label: 'Visualizar pagina de insumos', grupo: 'Insumos' },
+  { chave: 'ver_dashboard_insumos', label: 'Visualizar dashboard de insumos', grupo: 'Insumos' },
   { chave: 'criar_entrada_material', label: 'Adicionar entrada de material', grupo: 'Insumos' },
   { chave: 'criar_saida_material', label: 'Adicionar saida de material', grupo: 'Insumos' },
   { chave: 'criar_transferencia_material', label: 'Adicionar transferencia de material', grupo: 'Insumos' },
   { chave: 'editar_insumos', label: 'Editar registros de insumos', grupo: 'Insumos' },
   { chave: 'excluir_insumos', label: 'Excluir registros de insumos', grupo: 'Insumos' },
   { chave: 'exportar_insumos', label: 'Exportar relatorio de insumos', grupo: 'Insumos' },
+  // Frete
+  { chave: 'ver_frete', label: 'Visualizar fretes', grupo: 'Frete' },
+  { chave: 'criar_frete', label: 'Criar frete', grupo: 'Frete' },
+  { chave: 'editar_frete', label: 'Editar frete', grupo: 'Frete' },
+  { chave: 'excluir_frete', label: 'Excluir frete', grupo: 'Frete' },
   // Funcionarios
   { chave: 'ver_funcionarios', label: 'Visualizar funcionarios', grupo: 'Funcionarios' },
   { chave: 'criar_funcionarios', label: 'Cadastrar funcionarios', grupo: 'Funcionarios' },
@@ -135,6 +148,7 @@ export function permissoesVazias(): PermissoesFuncionario {
     cadastros: [],
     combustivel: [],
     insumos: [],
+    frete: [],
     funcionarios: [],
   };
 }
