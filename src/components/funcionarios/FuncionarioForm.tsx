@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react';
+import { useCallback, useState, type FormEvent } from 'react';
 import type { CargoFuncionario, EnderecoFuncionario, Funcionario } from '../../types';
 import { useFuncionarios } from '../../hooks/useFuncionarios';
 import { formatCPF, formatTelefone, formatCEP } from '../../utils/formatters';
@@ -6,6 +6,7 @@ import { CARGOS, ACOES_PLATAFORMA, TODAS_ACOES_PLATAFORMA, GRUPOS_ACOES } from '
 import Input from '../ui/Input';
 import Select from '../ui/Select';
 import Button from '../ui/Button';
+import ImportExcelModal, { parseStr, parseData, type ParsedRow } from '../ui/ImportExcelModal';
 
 const UFS = [
   'AC','AL','AP','AM','BA','CE','DF','ES','GO','MA','MT','MS','MG','PA',
@@ -31,13 +32,22 @@ function gerarId(): string {
   return Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
 }
 
+const VALID_CARGOS = CARGOS.map((c) => c.valor);
+
+const FUNC_TEMPLATE = [
+  ['Nome', 'Email', 'Cargo', 'Senha', 'CPF', 'Telefone', 'Data Nascimento', 'Data Admissao', 'Observacoes'],
+  ['Carlos Silva', 'carlos@empresa.com', 'Operador', 'Senha123', '123.456.789-00', '(11) 99999-0000', '1990-05-20', '2024-01-15', ''],
+  ['Maria Santos', 'maria@empresa.com', 'Supervisor', 'Senha456', '', '', '', '', 'Turno noturno'],
+];
+
 interface FuncionarioFormProps {
   initial: Funcionario | null;
   onSubmit: (func: Funcionario, senha?: string) => void;
   onCancel: () => void;
+  onImportBatch?: (items: Funcionario[], senhas: Map<string, string>) => void;
 }
 
-export default function FuncionarioForm({ initial, onSubmit, onCancel }: FuncionarioFormProps) {
+export default function FuncionarioForm({ initial, onSubmit, onCancel, onImportBatch }: FuncionarioFormProps) {
   const { data: funcionariosData } = useFuncionarios();
   const allFuncionarios = funcionariosData ?? [];
 
@@ -85,6 +95,9 @@ export default function FuncionarioForm({ initial, onSubmit, onCancel }: Funcion
       setAcoesPermitidas((prev) => [...new Set([...prev, ...chavesDoGrupo])]);
     }
   }
+
+  const [importModalOpen, setImportModalOpen] = useState(false);
+  const [toastMsg, setToastMsg] = useState('');
 
   const [erros, setErros] = useState<string[]>([]);
 
@@ -143,8 +156,74 @@ export default function FuncionarioForm({ initial, onSubmit, onCancel }: Funcion
     onSubmit(func, rawSenha);
   }
 
+  const parseRowFunc = useCallback(
+    (row: unknown[]): ParsedRow => {
+      const errosRow: string[] = [];
+      const nomeR = parseStr(row[0]);
+      const emailR = parseStr(row[1]);
+      const cargoR = parseStr(row[2]);
+      const senhaR = parseStr(row[3]);
+      const cpfR = parseStr(row[4]);
+      const telefoneR = parseStr(row[5]);
+      const dataNascR = parseData(row[6]);
+      const dataAdmR = parseData(row[7]);
+      const obsR = parseStr(row[8]);
+
+      if (!nomeR) errosRow.push('Nome vazio');
+      if (!emailR) errosRow.push('Email vazio');
+      if (!cargoR) {
+        errosRow.push('Cargo vazio');
+      } else if (!VALID_CARGOS.includes(cargoR as CargoFuncionario)) {
+        errosRow.push(`Cargo invalido: ${cargoR}`);
+      }
+      if (!senhaR) {
+        errosRow.push('Senha vazia');
+      } else if (senhaR.length < 6) {
+        errosRow.push('Senha deve ter pelo menos 6 caracteres');
+      }
+
+      return {
+        valido: errosRow.length === 0,
+        erros: errosRow,
+        resumo: `${nomeR || '(sem nome)'} | ${emailR || '(sem email)'} | ${cargoR || '(sem cargo)'}`,
+        dados: { nome: nomeR, email: emailR, cargo: cargoR, senha: senhaR, cpf: cpfR, telefone: telefoneR, dataNascimento: dataNascR, dataAdmissao: dataAdmR, observacoes: obsR },
+      };
+    },
+    []
+  );
+
+  const toEntityFunc = useCallback((row: ParsedRow): Record<string, unknown> => {
+    const d = row.dados;
+    const now = new Date().toISOString();
+    return {
+      id: gerarId(),
+      nome: (d.nome as string).trim(),
+      email: (d.email as string).trim().toLowerCase(),
+      cpf: d.cpf || '',
+      telefone: d.telefone || '',
+      dataNascimento: d.dataNascimento || '',
+      endereco: { rua: '', numero: '', complemento: '', bairro: '', cidade: '', estado: '', cep: '' },
+      senha: '',
+      status: 'ativo',
+      cargo: d.cargo || 'Operador',
+      dataAdmissao: d.dataAdmissao || '',
+      observacoes: d.observacoes || '',
+      dataCriacao: now,
+      dataAtualizacao: now,
+      acoesPermitidas: [...TODAS_ACOES_PLATAFORMA],
+      _senha: d.senha,
+    };
+  }, []);
+
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
+      {!initial && onImportBatch && (
+        <div className="flex justify-end">
+          <Button type="button" variant="secondary" className="text-xs px-3 py-1.5" onClick={() => setImportModalOpen(true)}>
+            Importar do Excel
+          </Button>
+        </div>
+      )}
       {/* Dados pessoais */}
       <div>
         <h3 className="text-sm font-semibold text-gray-700 mb-3">Dados Pessoais</h3>
@@ -311,6 +390,43 @@ export default function FuncionarioForm({ initial, onSubmit, onCancel }: Funcion
         <Button variant="secondary" type="button" onClick={onCancel}>Cancelar</Button>
         <Button type="submit">{initial ? 'Salvar Alteracoes' : 'Cadastrar Funcionario'}</Button>
       </div>
+
+      {onImportBatch && (
+        <ImportExcelModal
+          open={importModalOpen}
+          onClose={() => setImportModalOpen(false)}
+          onImport={(items) => {
+            const senhas = new Map<string, string>();
+            const funcs = items.map((item) => {
+              const f = item as Record<string, unknown>;
+              if (f._senha) senhas.set(f.id as string, f._senha as string);
+              const { _senha, ...rest } = f;
+              void _senha;
+              return rest as unknown as Funcionario;
+            });
+            onImportBatch(funcs, senhas);
+            setImportModalOpen(false);
+            setToastMsg(`${funcs.length} funcionario${funcs.length !== 1 ? 's' : ''} importado${funcs.length !== 1 ? 's' : ''} com sucesso`);
+            setTimeout(() => setToastMsg(''), 4000);
+          }}
+          title="Importar Funcionarios do Excel"
+          entityLabel="Funcionario"
+          templateData={FUNC_TEMPLATE}
+          templateFileName="template_funcionarios.xlsx"
+          sheetName="Funcionarios"
+          templateColWidths={[20, 25, 14, 12, 16, 16, 14, 14, 15]}
+          formatHintHeaders={['Nome', 'Email', 'Cargo', 'Senha', 'CPF', 'Telefone', 'Dt Nasc', 'Dt Adm', 'Obs']}
+          formatHintExample={['Carlos Silva', 'carlos@emp.com', 'Operador', 'Senha123', '', '', '', '', '']}
+          parseRow={parseRowFunc}
+          toEntity={toEntityFunc}
+        />
+      )}
+
+      {toastMsg && (
+        <div className="fixed bottom-6 right-6 z-[60] bg-green-600 text-white px-5 py-3 rounded-lg shadow-lg text-sm font-medium">
+          {toastMsg}
+        </div>
+      )}
     </form>
   );
 }

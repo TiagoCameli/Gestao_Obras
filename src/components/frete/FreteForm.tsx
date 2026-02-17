@@ -1,9 +1,10 @@
-import { useState, useEffect, type FormEvent } from 'react';
+import { useCallback, useState, useEffect, type FormEvent } from 'react';
 import type { Frete, Obra, Insumo, Localidade } from '../../types';
 import Input from '../ui/Input';
 import Select from '../ui/Select';
 import Button from '../ui/Button';
 import { useAdicionarLocalidade } from '../../hooks/useLocalidades';
+import ImportExcelModal, { parseStr, parseNumero, parseData, type ParsedRow } from '../ui/ImportExcelModal';
 
 interface FreteFormProps {
   initial?: Frete | null;
@@ -12,11 +13,18 @@ interface FreteFormProps {
   obras: Obra[];
   insumos: Insumo[];
   localidades: Localidade[];
+  transportadoras: string[];
+  onImportBatch?: (items: Frete[]) => void;
 }
 
 function gerarId(): string {
   return Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
 }
+
+const FRETE_TEMPLATE = [
+  ['Data Saida', 'Data Chegada', 'Origem', 'Destino', 'Transportadora', 'Motorista', 'Material', 'Peso (t)', 'KM', 'R$/TKM', 'Obra', 'NF', 'Placa Carreta', 'Observacoes'],
+  ['2024-01-15', '2024-01-16', 'Sao Paulo', 'Campinas', 'Transportes ABC', 'Joao Silva', 'Brita', '25', '100', '0.15', 'Obra XYZ', 'NF-001', 'ABC-1234', ''],
+];
 
 export default function FreteForm({
   initial,
@@ -25,8 +33,11 @@ export default function FreteForm({
   obras,
   insumos,
   localidades,
+  transportadoras,
+  onImportBatch,
 }: FreteFormProps) {
   const [data, setData] = useState(initial?.data || '');
+  const [dataChegada, setDataChegada] = useState(initial?.dataChegada || '');
   const [obraId, setObraId] = useState(initial?.obraId || '');
   const [origem, setOrigem] = useState(initial?.origem || '');
   const [destino, setDestino] = useState(initial?.destino || '');
@@ -36,6 +47,8 @@ export default function FreteForm({
   const [kmRodados, setKmRodados] = useState(initial?.kmRodados?.toString() || '');
   const [valorTkm, setValorTkm] = useState(initial?.valorTkm?.toString() || '');
   const [notaFiscal, setNotaFiscal] = useState(initial?.notaFiscal || '');
+  const [placaCarreta, setPlacaCarreta] = useState(initial?.placaCarreta || '');
+  const [motorista, setMotorista] = useState(initial?.motorista || '');
   const [observacoes, setObservacoes] = useState(initial?.observacoes || '');
 
   // Inline nova localidade
@@ -46,6 +59,105 @@ export default function FreteForm({
   const [novaDestinoNome, setNovaDestinoNome] = useState('');
 
   const adicionarLocalidadeMutation = useAdicionarLocalidade();
+
+  // Import Excel
+  const [importModalOpen, setImportModalOpen] = useState(false);
+  const [toastMsg, setToastMsg] = useState('');
+
+  const parseRow = useCallback(
+    (row: unknown[], _index: number): ParsedRow => {
+      const erros: string[] = [];
+      const data = parseData(row[0]);
+      const dataChegada = parseData(row[1]);
+      const origem = parseStr(row[2]);
+      const destino = parseStr(row[3]);
+      const transportadora = parseStr(row[4]);
+      const motorista = parseStr(row[5]);
+      const materialNome = parseStr(row[6]);
+      const peso = parseNumero(row[7]);
+      const km = parseNumero(row[8]);
+      const tkm = parseNumero(row[9]);
+      const obraNome = parseStr(row[10]);
+      const notaFiscal = parseStr(row[11]);
+      const placaCarreta = parseStr(row[12]);
+      const observacoes = parseStr(row[13]);
+
+      if (!data) erros.push('Falta data');
+      if (!origem) erros.push('Falta origem');
+      if (!destino) erros.push('Falta destino');
+      if (!transportadora) erros.push('Falta transportadora');
+      if (!motorista) erros.push('Falta motorista');
+
+      let insumoId = '';
+      if (!materialNome) {
+        erros.push('Falta material');
+      } else {
+        const found = insumos.find((i) => i.nome.toLowerCase() === materialNome.toLowerCase());
+        if (found) {
+          insumoId = found.id;
+        } else {
+          erros.push(`Material "${materialNome}" nao encontrado`);
+        }
+      }
+
+      if (peso === null) erros.push('Falta peso');
+      if (km === null) erros.push('Falta KM');
+      if (tkm === null) erros.push('Falta R$/TKM');
+
+      let obraId = '';
+      if (obraNome) {
+        const found = obras.find((o) => o.nome.toLowerCase() === obraNome.toLowerCase());
+        if (found) obraId = found.id;
+      }
+
+      const resumo = `${data || '?'} | ${origem || '?'} -> ${destino || '?'} | ${transportadora || '?'} | ${motorista || '?'} | ${materialNome || '?'}`;
+
+      return {
+        valido: erros.length === 0,
+        erros,
+        resumo,
+        dados: { data, dataChegada, origem, destino, transportadora, motorista, insumoId, peso: peso ?? 0, km: km ?? 0, tkm: tkm ?? 0, obraId, notaFiscal, placaCarreta, observacoes },
+      };
+    },
+    [insumos, obras]
+  );
+
+  const toEntity = useCallback((row: ParsedRow): Record<string, unknown> => {
+    const d = row.dados;
+    const peso = d.peso as number;
+    const km = d.km as number;
+    const tkm = d.tkm as number;
+    return {
+      id: gerarId(),
+      data: d.data,
+      dataChegada: d.dataChegada || '',
+      obraId: d.obraId,
+      origem: d.origem,
+      destino: d.destino,
+      transportadora: d.transportadora,
+      insumoId: d.insumoId,
+      pesoToneladas: peso,
+      kmRodados: km,
+      valorTkm: tkm,
+      valorTotal: peso * km * tkm,
+      notaFiscal: d.notaFiscal,
+      placaCarreta: d.placaCarreta,
+      motorista: d.motorista,
+      observacoes: d.observacoes,
+      criadoPor: '',
+    };
+  }, []);
+
+  const handleImportBatch = useCallback(
+    (items: Record<string, unknown>[]) => {
+      if (onImportBatch) {
+        onImportBatch(items as unknown as Frete[]);
+        setToastMsg(`${items.length} frete${items.length !== 1 ? 's' : ''} importado${items.length !== 1 ? 's' : ''} com sucesso`);
+        setTimeout(() => setToastMsg(''), 4000);
+      }
+    },
+    [onImportBatch]
+  );
 
   // Sync when localidades prop changes (e.g. after mutation invalidation)
   useEffect(() => {
@@ -63,6 +175,7 @@ export default function FreteForm({
   useEffect(() => {
     if (initial) {
       setData(initial.data);
+      setDataChegada(initial.dataChegada || '');
       setObraId(initial.obraId);
       setOrigem(initial.origem);
       setDestino(initial.destino);
@@ -72,6 +185,8 @@ export default function FreteForm({
       setKmRodados(initial.kmRodados?.toString() || '');
       setValorTkm(initial.valorTkm?.toString() || '');
       setNotaFiscal(initial.notaFiscal);
+      setPlacaCarreta(initial.placaCarreta || '');
+      setMotorista(initial.motorista || '');
       setObservacoes(initial.observacoes);
     }
   }, [initial]);
@@ -81,6 +196,7 @@ export default function FreteForm({
     onSubmit({
       id: initial?.id || gerarId(),
       data,
+      dataChegada,
       obraId,
       origem,
       destino,
@@ -91,22 +207,39 @@ export default function FreteForm({
       valorTkm: tkm,
       valorTotal,
       notaFiscal,
+      placaCarreta,
+      motorista,
       observacoes,
+      criadoPor: initial?.criadoPor || '',
     });
   }
 
-  const isValid = data && origem && destino && transportadora && insumoId && pesoToneladas && kmRodados && valorTkm;
+  const isValid = data && origem && destino && transportadora && motorista && insumoId && pesoToneladas && kmRodados && valorTkm;
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
+      {!initial && onImportBatch && (
+        <div className="flex justify-end">
+          <Button type="button" variant="secondary" className="text-xs px-3 py-1.5" onClick={() => setImportModalOpen(true)}>
+            Importar do Excel
+          </Button>
+        </div>
+      )}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <Input
-          label="Data"
+          label="Data de Saida"
           id="freteData"
           type="date"
           value={data}
           onChange={(e) => setData(e.target.value)}
           required
+        />
+        <Input
+          label="Data de Chegada (opcional)"
+          id="freteDataChegada"
+          type="date"
+          value={dataChegada}
+          onChange={(e) => setDataChegada(e.target.value)}
         />
         <Select
           label="Obra (opcional)"
@@ -159,6 +292,7 @@ export default function FreteForm({
                       nome: novaOrigemNome.trim(),
                       endereco: '',
                       ativo: true,
+                      criadoPor: '',
                     };
                     adicionarLocalidadeMutation.mutate(nova);
                     setListaLocalidades((prev) => [...prev, nova]);
@@ -226,6 +360,7 @@ export default function FreteForm({
                       nome: novaDestinoNome.trim(),
                       endereco: '',
                       ativo: true,
+                      criadoPor: '',
                     };
                     adicionarLocalidadeMutation.mutate(nova);
                     setListaLocalidades((prev) => [...prev, nova]);
@@ -251,13 +386,22 @@ export default function FreteForm({
           )}
         </div>
 
-        <Input
+        <Select
           label="Transportadora"
           id="freteTransportadora"
-          type="text"
           value={transportadora}
           onChange={(e) => setTransportadora(e.target.value)}
-          placeholder="Nome da transportadora"
+          options={transportadoras.map((t) => ({ value: t, label: t }))}
+          placeholder="Selecione a transportadora"
+          required
+        />
+        <Input
+          label="Motorista"
+          id="freteMotorista"
+          type="text"
+          value={motorista}
+          onChange={(e) => setMotorista(e.target.value)}
+          placeholder="Nome do motorista"
           required
         />
         <Select
@@ -273,7 +417,7 @@ export default function FreteForm({
           label="Peso (toneladas)"
           id="fretePeso"
           type="number"
-          step="0.001"
+          step="0.0001"
           min="0"
           value={pesoToneladas}
           onChange={(e) => setPesoToneladas(e.target.value)}
@@ -283,7 +427,7 @@ export default function FreteForm({
           label="KM Rodados"
           id="freteKm"
           type="number"
-          step="0.1"
+          step="0.0001"
           min="0"
           value={kmRodados}
           onChange={(e) => setKmRodados(e.target.value)}
@@ -316,6 +460,14 @@ export default function FreteForm({
           onChange={(e) => setNotaFiscal(e.target.value)}
           placeholder="Ex: NF-e 12345"
         />
+        <Input
+          label="Placa da Carreta (opcional)"
+          id="fretePlacaCarreta"
+          type="text"
+          value={placaCarreta}
+          onChange={(e) => setPlacaCarreta(e.target.value)}
+          placeholder="Ex: ABC-1234"
+        />
       </div>
       <div>
         <label
@@ -341,6 +493,29 @@ export default function FreteForm({
           {initial ? 'Salvar Alteracoes' : 'Registrar Frete'}
         </Button>
       </div>
+
+      <ImportExcelModal
+        open={importModalOpen}
+        onClose={() => setImportModalOpen(false)}
+        onImport={handleImportBatch}
+        title="Importar Fretes do Excel"
+        entityLabel="Frete"
+        genderFem={false}
+        templateData={FRETE_TEMPLATE}
+        templateFileName="template_fretes.xlsx"
+        sheetName="Fretes"
+        templateColWidths={[12, 12, 15, 15, 20, 18, 15, 10, 8, 10, 15, 10, 12, 15]}
+        formatHintHeaders={['Saida', 'Chegada', 'Origem', 'Destino', 'Transp.', 'Motorista', 'Material', 'Peso(t)', 'KM', 'R$/TKM', 'Obra', 'NF', 'Placa', 'Obs']}
+        formatHintExample={['2024-01-15', '2024-01-16', 'S.Paulo', 'Campinas', 'ABC', 'Joao', 'Brita', '25', '100', '0.15', 'Obra X', '', 'ABC-1234', '']}
+        parseRow={parseRow}
+        toEntity={toEntity}
+      />
+
+      {toastMsg && (
+        <div className="fixed bottom-6 right-6 z-[60] bg-green-600 text-white px-5 py-3 rounded-lg shadow-lg text-sm font-medium animate-[fadeIn_0.2s_ease-out]">
+          {toastMsg}
+        </div>
+      )}
     </form>
   );
 }

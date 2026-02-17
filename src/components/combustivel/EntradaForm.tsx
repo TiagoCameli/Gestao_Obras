@@ -1,10 +1,11 @@
-import { useEffect, useState, type FormEvent } from 'react';
+import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import type { Deposito, EntradaCombustivel, Obra } from '../../types';
 import { useInsumos, useAdicionarInsumo } from '../../hooks/useInsumos';
 import { useFornecedores, useAdicionarFornecedor } from '../../hooks/useFornecedores';
 import Input from '../ui/Input';
 import Select from '../ui/Select';
 import Button from '../ui/Button';
+import ImportExcelModal, { parseStr, parseNumero, type ParsedRow } from '../ui/ImportExcelModal';
 
 interface EntradaFormProps {
   initial?: EntradaCombustivel | null;
@@ -12,11 +13,17 @@ interface EntradaFormProps {
   onCancel: () => void;
   obras: Obra[];
   depositos: Deposito[];
+  onImportBatch?: (items: EntradaCombustivel[]) => void;
 }
 
 function gerarId(): string {
   return Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
 }
+
+const ENTRADA_TEMPLATE = [
+  ['Data', 'Obra', 'Deposito', 'Combustivel', 'Litros', 'Valor Total', 'Fornecedor', 'NF', 'Observacoes'],
+  ['2024-01-15 08:00', 'Obra ABC', 'Tanque Diesel 01', 'Diesel S10', '1000', '6500', 'Distribuidora XYZ', 'NF-001', ''],
+];
 
 export default function EntradaForm({
   initial,
@@ -24,6 +31,7 @@ export default function EntradaForm({
   onCancel,
   obras,
   depositos: allDepositos,
+  onImportBatch,
 }: EntradaFormProps) {
   const { data: insumosData } = useInsumos();
   const adicionarInsumoMutation = useAdicionarInsumo();
@@ -42,6 +50,10 @@ export default function EntradaForm({
       setListaFornecedores(allFornecedores.filter((f) => f.ativo !== false));
     }
   }, [allFornecedores]);
+
+  // Import Excel
+  const [importModalOpen, setImportModalOpen] = useState(false);
+  const [toastMsg, setToastMsg] = useState('');
 
   const [novoFornecedorAberto, setNovoFornecedorAberto] = useState(false);
   const [novoFornecedorNome, setNovoFornecedorNome] = useState('');
@@ -96,6 +108,103 @@ export default function EntradaForm({
     : 0;
   const excedeLimite = depositoSelecionado && qtdLitros > espacoDisponivel;
 
+  const parseRow = useCallback(
+    (row: unknown[], _index: number): ParsedRow => {
+      const erros: string[] = [];
+      const data = parseStr(row[0]);
+      const obraNome = parseStr(row[1]);
+      const depositoNome = parseStr(row[2]);
+      const combustivelNome = parseStr(row[3]);
+      const litros = parseNumero(row[4]);
+      const valor = parseNumero(row[5]);
+      const fornecedorNome = parseStr(row[6]);
+      const nf = parseStr(row[7]);
+      const obs = parseStr(row[8]);
+
+      if (!data) erros.push('Falta data');
+
+      let foundObraId = '';
+      if (!obraNome) {
+        erros.push('Falta obra');
+      } else {
+        const found = obras.find((o) => o.nome.toLowerCase() === obraNome.toLowerCase());
+        if (found) foundObraId = found.id;
+        else erros.push(`Obra "${obraNome}" nao encontrada`);
+      }
+
+      let foundDepositoId = '';
+      if (!depositoNome) {
+        erros.push('Falta deposito');
+      } else {
+        const depositosObra = foundObraId
+          ? allDepositos.filter((d) => d.obraId === foundObraId && d.ativo !== false)
+          : allDepositos.filter((d) => d.ativo !== false);
+        const found = depositosObra.find((d) => d.nome.toLowerCase() === depositoNome.toLowerCase());
+        if (found) foundDepositoId = found.id;
+        else erros.push(`Deposito "${depositoNome}" nao encontrado`);
+      }
+
+      let foundCombustivelId = '';
+      if (!combustivelNome) {
+        erros.push('Falta combustivel');
+      } else {
+        const found = listaCombustiveis.find((i) => i.nome.toLowerCase() === combustivelNome.toLowerCase());
+        if (found) foundCombustivelId = found.id;
+        else erros.push(`Combustivel "${combustivelNome}" nao encontrado`);
+      }
+
+      if (litros === null) erros.push('Falta litros');
+      if (valor === null) erros.push('Falta valor total');
+
+      let foundFornecedor = '';
+      if (!fornecedorNome) {
+        erros.push('Falta fornecedor');
+      } else {
+        const found = listaFornecedores.find((f) => f.nome.toLowerCase() === fornecedorNome.toLowerCase());
+        if (found) foundFornecedor = found.id;
+        else erros.push(`Fornecedor "${fornecedorNome}" nao encontrado`);
+      }
+
+      const resumo = `${data || '?'} | ${obraNome || '?'} | ${depositoNome || '?'} | ${combustivelNome || '?'} | ${litros ?? '?'} L`;
+
+      return {
+        valido: erros.length === 0,
+        erros,
+        resumo,
+        dados: { data, obraId: foundObraId, depositoId: foundDepositoId, tipoCombustivel: foundCombustivelId, quantidadeLitros: litros ?? 0, valorTotal: valor ?? 0, fornecedor: foundFornecedor, notaFiscal: nf, observacoes: obs },
+      };
+    },
+    [obras, allDepositos, listaCombustiveis, listaFornecedores]
+  );
+
+  const toEntity = useCallback((row: ParsedRow): Record<string, unknown> => {
+    const d = row.dados;
+    return {
+      id: gerarId(),
+      dataHora: d.data,
+      depositoId: d.depositoId,
+      tipoCombustivel: d.tipoCombustivel,
+      obraId: d.obraId,
+      quantidadeLitros: d.quantidadeLitros,
+      valorTotal: d.valorTotal,
+      fornecedor: d.fornecedor,
+      notaFiscal: d.notaFiscal,
+      observacoes: d.observacoes,
+      criadoPor: '',
+    };
+  }, []);
+
+  const handleImportBatch = useCallback(
+    (items: Record<string, unknown>[]) => {
+      if (onImportBatch) {
+        onImportBatch(items as unknown as EntradaCombustivel[]);
+        setToastMsg(`${items.length} entrada${items.length !== 1 ? 's' : ''} importada${items.length !== 1 ? 's' : ''} com sucesso`);
+        setTimeout(() => setToastMsg(''), 4000);
+      }
+    },
+    [onImportBatch]
+  );
+
   function handleSubmit(e: FormEvent) {
     e.preventDefault();
     onSubmit({
@@ -109,6 +218,7 @@ export default function EntradaForm({
       fornecedor,
       notaFiscal,
       observacoes,
+      criadoPor: initial?.criadoPor || '',
     });
   }
 
@@ -117,6 +227,13 @@ export default function EntradaForm({
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
+      {!initial && onImportBatch && (
+        <div className="flex justify-end">
+          <Button type="button" variant="secondary" className="text-xs px-3 py-1.5" onClick={() => setImportModalOpen(true)}>
+            Importar do Excel
+          </Button>
+        </div>
+      )}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <Input
           label="Data e Hora"
@@ -225,6 +342,7 @@ export default function EntradaForm({
                     unidade: 'litro',
                     descricao: '',
                     ativo: true,
+                    criadoPor: '',
                   };
                   adicionarInsumoMutation.mutate(novo);
                   setListaCombustiveis((prev) => [...prev, novo]);
@@ -252,7 +370,7 @@ export default function EntradaForm({
           label="Quantidade (litros)"
           id="entradaQtd"
           type="number"
-          step="0.1"
+          step="0.0001"
           min="0"
           value={quantidadeLitros}
           onChange={(e) => setQuantidadeLitros(e.target.value)}
@@ -263,7 +381,7 @@ export default function EntradaForm({
           label="Valor Total (R$)"
           id="entradaValor"
           type="number"
-          step="0.01"
+          step="0.0001"
           min="0"
           value={valorTotal}
           onChange={(e) => setValorTotal(e.target.value)}
@@ -314,6 +432,7 @@ export default function EntradaForm({
                     email: '',
                     observacoes: '',
                     ativo: true,
+                    criadoPor: '',
                   };
                   adicionarFornecedorMutation.mutate(novo);
                   setListaFornecedores((prev) => [...prev, novo]);
@@ -370,6 +489,29 @@ export default function EntradaForm({
           {initial ? 'Salvar Alteracoes' : 'Registrar Entrada'}
         </Button>
       </div>
+
+      <ImportExcelModal
+        open={importModalOpen}
+        onClose={() => setImportModalOpen(false)}
+        onImport={handleImportBatch}
+        title="Importar Entradas de Combustivel do Excel"
+        entityLabel="Entrada"
+        genderFem={true}
+        templateData={ENTRADA_TEMPLATE}
+        templateFileName="template_entradas_combustivel.xlsx"
+        sheetName="Entradas"
+        templateColWidths={[18, 15, 20, 15, 10, 12, 20, 10, 15]}
+        formatHintHeaders={['Data', 'Obra', 'Deposito', 'Combustivel', 'Litros', 'Valor', 'Fornecedor', 'NF', 'Obs']}
+        formatHintExample={['2024-01-15 08:00', 'Obra ABC', 'Tanque 01', 'Diesel S10', '1000', '6500', 'Dist. XYZ', '', '']}
+        parseRow={parseRow}
+        toEntity={toEntity}
+      />
+
+      {toastMsg && (
+        <div className="fixed bottom-6 right-6 z-[60] bg-green-600 text-white px-5 py-3 rounded-lg shadow-lg text-sm font-medium animate-[fadeIn_0.2s_ease-out]">
+          {toastMsg}
+        </div>
+      )}
     </form>
   );
 }

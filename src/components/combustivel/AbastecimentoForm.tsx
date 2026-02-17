@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from 'react';
+import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import type { Abastecimento, AlocacaoEtapa, Deposito, EtapaObra, Obra } from '../../types';
 import { useEquipamentos } from '../../hooks/useEquipamentos';
 import { useInsumos } from '../../hooks/useInsumos';
@@ -7,6 +7,7 @@ import { calcularEstoqueCombustivelNaData } from '../../hooks/useEstoque';
 import Input from '../ui/Input';
 import Select from '../ui/Select';
 import Button from '../ui/Button';
+import ImportExcelModal, { parseStr, parseNumero, type ParsedRow } from '../ui/ImportExcelModal';
 
 interface AbastecimentoFormProps {
   initial?: Abastecimento | null;
@@ -15,11 +16,17 @@ interface AbastecimentoFormProps {
   obras: Obra[];
   etapas: EtapaObra[];
   depositos: Deposito[];
+  onImportBatch?: (items: Abastecimento[]) => void;
 }
 
 function gerarId(): string {
   return Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
 }
+
+const ABAST_TEMPLATE = [
+  ['Data', 'Combustivel', 'Obra', 'Deposito', 'Litros', 'Valor', 'Veiculo', 'Observacoes'],
+  ['2024-01-15 08:00', 'Diesel S10', 'Obra ABC', 'Tanque Diesel 01', '200', '1300', 'Escavadeira CAT', ''],
+];
 
 function getInitialAlocacoes(initial?: Abastecimento | null): AlocacaoEtapa[] {
   if (initial?.alocacoes && initial.alocacoes.length > 0) {
@@ -38,6 +45,7 @@ export default function AbastecimentoForm({
   obras,
   etapas: allEtapas,
   depositos: allDepositos,
+  onImportBatch,
 }: AbastecimentoFormProps) {
   const { data: equipamentosData } = useEquipamentos();
   const equipamentosAtivos = (equipamentosData ?? []).filter((e) => e.ativo !== false);
@@ -45,6 +53,10 @@ export default function AbastecimentoForm({
   const insumosCombustivel = (insumosData ?? []).filter((i) => i.tipo === 'combustivel' && i.ativo !== false);
   const { data: entradasData } = useEntradasCombustivel();
   const allEntradas = entradasData ?? [];
+
+  // Import Excel
+  const [importModalOpen, setImportModalOpen] = useState(false);
+  const [toastMsg, setToastMsg] = useState('');
 
   const [dataHora, setDataHora] = useState(initial?.dataHora || '');
   const [tipoCombustivel, setTipoCombustivel] = useState(
@@ -117,7 +129,7 @@ export default function AbastecimentoForm({
   // Auto-calcular valor total quando quantidade ou tanque mudam
   useEffect(() => {
     if (!initial && precoMedio > 0 && qtdLitros > 0) {
-      setValorTotal((qtdLitros * precoMedio).toFixed(2));
+      setValorTotal((qtdLitros * precoMedio).toFixed(4));
     }
   }, [quantidadeLitros, depositoId, precoMedio, initial, qtdLitros]);
 
@@ -155,6 +167,95 @@ export default function AbastecimentoForm({
     );
   }
 
+  const parseRow = useCallback(
+    (row: unknown[], _index: number): ParsedRow => {
+      const erros: string[] = [];
+      const data = parseStr(row[0]);
+      const combustivelNome = parseStr(row[1]);
+      const obraNome = parseStr(row[2]);
+      const depositoNome = parseStr(row[3]);
+      const litros = parseNumero(row[4]);
+      const valor = parseNumero(row[5]);
+      const veiculoNome = parseStr(row[6]);
+      const obs = parseStr(row[7]);
+
+      if (!data) erros.push('Falta data');
+
+      let combustivelId = '';
+      if (!combustivelNome) {
+        erros.push('Falta combustivel');
+      } else {
+        const found = insumosCombustivel.find((i) => i.nome.toLowerCase() === combustivelNome.toLowerCase());
+        if (found) combustivelId = found.id;
+        else erros.push(`Combustivel "${combustivelNome}" nao encontrado`);
+      }
+
+      let foundObraId = '';
+      if (!obraNome) {
+        erros.push('Falta obra');
+      } else {
+        const found = obras.find((o) => o.nome.toLowerCase() === obraNome.toLowerCase());
+        if (found) foundObraId = found.id;
+        else erros.push(`Obra "${obraNome}" nao encontrada`);
+      }
+
+      let foundDepositoId = '';
+      if (!depositoNome) {
+        erros.push('Falta deposito');
+      } else {
+        const depositosObra = foundObraId
+          ? allDepositos.filter((d) => d.obraId === foundObraId && d.ativo !== false)
+          : allDepositos.filter((d) => d.ativo !== false);
+        const found = depositosObra.find((d) => d.nome.toLowerCase() === depositoNome.toLowerCase());
+        if (found) foundDepositoId = found.id;
+        else erros.push(`Deposito "${depositoNome}" nao encontrado`);
+      }
+
+      if (litros === null) erros.push('Falta litros');
+      if (valor === null) erros.push('Falta valor');
+      if (!veiculoNome) erros.push('Falta veiculo');
+
+      const resumo = `${data || '?'} | ${combustivelNome || '?'} | ${obraNome || '?'} | ${veiculoNome || '?'} | ${litros ?? '?'} L`;
+
+      return {
+        valido: erros.length === 0,
+        erros,
+        resumo,
+        dados: { data, tipoCombustivel: combustivelId, obraId: foundObraId, depositoId: foundDepositoId, quantidadeLitros: litros ?? 0, valorTotal: valor ?? 0, veiculo: veiculoNome, observacoes: obs },
+      };
+    },
+    [insumosCombustivel, obras, allDepositos]
+  );
+
+  const toEntity = useCallback((row: ParsedRow): Record<string, unknown> => {
+    const d = row.dados;
+    return {
+      id: gerarId(),
+      dataHora: d.data,
+      tipoCombustivel: d.tipoCombustivel,
+      quantidadeLitros: d.quantidadeLitros,
+      valorTotal: d.valorTotal,
+      obraId: d.obraId,
+      etapaId: '',
+      alocacoes: [],
+      depositoId: d.depositoId,
+      veiculo: d.veiculo,
+      observacoes: d.observacoes,
+      criadoPor: '',
+    };
+  }, []);
+
+  const handleImportBatch = useCallback(
+    (items: Record<string, unknown>[]) => {
+      if (onImportBatch) {
+        onImportBatch(items as unknown as Abastecimento[]);
+        setToastMsg(`${items.length} abastecimento${items.length !== 1 ? 's' : ''} importado${items.length !== 1 ? 's' : ''} com sucesso`);
+        setTimeout(() => setToastMsg(''), 4000);
+      }
+    },
+    [onImportBatch]
+  );
+
   function handleSubmit(e: FormEvent) {
     e.preventDefault();
     onSubmit({
@@ -169,6 +270,7 @@ export default function AbastecimentoForm({
       depositoId,
       veiculo,
       observacoes,
+      criadoPor: initial?.criadoPor || '',
     });
   }
 
@@ -184,6 +286,13 @@ export default function AbastecimentoForm({
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
+      {!initial && onImportBatch && (
+        <div className="flex justify-end">
+          <Button type="button" variant="secondary" className="text-xs px-3 py-1.5" onClick={() => setImportModalOpen(true)}>
+            Importar do Excel
+          </Button>
+        </div>
+      )}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <Input
           label="Data e Hora"
@@ -257,7 +366,7 @@ export default function AbastecimentoForm({
           label="Quantidade (litros)"
           id="quantidadeLitros"
           type="number"
-          step="0.1"
+          step="0.0001"
           min="0"
           value={quantidadeLitros}
           onChange={(e) => setQuantidadeLitros(e.target.value)}
@@ -269,7 +378,7 @@ export default function AbastecimentoForm({
             label="Valor Total (R$)"
             id="valorTotal"
             type="number"
-            step="0.01"
+            step="0.0001"
             min="0"
             value={valorTotal}
             onChange={(e) => setValorTotal(e.target.value)}
@@ -349,7 +458,7 @@ export default function AbastecimentoForm({
                   placeholder="%"
                   min="0"
                   max="100"
-                  step="0.01"
+                  step="0.0001"
                   value={aloc.percentual || ''}
                   onChange={(e) =>
                     updateAlocacao(index, 'percentual', e.target.value)
@@ -407,6 +516,29 @@ export default function AbastecimentoForm({
           {initial ? 'Salvar Alteracoes' : 'Registrar Saida'}
         </Button>
       </div>
+
+      <ImportExcelModal
+        open={importModalOpen}
+        onClose={() => setImportModalOpen(false)}
+        onImport={handleImportBatch}
+        title="Importar Abastecimentos do Excel"
+        entityLabel="Abastecimento"
+        genderFem={false}
+        templateData={ABAST_TEMPLATE}
+        templateFileName="template_abastecimentos.xlsx"
+        sheetName="Abastecimentos"
+        templateColWidths={[18, 15, 15, 20, 10, 12, 20, 15]}
+        formatHintHeaders={['Data', 'Combustivel', 'Obra', 'Deposito', 'Litros', 'Valor', 'Veiculo', 'Obs']}
+        formatHintExample={['2024-01-15 08:00', 'Diesel S10', 'Obra ABC', 'Tanque 01', '200', '1300', 'CAT 320', '']}
+        parseRow={parseRow}
+        toEntity={toEntity}
+      />
+
+      {toastMsg && (
+        <div className="fixed bottom-6 right-6 z-[60] bg-green-600 text-white px-5 py-3 rounded-lg shadow-lg text-sm font-medium animate-[fadeIn_0.2s_ease-out]">
+          {toastMsg}
+        </div>
+      )}
     </form>
   );
 }

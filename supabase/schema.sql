@@ -14,7 +14,8 @@ CREATE TABLE IF NOT EXISTS obras (
   data_inicio text NOT NULL DEFAULT '',
   data_previsao_fim text NOT NULL DEFAULT '',
   responsavel text NOT NULL DEFAULT '',
-  orcamento numeric NOT NULL DEFAULT 0
+  orcamento numeric NOT NULL DEFAULT 0,
+  criado_por text NOT NULL DEFAULT ''
 );
 
 ALTER TABLE obras ENABLE ROW LEVEL SECURITY;
@@ -27,7 +28,8 @@ CREATE TABLE IF NOT EXISTS etapas_obra (
   obra_id text NOT NULL REFERENCES obras(id) ON DELETE CASCADE,
   unidade text NOT NULL DEFAULT '',
   quantidade numeric NOT NULL DEFAULT 0,
-  valor_unitario numeric NOT NULL DEFAULT 0
+  valor_unitario numeric NOT NULL DEFAULT 0,
+  criado_por text NOT NULL DEFAULT ''
 );
 
 ALTER TABLE etapas_obra ENABLE ROW LEVEL SECURITY;
@@ -40,7 +42,8 @@ CREATE TABLE IF NOT EXISTS depositos (
   obra_id text NOT NULL REFERENCES obras(id) ON DELETE CASCADE,
   capacidade_litros numeric NOT NULL DEFAULT 0,
   nivel_atual_litros numeric NOT NULL DEFAULT 0,
-  ativo boolean NOT NULL DEFAULT true
+  ativo boolean NOT NULL DEFAULT true,
+  criado_por text NOT NULL DEFAULT ''
 );
 
 ALTER TABLE depositos ENABLE ROW LEVEL SECURITY;
@@ -51,7 +54,8 @@ CREATE TABLE IF NOT EXISTS unidades_medida (
   id text PRIMARY KEY,
   nome text NOT NULL,
   sigla text NOT NULL,
-  ativo boolean NOT NULL DEFAULT true
+  ativo boolean NOT NULL DEFAULT true,
+  criado_por text NOT NULL DEFAULT ''
 );
 
 ALTER TABLE unidades_medida ENABLE ROW LEVEL SECURITY;
@@ -64,7 +68,8 @@ CREATE TABLE IF NOT EXISTS insumos (
   tipo text NOT NULL DEFAULT 'material',
   unidade text NOT NULL DEFAULT '',
   descricao text NOT NULL DEFAULT '',
-  ativo boolean NOT NULL DEFAULT true
+  ativo boolean NOT NULL DEFAULT true,
+  criado_por text NOT NULL DEFAULT ''
 );
 
 ALTER TABLE insumos ENABLE ROW LEVEL SECURITY;
@@ -78,7 +83,8 @@ CREATE TABLE IF NOT EXISTS fornecedores (
   telefone text NOT NULL DEFAULT '',
   email text NOT NULL DEFAULT '',
   observacoes text NOT NULL DEFAULT '',
-  ativo boolean NOT NULL DEFAULT true
+  ativo boolean NOT NULL DEFAULT true,
+  criado_por text NOT NULL DEFAULT ''
 );
 
 ALTER TABLE fornecedores ENABLE ROW LEVEL SECURITY;
@@ -96,7 +102,8 @@ CREATE TABLE IF NOT EXISTS equipamentos (
   medicao_inicial numeric NOT NULL DEFAULT 0,
   ativo boolean NOT NULL DEFAULT true,
   data_aquisicao text NOT NULL DEFAULT '',
-  data_venda text NOT NULL DEFAULT ''
+  data_venda text NOT NULL DEFAULT '',
+  criado_por text NOT NULL DEFAULT ''
 );
 
 ALTER TABLE equipamentos ENABLE ROW LEVEL SECURITY;
@@ -109,7 +116,8 @@ CREATE TABLE IF NOT EXISTS depositos_material (
   obra_id text NOT NULL REFERENCES obras(id) ON DELETE CASCADE,
   endereco text NOT NULL DEFAULT '',
   responsavel text NOT NULL DEFAULT '',
-  ativo boolean NOT NULL DEFAULT true
+  ativo boolean NOT NULL DEFAULT true,
+  criado_por text NOT NULL DEFAULT ''
 );
 
 ALTER TABLE depositos_material ENABLE ROW LEVEL SECURITY;
@@ -127,7 +135,8 @@ CREATE TABLE IF NOT EXISTS abastecimentos (
   alocacoes jsonb NOT NULL DEFAULT '[]',
   deposito_id text NOT NULL REFERENCES depositos(id) ON DELETE CASCADE,
   veiculo text NOT NULL DEFAULT '',
-  observacoes text NOT NULL DEFAULT ''
+  observacoes text NOT NULL DEFAULT '',
+  criado_por text NOT NULL DEFAULT ''
 );
 
 ALTER TABLE abastecimentos ENABLE ROW LEVEL SECURITY;
@@ -144,7 +153,8 @@ CREATE TABLE IF NOT EXISTS entradas_combustivel (
   valor_total numeric NOT NULL DEFAULT 0,
   fornecedor text NOT NULL DEFAULT '',
   nota_fiscal text NOT NULL DEFAULT '',
-  observacoes text NOT NULL DEFAULT ''
+  observacoes text NOT NULL DEFAULT '',
+  criado_por text NOT NULL DEFAULT ''
 );
 
 ALTER TABLE entradas_combustivel ENABLE ROW LEVEL SECURITY;
@@ -158,7 +168,8 @@ CREATE TABLE IF NOT EXISTS transferencias_combustivel (
   deposito_destino_id text NOT NULL REFERENCES depositos(id) ON DELETE CASCADE,
   quantidade_litros numeric NOT NULL DEFAULT 0,
   valor_total numeric NOT NULL DEFAULT 0,
-  observacoes text NOT NULL DEFAULT ''
+  observacoes text NOT NULL DEFAULT '',
+  criado_por text NOT NULL DEFAULT ''
 );
 
 ALTER TABLE transferencias_combustivel ENABLE ROW LEVEL SECURITY;
@@ -175,7 +186,8 @@ CREATE TABLE IF NOT EXISTS entradas_material (
   valor_total numeric NOT NULL DEFAULT 0,
   fornecedor_id text NOT NULL DEFAULT '',
   nota_fiscal text NOT NULL DEFAULT '',
-  observacoes text NOT NULL DEFAULT ''
+  observacoes text NOT NULL DEFAULT '',
+  criado_por text NOT NULL DEFAULT ''
 );
 
 ALTER TABLE entradas_material ENABLE ROW LEVEL SECURITY;
@@ -191,7 +203,8 @@ CREATE TABLE IF NOT EXISTS saidas_material (
   quantidade numeric NOT NULL DEFAULT 0,
   valor_total numeric NOT NULL DEFAULT 0,
   alocacoes jsonb NOT NULL DEFAULT '[]',
-  observacoes text NOT NULL DEFAULT ''
+  observacoes text NOT NULL DEFAULT '',
+  criado_por text NOT NULL DEFAULT ''
 );
 
 ALTER TABLE saidas_material ENABLE ROW LEVEL SECURITY;
@@ -206,7 +219,8 @@ CREATE TABLE IF NOT EXISTS transferencias_material (
   insumo_id text NOT NULL REFERENCES insumos(id) ON DELETE CASCADE,
   quantidade numeric NOT NULL DEFAULT 0,
   valor_total numeric NOT NULL DEFAULT 0,
-  observacoes text NOT NULL DEFAULT ''
+  observacoes text NOT NULL DEFAULT '',
+  criado_por text NOT NULL DEFAULT ''
 );
 
 ALTER TABLE transferencias_material ENABLE ROW LEVEL SECURITY;
@@ -262,7 +276,8 @@ CREATE TABLE IF NOT EXISTS localidades (
   id text PRIMARY KEY,
   nome text NOT NULL,
   endereco text NOT NULL DEFAULT '',
-  ativo boolean NOT NULL DEFAULT true
+  ativo boolean NOT NULL DEFAULT true,
+  criado_por text NOT NULL DEFAULT ''
 );
 
 ALTER TABLE localidades ENABLE ROW LEVEL SECURITY;
@@ -538,6 +553,41 @@ BEGIN
   LEFT JOIN transf_in tin ON tin.deposito_material_id = ak.deposito_material_id AND tin.insumo_id = ak.insumo_id;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- ── 20. Pagamentos Frete ──
+CREATE TABLE IF NOT EXISTS pagamentos_frete (
+  id text PRIMARY KEY,
+  data text NOT NULL,
+  transportadora text NOT NULL,
+  mes_referencia text NOT NULL DEFAULT '',
+  valor numeric NOT NULL DEFAULT 0,
+  metodo text NOT NULL DEFAULT 'pix',
+  quantidade_combustivel numeric NOT NULL DEFAULT 0,
+  responsavel text NOT NULL DEFAULT '',
+  nota_fiscal text NOT NULL DEFAULT '',
+  observacoes text NOT NULL DEFAULT '',
+  criado_por text NOT NULL DEFAULT ''
+);
+
+ALTER TABLE pagamentos_frete ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Authenticated full access" ON pagamentos_frete FOR ALL TO authenticated USING (true) WITH CHECK (true);
+
+-- ── 21. Abastecimentos Carreta ──
+CREATE TABLE IF NOT EXISTS abastecimentos_carreta (
+  id text PRIMARY KEY,
+  data text NOT NULL,
+  transportadora text NOT NULL DEFAULT '',
+  placa_carreta text NOT NULL DEFAULT '',
+  tipo_combustivel text NOT NULL DEFAULT '',
+  quantidade_litros numeric NOT NULL DEFAULT 0,
+  valor_unidade numeric NOT NULL DEFAULT 0,
+  valor_total numeric NOT NULL DEFAULT 0,
+  observacoes text NOT NULL DEFAULT '',
+  criado_por text NOT NULL DEFAULT ''
+);
+
+ALTER TABLE abastecimentos_carreta ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Authenticated full access" ON abastecimentos_carreta FOR ALL TO authenticated USING (true) WITH CHECK (true);
 
 -- ============================================================
 -- Seed: Unidades de Medida

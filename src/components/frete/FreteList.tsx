@@ -6,9 +6,10 @@ interface FreteListProps {
   fretes: Frete[];
   obras: Obra[];
   insumos: Insumo[];
-  filtros: { obraId: string; transportadora: string; dataInicio: string; dataFim: string };
+  filtros: { obraId: string; transportadora: string; motorista: string; dataInicio: string; dataFim: string };
   onEdit: (frete: Frete) => void;
   onDelete: (id: string) => void;
+  onUpdateDataChegada?: (frete: Frete, dataChegada: string) => void;
   canEdit?: boolean;
   canDelete?: boolean;
 }
@@ -20,6 +21,7 @@ export default function FreteList({
   filtros,
   onEdit,
   onDelete,
+  onUpdateDataChegada,
   canEdit = true,
   canDelete = true,
 }: FreteListProps) {
@@ -33,9 +35,10 @@ export default function FreteList({
     return fretes
       .filter((f) => {
         if (filtros.obraId && f.obraId !== filtros.obraId) return false;
-        if (filtros.transportadora) {
-          const q = filtros.transportadora.toLowerCase();
-          if (!f.transportadora.toLowerCase().includes(q)) return false;
+        if (filtros.transportadora && f.transportadora !== filtros.transportadora) return false;
+        if (filtros.motorista) {
+          const q = filtros.motorista.toLowerCase();
+          if (!f.motorista?.toLowerCase().includes(q)) return false;
         }
         if (filtros.dataInicio && f.data < filtros.dataInicio) return false;
         if (filtros.dataFim && f.data > filtros.dataFim) return false;
@@ -64,12 +67,15 @@ export default function FreteList({
     <>
       <div className="bg-white rounded-lg shadow overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="w-full text-sm">
+          <table className="w-full text-sm min-w-[1400px]">
             <thead className="bg-emt-verde text-white">
               <tr>
-                <th className="text-left px-4 py-3 text-white font-medium uppercase text-xs">Data</th>
+                <th className="text-left px-4 py-3 text-white font-medium uppercase text-xs">Data de Saida</th>
+                <th className="text-left px-4 py-3 text-white font-medium uppercase text-xs">Data de Chegada</th>
                 <th className="text-left px-4 py-3 text-white font-medium uppercase text-xs">Origem → Destino</th>
                 <th className="text-left px-4 py-3 text-white font-medium uppercase text-xs">Transportadora</th>
+                <th className="text-left px-4 py-3 text-white font-medium uppercase text-xs">Motorista</th>
+                <th className="text-left px-4 py-3 text-white font-medium uppercase text-xs">Placa</th>
                 <th className="text-left px-4 py-3 text-white font-medium uppercase text-xs">Material</th>
                 <th className="text-right px-4 py-3 text-white font-medium uppercase text-xs">Peso (t)</th>
                 <th className="text-right px-4 py-3 text-white font-medium uppercase text-xs">KM</th>
@@ -85,10 +91,26 @@ export default function FreteList({
                   <td className="px-4 py-3 text-gray-800 whitespace-nowrap">
                     {frete.data ? new Date(frete.data + 'T00:00:00').toLocaleDateString('pt-BR') : '-'}
                   </td>
+                  <td className="px-4 py-1 whitespace-nowrap">
+                    {onUpdateDataChegada ? (
+                      <input
+                        type="date"
+                        className="border border-gray-200 rounded px-2 py-1 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-emt-verde w-[130px]"
+                        value={frete.dataChegada || ''}
+                        onChange={(e) => onUpdateDataChegada(frete, e.target.value)}
+                      />
+                    ) : (
+                      <span className="text-gray-800">
+                        {frete.dataChegada ? new Date(frete.dataChegada + 'T00:00:00').toLocaleDateString('pt-BR') : '-'}
+                      </span>
+                    )}
+                  </td>
                   <td className="px-4 py-3 text-gray-800">
                     {frete.origem} → {frete.destino}
                   </td>
                   <td className="px-4 py-3 text-gray-800">{frete.transportadora}</td>
+                  <td className="px-4 py-3 text-gray-800">{frete.motorista || '-'}</td>
+                  <td className="px-4 py-3 text-gray-600 font-mono">{frete.placaCarreta || '-'}</td>
                   <td className="px-4 py-3 text-gray-600">{insumosMap.get(frete.insumoId) || '-'}</td>
                   <td className="px-4 py-3 text-right text-gray-800">{frete.pesoToneladas.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>
                   <td className="px-4 py-3 text-right text-gray-800">{frete.kmRodados.toLocaleString('pt-BR', { minimumFractionDigits: 1 })}</td>
@@ -120,7 +142,7 @@ export default function FreteList({
             </tbody>
             <tfoot>
               <tr className="bg-gray-50 font-semibold">
-                <td colSpan={7} className="px-4 py-3 text-right text-gray-700">
+                <td colSpan={10} className="px-4 py-3 text-right text-gray-700">
                   Total ({filtrados.length} registro{filtrados.length !== 1 ? 's' : ''}):
                 </td>
                 <td className="px-4 py-3 text-right text-emt-verde whitespace-nowrap">

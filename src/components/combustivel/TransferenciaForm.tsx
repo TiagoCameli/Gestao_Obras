@@ -1,29 +1,41 @@
-import { useEffect, useState, type FormEvent } from 'react';
+import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import type { Deposito, TransferenciaCombustivel } from '../../types';
 import { useEntradasCombustivel } from '../../hooks/useEntradasCombustivel';
 import { calcularEstoqueCombustivelNaData } from '../../hooks/useEstoque';
 import Input from '../ui/Input';
 import Select from '../ui/Select';
 import Button from '../ui/Button';
+import ImportExcelModal, { parseStr, parseNumero, type ParsedRow } from '../ui/ImportExcelModal';
 
 interface TransferenciaFormProps {
   onSubmit: (data: TransferenciaCombustivel) => void;
   onCancel: () => void;
   depositos: Deposito[];
+  onImportBatch?: (items: TransferenciaCombustivel[]) => void;
 }
 
 function gerarId(): string {
   return Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
 }
 
+const TRANSF_TEMPLATE = [
+  ['Data', 'Deposito Origem', 'Deposito Destino', 'Litros', 'Valor', 'Observacoes'],
+  ['2024-01-15 08:00', 'Tanque Diesel 01', 'Tanque Diesel 02', '500', '3250', ''],
+];
+
 export default function TransferenciaForm({
   onSubmit,
   onCancel,
   depositos: allDepositos,
+  onImportBatch,
 }: TransferenciaFormProps) {
   const depositos = allDepositos.filter((d) => d.ativo !== false);
   const { data: entradasData } = useEntradasCombustivel();
   const allEntradas = entradasData ?? [];
+
+  // Import Excel
+  const [importModalOpen, setImportModalOpen] = useState(false);
+  const [toastMsg, setToastMsg] = useState('');
 
   const [dataHora, setDataHora] = useState('');
   const [depositoOrigemId, setDepositoOrigemId] = useState('');
@@ -76,12 +88,85 @@ export default function TransferenciaForm({
   // Auto-calcular valor total
   useEffect(() => {
     if (precoMedio > 0 && qtdLitros > 0) {
-      setValorTotal((qtdLitros * precoMedio).toFixed(2));
+      setValorTotal((qtdLitros * precoMedio).toFixed(4));
     }
   }, [quantidadeLitros, depositoOrigemId, precoMedio, qtdLitros]);
 
   // Filtrar destinos: excluir o tanque de origem
   const depositosDestino = depositos.filter((d) => d.id !== depositoOrigemId);
+
+  const parseRow = useCallback(
+    (row: unknown[], _index: number): ParsedRow => {
+      const erros: string[] = [];
+      const data = parseStr(row[0]);
+      const origemNome = parseStr(row[1]);
+      const destinoNome = parseStr(row[2]);
+      const litros = parseNumero(row[3]);
+      const valor = parseNumero(row[4]);
+      const obs = parseStr(row[5]);
+
+      if (!data) erros.push('Falta data');
+
+      let foundOrigemId = '';
+      if (!origemNome) {
+        erros.push('Falta deposito origem');
+      } else {
+        const found = depositos.find((d) => d.nome.toLowerCase() === origemNome.toLowerCase());
+        if (found) foundOrigemId = found.id;
+        else erros.push(`Deposito origem "${origemNome}" nao encontrado`);
+      }
+
+      let foundDestinoId = '';
+      if (!destinoNome) {
+        erros.push('Falta deposito destino');
+      } else {
+        const found = depositos.find((d) => d.nome.toLowerCase() === destinoNome.toLowerCase());
+        if (found) foundDestinoId = found.id;
+        else erros.push(`Deposito destino "${destinoNome}" nao encontrado`);
+      }
+
+      if (foundOrigemId && foundDestinoId && foundOrigemId === foundDestinoId) {
+        erros.push('Origem e destino devem ser diferentes');
+      }
+
+      if (litros === null) erros.push('Falta litros');
+
+      const resumo = `${data || '?'} | ${origemNome || '?'} -> ${destinoNome || '?'} | ${litros ?? '?'} L`;
+
+      return {
+        valido: erros.length === 0,
+        erros,
+        resumo,
+        dados: { data, depositoOrigemId: foundOrigemId, depositoDestinoId: foundDestinoId, quantidadeLitros: litros ?? 0, valorTotal: valor ?? 0, observacoes: obs },
+      };
+    },
+    [depositos]
+  );
+
+  const toEntity = useCallback((row: ParsedRow): Record<string, unknown> => {
+    const d = row.dados;
+    return {
+      id: gerarId(),
+      dataHora: d.data,
+      depositoOrigemId: d.depositoOrigemId,
+      depositoDestinoId: d.depositoDestinoId,
+      quantidadeLitros: d.quantidadeLitros,
+      valorTotal: d.valorTotal,
+      observacoes: d.observacoes,
+      criadoPor: '',
+    };
+  }, []);
+
+  const handleImportBatch = useCallback(
+    (items: Record<string, unknown>[]) => {
+      if (onImportBatch) {
+        onImportBatch(items as unknown as TransferenciaCombustivel[]);
+        setToastMsg(`${items.length} transferencia${items.length !== 1 ? 's' : ''} importada${items.length !== 1 ? 's' : ''} com sucesso`);
+        setTimeout(() => setToastMsg(''), 4000);
+      }
+    },
+    [onImportBatch]
+  );
 
   function handleSubmit(e: FormEvent) {
     e.preventDefault();
@@ -93,6 +178,7 @@ export default function TransferenciaForm({
       quantidadeLitros: qtdLitros,
       valorTotal: parseFloat(valorTotal) || 0,
       observacoes,
+      criadoPor: '',
     });
   }
 
@@ -109,6 +195,13 @@ export default function TransferenciaForm({
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
+      {onImportBatch && (
+        <div className="flex justify-end">
+          <Button type="button" variant="secondary" className="text-xs px-3 py-1.5" onClick={() => setImportModalOpen(true)}>
+            Importar do Excel
+          </Button>
+        </div>
+      )}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <Input
           label="Data e Hora"
@@ -201,7 +294,7 @@ export default function TransferenciaForm({
           label="Quantidade (litros)"
           id="quantidadeLitrosTransf"
           type="number"
-          step="0.1"
+          step="0.0001"
           min="0"
           value={quantidadeLitros}
           onChange={(e) => setQuantidadeLitros(e.target.value)}
@@ -220,7 +313,7 @@ export default function TransferenciaForm({
             label="Valor Total (R$)"
             id="valorTotalTransf"
             type="number"
-            step="0.01"
+            step="0.0001"
             min="0"
             value={valorTotal}
             onChange={(e) => setValorTotal(e.target.value)}
@@ -258,6 +351,29 @@ export default function TransferenciaForm({
           Registrar Transferencia
         </Button>
       </div>
+
+      <ImportExcelModal
+        open={importModalOpen}
+        onClose={() => setImportModalOpen(false)}
+        onImport={handleImportBatch}
+        title="Importar Transferencias de Combustivel do Excel"
+        entityLabel="Transferencia"
+        genderFem={true}
+        templateData={TRANSF_TEMPLATE}
+        templateFileName="template_transferencias_combustivel.xlsx"
+        sheetName="Transferencias"
+        templateColWidths={[18, 20, 20, 10, 12, 15]}
+        formatHintHeaders={['Data', 'Dep. Origem', 'Dep. Destino', 'Litros', 'Valor', 'Obs']}
+        formatHintExample={['2024-01-15 08:00', 'Tanque 01', 'Tanque 02', '500', '3250', '']}
+        parseRow={parseRow}
+        toEntity={toEntity}
+      />
+
+      {toastMsg && (
+        <div className="fixed bottom-6 right-6 z-[60] bg-green-600 text-white px-5 py-3 rounded-lg shadow-lg text-sm font-medium animate-[fadeIn_0.2s_ease-out]">
+          {toastMsg}
+        </div>
+      )}
     </form>
   );
 }

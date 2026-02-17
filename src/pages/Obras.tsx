@@ -18,6 +18,7 @@ import ConfirmDialog from '../components/ui/ConfirmDialog';
 import PasswordDialog from '../components/ui/PasswordDialog';
 import ObraForm from '../components/obras/ObraForm';
 import ImportEquipamentosModal from '../components/obras/ImportEquipamentosModal';
+import ImportExcelModal, { parseStr, parseNumero, type ParsedRow } from '../components/ui/ImportExcelModal';
 import { useAuth } from '../contexts/AuthContext';
 
 const STATUS_LABELS: Record<Obra['status'], string> = {
@@ -43,11 +44,13 @@ function TanqueForm({
   obras,
   onSubmit,
   onCancel,
+  onImportBatch,
 }: {
   initial: Deposito | null;
   obras: Obra[];
   onSubmit: (dep: Deposito) => void;
   onCancel: () => void;
+  onImportBatch?: (items: Deposito[]) => void;
 }) {
   const [nome, setNome] = useState(initial?.nome || '');
   const [obraId, setObraId] = useState(initial?.obraId || '');
@@ -55,6 +58,9 @@ function TanqueForm({
     initial?.capacidadeLitros?.toString() || ''
   );
   const [ativo, setAtivo] = useState(initial?.ativo !== false);
+
+  const [importModalOpen, setImportModalOpen] = useState(false);
+  const [toastMsg, setToastMsg] = useState('');
 
   const cap = parseFloat(capacidade) || 0;
 
@@ -67,13 +73,56 @@ function TanqueForm({
       capacidadeLitros: cap,
       nivelAtualLitros: initial?.nivelAtualLitros || 0,
       ativo,
+      criadoPor: initial?.criadoPor || '',
     });
   }
 
   const isValid = nome && obraId && capacidade;
 
+  const parseTanqueRow = useCallback((row: unknown[], _index: number): ParsedRow => {
+    const erros: string[] = [];
+    const nomeVal = parseStr(row[0]);
+    const obraName = parseStr(row[1]);
+    const capVal = parseNumero(row[2]);
+
+    if (!nomeVal) erros.push('Nome obrigatorio');
+    let obraMatch: Obra | undefined;
+    if (!obraName) {
+      erros.push('Obra obrigatoria');
+    } else {
+      obraMatch = obras.find(o => o.nome.toLowerCase() === obraName.toLowerCase());
+      if (!obraMatch) erros.push(`Obra "${obraName}" nao encontrada`);
+    }
+    if (capVal === null) erros.push('Capacidade obrigatoria (numerico)');
+
+    const obraNome = obraMatch?.nome || obraName;
+    return {
+      valido: erros.length === 0,
+      erros,
+      resumo: `${nomeVal} | ${obraNome} | ${capVal ?? ''}L`,
+      dados: { nome: nomeVal, obraId: obraMatch?.id || '', capacidadeLitros: capVal ?? 0 },
+    };
+  }, [obras]);
+
+  const tanqueToEntity = useCallback((row: ParsedRow): Record<string, unknown> => ({
+    id: gerarId(),
+    nome: row.dados.nome,
+    obraId: row.dados.obraId,
+    capacidadeLitros: row.dados.capacidadeLitros,
+    nivelAtualLitros: 0,
+    ativo: true,
+    criadoPor: '',
+  }), []);
+
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
+      {!initial && onImportBatch && (
+        <div className="flex justify-end">
+          <Button type="button" variant="secondary" className="text-xs px-3 py-1.5" onClick={() => setImportModalOpen(true)}>
+            Importar do Excel
+          </Button>
+        </div>
+      )}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <Input
           label="Nome do Tanque"
@@ -96,7 +145,7 @@ function TanqueForm({
           label="Capacidade (litros)"
           id="tanqueCapacidade"
           type="number"
-          step="1"
+          step="0.0001"
           min="0"
           value={capacidade}
           onChange={(e) => setCapacidade(e.target.value)}
@@ -139,6 +188,39 @@ function TanqueForm({
           {initial ? 'Salvar Alteracoes' : 'Cadastrar Tanque'}
         </Button>
       </div>
+
+      {onImportBatch && (
+        <ImportExcelModal
+          open={importModalOpen}
+          onClose={() => setImportModalOpen(false)}
+          onImport={(items) => {
+            onImportBatch(items as unknown as Deposito[]);
+            setImportModalOpen(false);
+            setToastMsg(`${items.length} tanque${items.length !== 1 ? 's' : ''} importado${items.length !== 1 ? 's' : ''} com sucesso`);
+            setTimeout(() => setToastMsg(''), 4000);
+          }}
+          title="Importar Tanques do Excel"
+          entityLabel="Tanque"
+          genderFem={false}
+          templateData={[
+            ['Nome', 'Obra', 'Capacidade (L)'],
+            ['Tanque Diesel 01', 'Obra ABC', '5000'],
+          ]}
+          templateFileName="template_tanques.xlsx"
+          sheetName="Tanques"
+          templateColWidths={[25, 25, 18]}
+          formatHintHeaders={['Nome', 'Obra', 'Capacidade (L)']}
+          formatHintExample={['Tanque Diesel 01', 'Obra ABC', '5000']}
+          parseRow={parseTanqueRow}
+          toEntity={tanqueToEntity}
+        />
+      )}
+
+      {toastMsg && (
+        <div className="fixed bottom-6 right-6 z-[60] bg-green-600 text-white px-5 py-3 rounded-lg shadow-lg text-sm font-medium">
+          {toastMsg}
+        </div>
+      )}
     </form>
   );
 }
@@ -188,6 +270,7 @@ function EquipamentoForm({
       ativo: dataVenda ? false : ativo,
       dataAquisicao,
       dataVenda,
+      criadoPor: initial?.criadoPor || '',
     });
   }
 
@@ -259,7 +342,7 @@ function EquipamentoForm({
           label={tipoMedicao === 'horimetro' ? 'Horimetro Inicial' : 'Odometro Inicial (KM)'}
           id="eqMedicao"
           type="number"
-          step="0.1"
+          step="0.0001"
           min="0"
           value={medicaoInicial}
           onChange={(e) => setMedicaoInicial(e.target.value)}
@@ -347,14 +430,19 @@ function UnidadeMedidaForm({
   initial,
   onSubmit,
   onCancel,
+  onImportBatch,
 }: {
   initial: UnidadeMedida | null;
   onSubmit: (unidade: UnidadeMedida) => void;
   onCancel: () => void;
+  onImportBatch?: (items: UnidadeMedida[]) => void;
 }) {
   const [nome, setNome] = useState(initial?.nome || '');
   const [sigla, setSigla] = useState(initial?.sigla || '');
   const [ativo, setAtivo] = useState(initial?.ativo !== false);
+
+  const [importModalOpen, setImportModalOpen] = useState(false);
+  const [toastMsg, setToastMsg] = useState('');
 
   function handleSubmit(e: FormEvent) {
     e.preventDefault();
@@ -363,13 +451,45 @@ function UnidadeMedidaForm({
       nome,
       sigla,
       ativo,
+      criadoPor: initial?.criadoPor || '',
     });
   }
 
   const isValid = nome.trim().length > 0 && sigla.trim().length > 0;
 
+  const parseUnidadeRow = useCallback((row: unknown[], _index: number): ParsedRow => {
+    const erros: string[] = [];
+    const nomeVal = parseStr(row[0]);
+    const siglaVal = parseStr(row[1]);
+
+    if (!nomeVal) erros.push('Nome obrigatorio');
+    if (!siglaVal) erros.push('Sigla obrigatoria');
+
+    return {
+      valido: erros.length === 0,
+      erros,
+      resumo: `${nomeVal} | ${siglaVal}`,
+      dados: { nome: nomeVal, sigla: siglaVal },
+    };
+  }, []);
+
+  const unidadeToEntity = useCallback((row: ParsedRow): Record<string, unknown> => ({
+    id: gerarId(),
+    nome: row.dados.nome,
+    sigla: row.dados.sigla,
+    ativo: true,
+    criadoPor: '',
+  }), []);
+
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
+      {!initial && onImportBatch && (
+        <div className="flex justify-end">
+          <Button type="button" variant="secondary" className="text-xs px-3 py-1.5" onClick={() => setImportModalOpen(true)}>
+            Importar do Excel
+          </Button>
+        </div>
+      )}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <Input
           label="Nome"
@@ -427,6 +547,39 @@ function UnidadeMedidaForm({
           {initial ? 'Salvar Alteracoes' : 'Cadastrar Unidade'}
         </Button>
       </div>
+
+      {onImportBatch && (
+        <ImportExcelModal
+          open={importModalOpen}
+          onClose={() => setImportModalOpen(false)}
+          onImport={(items) => {
+            onImportBatch(items as unknown as UnidadeMedida[]);
+            setImportModalOpen(false);
+            setToastMsg(`${items.length} unidade${items.length !== 1 ? 's' : ''} importada${items.length !== 1 ? 's' : ''} com sucesso`);
+            setTimeout(() => setToastMsg(''), 4000);
+          }}
+          title="Importar Unidades de Medida do Excel"
+          entityLabel="Unidade"
+          genderFem={true}
+          templateData={[
+            ['Nome', 'Sigla'],
+            ['Metro quadrado', 'm2'],
+          ]}
+          templateFileName="template_unidades.xlsx"
+          sheetName="Unidades"
+          templateColWidths={[25, 15]}
+          formatHintHeaders={['Nome', 'Sigla']}
+          formatHintExample={['Metro quadrado', 'm2']}
+          parseRow={parseUnidadeRow}
+          toEntity={unidadeToEntity}
+        />
+      )}
+
+      {toastMsg && (
+        <div className="fixed bottom-6 right-6 z-[60] bg-green-600 text-white px-5 py-3 rounded-lg shadow-lg text-sm font-medium">
+          {toastMsg}
+        </div>
+      )}
     </form>
   );
 }
@@ -436,17 +589,22 @@ function InsumoForm({
   unidades,
   onSubmit,
   onCancel,
+  onImportBatch,
 }: {
   initial: Insumo | null;
   unidades: UnidadeMedida[];
   onSubmit: (insumo: Insumo) => void;
   onCancel: () => void;
+  onImportBatch?: (items: Insumo[]) => void;
 }) {
   const [nome, setNome] = useState(initial?.nome || '');
   const [tipo, setTipo] = useState<TipoInsumo>(initial?.tipo || 'material');
   const [unidade, setUnidade] = useState(initial?.unidade || '');
   const [descricao, setDescricao] = useState(initial?.descricao || '');
   const [ativo, setAtivo] = useState(initial?.ativo !== false);
+
+  const [importModalOpen, setImportModalOpen] = useState(false);
+  const [toastMsg, setToastMsg] = useState('');
 
   const unidadeOptions = useMemo(
     () => unidades.filter((u) => u.ativo).map((u) => ({ value: u.sigla, label: u.nome })),
@@ -462,13 +620,57 @@ function InsumoForm({
       unidade,
       descricao,
       ativo,
+      criadoPor: initial?.criadoPor || '',
     });
   }
 
   const isValid = nome && unidade;
 
+  const parseInsumoRow = useCallback((row: unknown[], _index: number): ParsedRow => {
+    const erros: string[] = [];
+    const nomeVal = parseStr(row[0]);
+    const tipoVal = parseStr(row[1]).toLowerCase();
+    const unidadeVal = parseStr(row[2]);
+    const descricaoVal = parseStr(row[3]);
+
+    if (!nomeVal) erros.push('Nome obrigatorio');
+    if (tipoVal !== 'combustivel' && tipoVal !== 'material') erros.push('Tipo deve ser "combustivel" ou "material"');
+
+    let siglaMatch: UnidadeMedida | undefined;
+    if (!unidadeVal) {
+      erros.push('Unidade obrigatoria');
+    } else {
+      siglaMatch = unidades.find(u => u.sigla.toLowerCase() === unidadeVal.toLowerCase() || u.nome.toLowerCase() === unidadeVal.toLowerCase());
+      if (!siglaMatch) erros.push(`Unidade "${unidadeVal}" nao encontrada`);
+    }
+
+    return {
+      valido: erros.length === 0,
+      erros,
+      resumo: `${nomeVal} | ${tipoVal} | ${siglaMatch?.sigla || unidadeVal}`,
+      dados: { nome: nomeVal, tipo: tipoVal as TipoInsumo, unidade: siglaMatch?.sigla || '', descricao: descricaoVal },
+    };
+  }, [unidades]);
+
+  const insumoToEntity = useCallback((row: ParsedRow): Record<string, unknown> => ({
+    id: gerarId(),
+    nome: row.dados.nome,
+    tipo: row.dados.tipo,
+    unidade: row.dados.unidade,
+    descricao: row.dados.descricao,
+    ativo: true,
+    criadoPor: '',
+  }), []);
+
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
+      {!initial && onImportBatch && (
+        <div className="flex justify-end">
+          <Button type="button" variant="secondary" className="text-xs px-3 py-1.5" onClick={() => setImportModalOpen(true)}>
+            Importar do Excel
+          </Button>
+        </div>
+      )}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <Input
           label="Nome do Insumo"
@@ -550,6 +752,39 @@ function InsumoForm({
           {initial ? 'Salvar Alteracoes' : 'Cadastrar Insumo'}
         </Button>
       </div>
+
+      {onImportBatch && (
+        <ImportExcelModal
+          open={importModalOpen}
+          onClose={() => setImportModalOpen(false)}
+          onImport={(items) => {
+            onImportBatch(items as unknown as Insumo[]);
+            setImportModalOpen(false);
+            setToastMsg(`${items.length} insumo${items.length !== 1 ? 's' : ''} importado${items.length !== 1 ? 's' : ''} com sucesso`);
+            setTimeout(() => setToastMsg(''), 4000);
+          }}
+          title="Importar Insumos do Excel"
+          entityLabel="Insumo"
+          genderFem={false}
+          templateData={[
+            ['Nome', 'Tipo', 'Unidade', 'Descricao'],
+            ['Diesel S10', 'combustivel', 'litro', ''],
+          ]}
+          templateFileName="template_insumos.xlsx"
+          sheetName="Insumos"
+          templateColWidths={[25, 18, 18, 30]}
+          formatHintHeaders={['Nome', 'Tipo', 'Unidade', 'Descricao']}
+          formatHintExample={['Diesel S10', 'combustivel', 'litro', '']}
+          parseRow={parseInsumoRow}
+          toEntity={insumoToEntity}
+        />
+      )}
+
+      {toastMsg && (
+        <div className="fixed bottom-6 right-6 z-[60] bg-green-600 text-white px-5 py-3 rounded-lg shadow-lg text-sm font-medium">
+          {toastMsg}
+        </div>
+      )}
     </form>
   );
 }
@@ -559,17 +794,22 @@ function DepositoMaterialForm({
   obras,
   onSubmit,
   onCancel,
+  onImportBatch,
 }: {
   initial: DepositoMaterial | null;
   obras: Obra[];
   onSubmit: (dep: DepositoMaterial) => void;
   onCancel: () => void;
+  onImportBatch?: (items: DepositoMaterial[]) => void;
 }) {
   const [nome, setNome] = useState(initial?.nome || '');
   const [obraId, setObraId] = useState(initial?.obraId || '');
   const [endereco, setEndereco] = useState(initial?.endereco || '');
   const [responsavel, setResponsavel] = useState(initial?.responsavel || '');
   const [ativo, setAtivo] = useState(initial?.ativo !== false);
+
+  const [importModalOpen, setImportModalOpen] = useState(false);
+  const [toastMsg, setToastMsg] = useState('');
 
   function handleSubmit(e: FormEvent) {
     e.preventDefault();
@@ -580,13 +820,56 @@ function DepositoMaterialForm({
       endereco,
       responsavel,
       ativo,
+      criadoPor: initial?.criadoPor || '',
     });
   }
 
   const isValid = nome.trim().length > 0 && obraId;
 
+  const parseDepMatRow = useCallback((row: unknown[], _index: number): ParsedRow => {
+    const erros: string[] = [];
+    const nomeVal = parseStr(row[0]);
+    const obraName = parseStr(row[1]);
+    const enderecoVal = parseStr(row[2]);
+    const responsavelVal = parseStr(row[3]);
+
+    if (!nomeVal) erros.push('Nome obrigatorio');
+    let obraMatch: Obra | undefined;
+    if (!obraName) {
+      erros.push('Obra obrigatoria');
+    } else {
+      obraMatch = obras.find(o => o.nome.toLowerCase() === obraName.toLowerCase());
+      if (!obraMatch) erros.push(`Obra "${obraName}" nao encontrada`);
+    }
+
+    const obraNome = obraMatch?.nome || obraName;
+    return {
+      valido: erros.length === 0,
+      erros,
+      resumo: `${nomeVal} | ${obraNome}`,
+      dados: { nome: nomeVal, obraId: obraMatch?.id || '', endereco: enderecoVal, responsavel: responsavelVal },
+    };
+  }, [obras]);
+
+  const depMatToEntity = useCallback((row: ParsedRow): Record<string, unknown> => ({
+    id: gerarId(),
+    nome: row.dados.nome,
+    obraId: row.dados.obraId,
+    endereco: row.dados.endereco,
+    responsavel: row.dados.responsavel,
+    ativo: true,
+    criadoPor: '',
+  }), []);
+
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
+      {!initial && onImportBatch && (
+        <div className="flex justify-end">
+          <Button type="button" variant="secondary" className="text-xs px-3 py-1.5" onClick={() => setImportModalOpen(true)}>
+            Importar do Excel
+          </Button>
+        </div>
+      )}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <Input
           label="Nome do Deposito"
@@ -659,6 +942,39 @@ function DepositoMaterialForm({
           {initial ? 'Salvar Alteracoes' : 'Cadastrar Deposito'}
         </Button>
       </div>
+
+      {onImportBatch && (
+        <ImportExcelModal
+          open={importModalOpen}
+          onClose={() => setImportModalOpen(false)}
+          onImport={(items) => {
+            onImportBatch(items as unknown as DepositoMaterial[]);
+            setImportModalOpen(false);
+            setToastMsg(`${items.length} deposito${items.length !== 1 ? 's' : ''} importado${items.length !== 1 ? 's' : ''} com sucesso`);
+            setTimeout(() => setToastMsg(''), 4000);
+          }}
+          title="Importar Depositos do Excel"
+          entityLabel="Deposito"
+          genderFem={false}
+          templateData={[
+            ['Nome', 'Obra', 'Endereco', 'Responsavel'],
+            ['Almoxarifado Central', 'Obra ABC', 'Rua X, 100', 'Carlos'],
+          ]}
+          templateFileName="template_depositos_material.xlsx"
+          sheetName="Depositos"
+          templateColWidths={[25, 25, 25, 20]}
+          formatHintHeaders={['Nome', 'Obra', 'Endereco', 'Responsavel']}
+          formatHintExample={['Almoxarifado Central', 'Obra ABC', 'Rua X, 100', 'Carlos']}
+          parseRow={parseDepMatRow}
+          toEntity={depMatToEntity}
+        />
+      )}
+
+      {toastMsg && (
+        <div className="fixed bottom-6 right-6 z-[60] bg-green-600 text-white px-5 py-3 rounded-lg shadow-lg text-sm font-medium">
+          {toastMsg}
+        </div>
+      )}
     </form>
   );
 }
@@ -667,10 +983,12 @@ function FornecedorForm({
   initial,
   onSubmit,
   onCancel,
+  onImportBatch,
 }: {
   initial: Fornecedor | null;
   onSubmit: (fornecedor: Fornecedor) => void;
   onCancel: () => void;
+  onImportBatch?: (items: Fornecedor[]) => void;
 }) {
   const [nome, setNome] = useState(initial?.nome || '');
   const [cnpj, setCnpj] = useState(initial?.cnpj || '');
@@ -678,6 +996,9 @@ function FornecedorForm({
   const [email, setEmail] = useState(initial?.email || '');
   const [observacoes, setObservacoes] = useState(initial?.observacoes || '');
   const [ativo, setAtivo] = useState(initial?.ativo !== false);
+
+  const [importModalOpen, setImportModalOpen] = useState(false);
+  const [toastMsg, setToastMsg] = useState('');
 
   function handleSubmit(e: FormEvent) {
     e.preventDefault();
@@ -689,13 +1010,50 @@ function FornecedorForm({
       email,
       observacoes,
       ativo,
+      criadoPor: initial?.criadoPor || '',
     });
   }
 
   const isValid = nome.trim().length > 0;
 
+  const parseFornecedorRow = useCallback((row: unknown[], _index: number): ParsedRow => {
+    const erros: string[] = [];
+    const nomeVal = parseStr(row[0]);
+    const cnpjVal = parseStr(row[1]);
+    const telefoneVal = parseStr(row[2]);
+    const emailVal = parseStr(row[3]);
+    const observacoesVal = parseStr(row[4]);
+
+    if (!nomeVal) erros.push('Nome obrigatorio');
+
+    return {
+      valido: erros.length === 0,
+      erros,
+      resumo: `${nomeVal} | ${cnpjVal}`,
+      dados: { nome: nomeVal, cnpj: cnpjVal, telefone: telefoneVal, email: emailVal, observacoes: observacoesVal },
+    };
+  }, []);
+
+  const fornecedorToEntity = useCallback((row: ParsedRow): Record<string, unknown> => ({
+    id: gerarId(),
+    nome: row.dados.nome,
+    cnpj: row.dados.cnpj,
+    telefone: row.dados.telefone,
+    email: row.dados.email,
+    observacoes: row.dados.observacoes,
+    ativo: true,
+    criadoPor: '',
+  }), []);
+
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
+      {!initial && onImportBatch && (
+        <div className="flex justify-end">
+          <Button type="button" variant="secondary" className="text-xs px-3 py-1.5" onClick={() => setImportModalOpen(true)}>
+            Importar do Excel
+          </Button>
+        </div>
+      )}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <Input
           label="Nome"
@@ -783,12 +1141,45 @@ function FornecedorForm({
           {initial ? 'Salvar Alteracoes' : 'Cadastrar Fornecedor'}
         </Button>
       </div>
+
+      {onImportBatch && (
+        <ImportExcelModal
+          open={importModalOpen}
+          onClose={() => setImportModalOpen(false)}
+          onImport={(items) => {
+            onImportBatch(items as unknown as Fornecedor[]);
+            setImportModalOpen(false);
+            setToastMsg(`${items.length} fornecedor${items.length !== 1 ? 'es' : ''} importado${items.length !== 1 ? 's' : ''} com sucesso`);
+            setTimeout(() => setToastMsg(''), 4000);
+          }}
+          title="Importar Fornecedores do Excel"
+          entityLabel="Fornecedor"
+          genderFem={false}
+          templateData={[
+            ['Nome', 'CNPJ', 'Telefone', 'Email', 'Observacoes'],
+            ['Distribuidora ABC', '12.345.678/0001-90', '(11) 99999-0000', 'contato@abc.com', ''],
+          ]}
+          templateFileName="template_fornecedores.xlsx"
+          sheetName="Fornecedores"
+          templateColWidths={[25, 22, 20, 25, 25]}
+          formatHintHeaders={['Nome', 'CNPJ', 'Telefone', 'Email', 'Observacoes']}
+          formatHintExample={['Distribuidora ABC', '12.345.678/0001-90', '(11) 99999-0000', 'contato@abc.com', '']}
+          parseRow={parseFornecedorRow}
+          toEntity={fornecedorToEntity}
+        />
+      )}
+
+      {toastMsg && (
+        <div className="fixed bottom-6 right-6 z-[60] bg-green-600 text-white px-5 py-3 rounded-lg shadow-lg text-sm font-medium">
+          {toastMsg}
+        </div>
+      )}
     </form>
   );
 }
 
 export default function Obras() {
-  const { temAcao } = useAuth();
+  const { temAcao, usuario } = useAuth();
   const canCreate = temAcao('criar_cadastros');
 
   // ---- Supabase query hooks ----
@@ -844,7 +1235,7 @@ export default function Obras() {
         await salvarEtapasObraMutation.mutateAsync({ obraId: obra.id, etapas });
         await salvarDepositosObraMutation.mutateAsync({ obraId: obra.id, depositos });
       } else {
-        await adicionarObraMutation.mutateAsync(obra);
+        await adicionarObraMutation.mutateAsync({ ...obra, criadoPor: usuario?.nome || '' });
         await salvarEtapasObraMutation.mutateAsync({ obraId: obra.id, etapas });
         await salvarDepositosObraMutation.mutateAsync({ obraId: obra.id, depositos });
       }
@@ -859,6 +1250,10 @@ export default function Obras() {
   const [senhaAction, setSenhaAction] = useState<(() => void) | null>(null);
 
   function pedirSenha(action: () => void) {
+    if (usuario?.cargo === 'Administrador') {
+      action();
+      return;
+    }
     setSenhaAction(() => action);
     setSenhaOpen(true);
   }
@@ -897,12 +1292,12 @@ export default function Obras() {
       if (editandoTanque) {
         await atualizarDepositoMutation.mutateAsync(dep);
       } else {
-        await adicionarDepositoMutation.mutateAsync(dep);
+        await adicionarDepositoMutation.mutateAsync({ ...dep, criadoPor: usuario?.nome || '' });
       }
       setModalTanqueOpen(false);
       setEditandoTanque(null);
     },
-    [editandoTanque, atualizarDepositoMutation, adicionarDepositoMutation]
+    [editandoTanque, atualizarDepositoMutation, adicionarDepositoMutation, usuario]
   );
 
   // Equipamento state
@@ -915,12 +1310,12 @@ export default function Obras() {
       if (editandoEquip) {
         await atualizarEquipamentoMutation.mutateAsync(eq);
       } else {
-        await adicionarEquipamentoMutation.mutateAsync(eq);
+        await adicionarEquipamentoMutation.mutateAsync({ ...eq, criadoPor: usuario?.nome || '' });
       }
       setModalEquipOpen(false);
       setEditandoEquip(null);
     },
-    [editandoEquip, atualizarEquipamentoMutation, adicionarEquipamentoMutation]
+    [editandoEquip, atualizarEquipamentoMutation, adicionarEquipamentoMutation, usuario]
   );
 
   const handleDeleteEquip = useCallback(async (id: string) => {
@@ -938,12 +1333,12 @@ export default function Obras() {
       if (editandoInsumo) {
         await atualizarInsumoMutation.mutateAsync(insumo);
       } else {
-        await adicionarInsumoMutation.mutateAsync(insumo);
+        await adicionarInsumoMutation.mutateAsync({ ...insumo, criadoPor: usuario?.nome || '' });
       }
       setModalInsumoOpen(false);
       setEditandoInsumo(null);
     },
-    [editandoInsumo, atualizarInsumoMutation, adicionarInsumoMutation]
+    [editandoInsumo, atualizarInsumoMutation, adicionarInsumoMutation, usuario]
   );
 
   const handleDeleteInsumo = useCallback(async (id: string) => {
@@ -961,12 +1356,12 @@ export default function Obras() {
       if (editandoFornecedor) {
         await atualizarFornecedorMutation.mutateAsync(fornecedor);
       } else {
-        await adicionarFornecedorMutation.mutateAsync(fornecedor);
+        await adicionarFornecedorMutation.mutateAsync({ ...fornecedor, criadoPor: usuario?.nome || '' });
       }
       setModalFornecedorOpen(false);
       setEditandoFornecedor(null);
     },
-    [editandoFornecedor, atualizarFornecedorMutation, adicionarFornecedorMutation]
+    [editandoFornecedor, atualizarFornecedorMutation, adicionarFornecedorMutation, usuario]
   );
 
   const handleDeleteFornecedor = useCallback(async (id: string) => {
@@ -985,12 +1380,12 @@ export default function Obras() {
       if (editandoDepMat) {
         await atualizarDepositoMaterialMutation.mutateAsync(dep);
       } else {
-        await adicionarDepositoMaterialMutation.mutateAsync(dep);
+        await adicionarDepositoMaterialMutation.mutateAsync({ ...dep, criadoPor: usuario?.nome || '' });
       }
       setModalDepMatOpen(false);
       setEditandoDepMat(null);
     },
-    [editandoDepMat, atualizarDepositoMaterialMutation, adicionarDepositoMaterialMutation]
+    [editandoDepMat, atualizarDepositoMaterialMutation, adicionarDepositoMaterialMutation, usuario]
   );
 
   const handleDeleteDepMat = useCallback(async (id: string) => {
@@ -1008,12 +1403,12 @@ export default function Obras() {
       if (editandoUnidade) {
         await atualizarUnidadeMutation.mutateAsync(unidade);
       } else {
-        await adicionarUnidadeMutation.mutateAsync(unidade);
+        await adicionarUnidadeMutation.mutateAsync({ ...unidade, criadoPor: usuario?.nome || '' });
       }
       setModalUnidadeOpen(false);
       setEditandoUnidade(null);
     },
-    [editandoUnidade, atualizarUnidadeMutation, adicionarUnidadeMutation]
+    [editandoUnidade, atualizarUnidadeMutation, adicionarUnidadeMutation, usuario]
   );
 
   const handleDeleteUnidade = useCallback(async (id: string) => {
@@ -1267,7 +1662,7 @@ export default function Obras() {
                                     className="text-xs px-2 py-1 text-red-600 hover:bg-red-50"
                                     onClick={(e) => {
                                       e.stopPropagation();
-                                      setDeleteDepId(dep.id);
+                                      pedirSenha(() => setDeleteDepId(dep.id));
                                     }}
                                   >
                                     Excluir
@@ -1310,7 +1705,7 @@ export default function Obras() {
                         className="text-xs"
                         onClick={(e) => {
                           e.stopPropagation();
-                          setDeleteId(obra.id);
+                          pedirSenha(() => setDeleteId(obra.id));
                         }}
                       >
                         Excluir
@@ -1434,7 +1829,7 @@ export default function Obras() {
                     <Button
                       variant="ghost"
                       className="text-xs px-2 py-1 text-red-600 hover:bg-red-50"
-                      onClick={() => setDeleteDepId(dep.id)}
+                      onClick={() => pedirSenha(() => setDeleteDepId(dep.id))}
                     >
                       Excluir
                     </Button>
@@ -1527,7 +1922,7 @@ export default function Obras() {
                     <Button
                       variant="ghost"
                       className="text-xs px-2 py-1 text-red-600 hover:bg-red-50"
-                      onClick={() => setDeleteDepMatId(dep.id)}
+                      onClick={() => pedirSenha(() => setDeleteDepMatId(dep.id))}
                     >
                       Excluir
                     </Button>
@@ -1553,6 +1948,13 @@ export default function Obras() {
           obras={obras}
           onSubmit={handleSubmitDepMat}
           onCancel={() => {
+            setModalDepMatOpen(false);
+            setEditandoDepMat(null);
+          }}
+          onImportBatch={async (novos) => {
+            for (const d of novos) {
+              await adicionarDepositoMaterialMutation.mutateAsync(d);
+            }
             setModalDepMatOpen(false);
             setEditandoDepMat(null);
           }}
@@ -1666,7 +2068,7 @@ export default function Obras() {
                   <Button
                     variant="ghost"
                     className="text-xs px-2 py-1 text-red-600 hover:bg-red-50"
-                    onClick={() => setDeleteEquipId(eq.id)}
+                    onClick={() => pedirSenha(() => setDeleteEquipId(eq.id))}
                   >
                     Excluir
                   </Button>
@@ -1760,7 +2162,7 @@ export default function Obras() {
                     <Button
                       variant="ghost"
                       className="text-xs px-2 py-1 text-red-600 hover:bg-red-50"
-                      onClick={() => setDeleteInsumoId(insumo.id)}
+                      onClick={() => pedirSenha(() => setDeleteInsumoId(insumo.id))}
                     >
                       Excluir
                     </Button>
@@ -1856,7 +2258,7 @@ export default function Obras() {
                   <Button
                     variant="ghost"
                     className="text-xs px-2 py-1 text-red-600 hover:bg-red-50"
-                    onClick={() => setDeleteFornecedorId(forn.id)}
+                    onClick={() => pedirSenha(() => setDeleteFornecedorId(forn.id))}
                   >
                     Excluir
                   </Button>
@@ -1934,7 +2336,7 @@ export default function Obras() {
                   <Button
                     variant="ghost"
                     className="text-xs px-2 py-1 text-red-600 hover:bg-red-50"
-                    onClick={() => setDeleteUnidadeId(unidade.id)}
+                    onClick={() => pedirSenha(() => setDeleteUnidadeId(unidade.id))}
                   >
                     Excluir
                   </Button>
@@ -1958,6 +2360,13 @@ export default function Obras() {
           initial={editandoUnidade}
           onSubmit={handleSubmitUnidade}
           onCancel={() => {
+            setModalUnidadeOpen(false);
+            setEditandoUnidade(null);
+          }}
+          onImportBatch={async (novos) => {
+            for (const u of novos) {
+              await adicionarUnidadeMutation.mutateAsync(u);
+            }
             setModalUnidadeOpen(false);
             setEditandoUnidade(null);
           }}
@@ -1990,6 +2399,13 @@ export default function Obras() {
             setModalFornecedorOpen(false);
             setEditandoFornecedor(null);
           }}
+          onImportBatch={async (novos) => {
+            for (const f of novos) {
+              await adicionarFornecedorMutation.mutateAsync(f);
+            }
+            setModalFornecedorOpen(false);
+            setEditandoFornecedor(null);
+          }}
         />
       </Modal>
 
@@ -2007,6 +2423,13 @@ export default function Obras() {
           unidades={todasUnidades}
           onSubmit={handleSubmitInsumo}
           onCancel={() => {
+            setModalInsumoOpen(false);
+            setEditandoInsumo(null);
+          }}
+          onImportBatch={async (novos) => {
+            for (const i of novos) {
+              await adicionarInsumoMutation.mutateAsync(i);
+            }
             setModalInsumoOpen(false);
             setEditandoInsumo(null);
           }}
@@ -2054,6 +2477,13 @@ export default function Obras() {
           obras={obras}
           onSubmit={handleSubmitTanque}
           onCancel={() => {
+            setModalTanqueOpen(false);
+            setEditandoTanque(null);
+          }}
+          onImportBatch={async (novos) => {
+            for (const t of novos) {
+              await adicionarDepositoMutation.mutateAsync(t);
+            }
             setModalTanqueOpen(false);
             setEditandoTanque(null);
           }}

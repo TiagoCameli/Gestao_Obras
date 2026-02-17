@@ -102,6 +102,7 @@ export default function ObraForm({
         unidade: novaEtapaUnidade,
         quantidade: parseFloat(novaEtapaQtd) || 0,
         valorUnitario: parseFloat(novaEtapaValorUnit) || 0,
+        criadoPor: '',
       },
     ]);
     setNovaEtapa('');
@@ -156,6 +157,7 @@ export default function ObraForm({
         capacidadeLitros: capacidade,
         nivelAtualLitros: Math.min(nivel, capacidade),
         ativo: true,
+        criadoPor: '',
       },
     ]);
     setNovoDepNome('');
@@ -199,6 +201,7 @@ export default function ObraForm({
       dataPrevisaoFim,
       responsavel,
       orcamento: orcamentoCalculado,
+      criadoPor: initial?.criadoPor || '',
     };
     onSubmit(obra, etapas, depositos);
   }
@@ -311,7 +314,7 @@ export default function ObraForm({
             type="number"
             className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emt-verde"
             placeholder="Quantidade"
-            step="0.01"
+            step="0.0001"
             min="0"
             value={novaEtapaQtd}
             onChange={(e) => setNovaEtapaQtd(e.target.value)}
@@ -320,7 +323,7 @@ export default function ObraForm({
             type="number"
             className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emt-verde"
             placeholder="Valor Unitario (R$)"
-            step="0.01"
+            step="0.0001"
             min="0"
             value={novaEtapaValorUnit}
             onChange={(e) => setNovaEtapaValorUnit(e.target.value)}
@@ -382,7 +385,7 @@ export default function ObraForm({
                         type="number"
                         className="border border-gray-300 rounded px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-emt-verde"
                         placeholder="Quantidade"
-                        step="0.01"
+                        step="0.0001"
                         min="0"
                         value={editandoEtapaQtd}
                         onChange={(e) => setEditandoEtapaQtd(e.target.value)}
@@ -391,7 +394,7 @@ export default function ObraForm({
                         type="number"
                         className="border border-gray-300 rounded px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-emt-verde"
                         placeholder="Valor Unitario"
-                        step="0.01"
+                        step="0.0001"
                         min="0"
                         value={editandoEtapaValorUnit}
                         onChange={(e) => setEditandoEtapaValorUnit(e.target.value)}
@@ -460,7 +463,7 @@ export default function ObraForm({
             className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emt-verde"
             placeholder="Capacidade (litros)"
             min="0"
-            step="1"
+            step="0.0001"
             value={novoDepCapacidade}
             onChange={(e) => setNovoDepCapacidade(e.target.value)}
           />
@@ -470,7 +473,7 @@ export default function ObraForm({
               className="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emt-verde"
               placeholder="Nivel atual (litros)"
               min="0"
-              step="1"
+              step="0.0001"
               value={novoDepNivel}
               onChange={(e) => setNovoDepNivel(e.target.value)}
             />

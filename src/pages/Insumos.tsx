@@ -38,7 +38,7 @@ const FILTROS_VAZIOS: FiltrosInsumos = {
 };
 
 export default function Insumos() {
-  const { temAcao } = useAuth();
+  const { temAcao, usuario } = useAuth();
   const canEdit = temAcao('editar_insumos');
   const canDelete = temAcao('excluir_insumos');
   const canCreateEntrada = temAcao('criar_entrada_material');
@@ -89,6 +89,10 @@ export default function Insumos() {
   const [senhaAction, setSenhaAction] = useState<(() => void) | null>(null);
 
   function pedirSenha(action: () => void) {
+    if (usuario?.cargo === 'Administrador') {
+      action();
+      return;
+    }
     setSenhaAction(() => action);
     setSenhaOpen(true);
   }
@@ -137,12 +141,12 @@ export default function Insumos() {
       if (editandoEntrada) {
         await atualizarEntradaMut.mutateAsync(data);
       } else {
-        await adicionarEntradaMut.mutateAsync(data);
+        await adicionarEntradaMut.mutateAsync({ ...data, criadoPor: usuario?.nome || '' });
       }
       setModalEntradaOpen(false);
       setEditandoEntrada(null);
     },
-    [editandoEntrada, atualizarEntradaMut, adicionarEntradaMut]
+    [editandoEntrada, atualizarEntradaMut, adicionarEntradaMut, usuario]
   );
 
   const handleEditEntrada = useCallback((ent: EntradaMaterial) => {
@@ -162,12 +166,12 @@ export default function Insumos() {
       if (editandoSaida) {
         await atualizarSaidaMut.mutateAsync(data);
       } else {
-        await adicionarSaidaMut.mutateAsync(data);
+        await adicionarSaidaMut.mutateAsync({ ...data, criadoPor: usuario?.nome || '' });
       }
       setModalSaidaOpen(false);
       setEditandoSaida(null);
     },
-    [editandoSaida, atualizarSaidaMut, adicionarSaidaMut]
+    [editandoSaida, atualizarSaidaMut, adicionarSaidaMut, usuario]
   );
 
   const handleEditSaida = useCallback((saida: SaidaMaterial) => {
@@ -184,10 +188,10 @@ export default function Insumos() {
   // Transferencia handlers
   const handleSubmitTransferencia = useCallback(
     async (data: TransferenciaMaterial) => {
-      await adicionarTransferenciaMut.mutateAsync(data);
+      await adicionarTransferenciaMut.mutateAsync({ ...data, criadoPor: usuario?.nome || '' });
       setModalTransferenciaOpen(false);
     },
-    [adicionarTransferenciaMut]
+    [adicionarTransferenciaMut, usuario]
   );
 
   const handleDeleteTransferencia = useCallback(async (id: string) => {
@@ -291,7 +295,7 @@ export default function Insumos() {
           obras={obras}
           depositosMaterial={depositosMaterial}
           onEdit={handleEditEntrada}
-          onDelete={handleDeleteEntrada}
+          onDelete={(id) => pedirSenha(() => handleDeleteEntrada(id))}
           canEdit={canEdit}
           canDelete={canDelete}
         />
@@ -304,7 +308,7 @@ export default function Insumos() {
           depositosMaterial={depositosMaterial}
           etapas={etapas}
           onEdit={handleEditSaida}
-          onDelete={handleDeleteSaida}
+          onDelete={(id) => pedirSenha(() => handleDeleteSaida(id))}
           canEdit={canEdit}
           canDelete={canDelete}
         />
@@ -314,7 +318,7 @@ export default function Insumos() {
         <TransferenciaMaterialList
           transferencias={transferenciasFiltradas}
           depositosMaterial={depositosMaterial}
-          onDelete={handleDeleteTransferencia}
+          onDelete={(id) => pedirSenha(() => handleDeleteTransferencia(id))}
           canDelete={canDelete}
         />
       )}
@@ -354,6 +358,13 @@ export default function Insumos() {
           insumos={insumos}
           fornecedores={fornecedores}
           depositosMaterial={depositosMaterial}
+          onImportBatch={async (items) => {
+            for (const item of items) {
+              await adicionarEntradaMut.mutateAsync({ ...item, criadoPor: usuario?.nome || '' });
+            }
+            setModalEntradaOpen(false);
+            setEditandoEntrada(null);
+          }}
         />
       </Modal>
 
@@ -378,6 +389,13 @@ export default function Insumos() {
           etapas={etapas}
           depositosMaterial={depositosMaterial}
           unidades={unidades}
+          onImportBatch={async (items) => {
+            for (const item of items) {
+              await adicionarSaidaMut.mutateAsync({ ...item, criadoPor: usuario?.nome || '' });
+            }
+            setModalSaidaOpen(false);
+            setEditandoSaida(null);
+          }}
         />
       </Modal>
 
@@ -403,6 +421,12 @@ export default function Insumos() {
           onCancel={() => setModalTransferenciaOpen(false)}
           depositosMaterial={depositosMaterial}
           insumos={insumos}
+          onImportBatch={async (items) => {
+            for (const item of items) {
+              await adicionarTransferenciaMut.mutateAsync({ ...item, criadoPor: usuario?.nome || '' });
+            }
+            setModalTransferenciaOpen(false);
+          }}
         />
       </Modal>
     </div>

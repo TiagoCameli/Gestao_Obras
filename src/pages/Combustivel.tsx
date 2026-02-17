@@ -30,7 +30,7 @@ const FILTROS_VAZIOS: FiltrosAbastecimento = {
 };
 
 export default function Combustivel() {
-  const { temAcao } = useAuth();
+  const { temAcao, usuario } = useAuth();
   const canEdit = temAcao('editar_combustivel');
   const canDelete = temAcao('excluir_combustivel');
   const canCreateEntrada = temAcao('criar_entrada_combustivel');
@@ -110,7 +110,7 @@ export default function Combustivel() {
       if (editandoSaida) {
         await atualizarAbastecimentoMut.mutateAsync(data);
       } else {
-        await adicionarAbastecimentoMut.mutateAsync(data);
+        await adicionarAbastecimentoMut.mutateAsync({ ...data, criadoPor: usuario?.nome || '' });
       }
       setModalSaidaOpen(false);
       setEditandoSaida(null);
@@ -123,6 +123,10 @@ export default function Combustivel() {
   const [senhaAction, setSenhaAction] = useState<(() => void) | null>(null);
 
   function pedirSenha(action: () => void) {
+    if (usuario?.cargo === 'Administrador') {
+      action();
+      return;
+    }
     setSenhaAction(() => action);
     setSenhaOpen(true);
   }
@@ -144,7 +148,7 @@ export default function Combustivel() {
       if (editandoEntrada) {
         await atualizarEntradaMut.mutateAsync(data);
       } else {
-        await adicionarEntradaMut.mutateAsync(data);
+        await adicionarEntradaMut.mutateAsync({ ...data, criadoPor: usuario?.nome || '' });
       }
       setModalEntradaOpen(false);
       setEditandoEntrada(null);
@@ -166,10 +170,10 @@ export default function Combustivel() {
   // Transferencia handlers
   const handleSubmitTransferencia = useCallback(
     async (data: TransferenciaCombustivel) => {
-      await adicionarTransferenciaMut.mutateAsync(data);
+      await adicionarTransferenciaMut.mutateAsync({ ...data, criadoPor: usuario?.nome || '' });
       setModalTransferenciaOpen(false);
     },
-    [adicionarTransferenciaMut]
+    [adicionarTransferenciaMut, usuario]
   );
 
   const handleDeleteTransferencia = useCallback(async (id: string) => {
@@ -273,7 +277,7 @@ export default function Combustivel() {
           abastecimentos={abastecimentosFiltrados}
           obras={obras}
           onEdit={handleEditSaida}
-          onDelete={handleDeleteSaida}
+          onDelete={(id) => pedirSenha(() => handleDeleteSaida(id))}
           canEdit={canEdit}
           canDelete={canDelete}
         />
@@ -285,7 +289,7 @@ export default function Combustivel() {
           obras={obras}
           depositos={depositos}
           onEdit={handleEditEntrada}
-          onDelete={handleDeleteEntrada}
+          onDelete={(id) => pedirSenha(() => handleDeleteEntrada(id))}
           canEdit={canEdit}
           canDelete={canDelete}
         />
@@ -295,7 +299,7 @@ export default function Combustivel() {
         <TransferenciaList
           transferencias={transferenciasFiltradas}
           depositos={depositos}
-          onDelete={handleDeleteTransferencia}
+          onDelete={(id) => pedirSenha(() => handleDeleteTransferencia(id))}
           canDelete={canDelete}
         />
       )}
@@ -332,6 +336,13 @@ export default function Combustivel() {
           obras={obras}
           etapas={etapas}
           depositos={depositos}
+          onImportBatch={async (items) => {
+            for (const item of items) {
+              await adicionarAbastecimentoMut.mutateAsync({ ...item, criadoPor: usuario?.nome || '' });
+            }
+            setModalSaidaOpen(false);
+            setEditandoSaida(null);
+          }}
         />
       </Modal>
 
@@ -353,6 +364,13 @@ export default function Combustivel() {
           }}
           obras={obras}
           depositos={depositos}
+          onImportBatch={async (items) => {
+            for (const item of items) {
+              await adicionarEntradaMut.mutateAsync({ ...item, criadoPor: usuario?.nome || '' });
+            }
+            setModalEntradaOpen(false);
+            setEditandoEntrada(null);
+          }}
         />
       </Modal>
 
@@ -366,6 +384,12 @@ export default function Combustivel() {
           onSubmit={handleSubmitTransferencia}
           onCancel={() => setModalTransferenciaOpen(false)}
           depositos={depositos}
+          onImportBatch={async (items) => {
+            for (const item of items) {
+              await adicionarTransferenciaMut.mutateAsync({ ...item, criadoPor: usuario?.nome || '' });
+            }
+            setModalTransferenciaOpen(false);
+          }}
         />
       </Modal>
 

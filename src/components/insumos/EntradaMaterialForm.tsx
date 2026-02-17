@@ -1,10 +1,11 @@
-import { useEffect, useState, type FormEvent } from 'react';
+import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import type { DepositoMaterial, EntradaMaterial, Fornecedor, Insumo, Obra, UnidadeMedida } from '../../types';
 import { useAdicionarFornecedor } from '../../hooks/useFornecedores';
 import { useAdicionarInsumo } from '../../hooks/useInsumos';
 import Input from '../ui/Input';
 import Select from '../ui/Select';
 import Button from '../ui/Button';
+import ImportExcelModal, { parseStr, parseNumero, type ParsedRow } from '../ui/ImportExcelModal';
 
 interface EntradaMaterialFormProps {
   initial?: EntradaMaterial | null;
@@ -15,7 +16,13 @@ interface EntradaMaterialFormProps {
   fornecedores: Fornecedor[];
   depositosMaterial: DepositoMaterial[];
   unidades?: UnidadeMedida[];
+  onImportBatch?: (items: EntradaMaterial[]) => void;
 }
+
+const ENTRADA_MAT_TEMPLATE = [
+  ['Data', 'Obra', 'Deposito', 'Material', 'Quantidade', 'Valor Total', 'Fornecedor', 'NF', 'Observacoes'],
+  ['2024-01-15 08:00', 'Obra ABC', 'Almoxarifado Central', 'Cimento CP-II', '100', '3500', 'Distribuidora XYZ', 'NF-001', ''],
+];
 
 function gerarId(): string {
   return Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
@@ -30,6 +37,7 @@ export default function EntradaMaterialForm({
   fornecedores: allFornecedores,
   depositosMaterial: allDepositos,
   unidades: unidadesProp,
+  onImportBatch,
 }: EntradaMaterialFormProps) {
   const unidades = unidadesProp ?? [];
   const unidadesMap = new Map(unidades.map((u) => [u.sigla, u.nome]));
@@ -76,6 +84,61 @@ export default function EntradaMaterialForm({
   const [fornecedorId, setFornecedorId] = useState(initial?.fornecedorId || '');
   const [notaFiscal, setNotaFiscal] = useState(initial?.notaFiscal || '');
   const [observacoes, setObservacoes] = useState(initial?.observacoes || '');
+  const [importModalOpen, setImportModalOpen] = useState(false);
+  const [toastMsg, setToastMsg] = useState('');
+
+  const parseRow = useCallback((row: unknown[], _index: number): ParsedRow => {
+    const erros: string[] = [];
+    const data = parseStr(row[0]);
+    if (!data) erros.push('Data obrigatoria');
+    const obraNome = parseStr(row[1]);
+    const obra = obras.find((o) => o.nome.toLowerCase() === obraNome.toLowerCase());
+    if (!obra) erros.push(`Obra "${obraNome}" nao encontrada`);
+    const obraId = obra?.id ?? '';
+    const depositoNome = parseStr(row[2]);
+    const deposito = allDepositos.filter((d) => d.ativo !== false).find((d) => d.nome.toLowerCase() === depositoNome.toLowerCase() && (!obra || d.obraId === obra.id));
+    if (!deposito) erros.push(`Deposito "${depositoNome}" nao encontrado`);
+    const depositoMaterialId = deposito?.id ?? '';
+    const materialNome = parseStr(row[3]);
+    const material = allInsumos.filter((i) => i.tipo === 'material' && i.ativo !== false).find((i) => i.nome.toLowerCase() === materialNome.toLowerCase());
+    if (!material) erros.push(`Material "${materialNome}" nao encontrado`);
+    const insumoId = material?.id ?? '';
+    const qtd = parseNumero(row[4]);
+    if (qtd === null || qtd <= 0) erros.push('Quantidade obrigatoria');
+    const quantidade = qtd ?? 0;
+    const vt = parseNumero(row[5]);
+    if (vt === null || vt <= 0) erros.push('Valor Total obrigatorio');
+    const valorTotal = vt ?? 0;
+    const fornecedorNome = parseStr(row[6]);
+    const fornecedor = allFornecedores.filter((f) => f.ativo !== false).find((f) => f.nome.toLowerCase() === fornecedorNome.toLowerCase());
+    if (!fornecedor) erros.push(`Fornecedor "${fornecedorNome}" nao encontrado`);
+    const fornecedorId = fornecedor?.id ?? '';
+    const notaFiscal = parseStr(row[7]);
+    const observacoes = parseStr(row[8]);
+    return {
+      valido: erros.length === 0,
+      erros,
+      resumo: `${data} | ${obraNome} | ${depositoNome} | ${materialNome} | ${quantidade}`,
+      dados: { data, obraId, depositoMaterialId, insumoId, quantidade, valorTotal, fornecedorId, notaFiscal, observacoes },
+    };
+  }, [obras, allDepositos, allInsumos, allFornecedores]);
+
+  const toEntity = useCallback((row: ParsedRow): Record<string, unknown> => {
+    const d = row.dados;
+    return {
+      id: gerarId(),
+      dataHora: d.data as string,
+      depositoMaterialId: d.depositoMaterialId as string,
+      insumoId: d.insumoId as string,
+      obraId: d.obraId as string,
+      quantidade: d.quantidade as number,
+      valorTotal: d.valorTotal as number,
+      fornecedorId: d.fornecedorId as string,
+      notaFiscal: d.notaFiscal as string,
+      observacoes: d.observacoes as string,
+      criadoPor: '',
+    };
+  }, []);
 
   // Filter depositos by obraId from props
   const depositos = obraId
@@ -106,6 +169,7 @@ export default function EntradaMaterialForm({
       fornecedorId,
       notaFiscal,
       observacoes,
+      criadoPor: initial?.criadoPor || '',
     });
   }
 
@@ -120,6 +184,13 @@ export default function EntradaMaterialForm({
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
+      {onImportBatch && !initial && (
+        <div className="flex justify-end">
+          <Button type="button" variant="secondary" className="text-xs px-3 py-1.5" onClick={() => setImportModalOpen(true)}>
+            Importar do Excel
+          </Button>
+        </div>
+      )}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <Input
           label="Data e Hora"
@@ -221,6 +292,7 @@ export default function EntradaMaterialForm({
                       unidade: novoMaterialUnidade,
                       descricao: '',
                       ativo: true,
+                      criadoPor: '',
                     };
                     adicionarInsumoMutation.mutate(novo);
                     setListaMateriais((prev) => [...prev, novo]);
@@ -251,7 +323,7 @@ export default function EntradaMaterialForm({
           label={`Quantidade${unidadeLabel ? ` (${unidadeLabel})` : ''}`}
           id="entMatQtd"
           type="number"
-          step="0.01"
+          step="0.0001"
           min="0"
           value={quantidade}
           onChange={(e) => setQuantidade(e.target.value)}
@@ -261,7 +333,7 @@ export default function EntradaMaterialForm({
           label="Valor Total (R$)"
           id="entMatValor"
           type="number"
-          step="0.01"
+          step="0.0001"
           min="0"
           value={valorTotal}
           onChange={(e) => setValorTotal(e.target.value)}
@@ -315,6 +387,7 @@ export default function EntradaMaterialForm({
                     email: '',
                     observacoes: '',
                     ativo: true,
+                    criadoPor: '',
                   };
                   adicionarFornecedorMutation.mutate(novo);
                   setListaFornecedores((prev) => [...prev, novo]);
@@ -371,6 +444,35 @@ export default function EntradaMaterialForm({
           {initial ? 'Salvar Alteracoes' : 'Registrar Entrada'}
         </Button>
       </div>
+
+      {onImportBatch && (
+        <ImportExcelModal
+          open={importModalOpen}
+          onClose={() => setImportModalOpen(false)}
+          onImport={(items) => {
+            onImportBatch(items as unknown as EntradaMaterial[]);
+            setToastMsg(`${items.length} entrada(s) importada(s) com sucesso!`);
+            setTimeout(() => setToastMsg(''), 3500);
+          }}
+          title="Importar Entradas de Material"
+          entityLabel="Entrada"
+          genderFem
+          templateData={ENTRADA_MAT_TEMPLATE}
+          templateFileName="template_entradas_material.xlsx"
+          sheetName="Entradas"
+          templateColWidths={[18, 15, 22, 18, 12, 12, 20, 10, 15]}
+          formatHintHeaders={['Data', 'Obra', 'Deposito', 'Material', 'Qtd', 'Valor', 'Fornecedor', 'NF', 'Obs']}
+          formatHintExample={['2024-01-15 08:00', 'Obra ABC', 'Almoxarifado', 'Cimento', '100', '3500', 'Dist. XYZ', '', '']}
+          parseRow={parseRow}
+          toEntity={toEntity}
+        />
+      )}
+
+      {toastMsg && (
+        <div className="fixed bottom-6 right-6 z-50 bg-green-600 text-white px-5 py-3 rounded-lg shadow-lg text-sm font-medium animate-fade-in">
+          {toastMsg}
+        </div>
+      )}
     </form>
   );
 }

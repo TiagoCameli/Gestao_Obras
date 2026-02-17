@@ -5,6 +5,7 @@ import { perfilPadraoPorCargo } from '../utils/permissions';
 import Button from '../components/ui/Button';
 import Modal from '../components/ui/Modal';
 import ConfirmDialog from '../components/ui/ConfirmDialog';
+import PasswordDialog from '../components/ui/PasswordDialog';
 import FuncionarioForm from '../components/funcionarios/FuncionarioForm';
 import FuncionarioList from '../components/funcionarios/FuncionarioList';
 import { useAuth } from '../contexts/AuthContext';
@@ -14,7 +15,7 @@ function gerarId(): string {
 }
 
 export default function Funcionarios() {
-  const { atualizarSessao, temAcao } = useAuth();
+  const { atualizarSessao, temAcao, usuario } = useAuth();
   const canCreate = temAcao('criar_funcionarios');
   const canEditFunc = temAcao('editar_funcionarios');
   const canDeleteFunc = temAcao('excluir_funcionarios');
@@ -31,6 +32,19 @@ export default function Funcionarios() {
 
   // Delete state
   const [deleteId, setDeleteId] = useState<string | null>(null);
+
+  // Password gate
+  const [senhaOpen, setSenhaOpen] = useState(false);
+  const [senhaAction, setSenhaAction] = useState<(() => void) | null>(null);
+
+  function pedirSenha(action: () => void) {
+    if (usuario?.cargo === 'Administrador') {
+      action();
+      return;
+    }
+    setSenhaAction(() => action);
+    setSenhaOpen(true);
+  }
 
   const handleSubmit = useCallback(
     async (func: Funcionario, senha?: string) => {
@@ -79,8 +93,8 @@ export default function Funcionarios() {
 
       <FuncionarioList
         funcionarios={funcionarios}
-        onEdit={(func) => { setEditando(func); setModalOpen(true); }}
-        onDelete={(id) => setDeleteId(id)}
+        onEdit={(func) => pedirSenha(() => { setEditando(func); setModalOpen(true); })}
+        onDelete={(id) => pedirSenha(() => setDeleteId(id))}
         canEdit={canEditFunc}
         canDelete={canDeleteFunc}
       />
@@ -95,8 +109,35 @@ export default function Funcionarios() {
           initial={editando}
           onSubmit={handleSubmit}
           onCancel={() => { setModalOpen(false); setEditando(null); }}
+          onImportBatch={async (funcs, senhas) => {
+            for (const func of funcs) {
+              const senha = senhas.get(func.id) || 'Admin@123';
+              await adicionarMutation.mutateAsync({ funcionario: func, senha });
+              await salvarPerfilMutation.mutateAsync({
+                id: gerarId(),
+                funcionarioId: func.id,
+                permissoes: perfilPadraoPorCargo(func.cargo),
+              });
+            }
+            setModalOpen(false);
+            setEditando(null);
+            atualizarSessao();
+          }}
         />
       </Modal>
+
+      <PasswordDialog
+        open={senhaOpen}
+        onClose={() => {
+          setSenhaOpen(false);
+          setSenhaAction(null);
+        }}
+        onSuccess={() => {
+          if (senhaAction) senhaAction();
+          setSenhaAction(null);
+        }}
+        title="Senha de Confirmacao"
+      />
 
       {/* Confirm Delete */}
       <ConfirmDialog

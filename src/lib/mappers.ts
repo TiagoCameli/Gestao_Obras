@@ -15,10 +15,14 @@ import type {
   TransferenciaMaterial,
   Localidade,
   Frete,
+  PagamentoFrete,
+  AbastecimentoCarreta,
   Funcionario,
   PerfilPermissao,
   AuditLogEntry,
   AlocacaoEtapa,
+  PedidoMaterial,
+  ItemPedidoMaterial,
 } from '../types';
 
 // ── Obras ──
@@ -34,6 +38,7 @@ export function dbToObra(row: any): Obra {
     dataPrevisaoFim: row.data_previsao_fim,
     responsavel: row.responsavel,
     orcamento: Number(row.orcamento),
+    criadoPor: row.criado_por ?? '',
   };
 }
 
@@ -47,6 +52,7 @@ export function obraToDb(o: Obra) {
     data_previsao_fim: o.dataPrevisaoFim,
     responsavel: o.responsavel,
     orcamento: o.orcamento,
+    criado_por: o.criadoPor,
   };
 }
 
@@ -61,6 +67,7 @@ export function dbToEtapa(row: any): EtapaObra {
     unidade: row.unidade,
     quantidade: Number(row.quantidade),
     valorUnitario: Number(row.valor_unitario),
+    criadoPor: row.criado_por ?? '',
   };
 }
 
@@ -72,6 +79,7 @@ export function etapaToDb(e: EtapaObra) {
     unidade: e.unidade,
     quantidade: e.quantidade,
     valor_unitario: e.valorUnitario,
+    criado_por: e.criadoPor,
   };
 }
 
@@ -86,6 +94,7 @@ export function dbToDeposito(row: any): Deposito {
     capacidadeLitros: Number(row.capacidade_litros),
     nivelAtualLitros: Number(row.nivel_atual_litros),
     ativo: row.ativo,
+    criadoPor: row.criado_por ?? '',
   };
 }
 
@@ -97,6 +106,7 @@ export function depositoToDb(d: Deposito) {
     capacidade_litros: d.capacidadeLitros,
     nivel_atual_litros: d.nivelAtualLitros,
     ativo: d.ativo,
+    criado_por: d.criadoPor,
   };
 }
 
@@ -116,6 +126,7 @@ export function dbToAbastecimento(row: any): Abastecimento {
     depositoId: row.deposito_id,
     veiculo: row.veiculo,
     observacoes: row.observacoes,
+    criadoPor: row.criado_por ?? '',
   };
 }
 
@@ -132,6 +143,7 @@ export function abastecimentoToDb(a: Abastecimento) {
     deposito_id: a.depositoId,
     veiculo: a.veiculo,
     observacoes: a.observacoes,
+    criado_por: a.criadoPor,
   };
 }
 
@@ -150,6 +162,7 @@ export function dbToEntradaCombustivel(row: any): EntradaCombustivel {
     fornecedor: row.fornecedor,
     notaFiscal: row.nota_fiscal,
     observacoes: row.observacoes,
+    criadoPor: row.criado_por ?? '',
   };
 }
 
@@ -165,6 +178,7 @@ export function entradaCombustivelToDb(e: EntradaCombustivel) {
     fornecedor: e.fornecedor,
     nota_fiscal: e.notaFiscal,
     observacoes: e.observacoes,
+    criado_por: e.criadoPor,
   };
 }
 
@@ -184,6 +198,7 @@ export function dbToEquipamento(row: any): Equipamento {
     ativo: row.ativo,
     dataAquisicao: row.data_aquisicao,
     dataVenda: row.data_venda,
+    criadoPor: row.criado_por ?? '',
   };
 }
 
@@ -200,6 +215,7 @@ export function equipamentoToDb(e: Equipamento) {
     ativo: e.ativo,
     data_aquisicao: e.dataAquisicao,
     data_venda: e.dataVenda,
+    criado_por: e.criadoPor,
   };
 }
 
@@ -214,6 +230,7 @@ export function dbToInsumo(row: any): Insumo {
     unidade: row.unidade,
     descricao: row.descricao,
     ativo: row.ativo,
+    criadoPor: row.criado_por ?? '',
   };
 }
 
@@ -225,6 +242,7 @@ export function insumoToDb(i: Insumo) {
     unidade: i.unidade,
     descricao: i.descricao,
     ativo: i.ativo,
+    criado_por: i.criadoPor,
   };
 }
 
@@ -240,6 +258,7 @@ export function dbToTransferenciaCombustivel(row: any): TransferenciaCombustivel
     quantidadeLitros: Number(row.quantidade_litros),
     valorTotal: Number(row.valor_total),
     observacoes: row.observacoes,
+    criadoPor: row.criado_por ?? '',
   };
 }
 
@@ -252,6 +271,7 @@ export function transferenciaCombustivelToDb(t: TransferenciaCombustivel) {
     quantidade_litros: t.quantidadeLitros,
     valor_total: t.valorTotal,
     observacoes: t.observacoes,
+    criado_por: t.criadoPor,
   };
 }
 
@@ -267,6 +287,7 @@ export function dbToFornecedor(row: any): Fornecedor {
     email: row.email,
     observacoes: row.observacoes,
     ativo: row.ativo,
+    criadoPor: row.criado_por ?? '',
   };
 }
 
@@ -279,6 +300,7 @@ export function fornecedorToDb(f: Fornecedor) {
     email: f.email,
     observacoes: f.observacoes,
     ativo: f.ativo,
+    criado_por: f.criadoPor,
   };
 }
 
@@ -293,6 +315,7 @@ export function dbToDepositoMaterial(row: any): DepositoMaterial {
     endereco: row.endereco,
     responsavel: row.responsavel,
     ativo: row.ativo,
+    criadoPor: row.criado_por ?? '',
   };
 }
 
@@ -304,6 +327,7 @@ export function depositoMaterialToDb(d: DepositoMaterial) {
     endereco: d.endereco,
     responsavel: d.responsavel,
     ativo: d.ativo,
+    criado_por: d.criadoPor,
   };
 }
 
@@ -316,6 +340,7 @@ export function dbToUnidadeMedida(row: any): UnidadeMedida {
     nome: row.nome,
     sigla: row.sigla,
     ativo: row.ativo,
+    criadoPor: row.criado_por ?? '',
   };
 }
 
@@ -325,6 +350,7 @@ export function unidadeMedidaToDb(u: UnidadeMedida) {
     nome: u.nome,
     sigla: u.sigla,
     ativo: u.ativo,
+    criado_por: u.criadoPor,
   };
 }
 
@@ -343,6 +369,7 @@ export function dbToEntradaMaterial(row: any): EntradaMaterial {
     fornecedorId: row.fornecedor_id,
     notaFiscal: row.nota_fiscal,
     observacoes: row.observacoes,
+    criadoPor: row.criado_por ?? '',
   };
 }
 
@@ -358,6 +385,7 @@ export function entradaMaterialToDb(e: EntradaMaterial) {
     fornecedor_id: e.fornecedorId,
     nota_fiscal: e.notaFiscal,
     observacoes: e.observacoes,
+    criado_por: e.criadoPor,
   };
 }
 
@@ -375,6 +403,7 @@ export function dbToSaidaMaterial(row: any): SaidaMaterial {
     valorTotal: Number(row.valor_total),
     alocacoes: row.alocacoes ?? [],
     observacoes: row.observacoes,
+    criadoPor: row.criado_por ?? '',
   };
 }
 
@@ -389,6 +418,7 @@ export function saidaMaterialToDb(s: SaidaMaterial) {
     valor_total: s.valorTotal,
     alocacoes: s.alocacoes ?? [],
     observacoes: s.observacoes,
+    criado_por: s.criadoPor,
   };
 }
 
@@ -405,6 +435,7 @@ export function dbToTransferenciaMaterial(row: any): TransferenciaMaterial {
     quantidade: Number(row.quantidade),
     valorTotal: Number(row.valor_total),
     observacoes: row.observacoes,
+    criadoPor: row.criado_por ?? '',
   };
 }
 
@@ -418,6 +449,7 @@ export function transferenciaMaterialToDb(t: TransferenciaMaterial) {
     quantidade: t.quantidade,
     valor_total: t.valorTotal,
     observacoes: t.observacoes,
+    criado_por: t.criadoPor,
   };
 }
 
@@ -430,6 +462,7 @@ export function dbToLocalidade(row: any): Localidade {
     nome: row.nome,
     endereco: row.endereco ?? '',
     ativo: row.ativo,
+    criadoPor: row.criado_por ?? '',
   };
 }
 
@@ -439,6 +472,7 @@ export function localidadeToDb(l: Localidade) {
     nome: l.nome,
     endereco: l.endereco,
     ativo: l.ativo,
+    criado_por: l.criadoPor,
   };
 }
 
@@ -449,6 +483,7 @@ export function dbToFrete(row: any): Frete {
   return {
     id: row.id,
     data: row.data,
+    dataChegada: row.data_chegada ?? '',
     obraId: row.obra_id ?? '',
     origem: row.origem,
     destino: row.destino,
@@ -459,7 +494,10 @@ export function dbToFrete(row: any): Frete {
     valorTkm: Number(row.valor_tkm),
     valorTotal: Number(row.valor_total),
     notaFiscal: row.nota_fiscal,
+    placaCarreta: row.placa_carreta ?? '',
+    motorista: row.motorista ?? '',
     observacoes: row.observacoes,
+    criadoPor: row.criado_por ?? '',
   };
 }
 
@@ -467,6 +505,7 @@ export function freteToDb(f: Frete) {
   return {
     id: f.id,
     data: f.data,
+    data_chegada: f.dataChegada || '',
     obra_id: f.obraId || null,
     origem: f.origem,
     destino: f.destino,
@@ -477,7 +516,80 @@ export function freteToDb(f: Frete) {
     valor_tkm: f.valorTkm,
     valor_total: f.valorTotal,
     nota_fiscal: f.notaFiscal,
+    placa_carreta: f.placaCarreta,
+    motorista: f.motorista,
     observacoes: f.observacoes,
+    criado_por: f.criadoPor,
+  };
+}
+
+// ── Pagamentos Frete ──
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function dbToPagamentoFrete(row: any): PagamentoFrete {
+  return {
+    id: row.id,
+    data: row.data,
+    transportadora: row.transportadora,
+    mesReferencia: row.mes_referencia,
+    valor: Number(row.valor),
+    metodo: row.metodo,
+    quantidadeCombustivel: Number(row.quantidade_combustivel),
+    responsavel: row.responsavel,
+    notaFiscal: row.nota_fiscal,
+    pagoPor: row.pago_por ?? '',
+    observacoes: row.observacoes,
+    criadoPor: row.criado_por ?? '',
+  };
+}
+
+export function pagamentoFreteToDb(p: PagamentoFrete) {
+  return {
+    id: p.id,
+    data: p.data,
+    transportadora: p.transportadora,
+    mes_referencia: p.mesReferencia,
+    valor: p.valor,
+    metodo: p.metodo,
+    quantidade_combustivel: p.quantidadeCombustivel,
+    responsavel: p.responsavel,
+    nota_fiscal: p.notaFiscal,
+    pago_por: p.pagoPor,
+    observacoes: p.observacoes,
+    criado_por: p.criadoPor,
+  };
+}
+
+// ── Abastecimentos Carreta ──
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function dbToAbastecimentoCarreta(row: any): AbastecimentoCarreta {
+  return {
+    id: row.id,
+    data: row.data,
+    transportadora: row.transportadora,
+    placaCarreta: row.placa_carreta,
+    tipoCombustivel: row.tipo_combustivel,
+    quantidadeLitros: Number(row.quantidade_litros),
+    valorUnidade: Number(row.valor_unidade),
+    valorTotal: Number(row.valor_total),
+    observacoes: row.observacoes,
+    criadoPor: row.criado_por ?? '',
+  };
+}
+
+export function abastecimentoCarretaToDb(a: AbastecimentoCarreta) {
+  return {
+    id: a.id,
+    data: a.data,
+    transportadora: a.transportadora,
+    placa_carreta: a.placaCarreta,
+    tipo_combustivel: a.tipoCombustivel,
+    quantidade_litros: a.quantidadeLitros,
+    valor_unidade: a.valorUnidade,
+    valor_total: a.valorTotal,
+    observacoes: a.observacoes,
+    criado_por: a.criadoPor,
   };
 }
 
@@ -564,6 +676,48 @@ export function auditLogToDb(a: Omit<AuditLogEntry, 'id' | 'dataHora'>) {
     funcionario_id: a.funcionarioId,
     alvo_id: a.alvoId,
     detalhes: a.detalhes,
+  };
+}
+
+// ── Pedidos Material ──
+
+function dbToItemPedidoMaterial(item: { insumo_id?: string; insumoId?: string; quantidade: number; valor_unitario?: number; valorUnitario?: number }): ItemPedidoMaterial {
+  return {
+    insumoId: item.insumo_id ?? item.insumoId ?? '',
+    quantidade: Number(item.quantidade),
+    valorUnitario: Number(item.valor_unitario ?? item.valorUnitario ?? 0),
+  };
+}
+
+function itemPedidoMaterialToDb(item: ItemPedidoMaterial) {
+  return {
+    insumo_id: item.insumoId,
+    quantidade: item.quantidade,
+    valor_unitario: item.valorUnitario,
+  };
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function dbToPedidoMaterial(row: any): PedidoMaterial {
+  const rawItens = row.itens ?? [];
+  return {
+    id: row.id,
+    data: row.data,
+    fornecedorId: row.fornecedor_id ?? '',
+    itens: Array.isArray(rawItens) ? rawItens.map(dbToItemPedidoMaterial) : [],
+    observacoes: row.observacoes ?? '',
+    criadoPor: row.criado_por ?? '',
+  };
+}
+
+export function pedidoMaterialToDb(p: PedidoMaterial) {
+  return {
+    id: p.id,
+    data: p.data,
+    fornecedor_id: p.fornecedorId,
+    itens: p.itens.map(itemPedidoMaterialToDb),
+    observacoes: p.observacoes,
+    criado_por: p.criadoPor,
   };
 }
 

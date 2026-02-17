@@ -1,10 +1,11 @@
-import { useEffect, useState, type FormEvent } from 'react';
+import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import type { AlocacaoEtapa, DepositoMaterial, EtapaObra, Insumo, Obra, SaidaMaterial, UnidadeMedida } from '../../types';
 import { useEntradasMaterial } from '../../hooks/useEntradasMaterial';
 import { calcularEstoqueMaterial, calcularEstoqueMaterialNaData } from '../../hooks/useEstoque';
 import Input from '../ui/Input';
 import Select from '../ui/Select';
 import Button from '../ui/Button';
+import ImportExcelModal, { parseStr, parseNumero, type ParsedRow } from '../ui/ImportExcelModal';
 
 interface SaidaMaterialFormProps {
   initial?: SaidaMaterial | null;
@@ -15,7 +16,13 @@ interface SaidaMaterialFormProps {
   etapas: EtapaObra[];
   depositosMaterial: DepositoMaterial[];
   unidades: UnidadeMedida[];
+  onImportBatch?: (items: SaidaMaterial[]) => void;
 }
+
+const SAIDA_MAT_TEMPLATE = [
+  ['Data', 'Obra', 'Deposito', 'Material', 'Quantidade', 'Valor', 'Observacoes'],
+  ['2024-01-15 08:00', 'Obra ABC', 'Almoxarifado Central', 'Cimento CP-II', '50', '1750', ''],
+];
 
 function gerarId(): string {
   return Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
@@ -30,6 +37,7 @@ export default function SaidaMaterialForm({
   etapas: allEtapas,
   depositosMaterial: allDepositos,
   unidades,
+  onImportBatch,
 }: SaidaMaterialFormProps) {
   const insumosMaterial = allInsumos.filter(
     (i) => i.tipo === 'material' && i.ativo !== false
@@ -52,6 +60,56 @@ export default function SaidaMaterialForm({
     initial?.valorTotal?.toString() || ''
   );
   const [observacoes, setObservacoes] = useState(initial?.observacoes || '');
+  const [importModalOpen, setImportModalOpen] = useState(false);
+  const [toastMsg, setToastMsg] = useState('');
+
+  const parseRow = useCallback((row: unknown[], _index: number): ParsedRow => {
+    const erros: string[] = [];
+    const data = parseStr(row[0]);
+    if (!data) erros.push('Data obrigatoria');
+    const obraNome = parseStr(row[1]);
+    const obra = obras.find((o) => o.nome.toLowerCase() === obraNome.toLowerCase());
+    if (!obra) erros.push(`Obra "${obraNome}" nao encontrada`);
+    const obraId = obra?.id ?? '';
+    const depositoNome = parseStr(row[2]);
+    const deposito = allDepositos.filter((d) => d.ativo !== false).find((d) => d.nome.toLowerCase() === depositoNome.toLowerCase() && (!obra || d.obraId === obra.id));
+    if (!deposito) erros.push(`Deposito "${depositoNome}" nao encontrado`);
+    const depositoMaterialId = deposito?.id ?? '';
+    const materialNome = parseStr(row[3]);
+    const material = allInsumos.filter((i) => i.tipo === 'material' && i.ativo !== false).find((i) => i.nome.toLowerCase() === materialNome.toLowerCase());
+    if (!material) erros.push(`Material "${materialNome}" nao encontrado`);
+    const insumoId = material?.id ?? '';
+    const qtd = parseNumero(row[4]);
+    if (qtd === null || qtd <= 0) erros.push('Quantidade obrigatoria');
+    const quantidade = qtd ?? 0;
+    const vt = parseNumero(row[5]);
+    if (vt === null || vt <= 0) erros.push('Valor obrigatorio');
+    const valorTotal = vt ?? 0;
+    const observacoes = parseStr(row[6]);
+    return {
+      valido: erros.length === 0,
+      erros,
+      resumo: `${data} | ${obraNome} | ${depositoNome} | ${materialNome} | ${quantidade}`,
+      dados: { data, obraId, depositoMaterialId, insumoId, quantidade, valorTotal, observacoes },
+    };
+  }, [obras, allDepositos, allInsumos]);
+
+  const toEntity = useCallback((row: ParsedRow): Record<string, unknown> => {
+    const d = row.dados;
+    return {
+      id: gerarId(),
+      dataHora: d.data as string,
+      depositoMaterialId: d.depositoMaterialId as string,
+      insumoId: d.insumoId as string,
+      obraId: d.obraId as string,
+      quantidade: d.quantidade as number,
+      valorTotal: d.valorTotal as number,
+      alocacoes: [],
+      observacoes: d.observacoes as string,
+      criadoPor: '',
+    };
+  }, []);
+
   const [alocacoes, setAlocacoes] = useState<AlocacaoEtapa[]>(
     initial?.alocacoes || [{ etapaId: '', percentual: 100 }]
   );
@@ -119,7 +177,7 @@ export default function SaidaMaterialForm({
   // Auto-calcular valor total
   useEffect(() => {
     if (!initial && precoMedio > 0 && qtd > 0) {
-      setValorTotal((qtd * precoMedio).toFixed(2));
+      setValorTotal((qtd * precoMedio).toFixed(4));
     }
   }, [quantidade, depositoMaterialId, insumoId, precoMedio, initial, qtd]);
 
@@ -167,6 +225,7 @@ export default function SaidaMaterialForm({
       valorTotal: parseFloat(valorTotal) || 0,
       alocacoes,
       observacoes,
+      criadoPor: initial?.criadoPor || '',
     });
   }
 
@@ -185,6 +244,13 @@ export default function SaidaMaterialForm({
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
+      {onImportBatch && !initial && (
+        <div className="flex justify-end">
+          <Button type="button" variant="secondary" className="text-xs px-3 py-1.5" onClick={() => setImportModalOpen(true)}>
+            Importar do Excel
+          </Button>
+        </div>
+      )}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <Input
           label="Data e Hora"
@@ -249,7 +315,7 @@ export default function SaidaMaterialForm({
           label={`Quantidade${unidadeLabel ? ` (${unidadeLabel})` : ''}`}
           id="saiMatQtd"
           type="number"
-          step="0.01"
+          step="0.0001"
           min="0"
           value={quantidade}
           onChange={(e) => setQuantidade(e.target.value)}
@@ -265,7 +331,7 @@ export default function SaidaMaterialForm({
             label="Valor Total (R$)"
             id="saiMatValor"
             type="number"
-            step="0.01"
+            step="0.0001"
             min="0"
             value={valorTotal}
             onChange={(e) => setValorTotal(e.target.value)}
@@ -327,7 +393,7 @@ export default function SaidaMaterialForm({
                   placeholder="%"
                   min="0"
                   max="100"
-                  step="0.01"
+                  step="0.0001"
                   value={aloc.percentual || ''}
                   onChange={(e) =>
                     updateAlocacao(index, 'percentual', e.target.value)
@@ -385,6 +451,35 @@ export default function SaidaMaterialForm({
           {initial ? 'Salvar Alteracoes' : 'Registrar Saida'}
         </Button>
       </div>
+
+      {onImportBatch && (
+        <ImportExcelModal
+          open={importModalOpen}
+          onClose={() => setImportModalOpen(false)}
+          onImport={(items) => {
+            onImportBatch(items as unknown as SaidaMaterial[]);
+            setToastMsg(`${items.length} saida(s) importada(s) com sucesso!`);
+            setTimeout(() => setToastMsg(''), 3500);
+          }}
+          title="Importar Saidas de Material"
+          entityLabel="Saida"
+          genderFem
+          templateData={SAIDA_MAT_TEMPLATE}
+          templateFileName="template_saidas_material.xlsx"
+          sheetName="Saidas"
+          templateColWidths={[18, 15, 22, 18, 12, 12, 15]}
+          formatHintHeaders={['Data', 'Obra', 'Deposito', 'Material', 'Qtd', 'Valor', 'Obs']}
+          formatHintExample={['2024-01-15 08:00', 'Obra ABC', 'Almoxarifado', 'Cimento', '50', '1750', '']}
+          parseRow={parseRow}
+          toEntity={toEntity}
+        />
+      )}
+
+      {toastMsg && (
+        <div className="fixed bottom-6 right-6 z-50 bg-green-600 text-white px-5 py-3 rounded-lg shadow-lg text-sm font-medium animate-fade-in">
+          {toastMsg}
+        </div>
+      )}
     </form>
   );
 }

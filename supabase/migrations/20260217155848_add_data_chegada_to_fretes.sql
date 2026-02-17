@@ -1,0 +1,1 @@
+ALTER TABLE fretes ADD COLUMN IF NOT EXISTS data_chegada text NOT NULL DEFAULT '';

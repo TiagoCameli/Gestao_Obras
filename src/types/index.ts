@@ -7,6 +7,7 @@ export interface Obra {
   dataPrevisaoFim: string;
   responsavel: string;
   orcamento: number;
+  criadoPor: string;
 }
 
 export interface EtapaObra {
@@ -16,6 +17,7 @@ export interface EtapaObra {
   unidade: string;
   quantidade: number;
   valorUnitario: number;
+  criadoPor: string;
 }
 
 export interface Deposito {
@@ -25,6 +27,7 @@ export interface Deposito {
   capacidadeLitros: number;
   nivelAtualLitros: number;
   ativo: boolean;
+  criadoPor: string;
 }
 
 export interface Abastecimento {
@@ -39,6 +42,7 @@ export interface Abastecimento {
   depositoId: string;
   veiculo: string;
   observacoes: string;
+  criadoPor: string;
 }
 
 export interface EntradaCombustivel {
@@ -52,6 +56,7 @@ export interface EntradaCombustivel {
   fornecedor: string;
   notaFiscal: string;
   observacoes: string;
+  criadoPor: string;
 }
 
 export type TipoMedicao = 'horimetro' | 'odometro' | 'km';
@@ -68,6 +73,7 @@ export interface Equipamento {
   ativo: boolean;
   dataAquisicao: string;
   dataVenda: string;
+  criadoPor: string;
 }
 
 export type TipoInsumo = 'combustivel' | 'material';
@@ -79,6 +85,7 @@ export interface Insumo {
   unidade: string;
   descricao: string;
   ativo: boolean;
+  criadoPor: string;
 }
 
 export interface TransferenciaCombustivel {
@@ -89,6 +96,7 @@ export interface TransferenciaCombustivel {
   quantidadeLitros: number;
   valorTotal: number;
   observacoes: string;
+  criadoPor: string;
 }
 
 export interface Fornecedor {
@@ -99,6 +107,7 @@ export interface Fornecedor {
   email: string;
   observacoes: string;
   ativo: boolean;
+  criadoPor: string;
 }
 
 export interface DepositoMaterial {
@@ -108,6 +117,7 @@ export interface DepositoMaterial {
   endereco: string;
   responsavel: string;
   ativo: boolean;
+  criadoPor: string;
 }
 
 export interface UnidadeMedida {
@@ -115,6 +125,7 @@ export interface UnidadeMedida {
   nome: string;
   sigla: string;
   ativo: boolean;
+  criadoPor: string;
 }
 
 export interface FiltrosAbastecimento {
@@ -135,6 +146,7 @@ export interface EntradaMaterial {
   fornecedorId: string;
   notaFiscal: string;
   observacoes: string;
+  criadoPor: string;
 }
 
 export interface AlocacaoEtapa {
@@ -152,6 +164,7 @@ export interface SaidaMaterial {
   valorTotal: number;
   alocacoes: AlocacaoEtapa[];
   observacoes: string;
+  criadoPor: string;
 }
 
 export interface TransferenciaMaterial {
@@ -163,6 +176,7 @@ export interface TransferenciaMaterial {
   quantidade: number;
   valorTotal: number;
   observacoes: string;
+  criadoPor: string;
 }
 
 export interface FiltrosInsumos {
@@ -240,11 +254,13 @@ export interface Localidade {
   nome: string;
   endereco: string;
   ativo: boolean;
+  criadoPor: string;
 }
 
 export interface Frete {
   id: string;
   data: string;
+  dataChegada: string;
   obraId: string;
   origem: string;
   destino: string;
@@ -255,14 +271,63 @@ export interface Frete {
   valorTkm: number;
   valorTotal: number;
   notaFiscal: string;
+  placaCarreta: string;
+  motorista: string;
   observacoes: string;
+  criadoPor: string;
 }
 
 export interface FiltrosFrete {
   obraId: string;
   transportadora: string;
+  motorista: string;
   dataInicio: string;
   dataFim: string;
+}
+
+export type MetodoPagamentoFrete = 'pix' | 'boleto' | 'cheque' | 'dinheiro' | 'transferencia' | 'combustivel';
+
+export interface PagamentoFrete {
+  id: string;
+  data: string;
+  transportadora: string;
+  mesReferencia: string;
+  valor: number;
+  metodo: MetodoPagamentoFrete;
+  quantidadeCombustivel: number;
+  responsavel: string;
+  notaFiscal: string;
+  pagoPor: string;
+  observacoes: string;
+  criadoPor: string;
+}
+
+export interface AbastecimentoCarreta {
+  id: string;
+  data: string;
+  transportadora: string;
+  placaCarreta: string;
+  tipoCombustivel: string;
+  quantidadeLitros: number;
+  valorUnidade: number;
+  valorTotal: number;
+  observacoes: string;
+  criadoPor: string;
+}
+
+export interface ItemPedidoMaterial {
+  insumoId: string;
+  quantidade: number;
+  valorUnitario: number;
+}
+
+export interface PedidoMaterial {
+  id: string;
+  data: string;
+  fornecedorId: string;
+  itens: ItemPedidoMaterial[];
+  observacoes: string;
+  criadoPor: string;
 }
 
 export interface AuditLogEntry {
