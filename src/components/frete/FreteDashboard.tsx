@@ -7,6 +7,7 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from 'recharts';
+import { Fragment } from 'react';
 import type { Frete, PagamentoFrete, AbastecimentoCarreta, Obra, PedidoMaterial, Fornecedor } from '../../types';
 import { useInsumos } from '../../hooks/useInsumos';
 import { formatCurrency } from '../../utils/formatters';
@@ -359,8 +360,8 @@ export default function FreteDashboard({
                 {totaisPorFornecedor.map((forn) => {
                   const rows = pedidosFornecedorRows.filter((r) => r.fornecedorId === forn.fornecedorId);
                   return (
-                    <>{/* Fragment per fornecedor */}
-                      <tr key={`header-${forn.fornecedorId}`} className="bg-gray-50">
+                    <Fragment key={forn.fornecedorId}>
+                      <tr className="bg-gray-50">
                         <td colSpan={4} className="px-4 py-2 font-semibold text-gray-700">{forn.fornecedorNome}</td>
                         <td className="px-4 py-2 text-right font-semibold text-gray-700">{formatCurrency(forn.total)}</td>
                       </tr>
@@ -373,7 +374,7 @@ export default function FreteDashboard({
                           <td className="px-4 py-2 text-right text-gray-700">{formatCurrency(r.valor)}</td>
                         </tr>
                       ))}
-                    </>
+                    </Fragment>
                   );
                 })}
               </tbody>

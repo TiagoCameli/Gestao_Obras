@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, Fragment } from 'react';
 import type { PedidoMaterial, Fornecedor, Insumo } from '../../types';
 import Button from '../ui/Button';
 
@@ -75,9 +75,8 @@ export default function PedidoMaterialList({
                 const valorTotal = calcValorTotal(pedido);
                 const isExpanded = expandedId === pedido.id;
                 return (
-                  <>
+                  <Fragment key={pedido.id}>
                     <tr
-                      key={pedido.id}
                       className="hover:bg-emt-verde-claro cursor-pointer"
                       onClick={() => setExpandedId(isExpanded ? null : pedido.id)}
                     >
@@ -122,7 +121,7 @@ export default function PedidoMaterialList({
                       </td>
                     </tr>
                     {isExpanded && (
-                      <tr key={pedido.id + '-detail'}>
+                      <tr>
                         <td colSpan={6} className="px-8 py-3 bg-gray-50">
                           <table className="w-full text-xs">
                             <thead>
@@ -168,7 +167,7 @@ export default function PedidoMaterialList({
                         </td>
                       </tr>
                     )}
-                  </>
+                  </Fragment>
                 );
               })}
             </tbody>
