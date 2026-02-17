@@ -337,11 +337,13 @@ export default function FreteDashboard({
       </Card>
 
       {/* Pedidos de Material por Fornecedor */}
-      {pedidosFornecedorRows.length > 0 && (
-        <Card>
-          <h3 className="text-sm font-semibold text-gray-700 mb-3">
-            Pedidos de Material por Fornecedor
-          </h3>
+      <Card>
+        <h3 className="text-sm font-semibold text-gray-700 mb-3">
+          Pedidos de Material por Fornecedor
+        </h3>
+        {pedidosFornecedorRows.length === 0 ? (
+          <p className="text-gray-400 text-sm">Sem dados</p>
+        ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead className="bg-gray-50 border-b">
@@ -383,8 +385,8 @@ export default function FreteDashboard({
               </tfoot>
             </table>
           </div>
-        </Card>
-      )}
+        )}
+      </Card>
 
       {/* Gasto por Obra e por Material */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
