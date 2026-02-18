@@ -48,6 +48,7 @@ export default function FreteDashboard({
 }: FreteDashboardProps) {
   const [dataInicio, setDataInicio] = useState('');
   const [dataFim, setDataFim] = useState('');
+  const [obraIdFiltro, setObraIdFiltro] = useState('');
 
   // ── Filtrar por período ──
   const inRange = (d: string) => {
@@ -56,7 +57,11 @@ export default function FreteDashboard({
     if (dataFim && d > dataFim) return false;
     return true;
   };
-  const fretesF = fretes.filter((f) => inRange(f.data));
+  const fretesF = fretes.filter((f) => {
+    if (!inRange(f.data)) return false;
+    if (obraIdFiltro && f.obraId !== obraIdFiltro) return false;
+    return true;
+  });
   const pagamentosF = pagamentos.filter((p) => {
     const mr = p.mesReferencia; // "YYYY-MM"
     if (!mr) return true;
@@ -326,8 +331,21 @@ export default function FreteDashboard({
 
   return (
     <div className="space-y-6">
-      {/* Filtro de data */}
+      {/* Filtros */}
       <div className="flex flex-wrap items-end gap-4">
+        <div>
+          <label className="block text-xs font-medium text-gray-500 mb-1">Obra</label>
+          <select
+            value={obraIdFiltro}
+            onChange={(e) => setObraIdFiltro(e.target.value)}
+            className="border border-gray-300 rounded-md px-3 py-1.5 text-sm bg-white h-[34px] focus:outline-none focus:ring-2 focus:ring-blue-500"
+          >
+            <option value="">Todas as obras</option>
+            {obras.map((o) => (
+              <option key={o.id} value={o.id}>{o.nome}</option>
+            ))}
+          </select>
+        </div>
         <div>
           <label className="block text-xs font-medium text-gray-500 mb-1">Data Inicio</label>
           <input
@@ -346,12 +364,12 @@ export default function FreteDashboard({
             className="border border-gray-300 rounded-md px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
           />
         </div>
-        {(dataInicio || dataFim) && (
+        {(dataInicio || dataFim || obraIdFiltro) && (
           <button
-            onClick={() => { setDataInicio(''); setDataFim(''); }}
+            onClick={() => { setDataInicio(''); setDataFim(''); setObraIdFiltro(''); }}
             className="text-sm text-red-600 hover:text-red-800 font-medium pb-1"
           >
-            Limpar filtro
+            Limpar filtros
           </button>
         )}
       </div>
