@@ -6,6 +6,7 @@ export const MODULOS: { valor: ModuloPermissao; label: string }[] = [
   { valor: 'combustivel', label: 'Combustíveis' },
   { valor: 'insumos', label: 'Insumos' },
   { valor: 'frete', label: 'Frete' },
+  { valor: 'compras', label: 'Compras' },
   { valor: 'funcionarios', label: 'Funcionários' },
 ];
 
@@ -40,6 +41,7 @@ export const PERFIL_ADMINISTRADOR: PermissoesFuncionario = {
   combustivel: TODAS,
   insumos: TODAS,
   frete: TODAS,
+  compras: TODAS,
   funcionarios: TODAS,
 };
 
@@ -49,6 +51,7 @@ export const PERFIL_GERENTE: PermissoesFuncionario = {
   combustivel: VCEEX,
   insumos: VCEEX,
   frete: VCEEX,
+  compras: VCEEX,
   funcionarios: VCE,
 };
 
@@ -58,6 +61,7 @@ export const PERFIL_SUPERVISOR: PermissoesFuncionario = {
   combustivel: VCE,
   insumos: VCE,
   frete: VCE,
+  compras: VCE,
   funcionarios: V,
 };
 
@@ -67,6 +71,7 @@ export const PERFIL_OPERADOR: PermissoesFuncionario = {
   combustivel: VCE,
   insumos: VCE,
   frete: VCE,
+  compras: VCE,
   funcionarios: NENHUMA,
 };
 
@@ -76,6 +81,7 @@ export const PERFIL_FINANCEIRO: PermissoesFuncionario = {
   combustivel: VE,
   insumos: VE,
   frete: VE,
+  compras: VE,
   funcionarios: V,
 };
 
@@ -131,6 +137,12 @@ export const ACOES_PLATAFORMA: AcaoPlataforma[] = [
   { chave: 'criar_frete', label: 'Criar frete', grupo: 'Frete' },
   { chave: 'editar_frete', label: 'Editar frete', grupo: 'Frete' },
   { chave: 'excluir_frete', label: 'Excluir frete', grupo: 'Frete' },
+  // Compras
+  { chave: 'ver_compras', label: 'Visualizar compras', grupo: 'Compras' },
+  { chave: 'criar_compra', label: 'Criar pedidos/cotações/OCs', grupo: 'Compras' },
+  { chave: 'editar_compra', label: 'Editar compras', grupo: 'Compras' },
+  { chave: 'excluir_compra', label: 'Excluir compras', grupo: 'Compras' },
+  { chave: 'aprovar_pedido', label: 'Aprovar/Reprovar pedidos', grupo: 'Compras' },
   // Funcionarios
   { chave: 'ver_funcionarios', label: 'Visualizar funcionários', grupo: 'Funcionários' },
   { chave: 'criar_funcionarios', label: 'Cadastrar funcionários', grupo: 'Funcionários' },
@@ -149,6 +161,7 @@ export function permissoesVazias(): PermissoesFuncionario {
     combustivel: [],
     insumos: [],
     frete: [],
+    compras: [],
     funcionarios: [],
   };
 }

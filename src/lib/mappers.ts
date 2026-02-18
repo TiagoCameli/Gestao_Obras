@@ -23,6 +23,9 @@ import type {
   AlocacaoEtapa,
   PedidoMaterial,
   ItemPedidoMaterial,
+  PedidoCompra,
+  Cotacao,
+  OrdemCompra,
 } from '../types';
 
 // ── Obras ──
@@ -718,6 +721,129 @@ export function pedidoMaterialToDb(p: PedidoMaterial) {
     itens: p.itens.map(itemPedidoMaterialToDb),
     observacoes: p.observacoes,
     criado_por: p.criadoPor,
+  };
+}
+
+// ── Pedidos Compra ──
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function dbToPedidoCompra(row: any): PedidoCompra {
+  return {
+    id: row.id,
+    numero: row.numero ?? '',
+    data: row.data,
+    obraId: row.obra_id ?? '',
+    solicitante: row.solicitante ?? '',
+    urgencia: row.urgencia ?? 'normal',
+    status: row.status ?? 'pendente',
+    observacoes: row.observacoes ?? '',
+    itens: Array.isArray(row.itens) ? row.itens.map((i: { id?: string; descricao?: string; categoria?: string; quantidade?: number; unidade?: string }) => ({
+      id: i.id ?? '',
+      descricao: i.descricao ?? '',
+      categoria: i.categoria ?? 'outros',
+      quantidade: Number(i.quantidade ?? 0),
+      unidade: i.unidade ?? 'un',
+    })) : [],
+    criadoPor: row.criado_por ?? '',
+  };
+}
+
+export function pedidoCompraToDb(p: PedidoCompra) {
+  return {
+    id: p.id,
+    numero: p.numero,
+    data: p.data,
+    obra_id: p.obraId,
+    solicitante: p.solicitante,
+    urgencia: p.urgencia,
+    status: p.status,
+    observacoes: p.observacoes,
+    itens: p.itens,
+    criado_por: p.criadoPor,
+  };
+}
+
+// ── Cotacoes ──
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function dbToCotacao(row: any): Cotacao {
+  return {
+    id: row.id,
+    numero: row.numero ?? '',
+    data: row.data,
+    pedidoCompraId: row.pedido_compra_id ?? '',
+    prazoResposta: row.prazo_resposta ?? '',
+    status: row.status ?? 'em_cotacao',
+    fornecedores: Array.isArray(row.fornecedores) ? row.fornecedores : [],
+    itensPedido: Array.isArray(row.itens_pedido) ? row.itens_pedido : [],
+    observacoes: row.observacoes ?? '',
+    criadoPor: row.criado_por ?? '',
+  };
+}
+
+export function cotacaoToDb(c: Cotacao) {
+  return {
+    id: c.id,
+    numero: c.numero,
+    data: c.data,
+    pedido_compra_id: c.pedidoCompraId || null,
+    prazo_resposta: c.prazoResposta,
+    status: c.status,
+    fornecedores: c.fornecedores,
+    itens_pedido: c.itensPedido,
+    observacoes: c.observacoes,
+    criado_por: c.criadoPor,
+  };
+}
+
+// ── Ordens Compra ──
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function dbToOrdemCompra(row: any): OrdemCompra {
+  return {
+    id: row.id,
+    numero: row.numero ?? '',
+    dataCriacao: row.data_criacao,
+    dataEntrega: row.data_entrega ?? '',
+    obraId: row.obra_id ?? '',
+    etapaObraId: row.etapa_obra_id ?? '',
+    fornecedorId: row.fornecedor_id ?? '',
+    cotacaoId: row.cotacao_id ?? '',
+    pedidoCompraId: row.pedido_compra_id ?? '',
+    itens: Array.isArray(row.itens) ? row.itens : [],
+    custosAdicionais: row.custos_adicionais ?? { frete: 0, outrasDespesas: 0, impostos: 0, desconto: 0 },
+    totalMateriais: Number(row.total_materiais ?? 0),
+    totalGeral: Number(row.total_geral ?? 0),
+    condicaoPagamento: row.condicao_pagamento ?? '',
+    prazoEntrega: row.prazo_entrega ?? '',
+    status: row.status ?? 'emitida',
+    observacoes: row.observacoes ?? '',
+    entradaInsumos: row.entrada_insumos ?? false,
+    criadoPor: row.criado_por ?? '',
+  };
+}
+
+export function ordemCompraToDb(o: OrdemCompra) {
+  return {
+    id: o.id,
+    numero: o.numero,
+    data_criacao: o.dataCriacao,
+    data_entrega: o.dataEntrega || null,
+    obra_id: o.obraId || null,
+    etapa_obra_id: o.etapaObraId || null,
+    fornecedor_id: o.fornecedorId || null,
+    cotacao_id: o.cotacaoId || null,
+    pedido_compra_id: o.pedidoCompraId || null,
+    itens: o.itens,
+    custos_adicionais: o.custosAdicionais,
+    total_materiais: o.totalMateriais,
+    total_geral: o.totalGeral,
+    condicao_pagamento: o.condicaoPagamento,
+    prazo_entrega: o.prazoEntrega,
+    status: o.status,
+    observacoes: o.observacoes,
+    entrada_insumos: o.entradaInsumos,
+    criado_por: o.criadoPor,
   };
 }
 

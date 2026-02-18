@@ -190,7 +190,7 @@ export interface FiltrosInsumos {
 
 export type CargoFuncionario = 'Administrador' | 'Gerente' | 'Supervisor' | 'Operador' | 'Financeiro';
 
-export type ModuloPermissao = 'dashboard' | 'cadastros' | 'combustivel' | 'insumos' | 'frete' | 'funcionarios';
+export type ModuloPermissao = 'dashboard' | 'cadastros' | 'combustivel' | 'insumos' | 'frete' | 'compras' | 'funcionarios';
 
 export type AcaoPermissao = 'visualizar' | 'criar' | 'editar' | 'excluir' | 'exportar' | 'ajustar_filtros';
 
@@ -339,4 +339,103 @@ export interface AuditLogEntry {
   alvoId?: string;
   detalhes: string;
   dataHora: string;
+}
+
+// === Módulo de Compras ===
+
+export type UrgenciaPedidoCompra = 'baixa' | 'normal' | 'alta' | 'critica';
+export type StatusPedidoCompra = 'pendente' | 'aprovado' | 'reprovado';
+export type CategoriaMaterialCompra = 'concreto_argamassa' | 'aco_ferragens' | 'madeiras' | 'eletrica' | 'hidraulica' | 'pintura' | 'acabamento' | 'epi' | 'ferramentas' | 'outros';
+export type UnidadeCompra = 'un' | 'kg' | 'm' | 'm2' | 'm3' | 'lt' | 'sc' | 'pc' | 'cx' | 'rl' | 'tb';
+
+export interface ItemPedidoCompra {
+  id: string;
+  descricao: string;
+  categoria: CategoriaMaterialCompra;
+  quantidade: number;
+  unidade: UnidadeCompra;
+}
+
+export interface PedidoCompra {
+  id: string;
+  numero: string;
+  data: string;
+  obraId: string;
+  solicitante: string;
+  urgencia: UrgenciaPedidoCompra;
+  status: StatusPedidoCompra;
+  observacoes: string;
+  itens: ItemPedidoCompra[];
+  criadoPor: string;
+}
+
+export type StatusCotacao = 'em_cotacao' | 'parcial' | 'cotado';
+
+export interface ItemPrecoCotacao {
+  itemPedidoId: string;
+  precoUnitario: number;
+}
+
+export interface CotacaoFornecedor {
+  id: string;
+  fornecedorId: string;
+  itensPrecos: ItemPrecoCotacao[];
+  condicaoPagamento: string;
+  prazoEntrega: string;
+  total: number;
+  respondido: boolean;
+  vencedor: boolean;
+}
+
+export interface Cotacao {
+  id: string;
+  numero: string;
+  data: string;
+  pedidoCompraId: string;
+  prazoResposta: string;
+  status: StatusCotacao;
+  fornecedores: CotacaoFornecedor[];
+  itensPedido: ItemPedidoCompra[];
+  observacoes: string;
+  criadoPor: string;
+}
+
+export type StatusOrdemCompra = 'emitida' | 'entregue' | 'cancelada';
+
+export interface ItemOrdemCompra {
+  id: string;
+  descricao: string;
+  quantidade: number;
+  unidade: string;
+  precoUnitario: number;
+  subtotal: number;
+}
+
+export interface CustosAdicionaisOC {
+  frete: number;
+  outrasDespesas: number;
+  impostos: number;
+  desconto: number;
+}
+
+export interface OrdemCompra {
+  id: string;
+  numero: string;
+  dataCriacao: string;
+  dataEntrega: string;
+  obraId: string;
+  etapaObraId: string;
+  fornecedorId: string;
+  cotacaoId: string;
+  pedidoCompraId: string;
+  itens: ItemOrdemCompra[];
+  custosAdicionais: CustosAdicionaisOC;
+  totalMateriais: number;
+  totalGeral: number;
+  condicaoPagamento: string;
+  prazoEntrega: string;
+  status: StatusOrdemCompra;
+  observacoes: string;
+  entradaInsumos: boolean;
+  criadoPor: string;
 }

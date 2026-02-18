@@ -8,6 +8,7 @@ import Obras from './pages/Obras';
 import Combustivel from './pages/Combustivel';
 import Insumos from './pages/Insumos';
 import Frete from './pages/Frete';
+import Compras from './pages/Compras';
 import Funcionarios from './pages/Funcionarios';
 import Login from './pages/Login';
 import AcessoNegado from './pages/AcessoNegado';
@@ -25,6 +26,7 @@ const PAGINAS_FALLBACK: { acao: string; rota: string }[] = [
   { acao: 'ver_combustivel', rota: '/combustivel' },
   { acao: 'ver_insumos', rota: '/insumos' },
   { acao: 'ver_frete', rota: '/frete' },
+  { acao: 'ver_compras', rota: '/compras' },
   { acao: 'ver_funcionarios', rota: '/funcionarios' },
 ];
 
@@ -63,6 +65,7 @@ export default function App() {
               <Route path="/combustivel" element={<ProtectedRoute modulo="combustivel"><Combustivel /></ProtectedRoute>} />
               <Route path="/insumos" element={<ProtectedRoute modulo="insumos"><Insumos /></ProtectedRoute>} />
               <Route path="/frete" element={<ProtectedRoute modulo="frete"><Frete /></ProtectedRoute>} />
+              <Route path="/compras" element={<ProtectedRoute modulo="compras"><Compras /></ProtectedRoute>} />
               <Route path="/funcionarios" element={<ProtectedRoute modulo="funcionarios"><Funcionarios /></ProtectedRoute>} />
               <Route path="/migrar-dados" element={<MigrarDados />} />
               <Route path="/acesso-negado" element={<AcessoNegado />} />
