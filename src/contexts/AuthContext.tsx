@@ -194,6 +194,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const temAcao = useCallback((chave: string): boolean => {
     if (!usuario) return false;
+    if (usuario.cargo === 'Administrador') return true;
     if (!usuario.acoesPermitidas) return true;
     return usuario.acoesPermitidas.includes(chave);
   }, [usuario]);
