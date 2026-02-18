@@ -20,7 +20,7 @@ interface SaidaMaterialFormProps {
 }
 
 const SAIDA_MAT_TEMPLATE = [
-  ['Data', 'Obra', 'Deposito', 'Material', 'Quantidade', 'Valor', 'Observacoes'],
+  ['Data', 'Obra', 'Depósito', 'Material', 'Quantidade', 'Valor', 'Observações'],
   ['2024-01-15 08:00', 'Obra ABC', 'Almoxarifado Central', 'Cimento CP-II', '50', '1750', ''],
 ];
 
@@ -69,15 +69,15 @@ export default function SaidaMaterialForm({
     if (!data) erros.push('Data obrigatoria');
     const obraNome = parseStr(row[1]);
     const obra = obras.find((o) => o.nome.toLowerCase() === obraNome.toLowerCase());
-    if (!obra) erros.push(`Obra "${obraNome}" nao encontrada`);
+    if (!obra) erros.push(`Obra "${obraNome}" não encontrada`);
     const obraId = obra?.id ?? '';
     const depositoNome = parseStr(row[2]);
     const deposito = allDepositos.filter((d) => d.ativo !== false).find((d) => d.nome.toLowerCase() === depositoNome.toLowerCase() && (!obra || d.obraId === obra.id));
-    if (!deposito) erros.push(`Deposito "${depositoNome}" nao encontrado`);
+    if (!deposito) erros.push(`Depósito "${depositoNome}" não encontrado`);
     const depositoMaterialId = deposito?.id ?? '';
     const materialNome = parseStr(row[3]);
     const material = allInsumos.filter((i) => i.tipo === 'material' && i.ativo !== false).find((i) => i.nome.toLowerCase() === materialNome.toLowerCase());
-    if (!material) erros.push(`Material "${materialNome}" nao encontrado`);
+    if (!material) erros.push(`Material "${materialNome}" não encontrado`);
     const insumoId = material?.id ?? '';
     const qtd = parseNumero(row[4]);
     if (qtd === null || qtd <= 0) erros.push('Quantidade obrigatoria');
@@ -271,7 +271,7 @@ export default function SaidaMaterialForm({
         />
         <div>
           <Select
-            label="Deposito de Origem"
+            label="Depósito de Origem"
             id="saiMatDepositoId"
             value={depositoMaterialId}
             onChange={(e) => setDepositoMaterialId(e.target.value)}
@@ -283,15 +283,15 @@ export default function SaidaMaterialForm({
               !obraId
                 ? 'Selecione a obra primeiro'
                 : depositos.length === 0
-                  ? 'Nenhum deposito cadastrado'
-                  : 'Selecione o deposito'
+                  ? 'Nenhum depósito cadastrado'
+                  : 'Selecione o depósito'
             }
             disabled={!obraId || depositos.length === 0}
             required
           />
           {depositoMaterialId && insumoId && (
             <p className="text-xs text-gray-500 mt-1">
-              Estoque disponivel{dataHora ? ' na data' : ''}: {estoqueDisponivel} {unidadeLabel}
+              Estoque disponível{dataHora ? ' na data' : ''}: {estoqueDisponivel} {unidadeLabel}
             </p>
           )}
         </div>
@@ -321,7 +321,7 @@ export default function SaidaMaterialForm({
           onChange={(e) => setQuantidade(e.target.value)}
           error={
             semEstoque
-              ? `Estoque insuficiente (${estoqueDisponivel} ${unidadeLabel} disponiveis)`
+              ? `Estoque insuficiente (${estoqueDisponivel} ${unidadeLabel} disponíveis)`
               : undefined
           }
           required
@@ -339,7 +339,7 @@ export default function SaidaMaterialForm({
           />
           {precoMedio > 0 && (
             <p className="text-xs text-gray-500 mt-1">
-              Preco medio do estoque: R$ {precoMedio.toFixed(4)}/{unidadeLabel || 'un'}
+              Preço médio do estoque: R$ {precoMedio.toFixed(4)}/{unidadeLabel || 'un'}
             </p>
           )}
         </div>
@@ -349,7 +349,7 @@ export default function SaidaMaterialForm({
       <div className="border border-gray-200 rounded-lg p-4">
         <div className="flex items-center justify-between mb-3">
           <h4 className="text-sm font-semibold text-gray-700">
-            Alocacao por Etapa
+            Alocação por Etapa
           </h4>
           <span
             className={`text-xs font-medium px-2 py-1 rounded-full ${
@@ -432,7 +432,7 @@ export default function SaidaMaterialForm({
           htmlFor="saiMatObs"
           className="block text-sm font-medium text-gray-700 mb-1"
         >
-          Observacoes (opcional)
+          Observações (opcional)
         </label>
         <textarea
           id="saiMatObs"
@@ -440,7 +440,7 @@ export default function SaidaMaterialForm({
           rows={3}
           value={observacoes}
           onChange={(e) => setObservacoes(e.target.value)}
-          placeholder="Alguma observacao..."
+          placeholder="Alguma observação..."
         />
       </div>
       <div className="flex justify-end gap-3 pt-2">
@@ -448,7 +448,7 @@ export default function SaidaMaterialForm({
           Cancelar
         </Button>
         <Button type="submit" disabled={!isValid}>
-          {initial ? 'Salvar Alteracoes' : 'Registrar Saida'}
+          {initial ? 'Salvar Alterações' : 'Registrar Saída'}
         </Button>
       </div>
 
@@ -458,17 +458,17 @@ export default function SaidaMaterialForm({
           onClose={() => setImportModalOpen(false)}
           onImport={(items) => {
             onImportBatch(items as unknown as SaidaMaterial[]);
-            setToastMsg(`${items.length} saida(s) importada(s) com sucesso!`);
+            setToastMsg(`${items.length} saída(s) importada(s) com sucesso!`);
             setTimeout(() => setToastMsg(''), 3500);
           }}
-          title="Importar Saidas de Material"
-          entityLabel="Saida"
+          title="Importar Saídas de Material"
+          entityLabel="Saída"
           genderFem
           templateData={SAIDA_MAT_TEMPLATE}
           templateFileName="template_saidas_material.xlsx"
-          sheetName="Saidas"
+          sheetName="Saídas"
           templateColWidths={[18, 15, 22, 18, 12, 12, 15]}
-          formatHintHeaders={['Data', 'Obra', 'Deposito', 'Material', 'Qtd', 'Valor', 'Obs']}
+          formatHintHeaders={['Data', 'Obra', 'Depósito', 'Material', 'Qtd', 'Valor', 'Obs']}
           formatHintExample={['2024-01-15 08:00', 'Obra ABC', 'Almoxarifado', 'Cimento', '50', '1750', '']}
           parseRow={parseRow}
           toEntity={toEntity}

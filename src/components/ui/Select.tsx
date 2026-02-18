@@ -27,7 +27,7 @@ export default function Select({
       </label>
       <select
         id={id}
-        className={`w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emt-verde bg-white ${
+        className={`w-full h-[38px] border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emt-verde bg-white ${
           error ? 'border-red-500' : 'border-gray-300'
         }`}
         {...props}

@@ -193,11 +193,11 @@ export function dbToEquipamento(row: any): Equipamento {
     numeroSerie: row.numero_serie,
     ano: row.ano,
     marca: row.marca,
-    tipoMedicao: row.tipo_medicao,
-    medicaoInicial: Number(row.medicao_inicial),
-    ativo: row.ativo,
-    dataAquisicao: row.data_aquisicao,
-    dataVenda: row.data_venda,
+    tipoMedicao: row.tipo_medicao ?? 'horimetro',
+    medicaoInicial: Number(row.medicao_inicial) || 0,
+    ativo: row.ativo ?? true,
+    dataAquisicao: row.data_aquisicao ?? '',
+    dataVenda: row.data_venda ?? '',
     criadoPor: row.criado_por ?? '',
   };
 }

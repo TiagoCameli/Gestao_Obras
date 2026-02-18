@@ -22,7 +22,7 @@ function gerarId(): string {
 }
 
 const FRETE_TEMPLATE = [
-  ['Data Saida', 'Data Chegada', 'Origem', 'Destino', 'Transportadora', 'Motorista', 'Material', 'Peso (t)', 'KM', 'R$/TKM', 'Obra', 'NF', 'Placa Carreta', 'Observacoes'],
+  ['Data Saída', 'Data Chegada', 'Origem', 'Destino', 'Transportadora', 'Motorista', 'Material', 'Peso (t)', 'KM', 'R$/TKM', 'Obra', 'NF', 'Placa Carreta', 'Observações'],
   ['2024-01-15', '2024-01-16', 'Sao Paulo', 'Campinas', 'Transportes ABC', 'Joao Silva', 'Brita', '25', '100', '0.15', 'Obra XYZ', 'NF-001', 'ABC-1234', ''],
 ];
 
@@ -227,19 +227,12 @@ export default function FreteForm({
       )}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <Input
-          label="Data de Saida"
+          label="Data de Saída"
           id="freteData"
           type="date"
           value={data}
           onChange={(e) => setData(e.target.value)}
           required
-        />
-        <Input
-          label="Data de Chegada (opcional)"
-          id="freteDataChegada"
-          type="date"
-          value={dataChegada}
-          onChange={(e) => setDataChegada(e.target.value)}
         />
         <Select
           label="Obra (opcional)"
@@ -474,7 +467,7 @@ export default function FreteForm({
           htmlFor="freteObs"
           className="block text-sm font-medium text-gray-700 mb-1"
         >
-          Observacoes (opcional)
+          Observações (opcional)
         </label>
         <textarea
           id="freteObs"
@@ -482,7 +475,7 @@ export default function FreteForm({
           rows={3}
           value={observacoes}
           onChange={(e) => setObservacoes(e.target.value)}
-          placeholder="Alguma observacao..."
+          placeholder="Alguma observação..."
         />
       </div>
       <div className="flex justify-end gap-3 pt-2">
@@ -490,7 +483,7 @@ export default function FreteForm({
           Cancelar
         </Button>
         <Button type="submit" disabled={!isValid}>
-          {initial ? 'Salvar Alteracoes' : 'Registrar Frete'}
+          {initial ? 'Salvar Alterações' : 'Registrar Frete'}
         </Button>
       </div>
 
@@ -505,7 +498,7 @@ export default function FreteForm({
         templateFileName="template_fretes.xlsx"
         sheetName="Fretes"
         templateColWidths={[12, 12, 15, 15, 20, 18, 15, 10, 8, 10, 15, 10, 12, 15]}
-        formatHintHeaders={['Saida', 'Chegada', 'Origem', 'Destino', 'Transp.', 'Motorista', 'Material', 'Peso(t)', 'KM', 'R$/TKM', 'Obra', 'NF', 'Placa', 'Obs']}
+        formatHintHeaders={['Saída', 'Chegada', 'Origem', 'Destino', 'Transp.', 'Motorista', 'Material', 'Peso(t)', 'KM', 'R$/TKM', 'Obra', 'NF', 'Placa', 'Obs']}
         formatHintExample={['2024-01-15', '2024-01-16', 'S.Paulo', 'Campinas', 'ABC', 'Joao', 'Brita', '25', '100', '0.15', 'Obra X', '', 'ABC-1234', '']}
         parseRow={parseRow}
         toEntity={toEntity}

@@ -19,8 +19,8 @@ const METODOS: { value: MetodoPagamentoFrete; label: string }[] = [
   { value: 'boleto', label: 'Boleto' },
   { value: 'cheque', label: 'Cheque' },
   { value: 'dinheiro', label: 'Dinheiro' },
-  { value: 'transferencia', label: 'Transferencia' },
-  { value: 'combustivel', label: 'Combustivel' },
+  { value: 'transferencia', label: 'Transferência' },
+  { value: 'combustivel', label: 'Combustível' },
 ];
 
 function gerarId(): string {
@@ -28,7 +28,7 @@ function gerarId(): string {
 }
 
 const PAGFRETE_TEMPLATE = [
-  ['Data', 'Transportadora', 'Mes Referencia', 'Valor', 'Metodo', 'Responsavel', 'NF', 'Pago Por', 'Observacoes'],
+  ['Data', 'Transportadora', 'Mês Referência', 'Valor', 'Método', 'Responsavel', 'NF', 'Pago Por', 'Observações'],
   ['2024-01-15', 'Transportes ABC', '2024-01', '5000', 'pix', 'Carlos Silva', 'NF-001', 'Maria Santos', ''],
 ];
 
@@ -185,7 +185,7 @@ export default function PagamentoFreteForm({
           required
         />
         <Input
-          label="Mes Referencia"
+          label="Mês Referência"
           id="pagFreteMesRef"
           type="month"
           value={mesReferencia}
@@ -203,7 +203,7 @@ export default function PagamentoFreteForm({
           required
         />
         <Select
-          label="Metodo de Pagamento"
+          label="Método de Pagamento"
           id="pagFreteMetodo"
           value={metodo}
           onChange={(e) => setMetodo(e.target.value as MetodoPagamentoFrete)}
@@ -212,7 +212,7 @@ export default function PagamentoFreteForm({
         />
         {metodo === 'combustivel' && (
           <Input
-            label="Quantidade Combustivel (litros)"
+            label="Quantidade Combustível (litros)"
             id="pagFreteQtdCombustivel"
             type="number"
             step="0.0001"
@@ -250,7 +250,7 @@ export default function PagamentoFreteForm({
       </div>
       <div>
         <label htmlFor="pagFreteObs" className="block text-sm font-medium text-gray-700 mb-1">
-          Observacoes (opcional)
+          Observações (opcional)
         </label>
         <textarea
           id="pagFreteObs"
@@ -258,7 +258,7 @@ export default function PagamentoFreteForm({
           rows={3}
           value={observacoes}
           onChange={(e) => setObservacoes(e.target.value)}
-          placeholder="Alguma observacao..."
+          placeholder="Alguma observação..."
         />
       </div>
       <div className="flex justify-end gap-3 pt-2">
@@ -266,7 +266,7 @@ export default function PagamentoFreteForm({
           Cancelar
         </Button>
         <Button type="submit" disabled={!isValid}>
-          {initial ? 'Salvar Alteracoes' : 'Registrar Pagamento'}
+          {initial ? 'Salvar Alterações' : 'Registrar Pagamento'}
         </Button>
       </div>
 
@@ -281,7 +281,7 @@ export default function PagamentoFreteForm({
         templateFileName="template_pagamentos_frete.xlsx"
         sheetName="Pagamentos"
         templateColWidths={[12, 20, 14, 12, 14, 20, 10, 18, 15]}
-        formatHintHeaders={['Data', 'Transportadora', 'Mes Ref', 'Valor', 'Metodo', 'Responsavel', 'NF', 'Pago Por', 'Obs']}
+        formatHintHeaders={['Data', 'Transportadora', 'Mês Ref', 'Valor', 'Método', 'Responsavel', 'NF', 'Pago Por', 'Obs']}
         formatHintExample={['2024-01-15', 'ABC', '2024-01', '5000', 'pix', 'Carlos', '', 'Maria', '']}
         parseRow={parseRow}
         toEntity={toEntity}

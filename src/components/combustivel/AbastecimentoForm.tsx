@@ -24,7 +24,7 @@ function gerarId(): string {
 }
 
 const ABAST_TEMPLATE = [
-  ['Data', 'Combustivel', 'Obra', 'Deposito', 'Litros', 'Valor', 'Veiculo', 'Observacoes'],
+  ['Data', 'Combustível', 'Obra', 'Depósito', 'Litros', 'Valor', 'Veículo', 'Observações'],
   ['2024-01-15 08:00', 'Diesel S10', 'Obra ABC', 'Tanque Diesel 01', '200', '1300', 'Escavadeira CAT', ''],
 ];
 
@@ -183,11 +183,11 @@ export default function AbastecimentoForm({
 
       let combustivelId = '';
       if (!combustivelNome) {
-        erros.push('Falta combustivel');
+        erros.push('Falta combustível');
       } else {
         const found = insumosCombustivel.find((i) => i.nome.toLowerCase() === combustivelNome.toLowerCase());
         if (found) combustivelId = found.id;
-        else erros.push(`Combustivel "${combustivelNome}" nao encontrado`);
+        else erros.push(`Combustível "${combustivelNome}" não encontrado`);
       }
 
       let foundObraId = '';
@@ -196,24 +196,24 @@ export default function AbastecimentoForm({
       } else {
         const found = obras.find((o) => o.nome.toLowerCase() === obraNome.toLowerCase());
         if (found) foundObraId = found.id;
-        else erros.push(`Obra "${obraNome}" nao encontrada`);
+        else erros.push(`Obra "${obraNome}" não encontrada`);
       }
 
       let foundDepositoId = '';
       if (!depositoNome) {
-        erros.push('Falta deposito');
+        erros.push('Falta depósito');
       } else {
         const depositosObra = foundObraId
           ? allDepositos.filter((d) => d.obraId === foundObraId && d.ativo !== false)
           : allDepositos.filter((d) => d.ativo !== false);
         const found = depositosObra.find((d) => d.nome.toLowerCase() === depositoNome.toLowerCase());
         if (found) foundDepositoId = found.id;
-        else erros.push(`Deposito "${depositoNome}" nao encontrado`);
+        else erros.push(`Depósito "${depositoNome}" não encontrado`);
       }
 
       if (litros === null) erros.push('Falta litros');
       if (valor === null) erros.push('Falta valor');
-      if (!veiculoNome) erros.push('Falta veiculo');
+      if (!veiculoNome) erros.push('Falta veículo');
 
       const resumo = `${data || '?'} | ${combustivelNome || '?'} | ${obraNome || '?'} | ${veiculoNome || '?'} | ${litros ?? '?'} L`;
 
@@ -303,7 +303,7 @@ export default function AbastecimentoForm({
           required
         />
         <Select
-          label="Tipo de Combustivel"
+          label="Tipo de Combustível"
           id="tipoCombustivel"
           value={tipoCombustivel}
           onChange={(e) => setTipoCombustivel(e.target.value)}
@@ -334,7 +334,7 @@ export default function AbastecimentoForm({
               !obraId
                 ? 'Selecione a obra primeiro'
                 : depositos.length === 0
-                  ? 'Nenhum tanque para este combustivel'
+                  ? 'Nenhum tanque para este combustível'
                   : 'Selecione o tanque'
             }
             disabled={!obraId || depositos.length === 0}
@@ -357,7 +357,7 @@ export default function AbastecimentoForm({
                 />
               </div>
               <span className="text-xs text-gray-500">
-                {estoqueDisponivel.toFixed(0)} L disponiveis{dataHora ? ' na data' : ''}
+                {estoqueDisponivel.toFixed(0)} L disponíveis{dataHora ? ' na data' : ''}
               </span>
             </div>
           )}
@@ -370,7 +370,7 @@ export default function AbastecimentoForm({
           min="0"
           value={quantidadeLitros}
           onChange={(e) => setQuantidadeLitros(e.target.value)}
-          error={semEstoque ? `Estoque insuficiente (${estoqueDisponivel.toFixed(0)} L disponiveis${dataHora ? ' na data' : ''})` : undefined}
+          error={semEstoque ? `Estoque insuficiente (${estoqueDisponivel.toFixed(0)} L disponíveis${dataHora ? ' na data' : ''})` : undefined}
           required
         />
         <div>
@@ -386,12 +386,12 @@ export default function AbastecimentoForm({
           />
           {precoMedio > 0 && (
             <p className="text-xs text-gray-500 mt-1">
-              Preco medio do tanque: R$ {precoMedio.toFixed(4)}/L
+              Preço médio do tanque: R$ {precoMedio.toFixed(4)}/L
             </p>
           )}
         </div>
         <Select
-          label="Veiculo / Equipamento"
+          label="Veículo / Equipamento"
           id="veiculo"
           value={veiculo}
           onChange={(e) => setVeiculo(e.target.value)}
@@ -412,7 +412,7 @@ export default function AbastecimentoForm({
       <div className="border border-gray-200 rounded-lg p-4">
         <div className="flex items-center justify-between mb-3">
           <h4 className="text-sm font-semibold text-gray-700">
-            Alocacao por Etapa
+            Alocação por Etapa
           </h4>
           <span
             className={`text-xs font-medium px-2 py-1 rounded-full ${
@@ -497,7 +497,7 @@ export default function AbastecimentoForm({
           htmlFor="observacoes"
           className="block text-sm font-medium text-gray-700 mb-1"
         >
-          Observacoes (opcional)
+          Observações (opcional)
         </label>
         <textarea
           id="observacoes"
@@ -505,7 +505,7 @@ export default function AbastecimentoForm({
           rows={3}
           value={observacoes}
           onChange={(e) => setObservacoes(e.target.value)}
-          placeholder="Alguma observacao sobre o abastecimento..."
+          placeholder="Alguma observação sobre o abastecimento..."
         />
       </div>
       <div className="flex justify-end gap-3 pt-2">
@@ -513,7 +513,7 @@ export default function AbastecimentoForm({
           Cancelar
         </Button>
         <Button type="submit" disabled={!isValid}>
-          {initial ? 'Salvar Alteracoes' : 'Registrar Saida'}
+          {initial ? 'Salvar Alterações' : 'Registrar Saída'}
         </Button>
       </div>
 
@@ -528,7 +528,7 @@ export default function AbastecimentoForm({
         templateFileName="template_abastecimentos.xlsx"
         sheetName="Abastecimentos"
         templateColWidths={[18, 15, 15, 20, 10, 12, 20, 15]}
-        formatHintHeaders={['Data', 'Combustivel', 'Obra', 'Deposito', 'Litros', 'Valor', 'Veiculo', 'Obs']}
+        formatHintHeaders={['Data', 'Combustível', 'Obra', 'Depósito', 'Litros', 'Valor', 'Veículo', 'Obs']}
         formatHintExample={['2024-01-15 08:00', 'Diesel S10', 'Obra ABC', 'Tanque 01', '200', '1300', 'CAT 320', '']}
         parseRow={parseRow}
         toEntity={toEntity}

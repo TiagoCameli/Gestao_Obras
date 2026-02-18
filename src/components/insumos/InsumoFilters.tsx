@@ -46,7 +46,7 @@ export default function InsumoFilters({
           placeholder="Todos"
         />
         <Input
-          label="Data Inicio"
+          label="Data Início"
           id="filtro-inicio-insumo"
           type="date"
           value={filtros.dataInicio}

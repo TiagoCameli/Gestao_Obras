@@ -116,18 +116,18 @@ export default function ExportarInsumosModal({
   })();
 
   return (
-    <Modal open={open} onClose={resetAndClose} title="Exportar Relatorio">
+    <Modal open={open} onClose={resetAndClose} title="Exportar Relatório">
       <div className="space-y-4">
         {/* Tipo de relatorio */}
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">
-            Tipo de relatorio
+            Tipo de relatório
           </label>
           <div className="flex gap-2">
             {([
               { key: 'entradas', label: 'Entradas' },
-              { key: 'saidas', label: 'Saidas' },
-              { key: 'transferencias', label: 'Transferencias' },
+              { key: 'saidas', label: 'Saídas' },
+              { key: 'transferencias', label: 'Transferências' },
             ] as const).map((opt) => (
               <button
                 key={opt.key}
@@ -188,7 +188,7 @@ export default function ExportarInsumosModal({
               {([
                 { key: 'todos', label: 'Todos' },
                 { key: 'obra', label: 'Por obras' },
-                { key: 'deposito', label: 'Por depositos' },
+                { key: 'deposito', label: 'Por depósitos' },
               ] as const).map((opt) => (
                 <button
                   key={opt.key}
@@ -248,7 +248,7 @@ export default function ExportarInsumosModal({
         {tipo && formato && filtro === 'deposito' && (
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Selecione os depositos
+              Selecione os depósitos
             </label>
             <div className="max-h-48 overflow-y-auto border border-gray-300 rounded-lg divide-y divide-gray-100">
               {depositos.map((d) => (
@@ -266,12 +266,12 @@ export default function ExportarInsumosModal({
                 </label>
               ))}
               {depositos.length === 0 && (
-                <p className="px-3 py-2.5 text-sm text-gray-400">Nenhum deposito cadastrado</p>
+                <p className="px-3 py-2.5 text-sm text-gray-400">Nenhum depósito cadastrado</p>
               )}
             </div>
             {depositoIds.length > 0 && (
               <p className="text-xs text-emt-verde mt-1">
-                {depositoIds.length} deposito{depositoIds.length > 1 ? 's' : ''} selecionado{depositoIds.length > 1 ? 's' : ''}
+                {depositoIds.length} depósito{depositoIds.length > 1 ? 's' : ''} selecionado{depositoIds.length > 1 ? 's' : ''}
               </p>
             )}
           </div>
@@ -281,7 +281,7 @@ export default function ExportarInsumosModal({
         {tipo && formato && (
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Periodo <span className="text-gray-400 font-normal">(opcional)</span>
+              Período <span className="text-gray-400 font-normal">(opcional)</span>
             </label>
             <div className="grid grid-cols-2 gap-3">
               <div>
@@ -298,7 +298,7 @@ export default function ExportarInsumosModal({
               </div>
               <div>
                 <label htmlFor="insDataFim" className="block text-xs text-gray-500 mb-1">
-                  Ate
+                  Até
                 </label>
                 <input
                   id="insDataFim"
@@ -315,18 +315,18 @@ export default function ExportarInsumosModal({
         {/* Resumo */}
         {tipo && podeExportar && (() => {
           const periodoTexto = dataInicio || dataFim
-            ? ` | Periodo: ${dataInicio || '...'} a ${dataFim || '...'}`
+            ? ` | Período: ${dataInicio || '...'} a ${dataFim || '...'}`
             : '';
 
           const tipoLabel =
             tipo === 'entradas' ? 'Entradas' :
-            tipo === 'saidas' ? 'Saidas' : 'Transferencias';
+            tipo === 'saidas' ? 'Saídas' : 'Transferências';
 
           const formatoLabel = formato === 'pdf' ? 'PDF' : 'Excel';
 
-          let filtroTexto = ' de todos os depositos e obras';
+          let filtroTexto = ' de todos os depósitos e obras';
           if (nomesSelecionados.length > 0) {
-            const labelTipo = filtro === 'obra' ? 'obras' : 'depositos';
+            const labelTipo = filtro === 'obra' ? 'obras' : 'depósitos';
             filtroTexto = ` - ${labelTipo}: ${nomesSelecionados.join(', ')}`;
           }
 

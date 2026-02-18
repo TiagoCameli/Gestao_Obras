@@ -118,18 +118,18 @@ export default function ExportarPDFModal({
   })();
 
   return (
-    <Modal open={open} onClose={resetAndClose} title="Exportar Relatorio">
+    <Modal open={open} onClose={resetAndClose} title="Exportar Relatório">
       <div className="space-y-4">
         {/* Passo 1: Tipo de relatorio */}
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">
-            Tipo de relatorio
+            Tipo de relatório
           </label>
           <div className="flex gap-2">
             {([
-              { key: 'saidas', label: 'Saidas' },
+              { key: 'saidas', label: 'Saídas' },
               { key: 'entradas', label: 'Entradas' },
-              { key: 'transferencias', label: 'Transferencias' },
+              { key: 'transferencias', label: 'Transferências' },
             ] as const).map((opt) => (
               <button
                 key={opt.key}
@@ -279,11 +279,11 @@ export default function ExportarPDFModal({
           </div>
         )}
 
-        {/* Periodo (opcional) */}
+        {/* Período (opcional) */}
         {tipo && formato && (
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Periodo <span className="text-gray-400 font-normal">(opcional)</span>
+              Período <span className="text-gray-400 font-normal">(opcional)</span>
             </label>
             <div className="grid grid-cols-2 gap-3">
               <div>
@@ -300,7 +300,7 @@ export default function ExportarPDFModal({
               </div>
               <div>
                 <label htmlFor="pdfDataFim" className="block text-xs text-gray-500 mb-1">
-                  Ate
+                  Até
                 </label>
                 <input
                   id="pdfDataFim"
@@ -317,12 +317,12 @@ export default function ExportarPDFModal({
         {/* Resumo */}
         {tipo && podeExportar && (() => {
           const periodoTexto = dataInicio || dataFim
-            ? ` | Periodo: ${dataInicio || '...'} a ${dataFim || '...'}`
+            ? ` | Período: ${dataInicio || '...'} a ${dataFim || '...'}`
             : '';
 
           const tipoLabel =
-            tipo === 'saidas' ? 'Saidas' :
-            tipo === 'entradas' ? 'Entradas' : 'Transferencias';
+            tipo === 'saidas' ? 'Saídas' :
+            tipo === 'entradas' ? 'Entradas' : 'Transferências';
 
           const formatoLabel = formato === 'pdf' ? 'PDF' : 'Excel';
 

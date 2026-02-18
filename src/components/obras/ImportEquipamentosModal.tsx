@@ -40,22 +40,20 @@ export default function ImportEquipamentosModal({
 
       if (!nome) erros.push('Nome vazio');
 
-      let tipoMedicao = '';
-      if (!tipoMedicaoRaw) {
-        erros.push('Falta tipo medicao');
-      } else if (tipoMedicaoRaw === 'horimetro' || tipoMedicaoRaw === 'horímetro') {
-        tipoMedicao = 'horimetro';
-      } else if (tipoMedicaoRaw === 'odometro' || tipoMedicaoRaw === 'odômetro' || tipoMedicaoRaw === 'km') {
-        tipoMedicao = 'odometro';
-      } else {
-        erros.push('Tipo medicao invalido (use horimetro ou odometro)');
+      let tipoMedicao = 'horimetro';
+      if (tipoMedicaoRaw) {
+        if (tipoMedicaoRaw === 'horimetro' || tipoMedicaoRaw === 'horímetro') {
+          tipoMedicao = 'horimetro';
+        } else if (tipoMedicaoRaw === 'odometro' || tipoMedicaoRaw === 'odômetro' || tipoMedicaoRaw === 'km') {
+          tipoMedicao = 'odometro';
+        } else {
+          erros.push('Tipo medicao invalido (use horimetro ou odometro)');
+        }
       }
 
-      const medicaoInicial = parseNumero(medicaoRaw);
-      if (medicaoInicial === null) erros.push('Falta medicao inicial');
+      const medicaoInicial = parseNumero(medicaoRaw) ?? 0;
 
-      const dataAquisicao = parseData(dataRaw);
-      if (!dataAquisicao) erros.push('Falta data aquisicao');
+      const dataAquisicao = parseData(dataRaw) || '';
 
       // Resolver duplicatas
       let nomeFinal = nome;
@@ -65,9 +63,9 @@ export default function ImportEquipamentosModal({
 
       const resumoParts = [nomeFinal || '(sem nome)'];
       if (marca) resumoParts.push(marca);
-      resumoParts.push(tipoMedicao || '(sem tipo)');
-      resumoParts.push(`${medicaoInicial ?? 0} ${tipoMedicao === 'horimetro' ? 'h' : 'km'}`);
-      resumoParts.push(dataAquisicao || '(sem data)');
+      if (tipoMedicao) resumoParts.push(tipoMedicao);
+      if (medicaoInicial) resumoParts.push(`${medicaoInicial} ${tipoMedicao === 'horimetro' ? 'h' : 'km'}`);
+      if (dataAquisicao) resumoParts.push(dataAquisicao);
 
       return {
         valido: erros.length === 0,

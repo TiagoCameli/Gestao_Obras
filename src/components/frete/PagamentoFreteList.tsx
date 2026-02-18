@@ -7,8 +7,8 @@ const METODO_LABELS: Record<string, string> = {
   boleto: 'Boleto',
   cheque: 'Cheque',
   dinheiro: 'Dinheiro',
-  transferencia: 'Transferencia',
-  combustivel: 'Combustivel',
+  transferencia: 'Transferência',
+  combustivel: 'Combustível',
 };
 
 function formatMesRef(mesRef: string): string {
@@ -74,12 +74,12 @@ export default function PagamentoFreteList({
               <tr>
                 <th className="text-left px-4 py-3 text-white font-medium uppercase text-xs">Data</th>
                 <th className="text-left px-4 py-3 text-white font-medium uppercase text-xs">Transportadora</th>
-                <th className="text-left px-4 py-3 text-white font-medium uppercase text-xs">Mes Ref.</th>
+                <th className="text-left px-4 py-3 text-white font-medium uppercase text-xs">Mês Ref.</th>
                 <th className="text-right px-4 py-3 text-white font-medium uppercase text-xs">Valor</th>
-                <th className="text-left px-4 py-3 text-white font-medium uppercase text-xs">Metodo</th>
+                <th className="text-left px-4 py-3 text-white font-medium uppercase text-xs">Método</th>
                 <th className="text-left px-4 py-3 text-white font-medium uppercase text-xs">Responsavel</th>
                 <th className="text-left px-4 py-3 text-white font-medium uppercase text-xs">Pago Por</th>
-                <th className="text-center px-4 py-3 text-white font-medium uppercase text-xs">Acoes</th>
+                <th className="text-center px-4 py-3 text-white font-medium uppercase text-xs">Ações</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100 [&>tr:nth-child(even)]:bg-emt-cinza-claro">
@@ -162,7 +162,7 @@ export default function PagamentoFreteList({
               disabled={pagina >= totalPaginas - 1}
               onClick={() => setPagina((p) => p + 1)}
             >
-              Proximo
+              Próximo
             </Button>
           </div>
         </div>

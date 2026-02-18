@@ -130,12 +130,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (bloqueadoAte) {
         return { ok: false, erro: 'bloqueado', bloqueadoAte };
       }
-      return { ok: false, erro: `Credenciais invalidas. ${5 - tentativas} tentativa(s) restante(s).` };
+      return { ok: false, erro: `Credenciais inválidas. ${5 - tentativas} tentativa(s) restante(s).` };
     }
 
     // Get the user from the session
     const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return { ok: false, erro: 'Erro ao obter usuario.' };
+    if (!user) return { ok: false, erro: 'Erro ao obter usuário.' };
 
     // Check funcionario status
     const { data: funcRow } = await supabase
@@ -144,10 +144,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       .eq('auth_user_id', user.id)
       .single();
 
-    if (!funcRow) return { ok: false, erro: 'Funcionario nao encontrado no sistema.' };
+    if (!funcRow) return { ok: false, erro: 'Funcionário não encontrado no sistema.' };
     if (funcRow.status === 'inativo') {
       await supabase.auth.signOut();
-      return { ok: false, erro: 'Funcionario inativo. Contate o administrador.' };
+      return { ok: false, erro: 'Funcionário inativo. Contate o administrador.' };
     }
 
     // Clear login attempts
@@ -157,7 +157,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const sessao = await buildSessao(user.id, lembrarMe);
     if (!sessao) {
       await supabase.auth.signOut();
-      return { ok: false, erro: 'Erro ao carregar dados do funcionario.' };
+      return { ok: false, erro: 'Erro ao carregar dados do funcionário.' };
     }
 
     loginHandledRef.current = true;

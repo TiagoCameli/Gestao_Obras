@@ -21,7 +21,7 @@ function gerarId(): string {
 }
 
 const ENTRADA_TEMPLATE = [
-  ['Data', 'Obra', 'Deposito', 'Combustivel', 'Litros', 'Valor Total', 'Fornecedor', 'NF', 'Observacoes'],
+  ['Data', 'Obra', 'Depósito', 'Combustível', 'Litros', 'Valor Total', 'Fornecedor', 'NF', 'Observações'],
   ['2024-01-15 08:00', 'Obra ABC', 'Tanque Diesel 01', 'Diesel S10', '1000', '6500', 'Distribuidora XYZ', 'NF-001', ''],
 ];
 
@@ -129,28 +129,28 @@ export default function EntradaForm({
       } else {
         const found = obras.find((o) => o.nome.toLowerCase() === obraNome.toLowerCase());
         if (found) foundObraId = found.id;
-        else erros.push(`Obra "${obraNome}" nao encontrada`);
+        else erros.push(`Obra "${obraNome}" não encontrada`);
       }
 
       let foundDepositoId = '';
       if (!depositoNome) {
-        erros.push('Falta deposito');
+        erros.push('Falta depósito');
       } else {
         const depositosObra = foundObraId
           ? allDepositos.filter((d) => d.obraId === foundObraId && d.ativo !== false)
           : allDepositos.filter((d) => d.ativo !== false);
         const found = depositosObra.find((d) => d.nome.toLowerCase() === depositoNome.toLowerCase());
         if (found) foundDepositoId = found.id;
-        else erros.push(`Deposito "${depositoNome}" nao encontrado`);
+        else erros.push(`Depósito "${depositoNome}" não encontrado`);
       }
 
       let foundCombustivelId = '';
       if (!combustivelNome) {
-        erros.push('Falta combustivel');
+        erros.push('Falta combustível');
       } else {
         const found = listaCombustiveis.find((i) => i.nome.toLowerCase() === combustivelNome.toLowerCase());
         if (found) foundCombustivelId = found.id;
-        else erros.push(`Combustivel "${combustivelNome}" nao encontrado`);
+        else erros.push(`Combustível "${combustivelNome}" não encontrado`);
       }
 
       if (litros === null) erros.push('Falta litros');
@@ -162,7 +162,7 @@ export default function EntradaForm({
       } else {
         const found = listaFornecedores.find((f) => f.nome.toLowerCase() === fornecedorNome.toLowerCase());
         if (found) foundFornecedor = found.id;
-        else erros.push(`Fornecedor "${fornecedorNome}" nao encontrado`);
+        else erros.push(`Fornecedor "${fornecedorNome}" não encontrado`);
       }
 
       const resumo = `${data || '?'} | ${obraNome || '?'} | ${depositoNome || '?'} | ${combustivelNome || '?'} | ${litros ?? '?'} L`;
@@ -289,14 +289,14 @@ export default function EntradaForm({
                 />
               </div>
               <span className="text-xs text-gray-500">
-                Espaco livre: {espacoDisponivel.toFixed(0)} L
+                Espaço livre: {espacoDisponivel.toFixed(0)} L
               </span>
             </div>
           )}
         </div>
         <div>
           <Select
-            label="Tipo de Combustivel"
+            label="Tipo de Combustível"
             id="entradaTipoCombustivel"
             value={tipoCombustivel}
             onChange={(e) => setTipoCombustivel(e.target.value)}
@@ -306,7 +306,7 @@ export default function EntradaForm({
             }))}
             placeholder={
               listaCombustiveis.length === 0
-                ? 'Nenhum combustivel cadastrado'
+                ? 'Nenhum combustível cadastrado'
                 : 'Selecione o tipo'
             }
             disabled={listaCombustiveis.length === 0}
@@ -318,14 +318,14 @@ export default function EntradaForm({
               className="mt-1 text-xs text-emt-verde hover:text-emt-verde-escuro font-medium"
               onClick={() => setNovoCombustivelAberto(true)}
             >
-              + Novo Tipo de Combustivel
+              + Novo Tipo de Combustível
             </button>
           ) : (
             <div className="mt-2 flex items-center gap-2">
               <input
                 type="text"
                 className="flex-1 border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-emt-verde"
-                placeholder="Nome do combustivel"
+                placeholder="Nome do combustível"
                 value={novoCombustivelNome}
                 onChange={(e) => setNovoCombustivelNome(e.target.value)}
                 autoFocus
@@ -470,7 +470,7 @@ export default function EntradaForm({
           htmlFor="entradaObs"
           className="block text-sm font-medium text-gray-700 mb-1"
         >
-          Observacoes (opcional)
+          Observações (opcional)
         </label>
         <textarea
           id="entradaObs"
@@ -478,7 +478,7 @@ export default function EntradaForm({
           rows={3}
           value={observacoes}
           onChange={(e) => setObservacoes(e.target.value)}
-          placeholder="Alguma observacao..."
+          placeholder="Alguma observação..."
         />
       </div>
       <div className="flex justify-end gap-3 pt-2">
@@ -486,7 +486,7 @@ export default function EntradaForm({
           Cancelar
         </Button>
         <Button type="submit" disabled={!isValid}>
-          {initial ? 'Salvar Alteracoes' : 'Registrar Entrada'}
+          {initial ? 'Salvar Alterações' : 'Registrar Entrada'}
         </Button>
       </div>
 
@@ -494,14 +494,14 @@ export default function EntradaForm({
         open={importModalOpen}
         onClose={() => setImportModalOpen(false)}
         onImport={handleImportBatch}
-        title="Importar Entradas de Combustivel do Excel"
+        title="Importar Entradas de Combustível do Excel"
         entityLabel="Entrada"
         genderFem={true}
         templateData={ENTRADA_TEMPLATE}
         templateFileName="template_entradas_combustivel.xlsx"
         sheetName="Entradas"
         templateColWidths={[18, 15, 20, 15, 10, 12, 20, 10, 15]}
-        formatHintHeaders={['Data', 'Obra', 'Deposito', 'Combustivel', 'Litros', 'Valor', 'Fornecedor', 'NF', 'Obs']}
+        formatHintHeaders={['Data', 'Obra', 'Depósito', 'Combustível', 'Litros', 'Valor', 'Fornecedor', 'NF', 'Obs']}
         formatHintExample={['2024-01-15 08:00', 'Obra ABC', 'Tanque 01', 'Diesel S10', '1000', '6500', 'Dist. XYZ', '', '']}
         parseRow={parseRow}
         toEntity={toEntity}

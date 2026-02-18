@@ -3,10 +3,10 @@ import type { AcaoPermissao, CargoFuncionario, ModuloPermissao, PermissoesFuncio
 export const MODULOS: { valor: ModuloPermissao; label: string }[] = [
   { valor: 'dashboard', label: 'Dashboard' },
   { valor: 'cadastros', label: 'Cadastros' },
-  { valor: 'combustivel', label: 'Combustiveis' },
+  { valor: 'combustivel', label: 'Combustíveis' },
   { valor: 'insumos', label: 'Insumos' },
   { valor: 'frete', label: 'Frete' },
-  { valor: 'funcionarios', label: 'Funcionarios' },
+  { valor: 'funcionarios', label: 'Funcionários' },
 ];
 
 export const ACOES: { valor: AcaoPermissao; label: string }[] = [
@@ -109,33 +109,33 @@ export const ACOES_PLATAFORMA: AcaoPlataforma[] = [
   { chave: 'editar_cadastros', label: 'Editar cadastros', grupo: 'Cadastros' },
   { chave: 'excluir_cadastros', label: 'Excluir cadastros', grupo: 'Cadastros' },
   // Combustivel
-  { chave: 'ver_combustivel', label: 'Visualizar pagina de combustivel', grupo: 'Combustivel' },
-  { chave: 'ver_dashboard_combustivel', label: 'Visualizar dashboard de combustivel', grupo: 'Combustivel' },
-  { chave: 'criar_entrada_combustivel', label: 'Adicionar entrada de combustivel', grupo: 'Combustivel' },
-  { chave: 'criar_saida_combustivel', label: 'Adicionar saida de combustivel', grupo: 'Combustivel' },
-  { chave: 'criar_transferencia_combustivel', label: 'Adicionar transferencia de combustivel', grupo: 'Combustivel' },
-  { chave: 'editar_combustivel', label: 'Editar registros de combustivel', grupo: 'Combustivel' },
-  { chave: 'excluir_combustivel', label: 'Excluir registros de combustivel', grupo: 'Combustivel' },
-  { chave: 'exportar_combustivel', label: 'Exportar relatorio de combustivel', grupo: 'Combustivel' },
+  { chave: 'ver_combustivel', label: 'Visualizar página de combustível', grupo: 'Combustível' },
+  { chave: 'ver_dashboard_combustivel', label: 'Visualizar dashboard de combustível', grupo: 'Combustível' },
+  { chave: 'criar_entrada_combustivel', label: 'Adicionar entrada de combustível', grupo: 'Combustível' },
+  { chave: 'criar_saida_combustivel', label: 'Adicionar saída de combustível', grupo: 'Combustível' },
+  { chave: 'criar_transferencia_combustivel', label: 'Adicionar transferência de combustível', grupo: 'Combustível' },
+  { chave: 'editar_combustivel', label: 'Editar registros de combustível', grupo: 'Combustível' },
+  { chave: 'excluir_combustivel', label: 'Excluir registros de combustível', grupo: 'Combustível' },
+  { chave: 'exportar_combustivel', label: 'Exportar relatório de combustível', grupo: 'Combustível' },
   // Insumos
-  { chave: 'ver_insumos', label: 'Visualizar pagina de insumos', grupo: 'Insumos' },
+  { chave: 'ver_insumos', label: 'Visualizar página de insumos', grupo: 'Insumos' },
   { chave: 'ver_dashboard_insumos', label: 'Visualizar dashboard de insumos', grupo: 'Insumos' },
   { chave: 'criar_entrada_material', label: 'Adicionar entrada de material', grupo: 'Insumos' },
-  { chave: 'criar_saida_material', label: 'Adicionar saida de material', grupo: 'Insumos' },
-  { chave: 'criar_transferencia_material', label: 'Adicionar transferencia de material', grupo: 'Insumos' },
+  { chave: 'criar_saida_material', label: 'Adicionar saída de material', grupo: 'Insumos' },
+  { chave: 'criar_transferencia_material', label: 'Adicionar transferência de material', grupo: 'Insumos' },
   { chave: 'editar_insumos', label: 'Editar registros de insumos', grupo: 'Insumos' },
   { chave: 'excluir_insumos', label: 'Excluir registros de insumos', grupo: 'Insumos' },
-  { chave: 'exportar_insumos', label: 'Exportar relatorio de insumos', grupo: 'Insumos' },
+  { chave: 'exportar_insumos', label: 'Exportar relatório de insumos', grupo: 'Insumos' },
   // Frete
   { chave: 'ver_frete', label: 'Visualizar fretes', grupo: 'Frete' },
   { chave: 'criar_frete', label: 'Criar frete', grupo: 'Frete' },
   { chave: 'editar_frete', label: 'Editar frete', grupo: 'Frete' },
   { chave: 'excluir_frete', label: 'Excluir frete', grupo: 'Frete' },
   // Funcionarios
-  { chave: 'ver_funcionarios', label: 'Visualizar funcionarios', grupo: 'Funcionarios' },
-  { chave: 'criar_funcionarios', label: 'Cadastrar funcionarios', grupo: 'Funcionarios' },
-  { chave: 'editar_funcionarios', label: 'Editar funcionarios', grupo: 'Funcionarios' },
-  { chave: 'excluir_funcionarios', label: 'Excluir funcionarios', grupo: 'Funcionarios' },
+  { chave: 'ver_funcionarios', label: 'Visualizar funcionários', grupo: 'Funcionários' },
+  { chave: 'criar_funcionarios', label: 'Cadastrar funcionários', grupo: 'Funcionários' },
+  { chave: 'editar_funcionarios', label: 'Editar funcionários', grupo: 'Funcionários' },
+  { chave: 'excluir_funcionarios', label: 'Excluir funcionários', grupo: 'Funcionários' },
 ];
 
 export const TODAS_ACOES_PLATAFORMA: string[] = ACOES_PLATAFORMA.map((a) => a.chave);

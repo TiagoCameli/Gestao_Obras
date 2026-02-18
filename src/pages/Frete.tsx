@@ -1,4 +1,5 @@
 import { useState, useCallback, useMemo } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import type { Frete as FreteType, FiltrosFrete, Localidade, PagamentoFrete, AbastecimentoCarreta, PedidoMaterial } from '../types';
 import { useFretes, useAdicionarFrete, useAtualizarFrete, useExcluirFrete } from '../hooks/useFretes';
 import { usePagamentosFrete, useAdicionarPagamentoFrete, useAtualizarPagamentoFrete, useExcluirPagamentoFrete } from '../hooks/usePagamentosFrete';
@@ -33,7 +34,11 @@ export default function Frete() {
   const canEdit = temAcao('editar_frete');
   const canDelete = temAcao('excluir_frete');
 
-  const [tab, setTab] = useState<Tab>('dashboard');
+  const [searchParams, setSearchParams] = useSearchParams();
+  const validTabs: Tab[] = ['dashboard', 'fretes', 'pagamentos', 'abastecimentos', 'pedidos'];
+  const tabParam = searchParams.get('tab') as Tab | null;
+  const tab: Tab = tabParam && validTabs.includes(tabParam) ? tabParam : 'dashboard';
+  const setTab = useCallback((t: Tab) => setSearchParams({ tab: t }, { replace: true }), [setSearchParams]);
 
   const { data: fretes = [], isLoading } = useFretes();
   const { data: obras = [] } = useObras();
@@ -93,6 +98,8 @@ export default function Frete() {
     obraId: '',
     transportadora: '',
     motorista: '',
+    insumoId: '',
+    origem: '',
     dataInicio: '',
     dataFim: '',
   });
@@ -101,6 +108,12 @@ export default function Frete() {
   const motoristas = useMemo(() => {
     const set = new Set(fretes.map((f) => f.motorista).filter(Boolean));
     return Array.from(set).sort();
+  }, [fretes]);
+
+  // Extract unique origens (pedreiras) from fretes
+  const origens = useMemo(() => {
+    const set = new Set(fretes.map((f) => f.origem?.trim()).filter(Boolean));
+    return Array.from(set).sort() as string[];
   }, [fretes]);
 
   // ── Pagamento Frete state ──
@@ -333,6 +346,26 @@ export default function Frete() {
                 <option key={m} value={m}>{m}</option>
               ))}
             </select>
+            <select
+              className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emt-verde"
+              value={filtros.insumoId}
+              onChange={(e) => setFiltros((f) => ({ ...f, insumoId: e.target.value }))}
+            >
+              <option value="">Todos os materiais</option>
+              {insumosAtivos.map((i) => (
+                <option key={i.id} value={i.id}>{i.nome}</option>
+              ))}
+            </select>
+            <select
+              className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emt-verde"
+              value={filtros.origem}
+              onChange={(e) => setFiltros((f) => ({ ...f, origem: e.target.value }))}
+            >
+              <option value="">Todas as pedreiras</option>
+              {origens.map((o) => (
+                <option key={o} value={o}>{o}</option>
+              ))}
+            </select>
             <input
               className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emt-verde"
               type="date"
@@ -347,10 +380,10 @@ export default function Frete() {
               onChange={(e) => setFiltros((f) => ({ ...f, dataFim: e.target.value }))}
               title="Data fim"
             />
-            {(filtros.obraId || filtros.transportadora || filtros.motorista || filtros.dataInicio || filtros.dataFim) && (
+            {(filtros.obraId || filtros.transportadora || filtros.motorista || filtros.insumoId || filtros.origem || filtros.dataInicio || filtros.dataFim) && (
               <button
                 className="text-sm text-emt-verde hover:text-emt-verde-escuro font-medium"
-                onClick={() => setFiltros({ obraId: '', transportadora: '', motorista: '', dataInicio: '', dataFim: '' })}
+                onClick={() => setFiltros({ obraId: '', transportadora: '', motorista: '', insumoId: '', origem: '', dataInicio: '', dataFim: '' })}
               >
                 Limpar filtros
               </button>
@@ -552,7 +585,7 @@ export default function Frete() {
               autoFocus
             />
             <Input
-              label="Link / Endereco (opcional)"
+              label="Link / Endereço (opcional)"
               id="novaLocalidadeEndereco"
               type="text"
               value={novaLocalidadeEndereco}
@@ -614,7 +647,7 @@ export default function Frete() {
           if (senhaAction) senhaAction();
           setSenhaAction(null);
         }}
-        title="Senha de Confirmacao"
+        title="Senha de Confirmação"
       />
 
       {/* Confirm Delete Frete */}
@@ -623,7 +656,7 @@ export default function Frete() {
         onClose={() => setDeleteId(null)}
         onConfirm={() => { if (deleteId) handleDelete(deleteId); }}
         title="Excluir Frete"
-        message="Tem certeza que deseja excluir este frete? Esta acao nao pode ser desfeita."
+        message="Tem certeza que deseja excluir este frete? Esta ação não pode ser desfeita."
       />
 
       {/* Confirm Delete Pagamento */}
@@ -632,7 +665,7 @@ export default function Frete() {
         onClose={() => setPagDeleteId(null)}
         onConfirm={() => { if (pagDeleteId) handlePagDelete(pagDeleteId); }}
         title="Excluir Pagamento"
-        message="Tem certeza que deseja excluir este pagamento? Esta acao nao pode ser desfeita."
+        message="Tem certeza que deseja excluir este pagamento? Esta ação não pode ser desfeita."
       />
 
       {/* Modal Abastecimento Carreta Form */}
@@ -663,7 +696,7 @@ export default function Frete() {
         onClose={() => setAbastDeleteId(null)}
         onConfirm={() => { if (abastDeleteId) handleAbastDelete(abastDeleteId); }}
         title="Excluir Abastecimento"
-        message="Tem certeza que deseja excluir este abastecimento? Esta acao nao pode ser desfeita."
+        message="Tem certeza que deseja excluir este abastecimento? Esta ação não pode ser desfeita."
       />
 
       {/* Modal Pedido Material Form */}
@@ -694,7 +727,7 @@ export default function Frete() {
         onClose={() => setPedidoDeleteId(null)}
         onConfirm={() => { if (pedidoDeleteId) handlePedidoDelete(pedidoDeleteId); }}
         title="Excluir Pedido"
-        message="Tem certeza que deseja excluir este pedido de material? Esta acao nao pode ser desfeita."
+        message="Tem certeza que deseja excluir este pedido de material? Esta ação não pode ser desfeita."
       />
     </div>
   );

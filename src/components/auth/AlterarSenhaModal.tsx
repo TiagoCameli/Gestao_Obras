@@ -51,7 +51,7 @@ export default function AlterarSenhaModal({ open, onClose }: AlterarSenhaModalPr
       }
 
       if (novaSenha !== confirmarSenha) {
-        setErro('As senhas nao conferem.');
+        setErro('As senhas não conferem.');
         return;
       }
 
@@ -105,7 +105,7 @@ export default function AlterarSenhaModal({ open, onClose }: AlterarSenhaModalPr
               className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emt-verde"
               value={novaSenha}
               onChange={(e) => { setNovaSenha(e.target.value); setErro(''); }}
-              placeholder="Minimo 6 caracteres"
+              placeholder="Mínimo 6 caracteres"
               disabled={loading}
             />
           </div>

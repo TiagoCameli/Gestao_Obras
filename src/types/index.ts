@@ -281,6 +281,8 @@ export interface FiltrosFrete {
   obraId: string;
   transportadora: string;
   motorista: string;
+  insumoId: string;
+  origem: string;
   dataInicio: string;
   dataFim: string;
 }

@@ -35,7 +35,7 @@ function gerarId(): string {
 const VALID_CARGOS = CARGOS.map((c) => c.valor);
 
 const FUNC_TEMPLATE = [
-  ['Nome', 'Email', 'Cargo', 'Senha', 'CPF', 'Telefone', 'Data Nascimento', 'Data Admissao', 'Observacoes'],
+  ['Nome', 'Email', 'Cargo', 'Senha', 'CPF', 'Telefone', 'Data Nascimento', 'Data Admissão', 'Observações'],
   ['Carlos Silva', 'carlos@empresa.com', 'Operador', 'Senha123', '123.456.789-00', '(11) 99999-0000', '1990-05-20', '2024-01-15', ''],
   ['Maria Santos', 'maria@empresa.com', 'Supervisor', 'Senha456', '', '', '', '', 'Turno noturno'],
 ];
@@ -241,16 +241,16 @@ export default function FuncionarioForm({ initial, onSubmit, onCancel, onImportB
             options={CARGOS.map((c) => ({ value: c.valor, label: c.label }))}
             required
           />
-          <Input label="Data Admissao" id="funcAdmissao" type="date" value={dataAdmissao} onChange={(e) => setDataAdmissao(e.target.value)} />
+          <Input label="Data Admissão" id="funcAdmissao" type="date" value={dataAdmissao} onChange={(e) => setDataAdmissao(e.target.value)} />
         </div>
       </div>
 
       {/* Endereco */}
       <div>
-        <h3 className="text-sm font-semibold text-gray-700 mb-3">Endereco</h3>
+        <h3 className="text-sm font-semibold text-gray-700 mb-3">Endereço</h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <Input label="Rua" id="funcRua" value={rua} onChange={(e) => setRua(e.target.value)} />
-          <Input label="Numero" id="funcNumero" value={numero} onChange={(e) => setNumero(e.target.value)} />
+          <Input label="Número" id="funcNumero" value={numero} onChange={(e) => setNumero(e.target.value)} />
           <Input label="Complemento" id="funcComplemento" value={complemento} onChange={(e) => setComplemento(e.target.value)} />
           <Input label="Bairro" id="funcBairro" value={bairro} onChange={(e) => setBairro(e.target.value)} />
           <Input label="Cidade" id="funcCidade" value={cidade} onChange={(e) => setCidade(e.target.value)} />
@@ -279,7 +279,7 @@ export default function FuncionarioForm({ initial, onSubmit, onCancel, onImportB
         )}
         {alterarSenha && (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <Input label="Senha" id="funcSenha" type={initial ? 'password' : 'text'} value={senha} onChange={(e) => setSenha(e.target.value)} placeholder="Minimo 6 caracteres" />
+            <Input label="Senha" id="funcSenha" type={initial ? 'password' : 'text'} value={senha} onChange={(e) => setSenha(e.target.value)} placeholder="Mínimo 6 caracteres" />
             <Input label="Confirmar Senha" id="funcConfirmarSenha" type={initial ? 'password' : 'text'} value={confirmarSenha} onChange={(e) => setConfirmarSenha(e.target.value)} />
           </div>
         )}
@@ -313,7 +313,7 @@ export default function FuncionarioForm({ initial, onSubmit, onCancel, onImportB
       {/* Acoes Permitidas */}
       <div>
         <div className="flex items-center justify-between mb-3">
-          <h3 className="text-sm font-semibold text-gray-700">Acoes Permitidas</h3>
+          <h3 className="text-sm font-semibold text-gray-700">Ações Permitidas</h3>
           <div className="flex gap-2">
             <button
               type="button"
@@ -370,7 +370,7 @@ export default function FuncionarioForm({ initial, onSubmit, onCancel, onImportB
 
       {/* Observacoes */}
       <div>
-        <label htmlFor="funcObs" className="block text-sm font-medium text-gray-700 mb-1">Observacoes</label>
+        <label htmlFor="funcObs" className="block text-sm font-medium text-gray-700 mb-1">Observações</label>
         <textarea
           id="funcObs"
           className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emt-verde"
@@ -388,7 +388,7 @@ export default function FuncionarioForm({ initial, onSubmit, onCancel, onImportB
 
       <div className="flex justify-end gap-3 pt-2">
         <Button variant="secondary" type="button" onClick={onCancel}>Cancelar</Button>
-        <Button type="submit">{initial ? 'Salvar Alteracoes' : 'Cadastrar Funcionario'}</Button>
+        <Button type="submit">{initial ? 'Salvar Alterações' : 'Cadastrar Funcionário'}</Button>
       </div>
 
       {onImportBatch && (
@@ -409,7 +409,7 @@ export default function FuncionarioForm({ initial, onSubmit, onCancel, onImportB
             setToastMsg(`${funcs.length} funcionario${funcs.length !== 1 ? 's' : ''} importado${funcs.length !== 1 ? 's' : ''} com sucesso`);
             setTimeout(() => setToastMsg(''), 4000);
           }}
-          title="Importar Funcionarios do Excel"
+          title="Importar Funcionários do Excel"
           entityLabel="Funcionario"
           templateData={FUNC_TEMPLATE}
           templateFileName="template_funcionarios.xlsx"

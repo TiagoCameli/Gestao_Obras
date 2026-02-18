@@ -67,7 +67,7 @@ export default function PedidoMaterialList({
                 <th className="text-left px-4 py-3 text-white font-medium uppercase text-xs">Fornecedor</th>
                 <th className="text-right px-4 py-3 text-white font-medium uppercase text-xs">Qtd Itens</th>
                 <th className="text-right px-4 py-3 text-white font-medium uppercase text-xs">Valor Total</th>
-                <th className="text-center px-4 py-3 text-white font-medium uppercase text-xs">Acoes</th>
+                <th className="text-center px-4 py-3 text-white font-medium uppercase text-xs">Ações</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100 [&>tr:nth-child(even)]:bg-emt-cinza-claro">
@@ -128,7 +128,7 @@ export default function PedidoMaterialList({
                               <tr className="text-gray-500">
                                 <th className="text-left py-1 font-medium">Material</th>
                                 <th className="text-right py-1 font-medium">Quantidade</th>
-                                <th className="text-right py-1 font-medium">Vlr Unitario</th>
+                                <th className="text-right py-1 font-medium">Vlr Unitário</th>
                                 <th className="text-right py-1 font-medium">Subtotal</th>
                               </tr>
                             </thead>
@@ -209,7 +209,7 @@ export default function PedidoMaterialList({
               disabled={pagina >= totalPaginas - 1}
               onClick={() => setPagina((p) => p + 1)}
             >
-              Proximo
+              Próximo
             </Button>
           </div>
         </div>

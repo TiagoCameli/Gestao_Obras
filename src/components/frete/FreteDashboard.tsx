@@ -7,7 +7,7 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from 'recharts';
-import { Fragment } from 'react';
+import { Fragment, useState } from 'react';
 import type { Frete, PagamentoFrete, AbastecimentoCarreta, Obra, PedidoMaterial, Fornecedor } from '../../types';
 import { useInsumos } from '../../hooks/useInsumos';
 import { formatCurrency } from '../../utils/formatters';
@@ -18,8 +18,8 @@ const METODO_LABELS: Record<string, string> = {
   boleto: 'Boleto',
   cheque: 'Cheque',
   dinheiro: 'Dinheiro',
-  transferencia: 'Transferencia',
-  combustivel: 'Combustivel',
+  transferencia: 'Transferência',
+  combustivel: 'Combustível',
 };
 
 function formatMesRef(mesRef: string): string {
@@ -46,18 +46,44 @@ export default function FreteDashboard({
   pedidosMaterial,
   fornecedores,
 }: FreteDashboardProps) {
+  const [dataInicio, setDataInicio] = useState('');
+  const [dataFim, setDataFim] = useState('');
+
+  // ── Filtrar por período ──
+  const inRange = (d: string) => {
+    if (!d) return true;
+    if (dataInicio && d < dataInicio) return false;
+    if (dataFim && d > dataFim) return false;
+    return true;
+  };
+  const fretesF = fretes.filter((f) => inRange(f.data));
+  const pagamentosF = pagamentos.filter((p) => {
+    const mr = p.mesReferencia; // "YYYY-MM"
+    if (!mr) return true;
+    if (dataInicio && mr < dataInicio.slice(0, 7)) return false;
+    if (dataFim && mr > dataFim.slice(0, 7)) return false;
+    return true;
+  });
+  const abastCarretaF = abastecimentosCarreta.filter((a) => inRange(a.data));
+  const pedidosF = pedidosMaterial.filter((p) => inRange(p.data));
+
   const obrasMap = new Map(obras.map((o) => [o.id, o.nome]));
   const { data: insumosData } = useInsumos();
   const insumosMap = new Map((insumosData ?? []).map((i) => [i.id, i.nome]));
 
   // ── Totais ──
-  const totalFretes = fretes.reduce((sum, f) => sum + f.valorTotal, 0);
-  const totalPagamentos = pagamentos.reduce((sum, p) => sum + p.valor, 0);
+  const totalFretes = fretesF.reduce((sum, f) => sum + f.valorTotal, 0);
+  const totalPagamentos = pagamentosF.reduce((sum, p) => sum + p.valor, 0);
   const saldo = totalFretes - totalPagamentos;
+
+  // ── Media ponderada de km (peso como peso) ──
+  const totalPesoKm = fretesF.reduce((sum, f) => sum + f.kmRodados * f.pesoToneladas, 0);
+  const totalPeso = fretesF.reduce((sum, f) => sum + f.pesoToneladas, 0);
+  const mediaKmPonderada = totalPeso > 0 ? totalPesoKm / totalPeso : 0;
 
   // ── Gasto mensal em fretes (chart) ──
   const gastoMensal = new Map<string, number>();
-  fretes.forEach((f) => {
+  fretesF.forEach((f) => {
     if (!f.data) return;
     const key = f.data.slice(0, 7); // "YYYY-MM"
     gastoMensal.set(key, (gastoMensal.get(key) || 0) + f.valorTotal);
@@ -65,7 +91,7 @@ export default function FreteDashboard({
 
   // ── Pagamentos mensais (chart) ──
   const pagMensal = new Map<string, number>();
-  pagamentos.forEach((p) => {
+  pagamentosF.forEach((p) => {
     if (!p.mesReferencia) return;
     pagMensal.set(p.mesReferencia, (pagMensal.get(p.mesReferencia) || 0) + p.valor);
   });
@@ -85,7 +111,7 @@ export default function FreteDashboard({
 
   // ── Gasto por transportadora ──
   const gastoPorTransportadora = new Map<string, number>();
-  fretes.forEach((f) => {
+  fretesF.forEach((f) => {
     if (!f.transportadora) return;
     gastoPorTransportadora.set(
       f.transportadora,
@@ -97,7 +123,7 @@ export default function FreteDashboard({
 
   // ── Pagamentos por transportadora ──
   const pagPorTransportadora = new Map<string, number>();
-  pagamentos.forEach((p) => {
+  pagamentosF.forEach((p) => {
     if (!p.transportadora) return;
     pagPorTransportadora.set(
       p.transportadora,
@@ -107,21 +133,51 @@ export default function FreteDashboard({
 
   // ── Gasto por obra ──
   const gastoPorObra = new Map<string, number>();
-  fretes.forEach((f) => {
+  fretesF.forEach((f) => {
     if (!f.obraId) return;
     gastoPorObra.set(f.obraId, (gastoPorObra.get(f.obraId) || 0) + f.valorTotal);
   });
 
-  // ── Gasto por material ──
-  const gastoPorMaterial = new Map<string, number>();
-  fretes.forEach((f) => {
-    if (!f.insumoId) return;
-    gastoPorMaterial.set(f.insumoId, (gastoPorMaterial.get(f.insumoId) || 0) + f.valorTotal);
+  // ── Gasto com transporte por material e pedreira (origem) ──
+  const gastoTranspMatPedreira = new Map<string, Map<string, { valor: number; peso: number }>>();
+  fretesF.forEach((f) => {
+    if (!f.insumoId || !f.origem) return;
+    const origem = f.origem.trim();
+    let matMap = gastoTranspMatPedreira.get(origem);
+    if (!matMap) {
+      matMap = new Map();
+      gastoTranspMatPedreira.set(origem, matMap);
+    }
+    const prev = matMap.get(f.insumoId) || { valor: 0, peso: 0 };
+    matMap.set(f.insumoId, { valor: prev.valor + f.valorTotal, peso: prev.peso + f.pesoToneladas });
   });
+  // Flatten para lista agrupada
+  interface TranspMatRow { origem: string; insumoId: string; valor: number; peso: number; custoMedioTon: number }
+  const transpMatRows: TranspMatRow[] = [];
+  const totaisPorPedreira: { origem: string; totalValor: number; totalPeso: number }[] = [];
+  let totalGeralTranspMat = 0;
+  let totalGeralTranspPeso = 0;
+  Array.from(gastoTranspMatPedreira.entries())
+    .sort((a, b) => a[0].localeCompare(b[0]))
+    .forEach(([origem, matMap]) => {
+      let pedrValor = 0;
+      let pedrPeso = 0;
+      Array.from(matMap.entries())
+        .sort((a, b) => b[1].valor - a[1].valor)
+        .forEach(([insumoId, d]) => {
+          const custoMedioTon = d.peso > 0 ? d.valor / d.peso : 0;
+          transpMatRows.push({ origem, insumoId, valor: d.valor, peso: d.peso, custoMedioTon });
+          pedrValor += d.valor;
+          pedrPeso += d.peso;
+        });
+      totaisPorPedreira.push({ origem, totalValor: pedrValor, totalPeso: pedrPeso });
+      totalGeralTranspMat += pedrValor;
+      totalGeralTranspPeso += pedrPeso;
+    });
 
   // ── Quantidade de material transportado / em transito ──
   const materialTransporte = new Map<string, { entregue: number; transito: number; pesoEntregue: number; pesoTransito: number }>();
-  fretes.forEach((f) => {
+  fretesF.forEach((f) => {
     if (!f.insumoId) return;
     const prev = materialTransporte.get(f.insumoId) || { entregue: 0, transito: 0, pesoEntregue: 0, pesoTransito: 0 };
     if (f.dataChegada) {
@@ -143,7 +199,7 @@ export default function FreteDashboard({
 
   // ── Abastecimentos carreta por transportadora ──
   const abastPorTransportadora = new Map<string, { valor: number; litros: number; count: number }>();
-  abastecimentosCarreta.forEach((a) => {
+  abastCarretaF.forEach((a) => {
     if (!a.transportadora) return;
     const prev = abastPorTransportadora.get(a.transportadora) || { valor: 0, litros: 0, count: 0 };
     abastPorTransportadora.set(a.transportadora, {
@@ -152,17 +208,17 @@ export default function FreteDashboard({
       count: prev.count + 1,
     });
   });
-  const totalAbastCarreta = abastecimentosCarreta.reduce((s, a) => s + a.valorTotal, 0);
+  const totalAbastCarreta = abastCarretaF.reduce((s, a) => s + a.valorTotal, 0);
 
   // ── Pagamentos por metodo ──
   const pagPorMetodo = new Map<string, number>();
-  pagamentos.forEach((p) => {
+  pagamentosF.forEach((p) => {
     pagPorMetodo.set(p.metodo, (pagPorMetodo.get(p.metodo) || 0) + p.valor);
   });
 
   // ── Pagamentos por empresa (pagoPor) + abastecimentos como Areacre ──
   const pagPorPessoa = new Map<string, { valor: number; count: number }>();
-  pagamentos.forEach((p) => {
+  pagamentosF.forEach((p) => {
     const nome = p.pagoPor?.trim() || '';
     if (!nome) return;
     const prev = pagPorPessoa.get(nome) || { valor: 0, count: 0 };
@@ -173,7 +229,7 @@ export default function FreteDashboard({
     const prevAreacre = pagPorPessoa.get('Areacre') || { valor: 0, count: 0 };
     pagPorPessoa.set('Areacre', {
       valor: prevAreacre.valor + totalAbastCarreta,
-      count: prevAreacre.count + abastecimentosCarreta.length,
+      count: prevAreacre.count + abastCarretaF.length,
     });
   }
   const listaPagPorPessoa = Array.from(pagPorPessoa.entries())
@@ -182,9 +238,31 @@ export default function FreteDashboard({
 
   // ── Pedidos de Material por Fornecedor ──
   const fornecedoresMap = new Map(fornecedores.map((f) => [f.id, f.nome]));
+  // Busca fornecedorId pela origem do frete (match flexivel: "Britam" casa com "Pedreira Britam")
+  const fornecedorList = fornecedores.map((f) => ({ id: f.id, nomeLower: f.nome.toLowerCase().trim() }));
+  function findFornecedorByOrigem(origem: string): string | undefined {
+    const o = origem.toLowerCase().trim();
+    // Primeiro tenta match exato
+    const exact = fornecedorList.find((f) => f.nomeLower === o);
+    if (exact) return exact.id;
+    // Depois tenta: origem contida no nome do fornecedor ou vice-versa
+    const partial = fornecedorList.find((f) => f.nomeLower.includes(o) || o.includes(f.nomeLower));
+    return partial?.id;
+  }
+  // Mapas de transporte: "fornecedorId|insumoId" -> qtdTransportada / custoFrete
+  const transporteMap = new Map<string, number>();
+  const freteValorMap = new Map<string, number>();
+  fretesF.forEach((f) => {
+    if (!f.origem || !f.insumoId) return;
+    const fornecedorId = findFornecedorByOrigem(f.origem);
+    if (!fornecedorId) return;
+    const key = `${fornecedorId}|${f.insumoId}`;
+    transporteMap.set(key, (transporteMap.get(key) || 0) + f.pesoToneladas);
+    freteValorMap.set(key, (freteValorMap.get(key) || 0) + f.valorTotal);
+  });
   // Agregar: fornecedorId -> material (insumoId) -> { qtd, valor }
   const pedidosPorFornecedor = new Map<string, Map<string, { qtd: number; valor: number }>>();
-  pedidosMaterial.forEach((p) => {
+  pedidosF.forEach((p) => {
     if (!p.fornecedorId) return;
     let materiaisMap = pedidosPorFornecedor.get(p.fornecedorId);
     if (!materiaisMap) {
@@ -200,9 +278,14 @@ export default function FreteDashboard({
     });
   });
   // Flatten para lista de linhas agrupadas por fornecedor
-  const pedidosFornecedorRows: { fornecedorId: string; fornecedorNome: string; insumoId: string; qtd: number; valor: number; vlrMedio: number }[] = [];
+  interface PedidoFornRow { fornecedorId: string; fornecedorNome: string; insumoId: string; qtd: number; qtdTransportada: number; saldoQtd: number; vlrMedio: number; custoMedioFrete: number; valor: number; saldoValor: number }
+  const pedidosFornecedorRows: PedidoFornRow[] = [];
+  let totalGeralQtd = 0;
+  let totalGeralQtdTransp = 0;
   let totalGeralPedidos = 0;
-  const totaisPorFornecedor: { fornecedorId: string; fornecedorNome: string; total: number }[] = [];
+  let totalGeralFreteValor = 0;
+  let totalGeralSaldoValor = 0;
+  const totaisPorFornecedor: { fornecedorId: string; fornecedorNome: string; totalQtd: number; totalQtdTransp: number; totalValor: number; totalFreteValor: number; totalSaldoValor: number }[] = [];
   Array.from(pedidosPorFornecedor.entries())
     .sort((a, b) => {
       const nomeA = fornecedoresMap.get(a[0]) || '';
@@ -210,30 +293,78 @@ export default function FreteDashboard({
       return nomeA.localeCompare(nomeB);
     })
     .forEach(([fornecedorId, materiaisMap]) => {
-      let totalFornecedor = 0;
+      let fornQtd = 0;
+      let fornQtdTransp = 0;
+      let fornValor = 0;
+      let fornFreteValor = 0;
+      let fornSaldoValor = 0;
       const fornecedorNome = fornecedoresMap.get(fornecedorId) || fornecedorId;
       Array.from(materiaisMap.entries())
         .sort((a, b) => b[1].valor - a[1].valor)
         .forEach(([insumoId, dados]) => {
           const vlrMedio = dados.qtd > 0 ? dados.valor / dados.qtd : 0;
-          pedidosFornecedorRows.push({ fornecedorId, fornecedorNome, insumoId, qtd: dados.qtd, valor: dados.valor, vlrMedio });
-          totalFornecedor += dados.valor;
+          const key = `${fornecedorId}|${insumoId}`;
+          const qtdTransportada = transporteMap.get(key) || 0;
+          const freteValor = freteValorMap.get(key) || 0;
+          const custoMedioFrete = qtdTransportada > 0 ? freteValor / qtdTransportada : 0;
+          const saldoQtd = dados.qtd - qtdTransportada;
+          const saldoValor = saldoQtd * vlrMedio;
+          pedidosFornecedorRows.push({ fornecedorId, fornecedorNome, insumoId, qtd: dados.qtd, qtdTransportada, saldoQtd, vlrMedio, custoMedioFrete, valor: dados.valor, saldoValor });
+          fornQtd += dados.qtd;
+          fornQtdTransp += qtdTransportada;
+          fornValor += dados.valor;
+          fornFreteValor += freteValor;
+          fornSaldoValor += saldoValor;
         });
-      totaisPorFornecedor.push({ fornecedorId, fornecedorNome, total: totalFornecedor });
-      totalGeralPedidos += totalFornecedor;
+      totaisPorFornecedor.push({ fornecedorId, fornecedorNome, totalQtd: fornQtd, totalQtdTransp: fornQtdTransp, totalValor: fornValor, totalFreteValor: fornFreteValor, totalSaldoValor: fornSaldoValor });
+      totalGeralQtd += fornQtd;
+      totalGeralQtdTransp += fornQtdTransp;
+      totalGeralPedidos += fornValor;
+      totalGeralFreteValor += fornFreteValor;
+      totalGeralSaldoValor += fornSaldoValor;
     });
 
   return (
     <div className="space-y-6">
+      {/* Filtro de data */}
+      <div className="flex flex-wrap items-end gap-4">
+        <div>
+          <label className="block text-xs font-medium text-gray-500 mb-1">Data Inicio</label>
+          <input
+            type="date"
+            value={dataInicio}
+            onChange={(e) => setDataInicio(e.target.value)}
+            className="border border-gray-300 rounded-md px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+        </div>
+        <div>
+          <label className="block text-xs font-medium text-gray-500 mb-1">Data Fim</label>
+          <input
+            type="date"
+            value={dataFim}
+            onChange={(e) => setDataFim(e.target.value)}
+            className="border border-gray-300 rounded-md px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+        </div>
+        {(dataInicio || dataFim) && (
+          <button
+            onClick={() => { setDataInicio(''); setDataFim(''); }}
+            className="text-sm text-red-600 hover:text-red-800 font-medium pb-1"
+          >
+            Limpar filtro
+          </button>
+        )}
+      </div>
+
       {/* Cards resumo */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <Card>
           <p className="text-sm text-gray-500">Total Fretes</p>
           <p className="text-2xl font-bold text-emt-verde mt-1">
             {formatCurrency(totalFretes)}
           </p>
           <p className="text-xs text-gray-400 mt-0.5">
-            {fretes.length} frete{fretes.length !== 1 ? 's' : ''}
+            {fretesF.length} frete{fretesF.length !== 1 ? 's' : ''}
           </p>
         </Card>
         <Card>
@@ -242,7 +373,7 @@ export default function FreteDashboard({
             {formatCurrency(totalPagamentos)}
           </p>
           <p className="text-xs text-gray-400 mt-0.5">
-            {pagamentos.length} pagamento{pagamentos.length !== 1 ? 's' : ''}
+            {pagamentosF.length} pagamento{pagamentosF.length !== 1 ? 's' : ''}
           </p>
         </Card>
         <Card>
@@ -254,13 +385,22 @@ export default function FreteDashboard({
             {saldo > 0 ? 'A pagar' : saldo < 0 ? 'Pago a mais' : 'Quitado'}
           </p>
         </Card>
+        <Card>
+          <p className="text-sm text-gray-500">Media Ponderada KM</p>
+          <p className="text-2xl font-bold text-orange-600 mt-1">
+            {mediaKmPonderada.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} km
+          </p>
+          <p className="text-xs text-gray-400 mt-0.5">
+            {totalPeso.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} t transportadas
+          </p>
+        </Card>
       </div>
 
       {/* Grafico comparado: fretes vs pagamentos por mes */}
       {chartComparado.length > 0 && (
         <Card>
           <h3 className="text-sm font-semibold text-gray-700 mb-4">
-            Fretes x Pagamentos por Mes (R$)
+            Fretes x Pagamentos por Mês (R$)
           </h3>
           <div className="h-64">
             <ResponsiveContainer width="100%" height="100%">
@@ -346,42 +486,80 @@ export default function FreteDashboard({
           <p className="text-gray-400 text-sm">Sem dados</p>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead className="bg-gray-50 border-b">
-                <tr>
-                  <th className="text-left px-4 py-2 font-medium text-gray-600">Fornecedor</th>
-                  <th className="text-left px-4 py-2 font-medium text-gray-600">Material</th>
-                  <th className="text-right px-4 py-2 font-medium text-gray-600">Qtd Total</th>
-                  <th className="text-right px-4 py-2 font-medium text-gray-600">Vlr Medio Unit (R$)</th>
-                  <th className="text-right px-4 py-2 font-medium text-gray-600">Valor Total (R$)</th>
+            <table className="w-full text-sm border-collapse">
+              <thead>
+                {/* Linha de grupo */}
+                <tr className="border-b border-gray-200">
+                  <th rowSpan={2} className="text-left px-3 py-2 font-semibold text-gray-700 bg-gray-50 border-b-2 border-gray-300">Material</th>
+                  <th colSpan={2} className="text-center px-3 py-1.5 font-semibold text-gray-600 bg-blue-50 border-b border-blue-200">Pedido</th>
+                  <th colSpan={2} className="text-center px-3 py-1.5 font-semibold text-gray-600 bg-emerald-50 border-b border-emerald-200">Transportado</th>
+                  <th colSpan={2} className="text-center px-3 py-1.5 font-semibold text-gray-600 bg-amber-50 border-b border-amber-200">Saldo na Pedreira</th>
+                  <th colSpan={3} className="text-center px-3 py-1.5 font-semibold text-gray-600 bg-purple-50 border-b border-purple-200">Custo R$/t</th>
+                </tr>
+                {/* Sub-colunas */}
+                <tr className="border-b-2 border-gray-300">
+                  <th className="text-right px-3 py-1.5 font-medium text-gray-500 bg-blue-50 text-xs">Qtd (t)</th>
+                  <th className="text-right px-3 py-1.5 font-medium text-gray-500 bg-blue-50 text-xs">Valor (R$)</th>
+                  <th className="text-right px-3 py-1.5 font-medium text-gray-500 bg-emerald-50 text-xs">Qtd (t)</th>
+                  <th className="text-right px-3 py-1.5 font-medium text-gray-500 bg-emerald-50 text-xs">Valor (R$)</th>
+                  <th className="text-right px-3 py-1.5 font-medium text-gray-500 bg-amber-50 text-xs">Qtd (t)</th>
+                  <th className="text-right px-3 py-1.5 font-medium text-gray-500 bg-amber-50 text-xs">Valor (R$)</th>
+                  <th className="text-right px-3 py-1.5 font-medium text-gray-500 bg-purple-50 text-xs">Material</th>
+                  <th className="text-right px-3 py-1.5 font-medium text-gray-500 bg-purple-50 text-xs">Frete</th>
+                  <th className="text-right px-3 py-1.5 font-medium text-gray-500 bg-purple-50 text-xs">Total</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-100">
+              <tbody>
                 {totaisPorFornecedor.map((forn) => {
                   const rows = pedidosFornecedorRows.filter((r) => r.fornecedorId === forn.fornecedorId);
+                  const fornCustoMedioMat = forn.totalQtd > 0 ? forn.totalValor / forn.totalQtd : 0;
+                  const fornCustoMedioFrete = forn.totalQtdTransp > 0 ? forn.totalFreteValor / forn.totalQtdTransp : 0;
                   return (
                     <Fragment key={forn.fornecedorId}>
-                      <tr className="bg-gray-50">
-                        <td colSpan={4} className="px-4 py-2 font-semibold text-gray-700">{forn.fornecedorNome}</td>
-                        <td className="px-4 py-2 text-right font-semibold text-gray-700">{formatCurrency(forn.total)}</td>
+                      {/* Sub-header do fornecedor */}
+                      <tr className="bg-gray-100 border-t-2 border-gray-300">
+                        <td className="px-3 py-2 font-bold text-gray-800">{forn.fornecedorNome}</td>
+                        <td className="px-3 py-2 text-right font-semibold text-gray-600">{forn.totalQtd.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>
+                        <td className="px-3 py-2 text-right font-semibold text-gray-600">{formatCurrency(forn.totalValor)}</td>
+                        <td className="px-3 py-2 text-right font-semibold text-emerald-700">{forn.totalQtdTransp.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>
+                        <td className="px-3 py-2 text-right font-semibold text-emerald-700">{formatCurrency(forn.totalValor - forn.totalSaldoValor)}</td>
+                        <td className={`px-3 py-2 text-right font-semibold ${(forn.totalQtd - forn.totalQtdTransp) < 0 ? 'text-red-600' : (forn.totalQtd - forn.totalQtdTransp) === 0 ? 'text-gray-400' : 'text-green-600'}`}>{(forn.totalQtd - forn.totalQtdTransp).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>
+                        <td className={`px-3 py-2 text-right font-semibold ${forn.totalSaldoValor < 0 ? 'text-red-600' : forn.totalSaldoValor === 0 ? 'text-gray-400' : 'text-green-600'}`}>{formatCurrency(forn.totalSaldoValor)}</td>
+                        <td className="px-3 py-2 text-right font-semibold text-purple-700">{formatCurrency(fornCustoMedioMat)}</td>
+                        <td className="px-3 py-2 text-right font-semibold text-purple-700">{fornCustoMedioFrete > 0 ? formatCurrency(fornCustoMedioFrete) : '-'}</td>
+                        <td className="px-3 py-2 text-right font-bold text-purple-800">{fornCustoMedioFrete > 0 ? formatCurrency(fornCustoMedioMat + fornCustoMedioFrete) : formatCurrency(fornCustoMedioMat)}</td>
                       </tr>
+                      {/* Linhas de material */}
                       {rows.map((r) => (
-                        <tr key={`${r.fornecedorId}-${r.insumoId}`} className="hover:bg-gray-50">
-                          <td className="px-4 py-2"></td>
-                          <td className="px-4 py-2 text-gray-700">{insumosMap.get(r.insumoId) || r.insumoId}</td>
-                          <td className="px-4 py-2 text-right text-gray-700">{r.qtd.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>
-                          <td className="px-4 py-2 text-right text-gray-700">{formatCurrency(r.vlrMedio)}</td>
-                          <td className="px-4 py-2 text-right text-gray-700">{formatCurrency(r.valor)}</td>
+                        <tr key={`${r.fornecedorId}-${r.insumoId}`} className="hover:bg-gray-50 border-b border-gray-100">
+                          <td className="px-3 py-1.5 pl-6 text-gray-600">{insumosMap.get(r.insumoId) || r.insumoId}</td>
+                          <td className="px-3 py-1.5 text-right text-gray-700">{r.qtd.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>
+                          <td className="px-3 py-1.5 text-right text-gray-700">{formatCurrency(r.valor)}</td>
+                          <td className="px-3 py-1.5 text-right text-emerald-600">{r.qtdTransportada.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>
+                          <td className="px-3 py-1.5 text-right text-emerald-600">{formatCurrency(r.qtdTransportada * r.vlrMedio)}</td>
+                          <td className={`px-3 py-1.5 text-right font-medium ${r.saldoQtd < 0 ? 'text-red-600' : r.saldoQtd === 0 ? 'text-gray-400' : 'text-green-600'}`}>{r.saldoQtd.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>
+                          <td className={`px-3 py-1.5 text-right font-medium ${r.saldoValor < 0 ? 'text-red-600' : r.saldoValor === 0 ? 'text-gray-400' : 'text-green-600'}`}>{formatCurrency(r.saldoValor)}</td>
+                          <td className="px-3 py-1.5 text-right text-purple-600">{formatCurrency(r.vlrMedio)}</td>
+                          <td className="px-3 py-1.5 text-right text-purple-600">{r.custoMedioFrete > 0 ? formatCurrency(r.custoMedioFrete) : '-'}</td>
+                          <td className="px-3 py-1.5 text-right font-medium text-purple-700">{r.custoMedioFrete > 0 ? formatCurrency(r.vlrMedio + r.custoMedioFrete) : formatCurrency(r.vlrMedio)}</td>
                         </tr>
                       ))}
                     </Fragment>
                   );
                 })}
               </tbody>
-              <tfoot className="border-t-2 border-gray-200">
-                <tr className="font-semibold">
-                  <td colSpan={4} className="px-4 py-2 text-gray-700">Total Geral</td>
-                  <td className="px-4 py-2 text-right text-gray-800">{formatCurrency(totalGeralPedidos)}</td>
+              <tfoot>
+                <tr className="border-t-2 border-gray-400 bg-gray-100 font-bold">
+                  <td className="px-3 py-2 text-gray-800">Total Geral</td>
+                  <td className="px-3 py-2 text-right text-gray-800">{totalGeralQtd.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>
+                  <td className="px-3 py-2 text-right text-gray-800">{formatCurrency(totalGeralPedidos)}</td>
+                  <td className="px-3 py-2 text-right text-emerald-700">{totalGeralQtdTransp.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>
+                  <td className="px-3 py-2 text-right text-emerald-700">{formatCurrency(totalGeralPedidos - totalGeralSaldoValor)}</td>
+                  <td className={`px-3 py-2 text-right ${(totalGeralQtd - totalGeralQtdTransp) < 0 ? 'text-red-600' : (totalGeralQtd - totalGeralQtdTransp) === 0 ? 'text-gray-400' : 'text-green-600'}`}>{(totalGeralQtd - totalGeralQtdTransp).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>
+                  <td className={`px-3 py-2 text-right ${totalGeralSaldoValor < 0 ? 'text-red-600' : totalGeralSaldoValor === 0 ? 'text-gray-400' : 'text-green-600'}`}>{formatCurrency(totalGeralSaldoValor)}</td>
+                  <td className="px-3 py-2 text-right text-purple-700">{totalGeralQtd > 0 ? formatCurrency(totalGeralPedidos / totalGeralQtd) : '-'}</td>
+                  <td className="px-3 py-2 text-right text-purple-700">{totalGeralQtdTransp > 0 ? formatCurrency(totalGeralFreteValor / totalGeralQtdTransp) : '-'}</td>
+                  <td className="px-3 py-2 text-right text-purple-800">{totalGeralQtd > 0 ? formatCurrency((totalGeralPedidos / totalGeralQtd) + (totalGeralQtdTransp > 0 ? totalGeralFreteValor / totalGeralQtdTransp : 0)) : '-'}</td>
                 </tr>
               </tfoot>
             </table>
@@ -389,61 +567,88 @@ export default function FreteDashboard({
         )}
       </Card>
 
-      {/* Gasto por Obra e por Material */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <Card>
-          <h3 className="text-sm font-semibold text-gray-700 mb-3">
-            Gasto por Obra
-          </h3>
-          {gastoPorObra.size === 0 ? (
-            <p className="text-gray-400 text-sm">Sem dados</p>
-          ) : (
-            <div className="space-y-2">
-              {Array.from(gastoPorObra.entries())
-                .sort((a, b) => b[1] - a[1])
-                .map(([obraId, valor]) => (
-                  <div
-                    key={obraId}
-                    className="flex justify-between items-center py-1 border-b border-gray-100 last:border-0"
-                  >
-                    <span className="text-sm text-gray-700">
-                      {obrasMap.get(obraId) || 'Sem obra'}
-                    </span>
-                    <span className="text-sm font-medium">
-                      {formatCurrency(valor)}
-                    </span>
-                  </div>
-                ))}
-            </div>
-          )}
-        </Card>
-        <Card>
-          <h3 className="text-sm font-semibold text-gray-700 mb-3">
-            Gasto por Material
-          </h3>
-          {gastoPorMaterial.size === 0 ? (
-            <p className="text-gray-400 text-sm">Sem dados</p>
-          ) : (
-            <div className="space-y-2">
-              {Array.from(gastoPorMaterial.entries())
-                .sort((a, b) => b[1] - a[1])
-                .map(([insumoId, valor]) => (
-                  <div
-                    key={insumoId}
-                    className="flex justify-between items-center py-1 border-b border-gray-100 last:border-0"
-                  >
-                    <span className="text-sm text-gray-700">
-                      {insumosMap.get(insumoId) || insumoId}
-                    </span>
-                    <span className="text-sm font-medium">
-                      {formatCurrency(valor)}
-                    </span>
-                  </div>
-                ))}
-            </div>
-          )}
-        </Card>
-      </div>
+      {/* Gasto com Transporte por Material e Pedreira */}
+      <Card>
+        <h3 className="text-sm font-semibold text-gray-700 mb-3">
+          Gasto com Transporte por Material e Pedreira
+        </h3>
+        {transpMatRows.length === 0 ? (
+          <p className="text-gray-400 text-sm">Sem dados</p>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm border-collapse">
+              <thead>
+                <tr className="border-b-2 border-gray-300 bg-gray-50">
+                  <th className="text-left px-3 py-2 font-semibold text-gray-700">Pedreira / Material</th>
+                  <th className="text-right px-3 py-2 font-medium text-gray-600">Peso (t)</th>
+                  <th className="text-right px-3 py-2 font-medium text-gray-600">Custo Frete (R$)</th>
+                  <th className="text-right px-3 py-2 font-medium text-gray-600">Custo R$/t</th>
+                </tr>
+              </thead>
+              <tbody>
+                {totaisPorPedreira.map((pedr) => {
+                  const rows = transpMatRows.filter((r) => r.origem === pedr.origem);
+                  const custoMedioPedr = pedr.totalPeso > 0 ? pedr.totalValor / pedr.totalPeso : 0;
+                  return (
+                    <Fragment key={pedr.origem}>
+                      <tr className="bg-gray-100 border-t-2 border-gray-300">
+                        <td className="px-3 py-2 font-bold text-gray-800">{pedr.origem}</td>
+                        <td className="px-3 py-2 text-right font-semibold text-gray-600">{pedr.totalPeso.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>
+                        <td className="px-3 py-2 text-right font-semibold text-gray-700">{formatCurrency(pedr.totalValor)}</td>
+                        <td className="px-3 py-2 text-right font-semibold text-purple-700">{formatCurrency(custoMedioPedr)}</td>
+                      </tr>
+                      {rows.map((r) => (
+                        <tr key={`${r.origem}-${r.insumoId}`} className="hover:bg-gray-50 border-b border-gray-100">
+                          <td className="px-3 py-1.5 pl-6 text-gray-600">{insumosMap.get(r.insumoId) || r.insumoId}</td>
+                          <td className="px-3 py-1.5 text-right text-gray-700">{r.peso.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>
+                          <td className="px-3 py-1.5 text-right text-gray-700">{formatCurrency(r.valor)}</td>
+                          <td className="px-3 py-1.5 text-right text-purple-600">{formatCurrency(r.custoMedioTon)}</td>
+                        </tr>
+                      ))}
+                    </Fragment>
+                  );
+                })}
+              </tbody>
+              <tfoot>
+                <tr className="border-t-2 border-gray-400 bg-gray-100 font-bold">
+                  <td className="px-3 py-2 text-gray-800">Total Geral</td>
+                  <td className="px-3 py-2 text-right text-gray-800">{totalGeralTranspPeso.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>
+                  <td className="px-3 py-2 text-right text-gray-800">{formatCurrency(totalGeralTranspMat)}</td>
+                  <td className="px-3 py-2 text-right text-purple-700">{totalGeralTranspPeso > 0 ? formatCurrency(totalGeralTranspMat / totalGeralTranspPeso) : '-'}</td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        )}
+      </Card>
+
+      {/* Gasto por Obra */}
+      <Card>
+        <h3 className="text-sm font-semibold text-gray-700 mb-3">
+          Gasto por Obra
+        </h3>
+        {gastoPorObra.size === 0 ? (
+          <p className="text-gray-400 text-sm">Sem dados</p>
+        ) : (
+          <div className="space-y-2">
+            {Array.from(gastoPorObra.entries())
+              .sort((a, b) => b[1] - a[1])
+              .map(([obraId, valor]) => (
+                <div
+                  key={obraId}
+                  className="flex justify-between items-center py-1 border-b border-gray-100 last:border-0"
+                >
+                  <span className="text-sm text-gray-700">
+                    {obrasMap.get(obraId) || 'Sem obra'}
+                  </span>
+                  <span className="text-sm font-medium">
+                    {formatCurrency(valor)}
+                  </span>
+                </div>
+              ))}
+          </div>
+        )}
+      </Card>
 
       {/* Material transportado / em transito */}
       {listaMaterialTransporte.length > 0 && (
@@ -530,7 +735,7 @@ export default function FreteDashboard({
       {pagPorMetodo.size > 0 && (
         <Card>
           <h3 className="text-sm font-semibold text-gray-700 mb-3">
-            Pagamentos por Metodo
+            Pagamentos por Método
           </h3>
           <div className="flex flex-wrap gap-3">
             {Array.from(pagPorMetodo.entries())

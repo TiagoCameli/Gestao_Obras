@@ -3,7 +3,25 @@
     "allow": [
       "Bash(npm run build:*)",
       "Bash(npm install:*)",
-      "Bash(npx tsc:*)"
+      "Bash(npx tsc:*)",
+      "Bash(brew list:*)",
+      "Bash(npx vite build:*)",
+      "Bash(npx supabase:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git push:*)",
+      "Bash(supabase --version:*)",
+      "Bash(supabase projects list:*)",
+      "Bash(supabase db push:*)",
+      "Bash(npx vercel:*)",
+      "mcp__ide__getDiagnostics",
+      "Bash(grep:*)",
+      "Bash(ls:*)",
+      "Bash(npx vite:*)",
+      "Bash(lsof:*)",
+      "Bash(gh api:*)",
+      "Bash(curl:*)",
+      "Bash(python3:*)"
     ]
   }
 }

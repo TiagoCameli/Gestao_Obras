@@ -81,11 +81,11 @@ export default function FuncionarioList({ funcionarios, onEdit, onDelete, canEdi
               <table className="w-full text-sm">
                 <thead className="bg-emt-verde text-white">
                   <tr>
-                    <th className="text-left px-4 py-3 text-white font-medium uppercase text-xs">Funcionario</th>
+                    <th className="text-left px-4 py-3 text-white font-medium uppercase text-xs">Funcionário</th>
                     <th className="text-left px-4 py-3 text-white font-medium uppercase text-xs">E-mail</th>
                     <th className="text-left px-4 py-3 text-white font-medium uppercase text-xs">Cargo</th>
                     <th className="text-center px-4 py-3 text-white font-medium uppercase text-xs">Status</th>
-                    <th className="text-center px-4 py-3 text-white font-medium uppercase text-xs">Acoes</th>
+                    <th className="text-center px-4 py-3 text-white font-medium uppercase text-xs">Ações</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100 [&>tr:nth-child(even)]:bg-emt-cinza-claro">
@@ -166,7 +166,7 @@ export default function FuncionarioList({ funcionarios, onEdit, onDelete, canEdi
                   disabled={pagina >= totalPaginas - 1}
                   onClick={() => setPagina((p) => p + 1)}
                 >
-                  Proximo
+                  Próximo
                 </Button>
               </div>
             </div>

@@ -38,7 +38,7 @@ export default function AbastecimentoFilters({
           placeholder="Todas"
         />
         <Select
-          label="Combustivel"
+          label="Combustível"
           id="filtro-combustivel"
           value={filtros.tipoCombustivel}
           onChange={(e) =>
@@ -48,7 +48,7 @@ export default function AbastecimentoFilters({
           placeholder="Todos"
         />
         <Input
-          label="Data Inicio"
+          label="Data Início"
           id="filtro-inicio"
           type="date"
           value={filtros.dataInicio}

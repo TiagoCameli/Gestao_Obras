@@ -1,4 +1,5 @@
 import { useCallback, useMemo, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import type {
   EntradaMaterial,
   SaidaMaterial,
@@ -46,7 +47,12 @@ export default function Insumos() {
   const canCreateTransferencia = temAcao('criar_transferencia_material');
   const canExport = temAcao('exportar_insumos');
   const canViewDashboard = temAcao('ver_dashboard_insumos');
-  const [tab, setTab] = useState<Tab>(canViewDashboard ? 'dashboard' : 'entradas');
+  const [searchParams, setSearchParams] = useSearchParams();
+  const validTabs: Tab[] = ['dashboard', 'entradas', 'saidas', 'transferencias'];
+  const tabParam = searchParams.get('tab') as Tab | null;
+  const defaultTab: Tab = canViewDashboard ? 'dashboard' : 'entradas';
+  const tab: Tab = tabParam && validTabs.includes(tabParam) ? tabParam : defaultTab;
+  const setTab = useCallback((t: Tab) => setSearchParams({ tab: t }, { replace: true }), [setSearchParams]);
 
   const { data: obras = [] } = useObras();
   const { data: etapas = [] } = useEtapas();
@@ -209,8 +215,8 @@ export default function Insumos() {
   const tabs: { key: Tab; label: string }[] = [
     ...(canViewDashboard ? [{ key: 'dashboard' as Tab, label: 'Dashboard' }] : []),
     { key: 'entradas', label: 'Entradas' },
-    { key: 'saidas', label: 'Saidas' },
-    { key: 'transferencias', label: 'Transferencias' },
+    { key: 'saidas', label: 'Saídas' },
+    { key: 'transferencias', label: 'Transferências' },
   ];
 
   return (
@@ -235,17 +241,17 @@ export default function Insumos() {
                 setModalSaidaOpen(true);
               }}
             >
-              Nova Saida
+              Nova Saída
             </Button>
           )}
           {canCreateTransferencia && (
             <Button onClick={() => setModalTransferenciaOpen(true)}>
-              Nova Transferencia
+              Nova Transferência
             </Button>
           )}
           {canExport && (
             <Button variant="secondary" onClick={() => setModalExportarOpen(true)}>
-              Exportar Relatorio
+              Exportar Relatório
             </Button>
           )}
         </div>
@@ -333,7 +339,7 @@ export default function Insumos() {
           if (senhaAction) senhaAction();
           setSenhaAction(null);
         }}
-        title="Senha de Edicao"
+        title="Senha de Edição"
       />
 
       {/* Modal Entrada */}
@@ -375,7 +381,7 @@ export default function Insumos() {
           setModalSaidaOpen(false);
           setEditandoSaida(null);
         }}
-        title={editandoSaida ? 'Editar Saida' : 'Nova Saida de Material'}
+        title={editandoSaida ? 'Editar Saída' : 'Nova Saída de Material'}
       >
         <SaidaMaterialForm
           initial={editandoSaida}
@@ -414,7 +420,7 @@ export default function Insumos() {
       <Modal
         open={modalTransferenciaOpen}
         onClose={() => setModalTransferenciaOpen(false)}
-        title="Nova Transferencia de Material"
+        title="Nova Transferência de Material"
       >
         <TransferenciaMaterialForm
           onSubmit={handleSubmitTransferencia}

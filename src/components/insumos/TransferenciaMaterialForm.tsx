@@ -16,7 +16,7 @@ interface TransferenciaMaterialFormProps {
 }
 
 const TRANSF_MAT_TEMPLATE = [
-  ['Data', 'Material', 'Dep. Origem', 'Dep. Destino', 'Quantidade', 'Valor', 'Observacoes'],
+  ['Data', 'Material', 'Dep. Origem', 'Dep. Destino', 'Quantidade', 'Valor', 'Observações'],
   ['2024-01-15 08:00', 'Cimento CP-II', 'Almoxarifado Central', 'Almoxarifado Obra 2', '30', '1050', ''],
 ];
 
@@ -55,15 +55,15 @@ export default function TransferenciaMaterialForm({
     if (!data) erros.push('Data obrigatoria');
     const materialNome = parseStr(row[1]);
     const material = allInsumos.filter((i) => i.tipo === 'material' && i.ativo !== false).find((i) => i.nome.toLowerCase() === materialNome.toLowerCase());
-    if (!material) erros.push(`Material "${materialNome}" nao encontrado`);
+    if (!material) erros.push(`Material "${materialNome}" não encontrado`);
     const insumoId = material?.id ?? '';
     const origemNome = parseStr(row[2]);
     const origem = depositosMaterial.filter((d) => d.ativo !== false).find((d) => d.nome.toLowerCase() === origemNome.toLowerCase());
-    if (!origem) erros.push(`Dep. Origem "${origemNome}" nao encontrado`);
+    if (!origem) erros.push(`Dep. Origem "${origemNome}" não encontrado`);
     const depositoOrigemId = origem?.id ?? '';
     const destinoNome = parseStr(row[3]);
     const destino = depositosMaterial.filter((d) => d.ativo !== false).find((d) => d.nome.toLowerCase() === destinoNome.toLowerCase());
-    if (!destino) erros.push(`Dep. Destino "${destinoNome}" nao encontrado`);
+    if (!destino) erros.push(`Dep. Destino "${destinoNome}" não encontrado`);
     const depositoDestinoId = destino?.id ?? '';
     if (depositoOrigemId && depositoDestinoId && depositoOrigemId === depositoDestinoId) erros.push('Origem e destino devem ser diferentes');
     const qtd = parseNumero(row[4]);
@@ -187,7 +187,7 @@ export default function TransferenciaMaterialForm({
 
         <div>
           <Select
-            label="Deposito de Origem"
+            label="Depósito de Origem"
             id="transfMatOrigemId"
             value={depositoOrigemId}
             onChange={(e) => setDepositoOrigemId(e.target.value)}
@@ -197,20 +197,20 @@ export default function TransferenciaMaterialForm({
             }))}
             placeholder={
               depositos.length === 0
-                ? 'Nenhum deposito ativo'
-                : 'Selecione o deposito de origem'
+                ? 'Nenhum depósito ativo'
+                : 'Selecione o depósito de origem'
             }
             required
           />
           {depositoOrigemId && insumoId && (
             <p className="text-xs text-gray-500 mt-1">
-              Estoque disponivel{dataHora ? ' na data' : ''}: {estoqueOrigem} {unidadeLabel}
+              Estoque disponível{dataHora ? ' na data' : ''}: {estoqueOrigem} {unidadeLabel}
             </p>
           )}
         </div>
 
         <Select
-          label="Deposito de Destino"
+          label="Depósito de Destino"
           id="transfMatDestinoId"
           value={depositoDestinoId}
           onChange={(e) => setDepositoDestinoId(e.target.value)}
@@ -222,8 +222,8 @@ export default function TransferenciaMaterialForm({
             !depositoOrigemId
               ? 'Selecione a origem primeiro'
               : depositosDestino.length === 0
-                ? 'Nenhum outro deposito disponivel'
-                : 'Selecione o deposito de destino'
+                ? 'Nenhum outro depósito disponível'
+                : 'Selecione o depósito de destino'
           }
           disabled={!depositoOrigemId}
           required
@@ -239,7 +239,7 @@ export default function TransferenciaMaterialForm({
           onChange={(e) => setQuantidade(e.target.value)}
           error={
             semEstoqueOrigem
-              ? `Estoque insuficiente (${estoqueOrigem} ${unidadeLabel} disponiveis)`
+              ? `Estoque insuficiente (${estoqueOrigem} ${unidadeLabel} disponíveis)`
               : undefined
           }
           required
@@ -261,7 +261,7 @@ export default function TransferenciaMaterialForm({
           htmlFor="transfMatObs"
           className="block text-sm font-medium text-gray-700 mb-1"
         >
-          Observacoes (opcional)
+          Observações (opcional)
         </label>
         <textarea
           id="transfMatObs"
@@ -269,7 +269,7 @@ export default function TransferenciaMaterialForm({
           rows={3}
           value={observacoes}
           onChange={(e) => setObservacoes(e.target.value)}
-          placeholder="Alguma observacao sobre a transferencia..."
+          placeholder="Alguma observação sobre a transferência..."
         />
       </div>
 
@@ -278,7 +278,7 @@ export default function TransferenciaMaterialForm({
           Cancelar
         </Button>
         <Button type="submit" disabled={!isValid}>
-          Registrar Transferencia
+          Registrar Transferência
         </Button>
       </div>
 
@@ -288,15 +288,15 @@ export default function TransferenciaMaterialForm({
           onClose={() => setImportModalOpen(false)}
           onImport={(items) => {
             onImportBatch(items as unknown as TransferenciaMaterial[]);
-            setToastMsg(`${items.length} transferencia(s) importada(s) com sucesso!`);
+            setToastMsg(`${items.length} transferência(s) importada(s) com sucesso!`);
             setTimeout(() => setToastMsg(''), 3500);
           }}
-          title="Importar Transferencias de Material"
-          entityLabel="Transferencia"
+          title="Importar Transferências de Material"
+          entityLabel="Transferência"
           genderFem
           templateData={TRANSF_MAT_TEMPLATE}
           templateFileName="template_transferencias_material.xlsx"
-          sheetName="Transferencias"
+          sheetName="Transferências"
           templateColWidths={[18, 18, 22, 22, 12, 12, 15]}
           formatHintHeaders={['Data', 'Material', 'Dep. Origem', 'Dep. Destino', 'Qtd', 'Valor', 'Obs']}
           formatHintExample={['2024-01-15 08:00', 'Cimento', 'Almoxarifado 1', 'Almoxarifado 2', '30', '1050', '']}

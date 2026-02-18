@@ -63,11 +63,11 @@ export default function AbastecimentoCarretaList({
                 <th className="text-left px-4 py-3 text-white font-medium uppercase text-xs">Data</th>
                 <th className="text-left px-4 py-3 text-white font-medium uppercase text-xs">Transportadora</th>
                 <th className="text-left px-4 py-3 text-white font-medium uppercase text-xs">Placa</th>
-                <th className="text-left px-4 py-3 text-white font-medium uppercase text-xs">Combustivel</th>
+                <th className="text-left px-4 py-3 text-white font-medium uppercase text-xs">Combustível</th>
                 <th className="text-right px-4 py-3 text-white font-medium uppercase text-xs">Litros</th>
                 <th className="text-right px-4 py-3 text-white font-medium uppercase text-xs">Valor Unit.</th>
                 <th className="text-right px-4 py-3 text-white font-medium uppercase text-xs">Total</th>
-                <th className="text-center px-4 py-3 text-white font-medium uppercase text-xs">Acoes</th>
+                <th className="text-center px-4 py-3 text-white font-medium uppercase text-xs">Ações</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100 [&>tr:nth-child(even)]:bg-emt-cinza-claro">
@@ -145,7 +145,7 @@ export default function AbastecimentoCarretaList({
               disabled={pagina >= totalPaginas - 1}
               onClick={() => setPagina((p) => p + 1)}
             >
-              Proximo
+              Próximo
             </Button>
           </div>
         </div>

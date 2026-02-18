@@ -24,7 +24,7 @@ import { useAuth } from '../contexts/AuthContext';
 const STATUS_LABELS: Record<Obra['status'], string> = {
   planejamento: 'Planejamento',
   em_andamento: 'Em Andamento',
-  concluida: 'Concluida',
+  concluida: 'Concluída',
   pausada: 'Pausada',
 };
 
@@ -185,7 +185,7 @@ function TanqueForm({
           Cancelar
         </Button>
         <Button type="submit" disabled={!isValid}>
-          {initial ? 'Salvar Alteracoes' : 'Cadastrar Tanque'}
+          {initial ? 'Salvar Alterações' : 'Cadastrar Tanque'}
         </Button>
       </div>
 
@@ -274,7 +274,7 @@ function EquipamentoForm({
     });
   }
 
-  const isValid = nome && medicaoInicial && dataAquisicao;
+  const isValid = !!nome.trim();
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
@@ -300,14 +300,14 @@ function EquipamentoForm({
           required
         />
         <Input
-          label="Codigo de Patrimonio"
+          label="Código de Patrimônio"
           id="eqPatrimonio"
           value={codigoPatrimonio}
           onChange={(e) => setCodigoPatrimonio(e.target.value)}
           placeholder="Ex: PAT-001"
         />
         <Input
-          label="Numero de Serie"
+          label="Número de Série"
           id="eqSerie"
           value={numeroSerie}
           onChange={(e) => setNumeroSerie(e.target.value)}
@@ -328,33 +328,30 @@ function EquipamentoForm({
           placeholder="Ex: 2024"
         />
         <Select
-          label="Tipo de Medicao"
+          label="Tipo de Medição"
           id="eqTipoMedicao"
           value={tipoMedicao}
           onChange={(e) => setTipoMedicao(e.target.value as TipoMedicao)}
           options={[
-            { value: 'horimetro', label: 'Horimetro' },
-            { value: 'odometro', label: 'Odometro' },
+            { value: 'horimetro', label: 'Horímetro' },
+            { value: 'odometro', label: 'Odômetro' },
           ]}
-          required
         />
         <Input
-          label={tipoMedicao === 'horimetro' ? 'Horimetro Inicial' : 'Odometro Inicial (KM)'}
+          label={tipoMedicao === 'horimetro' ? 'Horímetro Inicial' : 'Odômetro Inicial (KM)'}
           id="eqMedicao"
           type="number"
           step="0.0001"
           min="0"
           value={medicaoInicial}
           onChange={(e) => setMedicaoInicial(e.target.value)}
-          required
         />
         <Input
-          label="Data de Aquisicao"
+          label="Data de Aquisição"
           id="eqDataAquisicao"
           type="date"
           value={dataAquisicao}
           onChange={(e) => setDataAquisicao(e.target.value)}
-          required
         />
         <Input
           label="Data de Venda"
@@ -399,7 +396,7 @@ function EquipamentoForm({
           Cancelar
         </Button>
         <Button type="submit" disabled={!isValid}>
-          {initial ? 'Salvar Alteracoes' : 'Cadastrar Equipamento'}
+          {initial ? 'Salvar Alterações' : 'Cadastrar Equipamento'}
         </Button>
       </div>
 
@@ -544,7 +541,7 @@ function UnidadeMedidaForm({
           Cancelar
         </Button>
         <Button type="submit" disabled={!isValid}>
-          {initial ? 'Salvar Alteracoes' : 'Cadastrar Unidade'}
+          {initial ? 'Salvar Alterações' : 'Cadastrar Unidade'}
         </Button>
       </div>
 
@@ -686,7 +683,7 @@ function InsumoForm({
           value={tipo}
           onChange={(e) => setTipo(e.target.value as TipoInsumo)}
           options={[
-            { value: 'combustivel', label: 'Combustivel' },
+            { value: 'combustivel', label: 'Combustível' },
             { value: 'material', label: 'Material' },
           ]}
           required
@@ -749,7 +746,7 @@ function InsumoForm({
           Cancelar
         </Button>
         <Button type="submit" disabled={!isValid}>
-          {initial ? 'Salvar Alteracoes' : 'Cadastrar Insumo'}
+          {initial ? 'Salvar Alterações' : 'Cadastrar Insumo'}
         </Button>
       </div>
 
@@ -872,7 +869,7 @@ function DepositoMaterialForm({
       )}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <Input
-          label="Nome do Deposito"
+          label="Nome do Depósito"
           id="depMatNome"
           value={nome}
           onChange={(e) => setNome(e.target.value)}
@@ -889,14 +886,14 @@ function DepositoMaterialForm({
           required
         />
         <Input
-          label="Endereco"
+          label="Endereço"
           id="depMatEndereco"
           value={endereco}
           onChange={(e) => setEndereco(e.target.value)}
           placeholder="Ex: Rua das Flores, 100"
         />
         <Input
-          label="Responsavel"
+          label="Responsável"
           id="depMatResponsavel"
           value={responsavel}
           onChange={(e) => setResponsavel(e.target.value)}
@@ -939,7 +936,7 @@ function DepositoMaterialForm({
           Cancelar
         </Button>
         <Button type="submit" disabled={!isValid}>
-          {initial ? 'Salvar Alteracoes' : 'Cadastrar Deposito'}
+          {initial ? 'Salvar Alterações' : 'Cadastrar Depósito'}
         </Button>
       </div>
 
@@ -957,13 +954,13 @@ function DepositoMaterialForm({
           entityLabel="Deposito"
           genderFem={false}
           templateData={[
-            ['Nome', 'Obra', 'Endereco', 'Responsavel'],
+            ['Nome', 'Obra', 'Endereço', 'Responsável'],
             ['Almoxarifado Central', 'Obra ABC', 'Rua X, 100', 'Carlos'],
           ]}
           templateFileName="template_depositos_material.xlsx"
           sheetName="Depositos"
           templateColWidths={[25, 25, 25, 20]}
-          formatHintHeaders={['Nome', 'Obra', 'Endereco', 'Responsavel']}
+          formatHintHeaders={['Nome', 'Obra', 'Endereço', 'Responsável']}
           formatHintExample={['Almoxarifado Central', 'Obra ABC', 'Rua X, 100', 'Carlos']}
           parseRow={parseDepMatRow}
           toEntity={depMatToEntity}
@@ -1091,7 +1088,7 @@ function FornecedorForm({
           htmlFor="fornecedorObs"
           className="block text-sm font-medium text-gray-700 mb-1"
         >
-          Observacoes (opcional)
+          Observações (opcional)
         </label>
         <textarea
           id="fornecedorObs"
@@ -1099,7 +1096,7 @@ function FornecedorForm({
           rows={3}
           value={observacoes}
           onChange={(e) => setObservacoes(e.target.value)}
-          placeholder="Alguma observacao..."
+          placeholder="Alguma observação..."
         />
       </div>
       {initial && (
@@ -1138,7 +1135,7 @@ function FornecedorForm({
           Cancelar
         </Button>
         <Button type="submit" disabled={!isValid}>
-          {initial ? 'Salvar Alteracoes' : 'Cadastrar Fornecedor'}
+          {initial ? 'Salvar Alterações' : 'Cadastrar Fornecedor'}
         </Button>
       </div>
 
@@ -1156,13 +1153,13 @@ function FornecedorForm({
           entityLabel="Fornecedor"
           genderFem={false}
           templateData={[
-            ['Nome', 'CNPJ', 'Telefone', 'Email', 'Observacoes'],
+            ['Nome', 'CNPJ', 'Telefone', 'Email', 'Observações'],
             ['Distribuidora ABC', '12.345.678/0001-90', '(11) 99999-0000', 'contato@abc.com', ''],
           ]}
           templateFileName="template_fornecedores.xlsx"
           sheetName="Fornecedores"
           templateColWidths={[25, 22, 20, 25, 25]}
-          formatHintHeaders={['Nome', 'CNPJ', 'Telefone', 'Email', 'Observacoes']}
+          formatHintHeaders={['Nome', 'CNPJ', 'Telefone', 'Email', 'Observações']}
           formatHintExample={['Distribuidora ABC', '12.345.678/0001-90', '(11) 99999-0000', 'contato@abc.com', '']}
           parseRow={parseFornecedorRow}
           toEntity={fornecedorToEntity}
@@ -1579,7 +1576,7 @@ export default function Obras() {
                   <div className="border-t border-gray-100 px-5 py-4 bg-gray-50/50">
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
                       <div>
-                        <p className="text-xs text-gray-500">Responsavel</p>
+                        <p className="text-xs text-gray-500">Responsável</p>
                         <p className="text-sm font-medium text-gray-700">
                           {obra.responsavel}
                         </p>
@@ -1743,7 +1740,7 @@ export default function Obras() {
       {/* Secao Tanques de Combustivel */}
       <div className="mt-10">
         <div className="flex items-center gap-3 mb-4">
-          <h2 className="text-xl font-bold text-gray-800">Tanques de Combustivel</h2>
+          <h2 className="text-xl font-bold text-gray-800">Tanques de Combustível</h2>
           {todosDepositos.length > 0 && (
             <button
               className="text-sm text-gray-500 hover:text-gray-700 transition-colors"
@@ -1895,13 +1892,13 @@ export default function Obras() {
                     </div>
                     {dep.endereco && (
                       <div className="flex justify-between">
-                        <span>Endereco</span>
+                        <span>Endereço</span>
                         <span className="text-gray-700 font-medium">{dep.endereco}</span>
                       </div>
                     )}
                     {dep.responsavel && (
                       <div className="flex justify-between">
-                        <span>Responsavel</span>
+                        <span>Responsável</span>
                         <span className="text-gray-700 font-medium">{dep.responsavel}</span>
                       </div>
                     )}
@@ -2035,16 +2032,20 @@ export default function Obras() {
                     <span>Ano</span>
                     <span className="text-gray-700 font-medium">{eq.ano}</span>
                   </div>
-                  <div className="flex justify-between">
-                    <span>{eq.tipoMedicao === 'horimetro' ? 'Horimetro Inicial' : 'Odometro Inicial'}</span>
-                    <span className="text-gray-700 font-medium">
-                      {eq.medicaoInicial.toLocaleString('pt-BR')} {eq.tipoMedicao === 'horimetro' ? 'h' : 'km'}
-                    </span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>Aquisicao</span>
-                    <span className="text-gray-700 font-medium">{formatDate(eq.dataAquisicao)}</span>
-                  </div>
+                  {eq.tipoMedicao && (
+                    <div className="flex justify-between">
+                      <span>{eq.tipoMedicao === 'horimetro' ? 'Horímetro Inicial' : 'Odômetro Inicial'}</span>
+                      <span className="text-gray-700 font-medium">
+                        {(eq.medicaoInicial ?? 0).toLocaleString('pt-BR')} {eq.tipoMedicao === 'horimetro' ? 'h' : 'km'}
+                      </span>
+                    </div>
+                  )}
+                  {eq.dataAquisicao && (
+                    <div className="flex justify-between">
+                      <span>Aquisicao</span>
+                      <span className="text-gray-700 font-medium">{formatDate(eq.dataAquisicao)}</span>
+                    </div>
+                  )}
                   {eq.dataVenda && (
                     <div className="flex justify-between">
                       <span>Venda</span>
@@ -2124,7 +2125,7 @@ export default function Obras() {
                             : 'bg-emt-verde-claro text-emt-verde-escuro'
                         }`}
                       >
-                        {insumo.tipo === 'combustivel' ? 'Combustivel' : 'Material'}
+                        {insumo.tipo === 'combustivel' ? 'Combustível' : 'Material'}
                       </span>
                       <span
                         className={`px-2 py-0.5 rounded-full text-xs font-medium ${
@@ -2470,7 +2471,7 @@ export default function Obras() {
           setModalTanqueOpen(false);
           setEditandoTanque(null);
         }}
-        title={editandoTanque ? 'Editar Tanque' : 'Novo Tanque de Combustivel'}
+        title={editandoTanque ? 'Editar Tanque' : 'Novo Tanque de Combustível'}
       >
         <TanqueForm
           initial={editandoTanque}

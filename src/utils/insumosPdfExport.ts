@@ -59,7 +59,7 @@ export function exportarEntradasMaterialPDF(
   const periodo = formatarPeriodo(dataInicio, dataFim);
 
   doc.setFontSize(18);
-  doc.text('Relatorio de Entradas de Material', 14, 22);
+  doc.text('Relatório de Entradas de Material', 14, 22);
 
   doc.setFontSize(10);
   let y = 30;
@@ -135,7 +135,7 @@ export function exportarSaidasMaterialPDF(
   }
 
   doc.setFontSize(18);
-  doc.text('Relatorio de Saidas de Material', 14, 22);
+  doc.text('Relatório de Saídas de Material', 14, 22);
 
   doc.setFontSize(10);
   let y = 30;
@@ -205,7 +205,7 @@ export function exportarTransferenciasMaterialPDF(
   const periodo = formatarPeriodo(dataInicio, dataFim);
 
   doc.setFontSize(18);
-  doc.text('Relatorio de Transferencias de Material', 14, 22);
+  doc.text('Relatório de Transferências de Material', 14, 22);
 
   doc.setFontSize(10);
   let y = 30;

@@ -59,7 +59,7 @@ export function exportarSaidasPDF(
   const periodo = formatarPeriodo(dataInicio, dataFim);
 
   doc.setFontSize(18);
-  doc.text('Relatorio de Saidas de Combustivel', 14, 22);
+  doc.text('Relatório de Saídas de Combustível', 14, 22);
 
   doc.setFontSize(10);
   let y = 30;
@@ -136,7 +136,7 @@ export function exportarEntradasPDF(
   const subtitulo = formatarSubtituloFiltro(filtroObraIds || [], filtroDepositoIds || [], obrasMap, depositosMap);
 
   doc.setFontSize(18);
-  doc.text('Relatorio de Entradas de Combustivel', 14, 22);
+  doc.text('Relatório de Entradas de Combustível', 14, 22);
 
   doc.setFontSize(10);
   let y = 30;
@@ -202,7 +202,7 @@ export function exportarTransferenciasPDF(
   const subtitulo = formatarSubtituloFiltro(filtroObraIds || [], filtroDepositoIds || [], obrasMap, depositosMap);
 
   doc.setFontSize(18);
-  doc.text('Relatorio de Transferencias de Combustivel', 14, 22);
+  doc.text('Relatório de Transferências de Combustível', 14, 22);
 
   doc.setFontSize(10);
   let y = 30;

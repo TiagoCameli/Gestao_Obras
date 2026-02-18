@@ -61,7 +61,7 @@ export default function EntradaMaterialList({
                   Obra
                 </th>
                 <th className="text-left px-4 py-3 text-white font-medium uppercase text-xs">
-                  Deposito
+                  Depósito
                 </th>
                 <th className="text-left px-4 py-3 text-white font-medium uppercase text-xs">
                   Material
@@ -76,7 +76,7 @@ export default function EntradaMaterialList({
                   Valor
                 </th>
                 <th className="text-center px-4 py-3 text-white font-medium uppercase text-xs">
-                  Acoes
+                  Ações
                 </th>
               </tr>
             </thead>

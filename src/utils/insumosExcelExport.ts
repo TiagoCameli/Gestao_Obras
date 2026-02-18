@@ -84,7 +84,7 @@ export function exportarEntradasMaterialExcel(
   const totalValor = dados.reduce((sum, e) => sum + e.valorTotal, 0);
 
   const wb = XLSX.utils.book_new();
-  addResumoSheet(wb, 'Relatorio de Entradas de Material', subtitulo, periodo, dados.length, totalValor);
+  addResumoSheet(wb, 'Relatório de Entradas de Material', subtitulo, periodo, dados.length, totalValor);
 
   const rows = dados
     .sort((a, b) => new Date(b.dataHora).getTime() - new Date(a.dataHora).getTime())
@@ -144,7 +144,7 @@ export function exportarSaidasMaterialExcel(
   const totalValor = dados.reduce((sum, s) => sum + s.valorTotal, 0);
 
   const wb = XLSX.utils.book_new();
-  addResumoSheet(wb, 'Relatorio de Saidas de Material', subtitulo, periodo, dados.length, totalValor);
+  addResumoSheet(wb, 'Relatório de Saídas de Material', subtitulo, periodo, dados.length, totalValor);
 
   const rows = dados
     .sort((a, b) => new Date(b.dataHora).getTime() - new Date(a.dataHora).getTime())
@@ -161,7 +161,7 @@ export function exportarSaidasMaterialExcel(
 
   const ws = XLSX.utils.json_to_sheet(rows);
   ws['!cols'] = [{ wch: 18 }, { wch: 20 }, { wch: 20 }, { wch: 20 }, { wch: 12 }, { wch: 10 }, { wch: 30 }, { wch: 14 }];
-  XLSX.utils.book_append_sheet(wb, ws, 'Saidas');
+  XLSX.utils.book_append_sheet(wb, ws, 'Saídas');
 
   salvarExcel(wb, 'relatorio-saidas-material.xlsx');
 }
@@ -198,7 +198,7 @@ export function exportarTransferenciasMaterialExcel(
   const totalValor = dados.reduce((sum, t) => sum + t.valorTotal, 0);
 
   const wb = XLSX.utils.book_new();
-  addResumoSheet(wb, 'Relatorio de Transferencias de Material', subtitulo, periodo, dados.length, totalValor);
+  addResumoSheet(wb, 'Relatório de Transferências de Material', subtitulo, periodo, dados.length, totalValor);
 
   const rows = dados
     .sort((a, b) => new Date(b.dataHora).getTime() - new Date(a.dataHora).getTime())
@@ -214,7 +214,7 @@ export function exportarTransferenciasMaterialExcel(
 
   const ws = XLSX.utils.json_to_sheet(rows);
   ws['!cols'] = [{ wch: 18 }, { wch: 20 }, { wch: 22 }, { wch: 22 }, { wch: 12 }, { wch: 10 }, { wch: 14 }];
-  XLSX.utils.book_append_sheet(wb, ws, 'Transferencias');
+  XLSX.utils.book_append_sheet(wb, ws, 'Transferências');
 
   salvarExcel(wb, 'relatorio-transferencias-material.xlsx');
 }

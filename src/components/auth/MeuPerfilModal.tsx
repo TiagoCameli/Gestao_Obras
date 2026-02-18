@@ -27,7 +27,7 @@ export default function MeuPerfilModal({ open, onClose }: MeuPerfilModalProps) {
           <>
             <Field label="CPF" value={func.cpf || '-'} />
             <Field label="Telefone" value={func.telefone || '-'} />
-            {func.dataAdmissao && <Field label="Data Admissao" value={formatDate(func.dataAdmissao)} />}
+            {func.dataAdmissao && <Field label="Data Admissão" value={formatDate(func.dataAdmissao)} />}
           </>
         )}
       </div>

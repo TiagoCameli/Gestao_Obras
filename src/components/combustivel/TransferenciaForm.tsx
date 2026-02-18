@@ -19,7 +19,7 @@ function gerarId(): string {
 }
 
 const TRANSF_TEMPLATE = [
-  ['Data', 'Deposito Origem', 'Deposito Destino', 'Litros', 'Valor', 'Observacoes'],
+  ['Data', 'Depósito Origem', 'Depósito Destino', 'Litros', 'Valor', 'Observações'],
   ['2024-01-15 08:00', 'Tanque Diesel 01', 'Tanque Diesel 02', '500', '3250', ''],
 ];
 
@@ -109,20 +109,20 @@ export default function TransferenciaForm({
 
       let foundOrigemId = '';
       if (!origemNome) {
-        erros.push('Falta deposito origem');
+        erros.push('Falta depósito origem');
       } else {
         const found = depositos.find((d) => d.nome.toLowerCase() === origemNome.toLowerCase());
         if (found) foundOrigemId = found.id;
-        else erros.push(`Deposito origem "${origemNome}" nao encontrado`);
+        else erros.push(`Depósito origem "${origemNome}" não encontrado`);
       }
 
       let foundDestinoId = '';
       if (!destinoNome) {
-        erros.push('Falta deposito destino');
+        erros.push('Falta depósito destino');
       } else {
         const found = depositos.find((d) => d.nome.toLowerCase() === destinoNome.toLowerCase());
         if (found) foundDestinoId = found.id;
-        else erros.push(`Deposito destino "${destinoNome}" nao encontrado`);
+        else erros.push(`Depósito destino "${destinoNome}" não encontrado`);
       }
 
       if (foundOrigemId && foundDestinoId && foundOrigemId === foundDestinoId) {
@@ -161,7 +161,7 @@ export default function TransferenciaForm({
     (items: Record<string, unknown>[]) => {
       if (onImportBatch) {
         onImportBatch(items as unknown as TransferenciaCombustivel[]);
-        setToastMsg(`${items.length} transferencia${items.length !== 1 ? 's' : ''} importada${items.length !== 1 ? 's' : ''} com sucesso`);
+        setToastMsg(`${items.length} transferência${items.length !== 1 ? 's' : ''} importada${items.length !== 1 ? 's' : ''} com sucesso`);
         setTimeout(() => setToastMsg(''), 4000);
       }
     },
@@ -247,7 +247,7 @@ export default function TransferenciaForm({
                 />
               </div>
               <span className="text-xs text-gray-500">
-                {estoqueOrigemNaData.toFixed(0)} L disponiveis{dataHora ? ' na data' : ''}
+                {estoqueOrigemNaData.toFixed(0)} L disponíveis{dataHora ? ' na data' : ''}
               </span>
             </div>
           )}
@@ -267,7 +267,7 @@ export default function TransferenciaForm({
               !depositoOrigemId
                 ? 'Selecione a origem primeiro'
                 : depositosDestino.length === 0
-                  ? 'Nenhum outro tanque disponivel'
+                  ? 'Nenhum outro tanque disponível'
                   : 'Selecione o tanque de destino'
             }
             disabled={!depositoOrigemId}
@@ -284,7 +284,7 @@ export default function TransferenciaForm({
                 />
               </div>
               <span className="text-xs text-gray-500">
-                {espacoDestino.toFixed(0)} L de espaco{dataHora ? ' na data' : ''}
+                {espacoDestino.toFixed(0)} L de espaço{dataHora ? ' na data' : ''}
               </span>
             </div>
           )}
@@ -300,9 +300,9 @@ export default function TransferenciaForm({
           onChange={(e) => setQuantidadeLitros(e.target.value)}
           error={
             semEstoqueOrigem
-              ? `Estoque insuficiente (${estoqueOrigemNaData.toFixed(0)} L disponiveis${dataHora ? ' na data' : ''})`
+              ? `Estoque insuficiente (${estoqueOrigemNaData.toFixed(0)} L disponíveis${dataHora ? ' na data' : ''})`
               : semEspacoDestino
-                ? `Espaco insuficiente no destino (${espacoDestino.toFixed(0)} L de espaco${dataHora ? ' na data' : ''})`
+                ? `Espaço insuficiente no destino (${espacoDestino.toFixed(0)} L de espaço${dataHora ? ' na data' : ''})`
                 : undefined
           }
           required
@@ -320,7 +320,7 @@ export default function TransferenciaForm({
           />
           {precoMedio > 0 && (
             <p className="text-xs text-gray-500 mt-1">
-              Preco medio do tanque origem: R$ {precoMedio.toFixed(4)}/L
+              Preço médio do tanque origem: R$ {precoMedio.toFixed(4)}/L
             </p>
           )}
         </div>
@@ -331,7 +331,7 @@ export default function TransferenciaForm({
           htmlFor="observacoesTransf"
           className="block text-sm font-medium text-gray-700 mb-1"
         >
-          Observacoes (opcional)
+          Observações (opcional)
         </label>
         <textarea
           id="observacoesTransf"
@@ -339,7 +339,7 @@ export default function TransferenciaForm({
           rows={3}
           value={observacoes}
           onChange={(e) => setObservacoes(e.target.value)}
-          placeholder="Alguma observacao sobre a transferencia..."
+          placeholder="Alguma observação sobre a transferência..."
         />
       </div>
 
@@ -348,7 +348,7 @@ export default function TransferenciaForm({
           Cancelar
         </Button>
         <Button type="submit" disabled={!isValid}>
-          Registrar Transferencia
+          Registrar Transferência
         </Button>
       </div>
 
@@ -356,12 +356,12 @@ export default function TransferenciaForm({
         open={importModalOpen}
         onClose={() => setImportModalOpen(false)}
         onImport={handleImportBatch}
-        title="Importar Transferencias de Combustivel do Excel"
-        entityLabel="Transferencia"
+        title="Importar Transferências de Combustível do Excel"
+        entityLabel="Transferência"
         genderFem={true}
         templateData={TRANSF_TEMPLATE}
         templateFileName="template_transferencias_combustivel.xlsx"
-        sheetName="Transferencias"
+        sheetName="Transferências"
         templateColWidths={[18, 20, 20, 10, 12, 15]}
         formatHintHeaders={['Data', 'Dep. Origem', 'Dep. Destino', 'Litros', 'Valor', 'Obs']}
         formatHintExample={['2024-01-15 08:00', 'Tanque 01', 'Tanque 02', '500', '3250', '']}

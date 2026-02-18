@@ -20,7 +20,7 @@ interface EntradaMaterialFormProps {
 }
 
 const ENTRADA_MAT_TEMPLATE = [
-  ['Data', 'Obra', 'Deposito', 'Material', 'Quantidade', 'Valor Total', 'Fornecedor', 'NF', 'Observacoes'],
+  ['Data', 'Obra', 'Depósito', 'Material', 'Quantidade', 'Valor Total', 'Fornecedor', 'NF', 'Observações'],
   ['2024-01-15 08:00', 'Obra ABC', 'Almoxarifado Central', 'Cimento CP-II', '100', '3500', 'Distribuidora XYZ', 'NF-001', ''],
 ];
 
@@ -93,15 +93,15 @@ export default function EntradaMaterialForm({
     if (!data) erros.push('Data obrigatoria');
     const obraNome = parseStr(row[1]);
     const obra = obras.find((o) => o.nome.toLowerCase() === obraNome.toLowerCase());
-    if (!obra) erros.push(`Obra "${obraNome}" nao encontrada`);
+    if (!obra) erros.push(`Obra "${obraNome}" não encontrada`);
     const obraId = obra?.id ?? '';
     const depositoNome = parseStr(row[2]);
     const deposito = allDepositos.filter((d) => d.ativo !== false).find((d) => d.nome.toLowerCase() === depositoNome.toLowerCase() && (!obra || d.obraId === obra.id));
-    if (!deposito) erros.push(`Deposito "${depositoNome}" nao encontrado`);
+    if (!deposito) erros.push(`Depósito "${depositoNome}" não encontrado`);
     const depositoMaterialId = deposito?.id ?? '';
     const materialNome = parseStr(row[3]);
     const material = allInsumos.filter((i) => i.tipo === 'material' && i.ativo !== false).find((i) => i.nome.toLowerCase() === materialNome.toLowerCase());
-    if (!material) erros.push(`Material "${materialNome}" nao encontrado`);
+    if (!material) erros.push(`Material "${materialNome}" não encontrado`);
     const insumoId = material?.id ?? '';
     const qtd = parseNumero(row[4]);
     if (qtd === null || qtd <= 0) erros.push('Quantidade obrigatoria');
@@ -111,7 +111,7 @@ export default function EntradaMaterialForm({
     const valorTotal = vt ?? 0;
     const fornecedorNome = parseStr(row[6]);
     const fornecedor = allFornecedores.filter((f) => f.ativo !== false).find((f) => f.nome.toLowerCase() === fornecedorNome.toLowerCase());
-    if (!fornecedor) erros.push(`Fornecedor "${fornecedorNome}" nao encontrado`);
+    if (!fornecedor) erros.push(`Fornecedor "${fornecedorNome}" não encontrado`);
     const fornecedorId = fornecedor?.id ?? '';
     const notaFiscal = parseStr(row[7]);
     const observacoes = parseStr(row[8]);
@@ -210,7 +210,7 @@ export default function EntradaMaterialForm({
           required
         />
         <Select
-          label="Deposito de Destino"
+          label="Depósito de Destino"
           id="entMatDepositoId"
           value={depositoMaterialId}
           onChange={(e) => setDepositoMaterialId(e.target.value)}
@@ -222,8 +222,8 @@ export default function EntradaMaterialForm({
             !obraId
               ? 'Selecione a obra primeiro'
               : depositos.length === 0
-                ? 'Nenhum deposito cadastrado'
-                : 'Selecione o deposito'
+                ? 'Nenhum depósito cadastrado'
+                : 'Selecione o depósito'
           }
           disabled={!obraId || depositos.length === 0}
           required
@@ -425,7 +425,7 @@ export default function EntradaMaterialForm({
           htmlFor="entMatObs"
           className="block text-sm font-medium text-gray-700 mb-1"
         >
-          Observacoes (opcional)
+          Observações (opcional)
         </label>
         <textarea
           id="entMatObs"
@@ -433,7 +433,7 @@ export default function EntradaMaterialForm({
           rows={3}
           value={observacoes}
           onChange={(e) => setObservacoes(e.target.value)}
-          placeholder="Alguma observacao..."
+          placeholder="Alguma observação..."
         />
       </div>
       <div className="flex justify-end gap-3 pt-2">
@@ -441,7 +441,7 @@ export default function EntradaMaterialForm({
           Cancelar
         </Button>
         <Button type="submit" disabled={!isValid}>
-          {initial ? 'Salvar Alteracoes' : 'Registrar Entrada'}
+          {initial ? 'Salvar Alterações' : 'Registrar Entrada'}
         </Button>
       </div>
 
@@ -461,7 +461,7 @@ export default function EntradaMaterialForm({
           templateFileName="template_entradas_material.xlsx"
           sheetName="Entradas"
           templateColWidths={[18, 15, 22, 18, 12, 12, 20, 10, 15]}
-          formatHintHeaders={['Data', 'Obra', 'Deposito', 'Material', 'Qtd', 'Valor', 'Fornecedor', 'NF', 'Obs']}
+          formatHintHeaders={['Data', 'Obra', 'Depósito', 'Material', 'Qtd', 'Valor', 'Fornecedor', 'NF', 'Obs']}
           formatHintExample={['2024-01-15 08:00', 'Obra ABC', 'Almoxarifado', 'Cimento', '100', '3500', 'Dist. XYZ', '', '']}
           parseRow={parseRow}
           toEntity={toEntity}

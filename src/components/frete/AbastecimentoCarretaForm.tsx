@@ -20,7 +20,7 @@ function gerarId(): string {
 }
 
 const ABASTCARRETA_TEMPLATE = [
-  ['Data', 'Transportadora', 'Placa', 'Combustivel', 'Litros', 'Valor Unitario', 'Observacoes'],
+  ['Data', 'Transportadora', 'Placa', 'Combustível', 'Litros', 'Valor Unitário', 'Observações'],
   ['2024-01-15', 'Transportes ABC', 'ABC-1234', 'Diesel S10', '500', '5.50', ''],
 ];
 
@@ -199,12 +199,12 @@ export default function AbastecimentoCarretaForm({
         {/* Tipo Combustivel com inline + Novo */}
         <div>
           <Select
-            label="Tipo de Combustivel"
+            label="Tipo de Combustível"
             id="abastCarretaCombustivel"
             value={tipoCombustivel}
             onChange={(e) => setTipoCombustivel(e.target.value)}
             options={listaCombustiveis.map((c) => ({ value: c.id, label: c.nome }))}
-            placeholder="Selecione o combustivel"
+            placeholder="Selecione o combustível"
             required
           />
           {!novoCombustivelAberto ? (
@@ -213,7 +213,7 @@ export default function AbastecimentoCarretaForm({
               className="mt-1 text-xs text-emt-verde hover:text-emt-verde-escuro font-medium"
               onClick={() => setNovoCombustivelAberto(true)}
             >
-              + Novo Combustivel
+              + Novo Combustível
             </button>
           ) : (
             <div className="mt-2 space-y-2">
@@ -221,7 +221,7 @@ export default function AbastecimentoCarretaForm({
                 <input
                   type="text"
                   className="flex-1 border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-emt-verde"
-                  placeholder="Nome do combustivel"
+                  placeholder="Nome do combustível"
                   value={novoCombustivelNome}
                   onChange={(e) => setNovoCombustivelNome(e.target.value)}
                   autoFocus
@@ -277,7 +277,7 @@ export default function AbastecimentoCarretaForm({
           required
         />
         <Input
-          label="Valor Unitario (R$/litro)"
+          label="Valor Unitário (R$/litro)"
           id="abastCarretaVlrUnit"
           type="number"
           step="0.0001"
@@ -293,7 +293,7 @@ export default function AbastecimentoCarretaForm({
           <div className="w-full border border-gray-200 bg-gray-50 rounded-lg px-3 py-2 text-sm font-semibold text-emt-verde">
             {valorTotal.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
           </div>
-          <p className="text-xs text-gray-400 mt-1">Litros x Valor Unitario</p>
+          <p className="text-xs text-gray-400 mt-1">Litros x Valor Unitário</p>
         </div>
       </div>
       <div>
@@ -301,7 +301,7 @@ export default function AbastecimentoCarretaForm({
           htmlFor="abastCarretaObs"
           className="block text-sm font-medium text-gray-700 mb-1"
         >
-          Observacoes (opcional)
+          Observações (opcional)
         </label>
         <textarea
           id="abastCarretaObs"
@@ -309,7 +309,7 @@ export default function AbastecimentoCarretaForm({
           rows={3}
           value={observacoes}
           onChange={(e) => setObservacoes(e.target.value)}
-          placeholder="Alguma observacao..."
+          placeholder="Alguma observação..."
         />
       </div>
       <div className="flex justify-end gap-3 pt-2">
@@ -317,7 +317,7 @@ export default function AbastecimentoCarretaForm({
           Cancelar
         </Button>
         <Button type="submit" disabled={!isValid}>
-          {initial ? 'Salvar Alteracoes' : 'Registrar Abastecimento'}
+          {initial ? 'Salvar Alterações' : 'Registrar Abastecimento'}
         </Button>
       </div>
 
@@ -332,7 +332,7 @@ export default function AbastecimentoCarretaForm({
         templateFileName="template_abastecimentos_carreta.xlsx"
         sheetName="Abastecimentos"
         templateColWidths={[12, 20, 12, 18, 10, 14, 15]}
-        formatHintHeaders={['Data', 'Transp.', 'Placa', 'Combustivel', 'Litros', 'Vlr Unit', 'Obs']}
+        formatHintHeaders={['Data', 'Transp.', 'Placa', 'Combustível', 'Litros', 'Vlr Unit', 'Obs']}
         formatHintExample={['2024-01-15', 'ABC', 'ABC-1234', 'Diesel S10', '500', '5.50', '']}
         parseRow={parseRow}
         toEntity={toEntity}

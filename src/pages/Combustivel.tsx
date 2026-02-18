@@ -1,4 +1,5 @@
 import { useCallback, useMemo, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import type { Abastecimento, EntradaCombustivel, TransferenciaCombustivel, FiltrosAbastecimento } from '../types';
 import { useAbastecimentos, useAdicionarAbastecimento, useAtualizarAbastecimento, useExcluirAbastecimento } from '../hooks/useAbastecimentos';
 import { useEntradasCombustivel, useAdicionarEntradaCombustivel, useAtualizarEntradaCombustivel, useExcluirEntradaCombustivel } from '../hooks/useEntradasCombustivel';
@@ -38,7 +39,12 @@ export default function Combustivel() {
   const canCreateTransferencia = temAcao('criar_transferencia_combustivel');
   const canExport = temAcao('exportar_combustivel');
   const canViewDashboard = temAcao('ver_dashboard_combustivel');
-  const [tab, setTab] = useState<Tab>(canViewDashboard ? 'dashboard' : 'entradas');
+  const [searchParams, setSearchParams] = useSearchParams();
+  const validTabs: Tab[] = ['dashboard', 'saidas', 'entradas', 'transferencias'];
+  const tabParam = searchParams.get('tab') as Tab | null;
+  const defaultTab: Tab = canViewDashboard ? 'dashboard' : 'entradas';
+  const tab: Tab = tabParam && validTabs.includes(tabParam) ? tabParam : defaultTab;
+  const setTab = useCallback((t: Tab) => setSearchParams({ tab: t }, { replace: true }), [setSearchParams]);
 
   const { data: obras = [] } = useObras();
   const { data: etapas = [] } = useEtapas();
@@ -191,14 +197,14 @@ export default function Combustivel() {
   const tabs: { key: Tab; label: string }[] = [
     ...(canViewDashboard ? [{ key: 'dashboard' as Tab, label: 'Dashboard' }] : []),
     { key: 'entradas', label: 'Entradas' },
-    { key: 'saidas', label: 'Saidas' },
-    { key: 'transferencias', label: 'Transferencias' },
+    { key: 'saidas', label: 'Saídas' },
+    { key: 'transferencias', label: 'Transferências' },
   ];
 
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
-        <h1 className="text-3xl font-bold text-gray-800">Combustivel</h1>
+        <h1 className="text-3xl font-bold text-gray-800">Combustível</h1>
         <div className="flex gap-3">
           {canCreateEntrada && (
             <Button
@@ -217,19 +223,19 @@ export default function Combustivel() {
                 setModalSaidaOpen(true);
               }}
             >
-              Nova Saida
+              Nova Saída
             </Button>
           )}
           {canCreateTransferencia && (
             <Button
               onClick={() => setModalTransferenciaOpen(true)}
             >
-              Nova Transferencia
+              Nova Transferência
             </Button>
           )}
           {canExport && (
             <Button variant="secondary" onClick={() => setModalExportarOpen(true)}>
-              Exportar Relatorio
+              Exportar Relatório
             </Button>
           )}
         </div>
@@ -314,7 +320,7 @@ export default function Combustivel() {
           if (senhaAction) senhaAction();
           setSenhaAction(null);
         }}
-        title="Senha de Edicao"
+        title="Senha de Edição"
       />
 
       {/* Modal Saida */}
@@ -324,7 +330,7 @@ export default function Combustivel() {
           setModalSaidaOpen(false);
           setEditandoSaida(null);
         }}
-        title={editandoSaida ? 'Editar Saida' : 'Nova Saida de Combustivel'}
+        title={editandoSaida ? 'Editar Saída' : 'Nova Saída de Combustível'}
       >
         <AbastecimentoForm
           initial={editandoSaida}
@@ -353,7 +359,7 @@ export default function Combustivel() {
           setModalEntradaOpen(false);
           setEditandoEntrada(null);
         }}
-        title={editandoEntrada ? 'Editar Entrada' : 'Nova Entrada de Combustivel'}
+        title={editandoEntrada ? 'Editar Entrada' : 'Nova Entrada de Combustível'}
       >
         <EntradaForm
           initial={editandoEntrada}
@@ -378,7 +384,7 @@ export default function Combustivel() {
       <Modal
         open={modalTransferenciaOpen}
         onClose={() => setModalTransferenciaOpen(false)}
-        title="Nova Transferencia de Combustivel"
+        title="Nova Transferência de Combustível"
       >
         <TransferenciaForm
           onSubmit={handleSubmitTransferencia}

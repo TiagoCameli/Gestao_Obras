@@ -88,7 +88,7 @@ export function exportarSaidasExcel(
 
   const wb = XLSX.utils.book_new();
 
-  addResumoSheet(wb, 'Relatorio de Saidas de Combustivel', subtitulo, periodo, dados.length, totalLitros, totalValor);
+  addResumoSheet(wb, 'Relatório de Saídas de Combustível', subtitulo, periodo, dados.length, totalLitros, totalValor);
 
   function formatarAlocacoes(alocacoes?: AlocacaoEtapa[], etapaId?: string): string {
     const alocs = alocacoes && alocacoes.length > 0
@@ -114,7 +114,7 @@ export function exportarSaidasExcel(
 
   const ws = XLSX.utils.json_to_sheet(rows);
   ws['!cols'] = [{ wch: 18 }, { wch: 20 }, { wch: 20 }, { wch: 20 }, { wch: 22 }, { wch: 16 }, { wch: 12 }, { wch: 14 }];
-  XLSX.utils.book_append_sheet(wb, ws, 'Saidas');
+  XLSX.utils.book_append_sheet(wb, ws, 'Saídas');
 
   salvarExcel(wb, 'relatorio-saidas-combustivel.xlsx');
 }
@@ -151,7 +151,7 @@ export function exportarEntradasExcel(
 
   const wb = XLSX.utils.book_new();
 
-  addResumoSheet(wb, 'Relatorio de Entradas de Combustivel', subtitulo, periodo, dados.length, totalLitros, totalValor);
+  addResumoSheet(wb, 'Relatório de Entradas de Combustível', subtitulo, periodo, dados.length, totalLitros, totalValor);
 
   const rows = dados
     .sort((a, b) => new Date(b.dataHora).getTime() - new Date(a.dataHora).getTime())
@@ -203,7 +203,7 @@ export function exportarTransferenciasExcel(
 
   const wb = XLSX.utils.book_new();
 
-  addResumoSheet(wb, 'Relatorio de Transferencias de Combustivel', subtitulo, periodo, dados.length, totalLitros, totalValor);
+  addResumoSheet(wb, 'Relatório de Transferências de Combustível', subtitulo, periodo, dados.length, totalLitros, totalValor);
 
   const rows = dados
     .sort((a, b) => new Date(b.dataHora).getTime() - new Date(a.dataHora).getTime())
@@ -217,7 +217,7 @@ export function exportarTransferenciasExcel(
 
   const ws = XLSX.utils.json_to_sheet(rows);
   ws['!cols'] = [{ wch: 18 }, { wch: 22 }, { wch: 22 }, { wch: 12 }, { wch: 14 }];
-  XLSX.utils.book_append_sheet(wb, ws, 'Transferencias');
+  XLSX.utils.book_append_sheet(wb, ws, 'Transferências');
 
   salvarExcel(wb, 'relatorio-transferencias-combustivel.xlsx');
 }

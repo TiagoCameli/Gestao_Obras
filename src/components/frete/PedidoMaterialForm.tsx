@@ -21,7 +21,7 @@ function gerarId(): string {
 const EMPTY_ITEM: ItemPedidoMaterial = { insumoId: '', quantidade: 0, valorUnitario: 0 };
 
 const PEDIDO_TEMPLATE = [
-  ['Data', 'Fornecedor', 'Material', 'Quantidade', 'Valor Unitario', 'Observacoes'],
+  ['Data', 'Fornecedor', 'Material', 'Quantidade', 'Valor Unitário', 'Observações'],
   ['2024-01-15', 'Fornecedor ABC', 'Brita', '100', '25.00', ''],
 ];
 
@@ -235,14 +235,14 @@ export default function PedidoMaterialForm({
           {itens.map((item, index) => (
             <div
               key={index}
-              className="grid grid-cols-[1fr_100px_120px_120px_32px] gap-2 items-end"
+              className="grid grid-cols-[1fr_1fr_1fr_1fr_32px] gap-2 items-end"
             >
               <div>
                 {index === 0 && (
                   <label className="block text-xs font-medium text-gray-500 mb-1">Material</label>
                 )}
                 <select
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emt-verde"
+                  className="w-full h-[38px] border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emt-verde bg-white"
                   value={item.insumoId}
                   onChange={(e) => updateItem(index, 'insumoId', e.target.value)}
                   required
@@ -263,7 +263,7 @@ export default function PedidoMaterialForm({
                   type="number"
                   step="0.0001"
                   min="0"
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emt-verde"
+                  className="w-full h-[38px] border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emt-verde"
                   value={item.quantidade || ''}
                   onChange={(e) => updateItem(index, 'quantidade', parseFloat(e.target.value) || 0)}
                   required
@@ -277,7 +277,7 @@ export default function PedidoMaterialForm({
                   type="number"
                   step="0.0001"
                   min="0"
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emt-verde"
+                  className="w-full h-[38px] border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emt-verde"
                   value={item.valorUnitario || ''}
                   onChange={(e) => updateItem(index, 'valorUnitario', parseFloat(e.target.value) || 0)}
                   required
@@ -287,7 +287,7 @@ export default function PedidoMaterialForm({
                 {index === 0 && (
                   <label className="block text-xs font-medium text-gray-500 mb-1">Subtotal</label>
                 )}
-                <div className="w-full border border-gray-200 bg-gray-50 rounded-lg px-3 py-2 text-sm font-medium text-emt-verde text-right">
+                <div className="w-full h-[38px] flex items-center justify-end border border-gray-200 bg-gray-50 rounded-lg px-3 text-sm font-medium text-emt-verde">
                   {subtotal(item).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
                 </div>
               </div>
@@ -326,7 +326,7 @@ export default function PedidoMaterialForm({
           htmlFor="pedidoMaterialObs"
           className="block text-sm font-medium text-gray-700 mb-1"
         >
-          Observacoes (opcional)
+          Observações (opcional)
         </label>
         <textarea
           id="pedidoMaterialObs"
@@ -334,7 +334,7 @@ export default function PedidoMaterialForm({
           rows={3}
           value={observacoes}
           onChange={(e) => setObservacoes(e.target.value)}
-          placeholder="Alguma observacao..."
+          placeholder="Alguma observação..."
         />
       </div>
 
@@ -343,7 +343,7 @@ export default function PedidoMaterialForm({
           Cancelar
         </Button>
         <Button type="submit" disabled={!isValid}>
-          {initial ? 'Salvar Alteracoes' : 'Registrar Pedido'}
+          {initial ? 'Salvar Alterações' : 'Registrar Pedido'}
         </Button>
       </div>
 

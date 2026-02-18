@@ -1,12 +1,67 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useCallback } from 'react';
 import type { Frete, Obra, Insumo } from '../../types';
 import Button from '../ui/Button';
+
+function DataChegadaCell({ frete, onUpdate }: { frete: Frete; onUpdate: (frete: Frete, val: string) => void }) {
+  const [editando, setEditando] = useState(false);
+
+  const handleChange = useCallback((val: string) => {
+    onUpdate(frete, val);
+    if (!val) setEditando(false);
+  }, [frete, onUpdate]);
+
+  if (frete.dataChegada) {
+    return (
+      <div className="flex items-center gap-1">
+        <input
+          type="date"
+          className="border border-gray-200 rounded px-2 py-1 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-emt-verde w-[130px]"
+          value={frete.dataChegada}
+          onChange={(e) => handleChange(e.target.value)}
+        />
+        <button
+          type="button"
+          onClick={() => handleChange('')}
+          className="text-red-400 hover:text-red-600 text-lg leading-none px-1"
+          title="Limpar data de chegada"
+        >
+          &times;
+        </button>
+      </div>
+    );
+  }
+
+  if (editando) {
+    return (
+      <div className="flex items-center gap-1">
+        <input
+          type="date"
+          className="border border-gray-200 rounded px-2 py-1 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-emt-verde w-[130px]"
+          value=""
+          onChange={(e) => handleChange(e.target.value)}
+          autoFocus
+          onBlur={() => setEditando(false)}
+        />
+      </div>
+    );
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={() => setEditando(true)}
+      className="text-xs text-blue-600 hover:text-blue-800 font-medium px-2 py-1 border border-dashed border-blue-300 rounded hover:bg-blue-50"
+    >
+      Definir
+    </button>
+  );
+}
 
 interface FreteListProps {
   fretes: Frete[];
   obras: Obra[];
   insumos: Insumo[];
-  filtros: { obraId: string; transportadora: string; motorista: string; dataInicio: string; dataFim: string };
+  filtros: { obraId: string; transportadora: string; motorista: string; insumoId: string; origem: string; dataInicio: string; dataFim: string };
   onEdit: (frete: Frete) => void;
   onDelete: (id: string) => void;
   onUpdateDataChegada?: (frete: Frete, dataChegada: string) => void;
@@ -40,6 +95,8 @@ export default function FreteList({
           const q = filtros.motorista.toLowerCase();
           if (!f.motorista?.toLowerCase().includes(q)) return false;
         }
+        if (filtros.insumoId && f.insumoId !== filtros.insumoId) return false;
+        if (filtros.origem && f.origem?.trim() !== filtros.origem) return false;
         if (filtros.dataInicio && f.data < filtros.dataInicio) return false;
         if (filtros.dataFim && f.data > filtros.dataFim) return false;
         return true;
@@ -70,7 +127,7 @@ export default function FreteList({
           <table className="w-full text-sm min-w-[1400px]">
             <thead className="bg-emt-verde text-white">
               <tr>
-                <th className="text-left px-4 py-3 text-white font-medium uppercase text-xs">Data de Saida</th>
+                <th className="text-left px-4 py-3 text-white font-medium uppercase text-xs">Data de Saída</th>
                 <th className="text-left px-4 py-3 text-white font-medium uppercase text-xs">Data de Chegada</th>
                 <th className="text-left px-4 py-3 text-white font-medium uppercase text-xs">Origem → Destino</th>
                 <th className="text-left px-4 py-3 text-white font-medium uppercase text-xs">Transportadora</th>
@@ -82,7 +139,7 @@ export default function FreteList({
                 <th className="text-right px-4 py-3 text-white font-medium uppercase text-xs">R$/TKM</th>
                 <th className="text-right px-4 py-3 text-white font-medium uppercase text-xs">Total</th>
                 <th className="text-left px-4 py-3 text-white font-medium uppercase text-xs">Obra</th>
-                <th className="text-center px-4 py-3 text-white font-medium uppercase text-xs">Acoes</th>
+                <th className="text-center px-4 py-3 text-white font-medium uppercase text-xs">Ações</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100 [&>tr:nth-child(even)]:bg-emt-cinza-claro">
@@ -93,12 +150,7 @@ export default function FreteList({
                   </td>
                   <td className="px-4 py-1 whitespace-nowrap">
                     {onUpdateDataChegada ? (
-                      <input
-                        type="date"
-                        className="border border-gray-200 rounded px-2 py-1 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-emt-verde w-[130px]"
-                        value={frete.dataChegada || ''}
-                        onChange={(e) => onUpdateDataChegada(frete, e.target.value)}
-                      />
+                      <DataChegadaCell frete={frete} onUpdate={onUpdateDataChegada} />
                     ) : (
                       <span className="text-gray-800">
                         {frete.dataChegada ? new Date(frete.dataChegada + 'T00:00:00').toLocaleDateString('pt-BR') : '-'}
@@ -178,7 +230,7 @@ export default function FreteList({
               disabled={pagina >= totalPaginas - 1}
               onClick={() => setPagina((p) => p + 1)}
             >
-              Proximo
+              Próximo
             </Button>
           </div>
         </div>
