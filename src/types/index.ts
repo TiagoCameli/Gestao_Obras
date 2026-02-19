@@ -310,6 +310,7 @@ export interface AbastecimentoCarreta {
   data: string;
   transportadora: string;
   placaCarreta: string;
+  mesReferencia: string;
   tipoCombustivel: string;
   quantidadeLitros: number;
   valorUnidade: number;

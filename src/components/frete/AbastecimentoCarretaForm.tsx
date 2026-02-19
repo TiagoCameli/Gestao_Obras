@@ -20,8 +20,8 @@ function gerarId(): string {
 }
 
 const ABASTCARRETA_TEMPLATE = [
-  ['Data', 'Transportadora', 'Placa', 'Combustível', 'Litros', 'Valor Unitário', 'Observações'],
-  ['2024-01-15', 'Transportes ABC', 'ABC-1234', 'Diesel S10', '500', '5.50', ''],
+  ['Data', 'Transportadora', 'Placa', 'Mês Referência', 'Combustível', 'Litros', 'Valor Unitário', 'Observações'],
+  ['2024-01-15', 'Transportes ABC', 'ABC-1234', '2024-01', 'Diesel S10', '500', '5.50', ''],
 ];
 
 export default function AbastecimentoCarretaForm({
@@ -35,6 +35,7 @@ export default function AbastecimentoCarretaForm({
   const [data, setData] = useState(initial?.data || '');
   const [transportadora, setTransportadora] = useState(initial?.transportadora || '');
   const [placaCarreta, setPlacaCarreta] = useState(initial?.placaCarreta || '');
+  const [mesReferencia, setMesReferencia] = useState(initial?.mesReferencia || '');
   const [tipoCombustivel, setTipoCombustivel] = useState(initial?.tipoCombustivel || '');
   const [quantidadeLitros, setQuantidadeLitros] = useState(initial?.quantidadeLitros?.toString() || '');
   const [valorUnidade, setValorUnidade] = useState(initial?.valorUnidade?.toString() || '');
@@ -56,14 +57,16 @@ export default function AbastecimentoCarretaForm({
       const data = parseData(row[0]);
       const transportadora = parseStr(row[1]);
       const placa = parseStr(row[2]);
-      const combustivelNome = parseStr(row[3]);
-      const litros = parseNumero(row[4]);
-      const vlrUnit = parseNumero(row[5]);
-      const observacoes = parseStr(row[6]);
+      const mesReferencia = parseStr(row[3]);
+      const combustivelNome = parseStr(row[4]);
+      const litros = parseNumero(row[5]);
+      const vlrUnit = parseNumero(row[6]);
+      const observacoes = parseStr(row[7]);
 
       if (!data) erros.push('Falta data');
       if (!transportadora) erros.push('Falta transportadora');
       if (!placa) erros.push('Falta placa');
+      if (!mesReferencia) erros.push('Falta mes referencia');
 
       let combustivelId = '';
       if (!combustivelNome) {
@@ -80,13 +83,13 @@ export default function AbastecimentoCarretaForm({
       if (litros === null) erros.push('Falta litros');
       if (vlrUnit === null) erros.push('Falta valor unitario');
 
-      const resumo = `${data || '?'} | ${transportadora || '?'} | ${placa || '?'} | ${combustivelNome || '?'} | ${litros ?? '?'} L`;
+      const resumo = `${data || '?'} | ${transportadora || '?'} | ${placa || '?'} | ${mesReferencia || '?'} | ${combustivelNome || '?'} | ${litros ?? '?'} L`;
 
       return {
         valido: erros.length === 0,
         erros,
         resumo,
-        dados: { data, transportadora, placa, combustivelId, litros: litros ?? 0, vlrUnit: vlrUnit ?? 0, observacoes },
+        dados: { data, transportadora, placa, mesReferencia, combustivelId, litros: litros ?? 0, vlrUnit: vlrUnit ?? 0, observacoes },
       };
     },
     [combustiveis]
@@ -101,6 +104,7 @@ export default function AbastecimentoCarretaForm({
       data: d.data,
       transportadora: d.transportadora,
       placaCarreta: d.placa,
+      mesReferencia: d.mesReferencia,
       tipoCombustivel: d.combustivelId,
       quantidadeLitros: litros,
       valorUnidade: vlrUnit,
@@ -130,6 +134,7 @@ export default function AbastecimentoCarretaForm({
       setData(initial.data);
       setTransportadora(initial.transportadora);
       setPlacaCarreta(initial.placaCarreta);
+      setMesReferencia(initial.mesReferencia || '');
       setTipoCombustivel(initial.tipoCombustivel);
       setQuantidadeLitros(initial.quantidadeLitros?.toString() || '');
       setValorUnidade(initial.valorUnidade?.toString() || '');
@@ -148,6 +153,7 @@ export default function AbastecimentoCarretaForm({
       data,
       transportadora,
       placaCarreta,
+      mesReferencia,
       tipoCombustivel,
       quantidadeLitros: litros,
       valorUnidade: vlrUnit,
@@ -157,7 +163,7 @@ export default function AbastecimentoCarretaForm({
     });
   }
 
-  const isValid = data && transportadora && placaCarreta && tipoCombustivel && quantidadeLitros && valorUnidade;
+  const isValid = data && transportadora && placaCarreta && mesReferencia && tipoCombustivel && quantidadeLitros && valorUnidade;
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
@@ -174,7 +180,7 @@ export default function AbastecimentoCarretaForm({
           id="abastCarretaData"
           type="date"
           value={data}
-          onChange={(e) => setData(e.target.value)}
+          onChange={(e) => { setData(e.target.value); if (e.target.value) setMesReferencia(e.target.value.slice(0, 7)); }}
           required
         />
         <Select
@@ -194,6 +200,13 @@ export default function AbastecimentoCarretaForm({
           onChange={(e) => setPlacaCarreta(e.target.value.toUpperCase())}
           placeholder="Ex: ABC-1234"
           required
+        />
+        <Input
+          label="Mês Referência"
+          id="abastCarretaMesRef"
+          value={mesReferencia ? (() => { const [a, m] = mesReferencia.split('-'); const nomes = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro']; return `${nomes[parseInt(m,10)-1]} ${a}`; })() : ''}
+          onChange={() => {}}
+          readOnly
         />
 
         {/* Tipo Combustivel com inline + Novo */}
@@ -331,9 +344,9 @@ export default function AbastecimentoCarretaForm({
         templateData={ABASTCARRETA_TEMPLATE}
         templateFileName="template_abastecimentos_carreta.xlsx"
         sheetName="Abastecimentos"
-        templateColWidths={[12, 20, 12, 18, 10, 14, 15]}
-        formatHintHeaders={['Data', 'Transp.', 'Placa', 'Combustível', 'Litros', 'Vlr Unit', 'Obs']}
-        formatHintExample={['2024-01-15', 'ABC', 'ABC-1234', 'Diesel S10', '500', '5.50', '']}
+        templateColWidths={[12, 20, 12, 14, 18, 10, 14, 15]}
+        formatHintHeaders={['Data', 'Transp.', 'Placa', 'Mês Ref', 'Combustível', 'Litros', 'Vlr Unit', 'Obs']}
+        formatHintExample={['2024-01-15', 'ABC', 'ABC-1234', '2024-01', 'Diesel S10', '500', '5.50', '']}
         parseRow={parseRow}
         toEntity={toEntity}
       />

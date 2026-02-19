@@ -63,6 +63,7 @@ export default function AbastecimentoCarretaList({
                 <th className="text-left px-4 py-3 text-white font-medium uppercase text-xs">Data</th>
                 <th className="text-left px-4 py-3 text-white font-medium uppercase text-xs">Transportadora</th>
                 <th className="text-left px-4 py-3 text-white font-medium uppercase text-xs">Placa</th>
+                <th className="text-left px-4 py-3 text-white font-medium uppercase text-xs">Mês Ref</th>
                 <th className="text-left px-4 py-3 text-white font-medium uppercase text-xs">Combustível</th>
                 <th className="text-right px-4 py-3 text-white font-medium uppercase text-xs">Litros</th>
                 <th className="text-right px-4 py-3 text-white font-medium uppercase text-xs">Valor Unit.</th>
@@ -78,6 +79,7 @@ export default function AbastecimentoCarretaList({
                   </td>
                   <td className="px-4 py-3 text-gray-800">{abast.transportadora}</td>
                   <td className="px-4 py-3 text-gray-800 font-mono">{abast.placaCarreta}</td>
+                  <td className="px-4 py-3 text-gray-600 whitespace-nowrap">{abast.mesReferencia ? (() => { const [a, m] = abast.mesReferencia.split('-'); const nomes = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez']; return `${nomes[parseInt(m,10)-1]}/${a}`; })() : '-'}</td>
                   <td className="px-4 py-3 text-gray-600">{combustiveisMap.get(abast.tipoCombustivel) || abast.tipoCombustivel || '-'}</td>
                   <td className="px-4 py-3 text-right text-gray-800">{abast.quantidadeLitros.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>
                   <td className="px-4 py-3 text-right text-gray-800">
@@ -109,7 +111,7 @@ export default function AbastecimentoCarretaList({
             </tbody>
             <tfoot>
               <tr className="bg-gray-50 font-semibold">
-                <td colSpan={6} className="px-4 py-3 text-right text-gray-700">
+                <td colSpan={7} className="px-4 py-3 text-right text-gray-700">
                   Total ({filtrados.length} registro{filtrados.length !== 1 ? 's' : ''}):
                 </td>
                 <td className="px-4 py-3 text-right text-emt-verde whitespace-nowrap">
