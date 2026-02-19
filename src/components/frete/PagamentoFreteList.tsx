@@ -22,6 +22,10 @@ interface PagamentoFreteListProps {
   pagamentos: PagamentoFrete[];
   filtroTransportadora: string;
   filtroMes: string;
+  filtroMetodo?: string;
+  filtroPagoPor?: string;
+  filtroDataInicio?: string;
+  filtroDataFim?: string;
   onEdit: (pagamento: PagamentoFrete) => void;
   onDelete: (id: string) => void;
   canEdit?: boolean;
@@ -32,6 +36,10 @@ export default function PagamentoFreteList({
   pagamentos,
   filtroTransportadora,
   filtroMes,
+  filtroMetodo = '',
+  filtroPagoPor = '',
+  filtroDataInicio = '',
+  filtroDataFim = '',
   onEdit,
   onDelete,
   canEdit = true,
@@ -45,12 +53,16 @@ export default function PagamentoFreteList({
       .filter((p) => {
         if (filtroTransportadora && p.transportadora !== filtroTransportadora) return false;
         if (filtroMes && p.mesReferencia !== filtroMes) return false;
+        if (filtroMetodo && p.metodo !== filtroMetodo) return false;
+        if (filtroPagoPor && p.pagoPor !== filtroPagoPor) return false;
+        if (filtroDataInicio && p.data < filtroDataInicio) return false;
+        if (filtroDataFim && p.data > filtroDataFim) return false;
         return true;
       })
       .sort((a, b) => b.data.localeCompare(a.data));
-  }, [pagamentos, filtroTransportadora, filtroMes]);
+  }, [pagamentos, filtroTransportadora, filtroMes, filtroMetodo, filtroPagoPor, filtroDataInicio, filtroDataFim]);
 
-  useMemo(() => setPagina(0), [filtroTransportadora, filtroMes]);
+  useMemo(() => setPagina(0), [filtroTransportadora, filtroMes, filtroMetodo, filtroPagoPor, filtroDataInicio, filtroDataFim]);
 
   const totalPaginas = Math.ceil(filtrados.length / porPagina);
   const paginados = filtrados.slice(pagina * porPagina, (pagina + 1) * porPagina);

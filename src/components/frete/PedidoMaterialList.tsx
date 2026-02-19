@@ -6,6 +6,10 @@ interface PedidoMaterialListProps {
   pedidos: PedidoMaterial[];
   fornecedores: Fornecedor[];
   insumos: Insumo[];
+  filtroFornecedor?: string;
+  filtroMaterial?: string;
+  filtroDataInicio?: string;
+  filtroDataFim?: string;
   onEdit: (pedido: PedidoMaterial) => void;
   onDelete: (id: string) => void;
   canEdit?: boolean;
@@ -20,6 +24,10 @@ export default function PedidoMaterialList({
   pedidos,
   fornecedores,
   insumos,
+  filtroFornecedor = '',
+  filtroMaterial = '',
+  filtroDataInicio = '',
+  filtroDataFim = '',
   onEdit,
   onDelete,
   canEdit = true,
@@ -38,16 +46,26 @@ export default function PedidoMaterialList({
     [insumos]
   );
 
-  const sorted = useMemo(() => {
-    return [...pedidos].sort((a, b) => b.data.localeCompare(a.data));
-  }, [pedidos]);
+  const filtrados = useMemo(() => {
+    return pedidos
+      .filter((p) => {
+        if (filtroFornecedor && p.fornecedorId !== filtroFornecedor) return false;
+        if (filtroMaterial && !p.itens.some((i) => i.insumoId === filtroMaterial)) return false;
+        if (filtroDataInicio && p.data < filtroDataInicio) return false;
+        if (filtroDataFim && p.data > filtroDataFim) return false;
+        return true;
+      })
+      .sort((a, b) => b.data.localeCompare(a.data));
+  }, [pedidos, filtroFornecedor, filtroMaterial, filtroDataInicio, filtroDataFim]);
 
-  const totalPaginas = Math.ceil(sorted.length / porPagina);
-  const paginados = sorted.slice(pagina * porPagina, (pagina + 1) * porPagina);
+  useMemo(() => setPagina(0), [filtroFornecedor, filtroMaterial, filtroDataInicio, filtroDataFim]);
 
-  const totalGeral = sorted.reduce((sum, p) => sum + calcValorTotal(p), 0);
+  const totalPaginas = Math.ceil(filtrados.length / porPagina);
+  const paginados = filtrados.slice(pagina * porPagina, (pagina + 1) * porPagina);
 
-  if (sorted.length === 0) {
+  const totalGeral = filtrados.reduce((sum, p) => sum + calcValorTotal(p), 0);
+
+  if (filtrados.length === 0) {
     return (
       <div className="bg-white rounded-lg shadow p-8 text-center">
         <p className="text-gray-500">Nenhum pedido de material encontrado.</p>
@@ -174,7 +192,7 @@ export default function PedidoMaterialList({
             <tfoot>
               <tr className="bg-gray-50 font-semibold">
                 <td colSpan={4} className="px-4 py-3 text-right text-gray-700">
-                  Total ({sorted.length} pedido{sorted.length !== 1 ? 's' : ''}):
+                  Total ({filtrados.length} pedido{filtrados.length !== 1 ? 's' : ''}):
                 </td>
                 <td className="px-4 py-3 text-right text-emt-verde whitespace-nowrap">
                   {totalGeral.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
@@ -189,7 +207,7 @@ export default function PedidoMaterialList({
       {totalPaginas > 1 && (
         <div className="flex items-center justify-between mt-4">
           <span className="text-sm text-gray-500">
-            {sorted.length} pedido{sorted.length !== 1 ? 's' : ''} encontrado{sorted.length !== 1 ? 's' : ''}
+            {filtrados.length} pedido{filtrados.length !== 1 ? 's' : ''} encontrado{filtrados.length !== 1 ? 's' : ''}
           </span>
           <div className="flex gap-2">
             <Button

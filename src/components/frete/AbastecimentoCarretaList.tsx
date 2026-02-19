@@ -6,6 +6,11 @@ interface AbastecimentoCarretaListProps {
   abastecimentos: AbastecimentoCarreta[];
   combustiveis: Insumo[];
   filtroTransportadora: string;
+  filtroPlaca?: string;
+  filtroCombustivel?: string;
+  filtroMes?: string;
+  filtroDataInicio?: string;
+  filtroDataFim?: string;
   onEdit: (abast: AbastecimentoCarreta) => void;
   onDelete: (id: string) => void;
   canEdit?: boolean;
@@ -16,6 +21,11 @@ export default function AbastecimentoCarretaList({
   abastecimentos,
   combustiveis,
   filtroTransportadora,
+  filtroPlaca = '',
+  filtroCombustivel = '',
+  filtroMes = '',
+  filtroDataInicio = '',
+  filtroDataFim = '',
   onEdit,
   onDelete,
   canEdit = true,
@@ -29,16 +39,18 @@ export default function AbastecimentoCarretaList({
   const filtrados = useMemo(() => {
     return abastecimentos
       .filter((a) => {
-        if (filtroTransportadora) {
-          const q = filtroTransportadora.toLowerCase();
-          if (!a.transportadora.toLowerCase().includes(q)) return false;
-        }
+        if (filtroTransportadora && a.transportadora !== filtroTransportadora) return false;
+        if (filtroPlaca && a.placaCarreta !== filtroPlaca) return false;
+        if (filtroCombustivel && a.tipoCombustivel !== filtroCombustivel) return false;
+        if (filtroMes && a.mesReferencia !== filtroMes) return false;
+        if (filtroDataInicio && a.data < filtroDataInicio) return false;
+        if (filtroDataFim && a.data > filtroDataFim) return false;
         return true;
       })
       .sort((a, b) => b.data.localeCompare(a.data));
-  }, [abastecimentos, filtroTransportadora]);
+  }, [abastecimentos, filtroTransportadora, filtroPlaca, filtroCombustivel, filtroMes, filtroDataInicio, filtroDataFim]);
 
-  useMemo(() => setPagina(0), [filtroTransportadora]);
+  useMemo(() => setPagina(0), [filtroTransportadora, filtroPlaca, filtroCombustivel, filtroMes, filtroDataInicio, filtroDataFim]);
 
   const totalPaginas = Math.ceil(filtrados.length / porPagina);
   const paginados = filtrados.slice(pagina * porPagina, (pagina + 1) * porPagina);

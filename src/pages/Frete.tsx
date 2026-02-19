@@ -13,6 +13,7 @@ import { useFornecedores } from '../hooks/useFornecedores';
 import { useAuth } from '../contexts/AuthContext';
 import Button from '../components/ui/Button';
 import Input from '../components/ui/Input';
+import FilterCombobox from '../components/ui/FilterCombobox';
 import Modal from '../components/ui/Modal';
 import ConfirmDialog from '../components/ui/ConfirmDialog';
 import PasswordDialog from '../components/ui/PasswordDialog';
@@ -81,6 +82,21 @@ export default function Frete() {
     return Array.from(set).sort();
   }, [pagamentosFrete]);
 
+  // Extract unique pagoPor from pagamentos
+  const pagoPorOpcoes = useMemo(() => {
+    const set = new Set(pagamentosFrete.map((p) => p.pagoPor).filter(Boolean));
+    return Array.from(set).sort();
+  }, [pagamentosFrete]);
+
+  const METODO_OPTIONS = [
+    { value: 'pix', label: 'Pix' },
+    { value: 'boleto', label: 'Boleto' },
+    { value: 'cheque', label: 'Cheque' },
+    { value: 'dinheiro', label: 'Dinheiro' },
+    { value: 'transferencia', label: 'Transferência' },
+    { value: 'combustivel', label: 'Combustível' },
+  ];
+
   // ── Frete Form state ──
   const [modalOpen, setModalOpen] = useState(false);
   const [editando, setEditando] = useState<FreteType | null>(null);
@@ -124,17 +140,46 @@ export default function Frete() {
   // Pagamento filters
   const [pagFiltroTransportadora, setPagFiltroTransportadora] = useState('');
   const [pagFiltroMes, setPagFiltroMes] = useState('');
+  const [pagFiltroMetodo, setPagFiltroMetodo] = useState('');
+  const [pagFiltroPagoPor, setPagFiltroPagoPor] = useState('');
+  const [pagFiltroDataInicio, setPagFiltroDataInicio] = useState('');
+  const [pagFiltroDataFim, setPagFiltroDataFim] = useState('');
 
   // ── Abastecimento Carreta state ──
   const [abastModalOpen, setAbastModalOpen] = useState(false);
   const [editandoAbast, setEditandoAbast] = useState<AbastecimentoCarreta | null>(null);
   const [abastDeleteId, setAbastDeleteId] = useState<string | null>(null);
+
+  // Abastecimento filters
   const [abastFiltroTransportadora, setAbastFiltroTransportadora] = useState('');
+  const [abastFiltroPlaca, setAbastFiltroPlaca] = useState('');
+  const [abastFiltroCombustivel, setAbastFiltroCombustivel] = useState('');
+  const [abastFiltroMes, setAbastFiltroMes] = useState('');
+  const [abastFiltroDataInicio, setAbastFiltroDataInicio] = useState('');
+  const [abastFiltroDataFim, setAbastFiltroDataFim] = useState('');
+
+  // Extract unique placas from abastecimentos
+  const placasAbast = useMemo(() => {
+    const set = new Set(abastecimentosCarreta.map((a) => a.placaCarreta).filter(Boolean));
+    return Array.from(set).sort();
+  }, [abastecimentosCarreta]);
+
+  // Extract unique meses from abastecimentos
+  const mesesAbast = useMemo(() => {
+    const set = new Set(abastecimentosCarreta.map((a) => a.mesReferencia).filter(Boolean));
+    return Array.from(set).sort();
+  }, [abastecimentosCarreta]);
 
   // ── Pedido Material state ──
   const [pedidoModalOpen, setPedidoModalOpen] = useState(false);
   const [pedidoEditando, setPedidoEditando] = useState<PedidoMaterial | null>(null);
   const [pedidoDeleteId, setPedidoDeleteId] = useState<string | null>(null);
+
+  // Pedido filters
+  const [pedidoFiltroFornecedor, setPedidoFiltroFornecedor] = useState('');
+  const [pedidoFiltroMaterial, setPedidoFiltroMaterial] = useState('');
+  const [pedidoFiltroDataInicio, setPedidoFiltroDataInicio] = useState('');
+  const [pedidoFiltroDataFim, setPedidoFiltroDataFim] = useState('');
 
   // Password gate
   const [senhaOpen, setSenhaOpen] = useState(false);
@@ -316,56 +361,41 @@ export default function Frete() {
         <>
           {/* Filtros */}
           <div className="flex flex-wrap gap-3 mb-4">
-            <select
-              className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emt-verde"
+            <FilterCombobox
+              className="w-48"
               value={filtros.obraId}
-              onChange={(e) => setFiltros((f) => ({ ...f, obraId: e.target.value }))}
-            >
-              <option value="">Todas as obras</option>
-              {obras.map((o) => (
-                <option key={o.id} value={o.id}>{o.nome}</option>
-              ))}
-            </select>
-            <select
-              className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emt-verde"
+              onChange={(v) => setFiltros((f) => ({ ...f, obraId: v }))}
+              options={obras.map((o) => ({ value: o.id, label: o.nome }))}
+              placeholder="Todas as obras"
+            />
+            <FilterCombobox
+              className="w-48"
               value={filtros.transportadora}
-              onChange={(e) => setFiltros((f) => ({ ...f, transportadora: e.target.value }))}
-            >
-              <option value="">Todas as transportadoras</option>
-              {transportadoras.map((t) => (
-                <option key={t} value={t}>{t}</option>
-              ))}
-            </select>
-            <select
-              className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emt-verde"
+              onChange={(v) => setFiltros((f) => ({ ...f, transportadora: v }))}
+              options={transportadoras.map((t) => ({ value: t, label: t }))}
+              placeholder="Todas as transportadoras"
+            />
+            <FilterCombobox
+              className="w-48"
               value={filtros.motorista}
-              onChange={(e) => setFiltros((f) => ({ ...f, motorista: e.target.value }))}
-            >
-              <option value="">Todos os motoristas</option>
-              {motoristas.map((m) => (
-                <option key={m} value={m}>{m}</option>
-              ))}
-            </select>
-            <select
-              className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emt-verde"
+              onChange={(v) => setFiltros((f) => ({ ...f, motorista: v }))}
+              options={motoristas.map((m) => ({ value: m, label: m }))}
+              placeholder="Todos os motoristas"
+            />
+            <FilterCombobox
+              className="w-48"
               value={filtros.insumoId}
-              onChange={(e) => setFiltros((f) => ({ ...f, insumoId: e.target.value }))}
-            >
-              <option value="">Todos os materiais</option>
-              {insumosAtivos.map((i) => (
-                <option key={i.id} value={i.id}>{i.nome}</option>
-              ))}
-            </select>
-            <select
-              className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emt-verde"
+              onChange={(v) => setFiltros((f) => ({ ...f, insumoId: v }))}
+              options={insumosAtivos.map((i) => ({ value: i.id, label: i.nome }))}
+              placeholder="Todos os materiais"
+            />
+            <FilterCombobox
+              className="w-48"
               value={filtros.origem}
-              onChange={(e) => setFiltros((f) => ({ ...f, origem: e.target.value }))}
-            >
-              <option value="">Todas as pedreiras</option>
-              {origens.map((o) => (
-                <option key={o} value={o}>{o}</option>
-              ))}
-            </select>
+              onChange={(v) => setFiltros((f) => ({ ...f, origem: v }))}
+              options={origens.map((o) => ({ value: o, label: o }))}
+              placeholder="Todas as pedreiras"
+            />
             <input
               className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emt-verde"
               type="date"
@@ -410,34 +440,56 @@ export default function Frete() {
       {tab === 'pagamentos' && (
         <>
           <div className="flex flex-wrap gap-3 mb-4">
-            <select
-              className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emt-verde"
+            <FilterCombobox
+              className="w-48"
               value={pagFiltroTransportadora}
-              onChange={(e) => setPagFiltroTransportadora(e.target.value)}
-            >
-              <option value="">Todas as transportadoras</option>
-              {transportadoras.map((t) => (
-                <option key={t} value={t}>{t}</option>
-              ))}
-            </select>
-            <select
-              className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emt-verde"
+              onChange={setPagFiltroTransportadora}
+              options={transportadoras.map((t) => ({ value: t, label: t }))}
+              placeholder="Todas as transportadoras"
+            />
+            <FilterCombobox
+              className="w-48"
               value={pagFiltroMes}
-              onChange={(e) => setPagFiltroMes(e.target.value)}
-            >
-              <option value="">Todos os meses</option>
-              {mesesPagamento.map((m) => {
+              onChange={setPagFiltroMes}
+              options={mesesPagamento.map((m) => {
                 const [ano, mes] = m.split('-');
-                const meses = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
-                return (
-                  <option key={m} value={m}>{meses[parseInt(mes, 10) - 1]}/{ano}</option>
-                );
+                const nomes = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+                return { value: m, label: `${nomes[parseInt(mes, 10) - 1]}/${ano}` };
               })}
-            </select>
-            {(pagFiltroTransportadora || pagFiltroMes) && (
+              placeholder="Todos os meses"
+            />
+            <FilterCombobox
+              className="w-48"
+              value={pagFiltroMetodo}
+              onChange={setPagFiltroMetodo}
+              options={METODO_OPTIONS}
+              placeholder="Todos os métodos"
+            />
+            <FilterCombobox
+              className="w-48"
+              value={pagFiltroPagoPor}
+              onChange={setPagFiltroPagoPor}
+              options={pagoPorOpcoes.map((p) => ({ value: p, label: p }))}
+              placeholder="Todos - Pago Por"
+            />
+            <input
+              className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emt-verde"
+              type="date"
+              value={pagFiltroDataInicio}
+              onChange={(e) => setPagFiltroDataInicio(e.target.value)}
+              title="Data início"
+            />
+            <input
+              className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emt-verde"
+              type="date"
+              value={pagFiltroDataFim}
+              onChange={(e) => setPagFiltroDataFim(e.target.value)}
+              title="Data fim"
+            />
+            {(pagFiltroTransportadora || pagFiltroMes || pagFiltroMetodo || pagFiltroPagoPor || pagFiltroDataInicio || pagFiltroDataFim) && (
               <button
                 className="text-sm text-emt-verde hover:text-emt-verde-escuro font-medium"
-                onClick={() => { setPagFiltroTransportadora(''); setPagFiltroMes(''); }}
+                onClick={() => { setPagFiltroTransportadora(''); setPagFiltroMes(''); setPagFiltroMetodo(''); setPagFiltroPagoPor(''); setPagFiltroDataInicio(''); setPagFiltroDataFim(''); }}
               >
                 Limpar filtros
               </button>
@@ -448,6 +500,10 @@ export default function Frete() {
             pagamentos={pagamentosFrete}
             filtroTransportadora={pagFiltroTransportadora}
             filtroMes={pagFiltroMes}
+            filtroMetodo={pagFiltroMetodo}
+            filtroPagoPor={pagFiltroPagoPor}
+            filtroDataInicio={pagFiltroDataInicio}
+            filtroDataFim={pagFiltroDataFim}
             onEdit={(pag) => pedirSenha(() => { setPagEditando(pag); setPagModalOpen(true); })}
             onDelete={(id) => pedirSenha(() => setPagDeleteId(id))}
             canEdit={canEdit}
@@ -460,16 +516,56 @@ export default function Frete() {
       {tab === 'abastecimentos' && (
         <>
           <div className="flex flex-wrap gap-3 mb-4">
-            <input
-              className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emt-verde w-56"
-              placeholder="Buscar transportadora..."
+            <FilterCombobox
+              className="w-48"
               value={abastFiltroTransportadora}
-              onChange={(e) => setAbastFiltroTransportadora(e.target.value)}
+              onChange={setAbastFiltroTransportadora}
+              options={transportadoras.map((t) => ({ value: t, label: t }))}
+              placeholder="Todas as transportadoras"
             />
-            {abastFiltroTransportadora && (
+            <FilterCombobox
+              className="w-48"
+              value={abastFiltroPlaca}
+              onChange={setAbastFiltroPlaca}
+              options={placasAbast.map((p) => ({ value: p, label: p }))}
+              placeholder="Todas as placas"
+            />
+            <FilterCombobox
+              className="w-48"
+              value={abastFiltroCombustivel}
+              onChange={setAbastFiltroCombustivel}
+              options={combustiveis.map((c) => ({ value: c.id, label: c.nome }))}
+              placeholder="Todos os combustíveis"
+            />
+            <FilterCombobox
+              className="w-48"
+              value={abastFiltroMes}
+              onChange={setAbastFiltroMes}
+              options={mesesAbast.map((m) => {
+                const [ano, mes] = m.split('-');
+                const nomes = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+                return { value: m, label: `${nomes[parseInt(mes, 10) - 1]}/${ano}` };
+              })}
+              placeholder="Todos os meses"
+            />
+            <input
+              className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emt-verde"
+              type="date"
+              value={abastFiltroDataInicio}
+              onChange={(e) => setAbastFiltroDataInicio(e.target.value)}
+              title="Data início"
+            />
+            <input
+              className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emt-verde"
+              type="date"
+              value={abastFiltroDataFim}
+              onChange={(e) => setAbastFiltroDataFim(e.target.value)}
+              title="Data fim"
+            />
+            {(abastFiltroTransportadora || abastFiltroPlaca || abastFiltroCombustivel || abastFiltroMes || abastFiltroDataInicio || abastFiltroDataFim) && (
               <button
                 className="text-sm text-emt-verde hover:text-emt-verde-escuro font-medium"
-                onClick={() => setAbastFiltroTransportadora('')}
+                onClick={() => { setAbastFiltroTransportadora(''); setAbastFiltroPlaca(''); setAbastFiltroCombustivel(''); setAbastFiltroMes(''); setAbastFiltroDataInicio(''); setAbastFiltroDataFim(''); }}
               >
                 Limpar filtros
               </button>
@@ -480,6 +576,11 @@ export default function Frete() {
             abastecimentos={abastecimentosCarreta}
             combustiveis={combustiveis}
             filtroTransportadora={abastFiltroTransportadora}
+            filtroPlaca={abastFiltroPlaca}
+            filtroCombustivel={abastFiltroCombustivel}
+            filtroMes={abastFiltroMes}
+            filtroDataInicio={abastFiltroDataInicio}
+            filtroDataFim={abastFiltroDataFim}
             onEdit={(abast) => pedirSenha(() => { setEditandoAbast(abast); setAbastModalOpen(true); })}
             onDelete={(id) => pedirSenha(() => setAbastDeleteId(id))}
             canEdit={canEdit}
@@ -490,15 +591,60 @@ export default function Frete() {
 
       {/* ── Pedidos Tab ── */}
       {tab === 'pedidos' && (
-        <PedidoMaterialList
-          pedidos={pedidosMaterial}
-          fornecedores={fornecedores}
-          insumos={insumosAtivos}
-          onEdit={(pedido) => pedirSenha(() => { setPedidoEditando(pedido); setPedidoModalOpen(true); })}
-          onDelete={(id) => pedirSenha(() => setPedidoDeleteId(id))}
-          canEdit={canEdit}
-          canDelete={canDelete}
-        />
+        <>
+          <div className="flex flex-wrap gap-3 mb-4">
+            <FilterCombobox
+              className="w-48"
+              value={pedidoFiltroFornecedor}
+              onChange={setPedidoFiltroFornecedor}
+              options={fornecedores.filter((f) => f.ativo !== false).map((f) => ({ value: f.id, label: f.nome }))}
+              placeholder="Todos os fornecedores"
+            />
+            <FilterCombobox
+              className="w-48"
+              value={pedidoFiltroMaterial}
+              onChange={setPedidoFiltroMaterial}
+              options={insumosAtivos.map((i) => ({ value: i.id, label: i.nome }))}
+              placeholder="Todos os materiais"
+            />
+            <input
+              className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emt-verde"
+              type="date"
+              value={pedidoFiltroDataInicio}
+              onChange={(e) => setPedidoFiltroDataInicio(e.target.value)}
+              title="Data início"
+            />
+            <input
+              className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emt-verde"
+              type="date"
+              value={pedidoFiltroDataFim}
+              onChange={(e) => setPedidoFiltroDataFim(e.target.value)}
+              title="Data fim"
+            />
+            {(pedidoFiltroFornecedor || pedidoFiltroMaterial || pedidoFiltroDataInicio || pedidoFiltroDataFim) && (
+              <button
+                className="text-sm text-emt-verde hover:text-emt-verde-escuro font-medium"
+                onClick={() => { setPedidoFiltroFornecedor(''); setPedidoFiltroMaterial(''); setPedidoFiltroDataInicio(''); setPedidoFiltroDataFim(''); }}
+              >
+                Limpar filtros
+              </button>
+            )}
+          </div>
+
+          <PedidoMaterialList
+            pedidos={pedidosMaterial}
+            fornecedores={fornecedores}
+            insumos={insumosAtivos}
+            filtroFornecedor={pedidoFiltroFornecedor}
+            filtroMaterial={pedidoFiltroMaterial}
+            filtroDataInicio={pedidoFiltroDataInicio}
+            filtroDataFim={pedidoFiltroDataFim}
+            onEdit={(pedido) => pedirSenha(() => { setPedidoEditando(pedido); setPedidoModalOpen(true); })}
+            onDelete={(id) => pedirSenha(() => setPedidoDeleteId(id))}
+            canEdit={canEdit}
+            canDelete={canDelete}
+          />
+        </>
       )}
 
       {/* Modal Frete Form */}
