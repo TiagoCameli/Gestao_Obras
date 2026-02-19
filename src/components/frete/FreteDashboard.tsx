@@ -81,6 +81,20 @@ export default function FreteDashboard({
   const totalPagamentos = pagamentosF.reduce((sum, p) => sum + p.valor, 0);
   const saldo = totalFretes - totalPagamentos;
 
+  // ── Saldo Areacre ──
+  const totalAbastCarreta = abastCarretaF.reduce((s, a) => s + a.valorTotal, 0);
+  const fretesAreacre = fretesF.filter((f) => f.transportadora === 'Areacre').reduce((s, f) => s + f.valorTotal, 0);
+  const pagosParaAreacre = pagamentosF.filter((p) => p.transportadora === 'Areacre' && p.pagoPor?.trim() !== 'Areacre').reduce((s, p) => s + p.valor, 0);
+  const saldoAreacre = fretesAreacre - pagosParaAreacre + totalAbastCarreta;
+
+  // ── Saldo Amazonia Agroindustria ──
+  const AMAZONIA = 'Amazonia Agroindustria';
+  const fretesAmazonia = fretesF.filter((f) => f.transportadora === AMAZONIA).reduce((s, f) => s + f.valorTotal, 0);
+  const abastAmazonia = abastCarretaF.filter((a) => a.transportadora === AMAZONIA).reduce((s, a) => s + a.valorTotal, 0);
+  const pagosParaAmazonia = pagamentosF.filter((p) => p.transportadora === AMAZONIA).reduce((s, p) => s + p.valor, 0);
+  const pagosPelaAmazonia = pagamentosF.filter((p) => p.pagoPor?.trim() === AMAZONIA).reduce((s, p) => s + p.valor, 0);
+  const saldoAmazonia = fretesAmazonia - abastAmazonia - pagosParaAmazonia + pagosPelaAmazonia;
+
   // ── Media ponderada de km (peso como peso) ──
   const totalPesoKm = fretesF.reduce((sum, f) => sum + f.kmRodados * f.pesoToneladas, 0);
   const totalPeso = fretesF.reduce((sum, f) => sum + f.pesoToneladas, 0);
@@ -116,25 +130,22 @@ export default function FreteDashboard({
 
   // ── Gasto por transportadora ──
   const gastoPorTransportadora = new Map<string, number>();
+  const tkmPorTransportadora = new Map<string, { somaValorTkm: number; somaTkm: number; count: number }>();
   fretesF.forEach((f) => {
     if (!f.transportadora) return;
     gastoPorTransportadora.set(
       f.transportadora,
       (gastoPorTransportadora.get(f.transportadora) || 0) + f.valorTotal
     );
+    const prev = tkmPorTransportadora.get(f.transportadora) || { somaValorTkm: 0, somaTkm: 0, count: 0 };
+    tkmPorTransportadora.set(f.transportadora, {
+      somaValorTkm: prev.somaValorTkm + f.valorTkm,
+      somaTkm: prev.somaTkm + f.kmRodados * f.pesoToneladas,
+      count: prev.count + 1,
+    });
   });
   const listaTransportadoras = Array.from(gastoPorTransportadora.entries())
     .sort((a, b) => b[1] - a[1]);
-
-  // ── Pagamentos por transportadora ──
-  const pagPorTransportadora = new Map<string, number>();
-  pagamentosF.forEach((p) => {
-    if (!p.transportadora) return;
-    pagPorTransportadora.set(
-      p.transportadora,
-      (pagPorTransportadora.get(p.transportadora) || 0) + p.valor
-    );
-  });
 
   // ── Gasto por obra ──
   const gastoPorObra = new Map<string, number>();
@@ -202,19 +213,6 @@ export default function FreteDashboard({
   const listaMaterialTransporte = Array.from(materialTransporte.entries())
     .sort((a, b) => (b[1].pesoEntregue + b[1].pesoTransito) - (a[1].pesoEntregue + a[1].pesoTransito));
 
-  // ── Abastecimentos carreta por transportadora ──
-  const abastPorTransportadora = new Map<string, { valor: number; litros: number; count: number }>();
-  abastCarretaF.forEach((a) => {
-    if (!a.transportadora) return;
-    const prev = abastPorTransportadora.get(a.transportadora) || { valor: 0, litros: 0, count: 0 };
-    abastPorTransportadora.set(a.transportadora, {
-      valor: prev.valor + a.valorTotal,
-      litros: prev.litros + a.quantidadeLitros,
-      count: prev.count + 1,
-    });
-  });
-  const totalAbastCarreta = abastCarretaF.reduce((s, a) => s + a.valorTotal, 0);
-
   // ── Pagamentos por metodo ──
   const pagPorMetodo = new Map<string, number>();
   pagamentosF.forEach((p) => {
@@ -240,6 +238,52 @@ export default function FreteDashboard({
   const listaPagPorPessoa = Array.from(pagPorPessoa.entries())
     .sort((a, b) => b[1].valor - a[1].valor);
   const totalPagoPorPessoa = listaPagPorPessoa.reduce((s, [, d]) => s + d.valor, 0);
+
+  // ── Pagamentos por empresa × método ──
+  const pagEmpresaMetodo = new Map<string, Map<string, number>>();
+  const todosMetodosSet = new Set<string>();
+  pagamentosF.forEach((p) => {
+    const nome = p.pagoPor?.trim() || '';
+    if (!nome) return;
+    todosMetodosSet.add(p.metodo);
+    let metMap = pagEmpresaMetodo.get(nome);
+    if (!metMap) { metMap = new Map(); pagEmpresaMetodo.set(nome, metMap); }
+    metMap.set(p.metodo, (metMap.get(p.metodo) || 0) + p.valor);
+  });
+  const todosMetodos = Array.from(todosMetodosSet).sort((a, b) => {
+    const ordem = ['pix', 'boleto', 'cheque', 'dinheiro', 'transferencia', 'combustivel'];
+    return ordem.indexOf(a) - ordem.indexOf(b);
+  });
+  const listaEmpresaMetodo = Array.from(pagEmpresaMetodo.entries())
+    .map(([nome, metMap]) => {
+      const total = Array.from(metMap.values()).reduce((s, v) => s + v, 0);
+      return { nome, metMap, total };
+    })
+    .sort((a, b) => b.total - a.total);
+  const totalGeralEmpresaMetodo = listaEmpresaMetodo.reduce((s, e) => s + e.total, 0);
+
+  // ── Abastecimentos por transportadora × placa ──
+  const abastEmpresaPlaca = new Map<string, Map<string, { litros: number; valor: number; count: number }>>();
+  abastCarretaF.forEach((a) => {
+    const empresa = a.transportadora?.trim() || '';
+    const placa = a.placaCarreta?.trim() || 'Sem placa';
+    if (!empresa) return;
+    let placaMap = abastEmpresaPlaca.get(empresa);
+    if (!placaMap) { placaMap = new Map(); abastEmpresaPlaca.set(empresa, placaMap); }
+    const prev = placaMap.get(placa) || { litros: 0, valor: 0, count: 0 };
+    placaMap.set(placa, { litros: prev.litros + a.quantidadeLitros, valor: prev.valor + a.valorTotal, count: prev.count + 1 });
+  });
+  const listaAbastEmpresa = Array.from(abastEmpresaPlaca.entries())
+    .map(([empresa, placaMap]) => {
+      const placas = Array.from(placaMap.entries())
+        .map(([placa, d]) => ({ placa, ...d }))
+        .sort((a, b) => b.valor - a.valor);
+      const totalLitros = placas.reduce((s, p) => s + p.litros, 0);
+      const totalValor = placas.reduce((s, p) => s + p.valor, 0);
+      const totalCount = placas.reduce((s, p) => s + p.count, 0);
+      return { empresa, placas, totalLitros, totalValor, totalCount };
+    })
+    .sort((a, b) => b.totalValor - a.totalValor);
 
   // ── Pedidos de Material por Fornecedor ──
   const fornecedoresMap = new Map(fornecedores.map((f) => [f.id, f.nome]));
@@ -375,7 +419,7 @@ export default function FreteDashboard({
       </div>
 
       {/* Cards resumo */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4">
         <Card>
           <p className="text-sm text-gray-500">Total Fretes</p>
           <p className="text-2xl font-bold text-emt-verde mt-1">
@@ -411,6 +455,29 @@ export default function FreteDashboard({
           <p className="text-xs text-gray-400 mt-0.5">
             {totalPeso.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} t transportadas
           </p>
+        </Card>
+        <Card>
+          <p className="text-sm text-gray-500">Saldo Areacre</p>
+          <p className={`text-2xl font-bold mt-1 ${saldoAreacre > 0 ? 'text-red-600' : saldoAreacre < 0 ? 'text-green-600' : 'text-gray-500'}`}>
+            {formatCurrency(saldoAreacre)}
+          </p>
+          <div className="text-xs text-gray-400 mt-1 space-y-0.5">
+            <p>Fretes: {formatCurrency(fretesAreacre)}</p>
+            <p>Pagamentos: −{formatCurrency(pagosParaAreacre)}</p>
+            <p>Abastecimentos: +{formatCurrency(totalAbastCarreta)}</p>
+          </div>
+        </Card>
+        <Card>
+          <p className="text-sm text-gray-500">Saldo Amazonia</p>
+          <p className={`text-2xl font-bold mt-1 ${saldoAmazonia > 0 ? 'text-red-600' : saldoAmazonia < 0 ? 'text-green-600' : 'text-gray-500'}`}>
+            {formatCurrency(saldoAmazonia)}
+          </p>
+          <div className="text-xs text-gray-400 mt-1 space-y-0.5">
+            <p>Fretes: {formatCurrency(fretesAmazonia)}</p>
+            <p>Abastecimentos: −{formatCurrency(abastAmazonia)}</p>
+            <p>Pago p/ Amazonia: −{formatCurrency(pagosParaAmazonia)}</p>
+            <p>Pago pela Amazonia: +{formatCurrency(pagosPelaAmazonia)}</p>
+          </div>
         </Card>
       </div>
 
@@ -451,29 +518,22 @@ export default function FreteDashboard({
               <thead className="bg-gray-50 border-b">
                 <tr>
                   <th className="text-left px-4 py-2 font-medium text-gray-600">Transportadora</th>
-                  <th className="text-right px-4 py-2 font-medium text-gray-600">Fretes</th>
-                  <th className="text-right px-4 py-2 font-medium text-gray-600">Pagamentos</th>
-                  <th className="text-right px-4 py-2 font-medium text-gray-600">Abastecimentos</th>
-                  <th className="text-right px-4 py-2 font-medium text-gray-600">Pago</th>
-                  <th className="text-right px-4 py-2 font-medium text-gray-600">Saldo</th>
+                  <th className="text-center px-4 py-2 font-medium text-gray-600">Total TKM</th>
+                  <th className="text-center px-4 py-2 font-medium text-gray-600">Valor Médio do TKM</th>
+                  <th className="text-center px-4 py-2 font-medium text-gray-600">Fretes</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
                 {listaTransportadoras.map(([nome, valorFretes]) => {
-                  const valorPagamentos = pagPorTransportadora.get(nome) || 0;
-                  const valorAbast = abastPorTransportadora.get(nome)?.valor || 0;
-                  const valorPago = valorPagamentos + valorAbast;
-                  const saldoT = valorFretes - valorPago;
+                  const tkmData = tkmPorTransportadora.get(nome);
+                  const tkmMedio = tkmData && tkmData.count > 0 ? tkmData.somaValorTkm / tkmData.count : 0;
+                  const totalTkm = tkmData?.somaTkm || 0;
                   return (
                     <tr key={nome} className="hover:bg-gray-50">
                       <td className="px-4 py-2 font-medium text-gray-700">{nome}</td>
-                      <td className="px-4 py-2 text-right text-emt-verde">{formatCurrency(valorFretes)}</td>
-                      <td className="px-4 py-2 text-right text-blue-600">{formatCurrency(valorPagamentos)}</td>
-                      <td className="px-4 py-2 text-right text-orange-600">{formatCurrency(valorAbast)}</td>
-                      <td className="px-4 py-2 text-right text-purple-600">{formatCurrency(valorPago)}</td>
-                      <td className={`px-4 py-2 text-right font-semibold ${saldoT > 0 ? 'text-red-600' : saldoT < 0 ? 'text-green-600' : 'text-gray-500'}`}>
-                        {formatCurrency(saldoT)}
-                      </td>
+                      <td className="px-4 py-2 text-center text-gray-700">{totalTkm > 0 ? totalTkm.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '-'}</td>
+                      <td className="px-4 py-2 text-center text-orange-600">{tkmMedio > 0 ? formatCurrency(tkmMedio) : '-'}</td>
+                      <td className="px-4 py-2 text-center text-emt-verde">{formatCurrency(valorFretes)}</td>
                     </tr>
                   );
                 })}
@@ -481,19 +541,116 @@ export default function FreteDashboard({
               <tfoot className="border-t-2 border-gray-200">
                 <tr className="font-semibold">
                   <td className="px-4 py-2 text-gray-700">Total</td>
-                  <td className="px-4 py-2 text-right text-emt-verde">{formatCurrency(totalFretes)}</td>
-                  <td className="px-4 py-2 text-right text-blue-600">{formatCurrency(totalPagamentos)}</td>
-                  <td className="px-4 py-2 text-right text-orange-600">{formatCurrency(totalAbastCarreta)}</td>
-                  <td className="px-4 py-2 text-right text-purple-600">{formatCurrency(totalPagamentos + totalAbastCarreta)}</td>
-                  <td className={`px-4 py-2 text-right ${(totalFretes - totalPagamentos - totalAbastCarreta) > 0 ? 'text-red-600' : (totalFretes - totalPagamentos - totalAbastCarreta) < 0 ? 'text-green-600' : 'text-gray-500'}`}>
-                    {formatCurrency(totalFretes - totalPagamentos - totalAbastCarreta)}
-                  </td>
+                  <td className="px-4 py-2 text-center text-gray-700">{fretesF.reduce((s, f) => s + f.kmRodados * f.pesoToneladas, 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                  <td className="px-4 py-2 text-center text-orange-600">{fretesF.length > 0 ? formatCurrency(fretesF.reduce((s, f) => s + f.valorTkm, 0) / fretesF.length) : '-'}</td>
+                  <td className="px-4 py-2 text-center text-emt-verde">{formatCurrency(totalFretes)}</td>
                 </tr>
               </tfoot>
             </table>
           </div>
         )}
       </Card>
+
+      {/* Pagamentos por Empresa e Método */}
+      {listaEmpresaMetodo.length > 0 && (
+        <Card>
+          <h3 className="text-sm font-semibold text-gray-700 mb-3">
+            Pagamentos por Empresa e Método
+          </h3>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="bg-gray-50 border-b">
+                <tr>
+                  <th className="text-left px-4 py-2 font-medium text-gray-600">Empresa</th>
+                  {todosMetodos.map((m) => (
+                    <th key={m} className="text-center px-4 py-2 font-medium text-gray-600">{METODO_LABELS[m] || m}</th>
+                  ))}
+                  <th className="text-center px-4 py-2 font-medium text-gray-600">Total</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {listaEmpresaMetodo.map(({ nome, metMap, total }) => (
+                  <tr key={nome} className="hover:bg-gray-50">
+                    <td className="px-4 py-2 font-medium text-gray-700">{nome}</td>
+                    {todosMetodos.map((m) => {
+                      const val = metMap.get(m) || 0;
+                      return (
+                        <td key={m} className="px-4 py-2 text-center text-gray-600">
+                          {val > 0 ? formatCurrency(val) : '-'}
+                        </td>
+                      );
+                    })}
+                    <td className="px-4 py-2 text-center font-semibold text-gray-800">{formatCurrency(total)}</td>
+                  </tr>
+                ))}
+              </tbody>
+              <tfoot className="border-t-2 border-gray-200">
+                <tr className="font-semibold">
+                  <td className="px-4 py-2 text-gray-700">Total</td>
+                  {todosMetodos.map((m) => {
+                    const totalMetodo = listaEmpresaMetodo.reduce((s, e) => s + (e.metMap.get(m) || 0), 0);
+                    return (
+                      <td key={m} className="px-4 py-2 text-center text-gray-700">
+                        {totalMetodo > 0 ? formatCurrency(totalMetodo) : '-'}
+                      </td>
+                    );
+                  })}
+                  <td className="px-4 py-2 text-center font-bold text-gray-800">{formatCurrency(totalGeralEmpresaMetodo)}</td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        </Card>
+      )}
+
+      {/* Abastecimentos na Transterra */}
+      {listaAbastEmpresa.length > 0 && (
+        <Card>
+          <h3 className="text-sm font-semibold text-gray-700 mb-3">
+            Abastecimentos na Transterra
+          </h3>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm border-collapse">
+              <thead className="bg-gray-50 border-b-2 border-gray-300">
+                <tr>
+                  <th className="text-left px-4 py-2 font-medium text-gray-600">Empresa / Placa</th>
+                  <th className="text-center px-4 py-2 font-medium text-gray-600">Abastecimentos</th>
+                  <th className="text-center px-4 py-2 font-medium text-gray-600">Litros</th>
+                  <th className="text-center px-4 py-2 font-medium text-gray-600">Valor (R$)</th>
+                </tr>
+              </thead>
+              <tbody>
+                {listaAbastEmpresa.map(({ empresa, placas, totalLitros, totalValor, totalCount }) => (
+                  <Fragment key={empresa}>
+                    <tr className="bg-gray-100 border-t-2 border-gray-300">
+                      <td className="px-4 py-2 font-bold text-gray-800">{empresa}</td>
+                      <td className="px-4 py-2 text-center font-semibold text-gray-600">{totalCount}</td>
+                      <td className="px-4 py-2 text-center font-semibold text-gray-600">{totalLitros.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                      <td className="px-4 py-2 text-center font-semibold text-gray-700">{formatCurrency(totalValor)}</td>
+                    </tr>
+                    {placas.map((p) => (
+                      <tr key={`${empresa}-${p.placa}`} className="hover:bg-gray-50 border-b border-gray-100">
+                        <td className="px-4 py-1.5 pl-8 text-gray-600">{p.placa}</td>
+                        <td className="px-4 py-1.5 text-center text-gray-600">{p.count}</td>
+                        <td className="px-4 py-1.5 text-center text-gray-600">{p.litros.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                        <td className="px-4 py-1.5 text-center text-gray-700">{formatCurrency(p.valor)}</td>
+                      </tr>
+                    ))}
+                  </Fragment>
+                ))}
+              </tbody>
+              <tfoot className="border-t-2 border-gray-400">
+                <tr className="font-bold bg-gray-100">
+                  <td className="px-4 py-2 text-gray-800">Total Geral</td>
+                  <td className="px-4 py-2 text-center text-gray-800">{listaAbastEmpresa.reduce((s, e) => s + e.totalCount, 0)}</td>
+                  <td className="px-4 py-2 text-center text-gray-800">{listaAbastEmpresa.reduce((s, e) => s + e.totalLitros, 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                  <td className="px-4 py-2 text-center text-gray-800">{formatCurrency(listaAbastEmpresa.reduce((s, e) => s + e.totalValor, 0))}</td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        </Card>
+      )}
 
       {/* Pedidos de Material por Fornecedor */}
       <Card>
