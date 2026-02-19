@@ -803,6 +803,8 @@ function InsumoForm({
   onSubmit,
   onCancel,
   onImportBatch,
+  onCreateCategoria,
+  onCreateTipo,
 }: {
   initial: Insumo | null;
   unidades: UnidadeMedida[];
@@ -811,6 +813,8 @@ function InsumoForm({
   onSubmit: (insumo: Insumo) => void;
   onCancel: () => void;
   onImportBatch?: (items: Insumo[]) => void;
+  onCreateCategoria?: (nome: string) => Promise<string>;
+  onCreateTipo?: (nome: string) => Promise<string>;
 }) {
   const [nome, setNome] = useState(initial?.nome || '');
   const [tipo, setTipo] = useState<TipoInsumo>(initial?.tipo || tipos[0]?.value || 'material');
@@ -821,6 +825,12 @@ function InsumoForm({
 
   const [importModalOpen, setImportModalOpen] = useState(false);
   const [toastMsg, setToastMsg] = useState('');
+  const [criandoCategoria, setCriandoCategoria] = useState(false);
+  const [novaCategoriaNome, setNovaCategoriaNome] = useState('');
+  const [salvandoCategoria, setSalvandoCategoria] = useState(false);
+  const [criandoTipo, setCriandoTipo] = useState(false);
+  const [novoTipoNome, setNovoTipoNome] = useState('');
+  const [salvandoTipo, setSalvandoTipo] = useState(false);
 
   const unidadeOptions = useMemo(
     () => unidades.filter((u) => u.ativo).map((u) => ({ value: u.sigla, label: u.nome })),
@@ -898,14 +908,68 @@ function InsumoForm({
           placeholder="Ex: Diesel S10, Cimento CP-II, Brita"
           required
         />
-        <Select
-          label="Tipo"
-          id="insumoTipo"
-          value={tipo}
-          onChange={(e) => setTipo(e.target.value as TipoInsumo)}
-          options={tipos}
-          required
-        />
+        <div>
+          {criandoTipo ? (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Novo Tipo</label>
+              <div className="flex gap-2">
+                <input
+                  className="flex-1 h-[38px] border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emt-verde"
+                  value={novoTipoNome}
+                  onChange={(e) => setNovoTipoNome(e.target.value)}
+                  placeholder="Nome do tipo"
+                  autoFocus
+                />
+                <button
+                  type="button"
+                  disabled={!novoTipoNome.trim() || salvandoTipo}
+                  className="px-3 py-1 bg-emt-verde text-white rounded-lg text-sm font-medium disabled:opacity-50"
+                  onClick={async () => {
+                    if (!onCreateTipo || !novoTipoNome.trim()) return;
+                    setSalvandoTipo(true);
+                    try {
+                      const valor = await onCreateTipo(novoTipoNome.trim());
+                      setTipo(valor);
+                      setCriandoTipo(false);
+                      setNovoTipoNome('');
+                    } finally {
+                      setSalvandoTipo(false);
+                    }
+                  }}
+                >
+                  {salvandoTipo ? '...' : 'Salvar'}
+                </button>
+                <button
+                  type="button"
+                  className="px-3 py-1 bg-gray-200 text-gray-700 rounded-lg text-sm font-medium"
+                  onClick={() => { setCriandoTipo(false); setNovoTipoNome(''); }}
+                >
+                  Cancelar
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div>
+              <Select
+                label="Tipo"
+                id="insumoTipo"
+                value={tipo}
+                onChange={(e) => setTipo(e.target.value as TipoInsumo)}
+                options={tipos}
+                required
+              />
+              {onCreateTipo && (
+                <button
+                  type="button"
+                  className="text-xs text-emt-verde hover:underline mt-1"
+                  onClick={() => setCriandoTipo(true)}
+                >
+                  + Novo tipo
+                </button>
+              )}
+            </div>
+          )}
+        </div>
         <Select
           label="Unidade de Medida"
           id="insumoUnidade"
@@ -915,13 +979,67 @@ function InsumoForm({
           placeholder="Selecione a unidade"
           required
         />
-        <Select
-          label="Categoria"
-          id="insumoCategoria"
-          value={categoria}
-          onChange={(e) => setCategoria(e.target.value as CategoriaMaterialCompra)}
-          options={categorias}
-        />
+        <div>
+          {criandoCategoria ? (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Nova Categoria</label>
+              <div className="flex gap-2">
+                <input
+                  className="flex-1 h-[38px] border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emt-verde"
+                  value={novaCategoriaNome}
+                  onChange={(e) => setNovaCategoriaNome(e.target.value)}
+                  placeholder="Nome da categoria"
+                  autoFocus
+                />
+                <button
+                  type="button"
+                  disabled={!novaCategoriaNome.trim() || salvandoCategoria}
+                  className="px-3 py-1 bg-emt-verde text-white rounded-lg text-sm font-medium disabled:opacity-50"
+                  onClick={async () => {
+                    if (!onCreateCategoria || !novaCategoriaNome.trim()) return;
+                    setSalvandoCategoria(true);
+                    try {
+                      const valor = await onCreateCategoria(novaCategoriaNome.trim());
+                      setCategoria(valor);
+                      setCriandoCategoria(false);
+                      setNovaCategoriaNome('');
+                    } finally {
+                      setSalvandoCategoria(false);
+                    }
+                  }}
+                >
+                  {salvandoCategoria ? '...' : 'Salvar'}
+                </button>
+                <button
+                  type="button"
+                  className="px-3 py-1 bg-gray-200 text-gray-700 rounded-lg text-sm font-medium"
+                  onClick={() => { setCriandoCategoria(false); setNovaCategoriaNome(''); }}
+                >
+                  Cancelar
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div>
+              <Select
+                label="Categoria"
+                id="insumoCategoria"
+                value={categoria}
+                onChange={(e) => setCategoria(e.target.value as CategoriaMaterialCompra)}
+                options={categorias}
+              />
+              {onCreateCategoria && (
+                <button
+                  type="button"
+                  className="text-xs text-emt-verde hover:underline mt-1"
+                  onClick={() => setCriandoCategoria(true)}
+                >
+                  + Nova categoria
+                </button>
+              )}
+            </div>
+          )}
+        </div>
       </div>
       <div>
         <label
@@ -2666,6 +2784,28 @@ export default function Obras() {
             }
             setModalInsumoOpen(false);
             setEditandoInsumo(null);
+          }}
+          onCreateCategoria={async (nomeCategoria) => {
+            const valor = gerarSlug(nomeCategoria);
+            await adicionarCategoriaMutation.mutateAsync({
+              id: gerarId(),
+              nome: nomeCategoria,
+              valor,
+              ativo: true,
+              criadoPor: usuario?.nome || '',
+            });
+            return valor;
+          }}
+          onCreateTipo={async (nomeTipo) => {
+            const valor = gerarSlug(nomeTipo);
+            await adicionarTipoInsumoMutation.mutateAsync({
+              id: gerarId(),
+              nome: nomeTipo,
+              valor,
+              ativo: true,
+              criadoPor: usuario?.nome || '',
+            });
+            return valor;
           }}
         />
       </Modal>
