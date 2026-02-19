@@ -9,7 +9,7 @@ import { useUnidades, useAdicionarUnidade, useAtualizarUnidade, useExcluirUnidad
 import { useDepositosMaterial, useAdicionarDepositoMaterial, useAtualizarDepositoMaterial, useExcluirDepositoMaterial } from '../hooks/useDepositosMaterial';
 import Input from '../components/ui/Input';
 import Select from '../components/ui/Select';
-import { formatCurrency, formatDate } from '../utils/formatters';
+import { formatDate } from '../utils/formatters';
 import Button from '../components/ui/Button';
 import Modal from '../components/ui/Modal';
 import Card from '../components/ui/Card';
