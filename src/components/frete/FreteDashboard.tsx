@@ -463,7 +463,7 @@ export default function FreteDashboard({
           </p>
           <div className="text-xs text-gray-400 mt-1 space-y-0.5">
             <p>Fretes: {formatCurrency(fretesAreacre)}</p>
-            <p>Pagamentos: −{formatCurrency(pagosParaAreacre)}</p>
+            <p>Pago p/ Areacre: −{formatCurrency(pagosParaAreacre)}</p>
             <p>Abastecimentos: +{formatCurrency(totalAbastCarreta)}</p>
           </div>
         </Card>
