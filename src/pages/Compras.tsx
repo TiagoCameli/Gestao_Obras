@@ -433,6 +433,7 @@ export default function Compras() {
           obras={obras}
           etapas={etapas}
           fornecedores={fornecedores}
+          insumos={insumos}
           onSubmit={handleOCSubmit}
           onCancel={() => { setOcModalOpen(false); setEditandoOC(null); }}
           proximoNumero={proxOC}

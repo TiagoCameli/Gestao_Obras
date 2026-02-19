@@ -1,5 +1,5 @@
 import { useState, useMemo, useRef, useEffect } from 'react';
-import type { OrdemCompra, ItemOrdemCompra, CustosAdicionaisOC, Obra, EtapaObra, Fornecedor, ParcelaPagamento } from '../../types';
+import type { OrdemCompra, ItemOrdemCompra, CustosAdicionaisOC, Obra, EtapaObra, Fornecedor, ParcelaPagamento, Insumo } from '../../types';
 import Button from '../ui/Button';
 import Input from '../ui/Input';
 import Select from '../ui/Select';
@@ -64,6 +64,66 @@ function EtapaCombobox({ id, etapas, value, onChange }: {
   );
 }
 
+function InsumoCombobox({ id, insumos, value, onChange }: {
+  id: string;
+  insumos: Insumo[];
+  value: string;
+  onChange: (insumoId: string) => void;
+}) {
+  const [busca, setBusca] = useState('');
+  const [aberto, setAberto] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  const insumoSelecionado = insumos.find((i) => i.id === value);
+
+  useEffect(() => {
+    function handleClickFora(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) {
+        setAberto(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickFora);
+    return () => document.removeEventListener('mousedown', handleClickFora);
+  }, []);
+
+  const filtrados = insumos.filter((i) =>
+    i.nome.toLowerCase().includes(busca.toLowerCase())
+  );
+
+  return (
+    <div ref={ref} className="relative">
+      <input
+        id={id}
+        type="text"
+        className="w-full h-[38px] border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emt-verde bg-white"
+        placeholder="Buscar insumo..."
+        value={aberto ? busca : (insumoSelecionado?.nome ?? '')}
+        onChange={(e) => { setBusca(e.target.value); setAberto(true); }}
+        onFocus={() => { setAberto(true); setBusca(''); }}
+        autoComplete="off"
+        required={!value}
+      />
+      {aberto && (
+        <ul className="absolute z-50 w-full mt-1 max-h-48 overflow-auto bg-white border border-gray-300 rounded-lg shadow-lg">
+          {filtrados.length === 0 ? (
+            <li className="px-3 py-2 text-sm text-gray-400">Nenhum insumo encontrado</li>
+          ) : (
+            filtrados.map((ins) => (
+              <li
+                key={ins.id}
+                className={`px-3 py-2 text-sm cursor-pointer hover:bg-green-50 ${ins.id === value ? 'bg-green-100 font-medium' : ''}`}
+                onMouseDown={() => { onChange(ins.id); setAberto(false); setBusca(''); }}
+              >
+                {ins.nome} <span className="text-gray-400 text-xs">({ins.unidade})</span>
+              </li>
+            ))
+          )}
+        </ul>
+      )}
+    </div>
+  );
+}
+
 function genId() {
   return Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
 }
@@ -73,6 +133,7 @@ interface OrdemCompraFormProps {
   obras: Obra[];
   etapas: EtapaObra[];
   fornecedores: Fornecedor[];
+  insumos: Insumo[];
   onSubmit: (oc: OrdemCompra) => Promise<void>;
   onCancel: () => void;
   proximoNumero: string;
@@ -83,6 +144,7 @@ export default function OrdemCompraForm({
   obras,
   etapas,
   fornecedores,
+  insumos,
   onSubmit,
   onCancel,
   proximoNumero,
@@ -107,6 +169,17 @@ export default function OrdemCompraForm({
   const etapasFiltradas = etapas.filter((e) => e.obraId === obraId);
   const fornecedoresAtivos = fornecedores.filter((f) => f.ativo !== false);
   const fornecedorSelecionado = fornecedores.find((f) => f.id === fornecedorId);
+  const insumosAtivos = useMemo(() => insumos.filter((i) => i.ativo !== false), [insumos]);
+
+  function selectInsumo(itemId: string, insumoId: string) {
+    const insumo = insumosAtivos.find((i) => i.id === insumoId);
+    if (!insumo) return;
+    setItens((prev) => prev.map((i) =>
+      i.id === itemId
+        ? { ...i, descricao: insumo.nome, unidade: insumo.unidade || 'un' }
+        : i
+    ));
+  }
 
   const totalMateriais = useMemo(() => itens.reduce((sum, i) => sum + i.quantidade * i.precoUnitario, 0), [itens]);
   const totalGeral = useMemo(() => totalMateriais + custos.frete + custos.outrasDespesas + custos.impostos - custos.desconto, [totalMateriais, custos]);
@@ -271,13 +344,28 @@ export default function OrdemCompraForm({
               </div>
               <div className="grid grid-cols-12 gap-2">
                 <div className="col-span-4">
-                  <Input label="Descrição" id={`oc-desc-${item.id}`} value={item.descricao} onChange={(e) => updateItem(item.id, 'descricao', e.target.value)} required />
+                  <label className="block text-sm font-medium text-gray-700 mb-1" htmlFor={`oc-insumo-${item.id}`}>Insumo</label>
+                  <InsumoCombobox
+                    id={`oc-insumo-${item.id}`}
+                    insumos={insumosAtivos}
+                    value={insumosAtivos.find((ins) => ins.nome === item.descricao)?.id ?? ''}
+                    onChange={(insumoId) => selectInsumo(item.id, insumoId)}
+                  />
                 </div>
                 <div className="col-span-2">
                   <Input label="Qtd" id={`oc-qtd-${item.id}`} type="number" min="0.01" step="0.01" value={item.quantidade} onChange={(e) => updateItem(item.id, 'quantidade', parseFloat(e.target.value) || 0)} required />
                 </div>
                 <div className="col-span-2">
-                  <Input label="Unid." id={`oc-un-${item.id}`} value={item.unidade} onChange={(e) => updateItem(item.id, 'unidade', e.target.value)} required />
+                  {insumosAtivos.find((ins) => ins.nome === item.descricao) ? (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Unid.</label>
+                      <div className="w-full h-[38px] flex items-center justify-center border border-gray-200 bg-gray-50 rounded-lg px-2 text-sm text-gray-600">
+                        {item.unidade}
+                      </div>
+                    </div>
+                  ) : (
+                    <Input label="Unid." id={`oc-un-${item.id}`} value={item.unidade} onChange={(e) => updateItem(item.id, 'unidade', e.target.value)} required />
+                  )}
                 </div>
                 <div className="col-span-2">
                   <Input label="Preço Unit." id={`oc-preco-${item.id}`} type="number" min="0" step="0.01" value={item.precoUnitario} onChange={(e) => updateItem(item.id, 'precoUnitario', parseFloat(e.target.value) || 0)} required />
