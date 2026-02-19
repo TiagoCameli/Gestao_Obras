@@ -822,6 +822,7 @@ export function dbToCotacao(row: any): Cotacao {
   return {
     id: row.id,
     numero: row.numero ?? '',
+    descricao: row.descricao ?? '',
     data: row.data,
     pedidoCompraId: row.pedido_compra_id ?? '',
     prazoResposta: row.prazo_resposta ?? '',
@@ -837,6 +838,7 @@ export function cotacaoToDb(c: Cotacao) {
   return {
     id: c.id,
     numero: c.numero,
+    descricao: c.descricao,
     data: c.data,
     pedido_compra_id: c.pedidoCompraId || null,
     prazo_resposta: c.prazoResposta,

@@ -1,7 +1,7 @@
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import type { Abastecimento, AlocacaoEtapa, Deposito, EntradaCombustivel, Equipamento, EtapaObra, Fornecedor, Insumo, Obra, TransferenciaCombustivel } from '../types';
-import { formatCurrency, formatDateTime, formatLitros } from './formatters';
+import type { Abastecimento, AlocacaoEtapa, Cotacao, Deposito, EntradaCombustivel, Equipamento, EtapaObra, Fornecedor, Insumo, Obra, TransferenciaCombustivel } from '../types';
+import { formatCurrency, formatDate, formatDateTime, formatLitros } from './formatters';
 
 function formatarPeriodo(dataInicio?: string, dataFim?: string): string {
   if (!dataInicio && !dataFim) return '';
@@ -235,4 +235,117 @@ export function exportarTransferenciasPDF(
   });
 
   doc.save('relatorio-transferencias-combustivel.pdf');
+}
+
+export function exportarCotacaoPDF(
+  cotacao: Cotacao,
+  fornecedoresMap: Map<string, Fornecedor>
+) {
+  const doc = new jsPDF({ orientation: 'landscape' });
+
+  // Header
+  doc.setFontSize(16);
+  doc.text(`Cotacao ${cotacao.numero}`, 14, 18);
+
+  doc.setFontSize(10);
+  let y = 26;
+  if (cotacao.descricao) {
+    doc.text(cotacao.descricao, 14, y);
+    y += 6;
+  }
+  doc.text(`Data: ${formatDate(cotacao.data)}`, 14, y);
+  if (cotacao.prazoResposta) {
+    doc.text(`Prazo resposta: ${formatDate(cotacao.prazoResposta)}`, 100, y);
+  }
+  y += 6;
+  doc.text(`Status: ${cotacao.status === 'em_cotacao' ? 'Em Cotacao' : cotacao.status === 'parcial' ? 'Parcial' : 'Cotado'}`, 14, y);
+  y += 6;
+  doc.text(`Gerado em: ${new Date().toLocaleDateString('pt-BR')}`, 14, y);
+  y += 8;
+
+  // Build comparison table
+  const fornecedoresResp = cotacao.fornecedores;
+  const headRow = ['Material', 'Qtd', 'Unid.'];
+  for (const cf of fornecedoresResp) {
+    const nome = fornecedoresMap.get(cf.fornecedorId)?.nome || 'Fornecedor';
+    headRow.push(nome);
+  }
+
+  const bodyRows: string[][] = cotacao.itensPedido.map((item) => {
+    const row = [item.descricao, String(item.quantidade), item.unidade];
+    for (const cf of fornecedoresResp) {
+      if (!cf.respondido) {
+        row.push('--');
+        continue;
+      }
+      const preco = cf.itensPrecos.find((ip) => ip.itemPedidoId === item.id);
+      const unit = preco?.precoUnitario ?? 0;
+      const sub = unit * item.quantidade;
+      row.push(`${formatCurrency(unit)}\n(${formatCurrency(sub)})`);
+    }
+    return row;
+  });
+
+  // Footer rows: Total, Condição, Prazo
+  const totalRow = ['Total', '', ''];
+  const condRow = ['Cond. Pagamento', '', ''];
+  const prazoRow = ['Prazo Entrega', '', ''];
+  for (const cf of fornecedoresResp) {
+    totalRow.push(cf.respondido ? formatCurrency(cf.total) : '--');
+    condRow.push(cf.condicaoPagamento || '--');
+    prazoRow.push(cf.prazoEntrega || '--');
+  }
+
+  // Find lowest total
+  const respondidos = fornecedoresResp.filter((cf) => cf.respondido && cf.total > 0);
+  const menorId = respondidos.length > 0
+    ? respondidos.reduce((min, cf) => (cf.total < min.total ? cf : min)).fornecedorId
+    : null;
+  const menorColIdx = menorId
+    ? fornecedoresResp.findIndex((cf) => cf.fornecedorId === menorId) + 3
+    : -1;
+
+  autoTable(doc, {
+    startY: y,
+    head: [headRow],
+    body: [...bodyRows, totalRow, condRow, prazoRow],
+    styles: { fontSize: 8, cellPadding: 3 },
+    headStyles: { fillColor: [34, 87, 60], textColor: 255, fontStyle: 'bold' },
+    columnStyles: {
+      0: { cellWidth: 60 },
+      1: { halign: 'center', cellWidth: 18 },
+      2: { halign: 'center', cellWidth: 18 },
+    },
+    didParseCell(data) {
+      // Align price columns center
+      if (data.column.index >= 3) {
+        data.cell.styles.halign = 'center';
+      }
+      // Bold total row
+      const totalRowIdx = bodyRows.length;
+      if (data.row.index === totalRowIdx && data.row.section === 'body') {
+        data.cell.styles.fontStyle = 'bold';
+        data.cell.styles.fillColor = [240, 240, 240];
+        // Highlight lowest total
+        if (data.column.index === menorColIdx) {
+          data.cell.styles.textColor = [22, 101, 52];
+          data.cell.styles.fontStyle = 'bold';
+        }
+      }
+      // Condição and prazo rows gray
+      if ((data.row.index === totalRowIdx + 1 || data.row.index === totalRowIdx + 2) && data.row.section === 'body') {
+        data.cell.styles.fontSize = 7;
+        data.cell.styles.textColor = [120, 120, 120];
+      }
+    },
+  });
+
+  if (cotacao.observacoes) {
+    const finalY = (doc as jsPDF & { lastAutoTable: { finalY: number } }).lastAutoTable.finalY;
+    doc.setFontSize(9);
+    doc.setTextColor(100);
+    doc.text(`Obs: ${cotacao.observacoes}`, 14, finalY + 8);
+  }
+
+  doc.save(`cotacao-${cotacao.numero}.pdf`);
 }

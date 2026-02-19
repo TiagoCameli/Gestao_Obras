@@ -408,6 +408,7 @@ export interface CotacaoFornecedor {
 export interface Cotacao {
   id: string;
   numero: string;
+  descricao: string;
   data: string;
   pedidoCompraId: string;
   prazoResposta: string;

@@ -7,17 +7,18 @@ import type {
   ItemOrdemCompra,
 } from '../types';
 import { usePedidosCompra, useAdicionarPedidoCompra, useAtualizarPedidoCompra } from '../hooks/usePedidosCompra';
-import { useCotacoes, useAdicionarCotacao, useAtualizarCotacao } from '../hooks/useCotacoes';
+import { useCotacoes, useAdicionarCotacao, useAtualizarCotacao, useExcluirCotacao } from '../hooks/useCotacoes';
 import { useOrdensCompra, useAdicionarOrdemCompra, useAtualizarOrdemCompra } from '../hooks/useOrdensCompra';
 import { useObras } from '../hooks/useObras';
 import { useEtapas } from '../hooks/useEtapas';
-import { useFornecedores } from '../hooks/useFornecedores';
+import { useFornecedores, useAdicionarFornecedor } from '../hooks/useFornecedores';
 import { useInsumos } from '../hooks/useInsumos';
 import { useUnidades } from '../hooks/useUnidades';
 import { useCategoriasMaterial } from '../hooks/useCategoriasMaterial';
 import { useAuth } from '../contexts/AuthContext';
 import Button from '../components/ui/Button';
 import Modal from '../components/ui/Modal';
+import ConfirmDialog from '../components/ui/ConfirmDialog';
 import PedidoCompraForm from '../components/compras/PedidoCompraForm';
 import PedidoCompraList from '../components/compras/PedidoCompraList';
 import CotacaoForm from '../components/compras/CotacaoForm';
@@ -66,10 +67,12 @@ export default function Compras() {
     [categoriasMaterial]
   );
 
+  const adicionarFornecedorMut = useAdicionarFornecedor();
   const adicionarPedidoMut = useAdicionarPedidoCompra();
   const atualizarPedidoMut = useAtualizarPedidoCompra();
   const adicionarCotacaoMut = useAdicionarCotacao();
   const atualizarCotacaoMut = useAtualizarCotacao();
+  const excluirCotacaoMut = useExcluirCotacao();
   const adicionarOCMut = useAdicionarOrdemCompra();
   const atualizarOCMut = useAtualizarOrdemCompra();
 
@@ -80,6 +83,8 @@ export default function Compras() {
 
   const [cotacaoModalOpen, setCotacaoModalOpen] = useState(false);
   const [pedidoParaCotacao, setPedidoParaCotacao] = useState<PedidoCompra | null>(null);
+  const [editandoCotacao, setEditandoCotacao] = useState<Cotacao | null>(null);
+  const [deleteCotacaoId, setDeleteCotacaoId] = useState<string | null>(null);
 
   const [ocModalOpen, setOcModalOpen] = useState(false);
   const [editandoOC, setEditandoOC] = useState<OrdemCompra | null>(null);
@@ -108,6 +113,10 @@ export default function Compras() {
 
   const handleReprovar = useCallback(async (pedido: PedidoCompra) => {
     await atualizarPedidoMut.mutateAsync({ ...pedido, status: 'reprovado' });
+  }, [atualizarPedidoMut]);
+
+  const handleDesaprovar = useCallback(async (pedido: PedidoCompra) => {
+    await atualizarPedidoMut.mutateAsync({ ...pedido, status: 'pendente' });
   }, [atualizarPedidoMut]);
 
   const handleEnviarCotacao = useCallback((pedido: PedidoCompra) => {
@@ -160,11 +169,18 @@ export default function Compras() {
     }
     setCotacaoModalOpen(false);
     setPedidoParaCotacao(null);
+    setEditandoCotacao(null);
   }, [cotacoes, adicionarCotacaoMut, atualizarCotacaoMut, usuario]);
 
   const handleSalvarPrecos = useCallback(async (cotacao: Cotacao) => {
     await atualizarCotacaoMut.mutateAsync(cotacao);
   }, [atualizarCotacaoMut]);
+
+  const handleExcluirCotacao = useCallback(async () => {
+    if (!deleteCotacaoId) return;
+    await excluirCotacaoMut.mutateAsync(deleteCotacaoId);
+    setDeleteCotacaoId(null);
+  }, [deleteCotacaoId, excluirCotacaoMut]);
 
   const handleGerarOCdeCotacao = useCallback((cotacao: Cotacao, fornecedorId: string, itemIds: string[]) => {
     const cf = cotacao.fornecedores.find((f) => f.fornecedorId === fornecedorId);
@@ -303,6 +319,7 @@ export default function Compras() {
             categorias={categoriasOptions}
             onAprovar={handleAprovar}
             onReprovar={handleReprovar}
+            onDesaprovar={handleDesaprovar}
             onEnviarCotacao={handleEnviarCotacao}
             onGerarOC={handleGerarOCDireto}
             canApprove={canApprove}
@@ -319,6 +336,12 @@ export default function Compras() {
           pedidos={pedidos}
           onSalvarPrecos={handleSalvarPrecos}
           onGerarOC={handleGerarOCdeCotacao}
+          onEditar={(cot) => {
+            setEditandoCotacao(cot);
+            setPedidoParaCotacao(null);
+            setCotacaoModalOpen(true);
+          }}
+          onExcluir={(cot) => setDeleteCotacaoId(cot.id)}
           canEdit={canEdit}
           canCreate={canCreate}
         />
@@ -363,17 +386,32 @@ export default function Compras() {
       {/* Modal Cotação */}
       <Modal
         open={cotacaoModalOpen}
-        onClose={() => { setCotacaoModalOpen(false); setPedidoParaCotacao(null); }}
-        title="Nova Cotação"
+        onClose={() => { setCotacaoModalOpen(false); setPedidoParaCotacao(null); setEditandoCotacao(null); }}
+        title={editandoCotacao ? `Editar Cotação ${editandoCotacao.numero}` : 'Nova Cotação'}
+        size="xl"
       >
         <CotacaoForm
-          initial={null}
+          initial={editandoCotacao}
           pedidosAprovados={pedidosAprovados}
           fornecedores={fornecedores}
           onSubmit={handleCotacaoSubmit}
-          onCancel={() => { setCotacaoModalOpen(false); setPedidoParaCotacao(null); }}
+          onCancel={() => { setCotacaoModalOpen(false); setPedidoParaCotacao(null); setEditandoCotacao(null); }}
           proximoNumero={proxCotacao}
           pedidoPreSelecionado={pedidoParaCotacao}
+          onCreateFornecedor={async (nome) => {
+            const id = Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+            await adicionarFornecedorMut.mutateAsync({
+              id,
+              nome,
+              cnpj: '',
+              telefone: '',
+              email: '',
+              observacoes: '',
+              ativo: true,
+              criadoPor: usuario?.nome || '',
+            });
+            return id;
+          }}
         />
       </Modal>
 
@@ -393,6 +431,15 @@ export default function Compras() {
           proximoNumero={proxOC}
         />
       </Modal>
+
+      {/* Confirmação excluir cotação */}
+      <ConfirmDialog
+        open={deleteCotacaoId !== null}
+        title="Excluir Cotação"
+        message="Tem certeza que deseja excluir esta cotação? Esta ação não pode ser desfeita."
+        onConfirm={handleExcluirCotacao}
+        onClose={() => setDeleteCotacaoId(null)}
+      />
     </div>
   );
 }

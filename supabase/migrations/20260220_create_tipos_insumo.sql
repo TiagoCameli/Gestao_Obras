@@ -10,4 +10,5 @@ ALTER TABLE tipos_insumo DISABLE ROW LEVEL SECURITY;
 
 INSERT INTO tipos_insumo (id, nome, valor, ativo) VALUES
   (gen_random_uuid()::text, 'Combustível', 'combustivel', true),
-  (gen_random_uuid()::text, 'Material', 'material', true);
+  (gen_random_uuid()::text, 'Material', 'material', true)
+ON CONFLICT (valor) DO NOTHING;

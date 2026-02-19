@@ -1,6 +1,8 @@
-import { useState, Fragment } from 'react';
+import { useState, useRef } from 'react';
 import type { Cotacao, Fornecedor, PedidoCompra } from '../../types';
 import { formatCurrency, formatDate } from '../../utils/formatters';
+import { exportarCotacaoPDF } from '../../utils/pdfExport';
+import { parsePdfForCotacao, type PdfParseResult } from '../../utils/pdfCotacaoParser';
 import Card from '../ui/Card';
 import Button from '../ui/Button';
 import Modal from '../ui/Modal';
@@ -23,6 +25,8 @@ interface CotacaoListProps {
   pedidos: PedidoCompra[];
   onSalvarPrecos: (cotacao: Cotacao) => Promise<void>;
   onGerarOC: (cotacao: Cotacao, fornecedorId: string, itemIds: string[]) => void;
+  onEditar?: (cotacao: Cotacao) => void;
+  onExcluir?: (cotacao: Cotacao) => void;
   canEdit: boolean;
   canCreate: boolean;
 }
@@ -33,15 +37,20 @@ export default function CotacaoList({
   pedidos,
   onSalvarPrecos,
   onGerarOC,
+  onEditar,
+  onExcluir,
   canEdit,
   canCreate,
 }: CotacaoListProps) {
   const [expanded, setExpanded] = useState<string | null>(null);
   const [preenchendo, setPreenchendo] = useState<{ cotacao: Cotacao; fornecedorId: string } | null>(null);
   const [precos, setPrecos] = useState<{ precoUnitario: number; condicao: string; prazo: string }[]>([]);
-  const [gerandoOC, setGerandoOC] = useState<Cotacao | null>(null);
-  const [ocFornecedorId, setOcFornecedorId] = useState('');
-  const [ocItemIds, setOcItemIds] = useState<string[]>([]);
+  const [selFornecedorIds, setSelFornecedorIds] = useState<string[]>([]);
+  const [selItemIds, setSelItemIds] = useState<string[]>([]);
+  const [pdfProcessando, setPdfProcessando] = useState(false);
+  const [pdfResultado, setPdfResultado] = useState<PdfParseResult | null>(null);
+  const [pdfErro, setPdfErro] = useState('');
+  const pdfInputRef = useRef<HTMLInputElement>(null);
 
   const fornecedoresMap = new Map(fornecedores.map((f) => [f.id, f]));
   const pedidosMap = new Map(pedidos.map((p) => [p.id, p]));
@@ -66,7 +75,49 @@ export default function CotacaoList({
         };
       })
     );
+    setPdfResultado(null);
+    setPdfErro('');
     setPreenchendo({ cotacao, fornecedorId });
+  }
+
+  async function handlePdfUpload(file: File) {
+    if (!preenchendo) return;
+    setPdfProcessando(true);
+    setPdfErro('');
+    setPdfResultado(null);
+
+    try {
+      const resultado = await parsePdfForCotacao(file, preenchendo.cotacao.itensPedido);
+
+      if (!resultado.textoExtraido) {
+        setPdfErro('Nenhum texto encontrado no PDF. O arquivo pode ser uma imagem escaneada.');
+        setPdfProcessando(false);
+        return;
+      }
+
+      setPdfResultado(resultado);
+
+      // Update prices only for matched items (keep existing values for unmatched)
+      setPrecos((prev) =>
+        prev.map((p, idx) => {
+          const pdfItem = resultado.precos[idx];
+          if (!pdfItem?.matched) return p;
+          return { ...p, precoUnitario: pdfItem.precoUnitario };
+        })
+      );
+
+      // Update condicao/prazo if found
+      if (resultado.condicaoPagamento) {
+        setPrecos((prev) => prev.map((p) => ({ ...p, condicao: resultado.condicaoPagamento })));
+      }
+      if (resultado.prazoEntrega) {
+        setPrecos((prev) => prev.map((p) => ({ ...p, prazo: resultado.prazoEntrega })));
+      }
+    } catch {
+      setPdfErro('Erro ao processar o PDF. Verifique se o arquivo não está corrompido ou protegido.');
+    } finally {
+      setPdfProcessando(false);
+    }
   }
 
   async function salvarPrecos() {
@@ -91,22 +142,25 @@ export default function CotacaoList({
       };
     });
 
-    const respondidos = updatedFornecedores.filter((f) => f.respondido).length;
-    const totalForn = updatedFornecedores.length;
-    let status: Cotacao['status'] = 'em_cotacao';
-    if (respondidos === totalForn) status = 'cotado';
-    else if (respondidos > 0) status = 'parcial';
-
-    await onSalvarPrecos({ ...cotacao, fornecedores: updatedFornecedores, status });
-    setPreenchendo(null);
-  }
-
-  function marcarVencedor(cotacao: Cotacao, fornecedorId: string) {
-    const updated = cotacao.fornecedores.map((cf) => ({
+    // Auto-marcar menor preço como vencedor
+    const respondidos = updatedFornecedores.filter((f) => f.respondido && f.total > 0);
+    const menorId = respondidos.length > 0
+      ? respondidos.reduce((min, cf) => (cf.total < min.total ? cf : min)).fornecedorId
+      : null;
+    const comVencedor = updatedFornecedores.map((cf) => ({
       ...cf,
-      vencedor: cf.fornecedorId === fornecedorId,
+      vencedor: cf.fornecedorId === menorId,
     }));
-    onSalvarPrecos({ ...cotacao, fornecedores: updated });
+
+    const totalForn = comVencedor.length;
+    let status: Cotacao['status'] = 'em_cotacao';
+    if (respondidos.length === totalForn) status = 'cotado';
+    else if (respondidos.length > 0) status = 'parcial';
+
+    await onSalvarPrecos({ ...cotacao, fornecedores: comVencedor, status });
+    setPreenchendo(null);
+    setPdfResultado(null);
+    setPdfErro('');
   }
 
   function getMenorPrecoTotal(cotacao: Cotacao): string | null {
@@ -116,20 +170,12 @@ export default function CotacaoList({
     return menor.fornecedorId;
   }
 
-  function startGerarOC(cotacao: Cotacao) {
-    setGerandoOC(cotacao);
-    setOcFornecedorId('');
-    setOcItemIds([]);
+  function toggleSelFornecedor(id: string) {
+    setSelFornecedorIds((prev) => prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]);
   }
 
-  function toggleOcItem(id: string) {
-    setOcItemIds((prev) => prev.includes(id) ? prev.filter((i) => i !== id) : [...prev, id]);
-  }
-
-  function confirmarGerarOC() {
-    if (!gerandoOC || !ocFornecedorId || ocItemIds.length === 0) return;
-    onGerarOC(gerandoOC, ocFornecedorId, ocItemIds);
-    setGerandoOC(null);
+  function toggleSelItem(id: string) {
+    setSelItemIds((prev) => prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]);
   }
 
   return (
@@ -156,93 +202,187 @@ export default function CotacaoList({
                 {/* Header do acordeão */}
                 <button
                   className="w-full flex items-center justify-between px-6 py-4 text-left hover:bg-gray-50 transition-colors"
-                  onClick={() => setExpanded(isOpen ? null : cot.id)}
+                  onClick={() => { setExpanded(isOpen ? null : cot.id); setSelFornecedorIds([]); setSelItemIds([]); }}
                 >
-                  <div className="flex items-center gap-4">
-                    <span className="font-semibold text-gray-800">{cot.numero}</span>
-                    {pedidoRef && <span className="text-xs text-gray-500">Ref: {pedidoRef.numero}</span>}
-                    <span className="text-sm text-gray-500">{formatDate(cot.data)}</span>
-                    <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${STATUS_BADGE[cot.status]}`}>
-                      {STATUS_LABEL[cot.status]}
-                    </span>
-                    <span className="text-xs text-gray-400">{cot.fornecedores.length} fornecedor(es)</span>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-3">
+                      <span className="font-bold text-gray-800 text-base">{cot.numero}</span>
+                      <span className={`px-2.5 py-0.5 rounded-full text-xs font-semibold ${STATUS_BADGE[cot.status]}`}>
+                        {STATUS_LABEL[cot.status]}
+                      </span>
+                      {cot.descricao && (
+                        <span className="text-sm text-gray-600 truncate">{cot.descricao}</span>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-3 mt-1">
+                      <span className="text-xs text-gray-400">{formatDate(cot.data)}</span>
+                      {pedidoRef && (
+                        <span className="text-xs text-gray-400">Ref: {pedidoRef.numero}</span>
+                      )}
+                      <span className="text-xs text-gray-400">{cot.fornecedores.length} fornecedor(es)</span>
+                      <span className="text-xs text-gray-400">{cot.itensPedido.length} {cot.itensPedido.length === 1 ? 'item' : 'itens'}</span>
+                      {cot.fornecedores.some((cf) => cf.respondido) && (() => {
+                        const menorCf = cot.fornecedores
+                          .filter((cf) => cf.respondido && cf.total > 0)
+                          .reduce<{ total: number; fornecedorId: string } | null>(
+                            (min, cf) => (!min || cf.total < min.total ? cf : min), null
+                          );
+                        if (!menorCf) return null;
+                        const nome = fornecedoresMap.get(menorCf.fornecedorId)?.nome;
+                        return (
+                          <span className="text-xs font-medium text-green-700">
+                            Menor: {formatCurrency(menorCf.total)}{nome ? ` (${nome})` : ''}
+                          </span>
+                        );
+                      })()}
+                    </div>
                   </div>
-                  <span className="text-gray-400 text-lg">{isOpen ? '▲' : '▼'}</span>
+                  <span className="text-gray-400 text-lg ml-4 shrink-0">{isOpen ? '▲' : '▼'}</span>
                 </button>
 
                 {/* Conteúdo expandido */}
                 {isOpen && (
                   <div className="px-6 pb-6 border-t border-gray-100">
                     {/* Quadro comparativo */}
-                    <div className="overflow-x-auto mt-4">
-                      <table className="w-full text-sm border-collapse">
+                    <div className="overflow-x-auto mt-4 rounded-lg border border-gray-200">
+                      <table className="w-full text-sm">
                         <thead>
-                          <tr className="bg-gray-50 border-b">
-                            <th className="text-left px-3 py-2 font-medium text-gray-600">Item</th>
-                            <th className="text-right px-3 py-2 font-medium text-gray-600">Qtd</th>
+                          <tr className="bg-gray-100">
+                            <th className="text-left px-4 py-3 font-semibold text-gray-700 border-b border-gray-200 min-w-[200px]">Material</th>
+                            <th className="text-center px-4 py-3 font-semibold text-gray-700 border-b border-gray-200 w-24">Qtd</th>
                             {cot.fornecedores.map((cf) => {
                               const forn = fornecedoresMap.get(cf.fornecedorId);
+                              const isMenor = cf.fornecedorId === menorPrecoId && cf.respondido;
+                              const isSelected = selFornecedorIds.includes(cf.fornecedorId);
                               return (
-                                <th key={cf.id} className="text-right px-3 py-2 font-medium text-gray-600">
-                                  <div className="flex flex-col items-end gap-1">
-                                    <span>{forn?.nome || 'Fornecedor'}</span>
-                                    <div className="flex gap-1">
-                                      {cf.vencedor && (
-                                        <span className="px-1.5 py-0.5 bg-yellow-100 text-yellow-800 rounded text-[10px] font-bold">★ Vencedor</span>
-                                      )}
-                                      {cf.fornecedorId === menorPrecoId && cf.respondido && (
-                                        <span className="px-1.5 py-0.5 bg-green-100 text-green-800 rounded text-[10px] font-bold">Menor Preço</span>
-                                      )}
+                                <th
+                                  key={cf.id}
+                                  className={`text-center px-4 py-3 font-semibold border-b border-l border-gray-200 min-w-[140px] transition-colors ${
+                                    isSelected ? 'bg-green-50' : isMenor ? 'bg-green-50/50' : ''
+                                  }`}
+                                >
+                                  <label className="flex flex-col items-center gap-1 cursor-pointer">
+                                    <div className="flex items-center gap-2">
+                                      <input
+                                        type="checkbox"
+                                        checked={isSelected}
+                                        onChange={() => toggleSelFornecedor(cf.fornecedorId)}
+                                        className="accent-emt-verde w-3.5 h-3.5"
+                                      />
+                                      <span className="text-gray-700">{forn?.nome || 'Fornecedor'}</span>
                                     </div>
-                                  </div>
+                                    {isMenor && (
+                                      <span className="px-1.5 py-0.5 bg-green-100 text-green-700 rounded text-[10px] font-bold leading-none">
+                                        Menor Preço
+                                      </span>
+                                    )}
+                                    {!cf.respondido && (
+                                      <span className="text-[10px] text-gray-400 font-normal italic">Aguardando</span>
+                                    )}
+                                  </label>
                                 </th>
                               );
                             })}
                           </tr>
                         </thead>
-                        <tbody className="divide-y divide-gray-100">
-                          {cot.itensPedido.map((item) => (
-                            <tr key={item.id} className="hover:bg-gray-50">
-                              <td className="px-3 py-2 text-gray-700">{item.descricao}</td>
-                              <td className="px-3 py-2 text-right text-gray-600">{item.quantidade} {item.unidade}</td>
-                              {cot.fornecedores.map((cf) => {
-                                const preco = cf.itensPrecos.find((ip) => ip.itemPedidoId === item.id);
-                                const subtotal = (preco?.precoUnitario ?? 0) * item.quantidade;
-                                return (
-                                  <td key={cf.id} className="px-3 py-2 text-right">
-                                    {cf.respondido ? (
-                                      <div>
-                                        <span className="text-gray-700">{formatCurrency(preco?.precoUnitario ?? 0)}</span>
-                                        <span className="text-xs text-gray-400 block">{formatCurrency(subtotal)}</span>
-                                      </div>
-                                    ) : (
-                                      <span className="text-gray-300">-</span>
-                                    )}
-                                  </td>
-                                );
-                              })}
-                            </tr>
-                          ))}
+                        <tbody>
+                          {cot.itensPedido.map((item, itemIdx) => {
+                            const isItemSelected = selItemIds.includes(item.id);
+                            // Find the cheapest unit price for this item across responded suppliers
+                            const precosItem = cot.fornecedores
+                              .filter((cf) => cf.respondido)
+                              .map((cf) => ({
+                                fornecedorId: cf.fornecedorId,
+                                preco: cf.itensPrecos.find((ip) => ip.itemPedidoId === item.id)?.precoUnitario ?? 0,
+                              }))
+                              .filter((p) => p.preco > 0);
+                            const menorPrecoItem = precosItem.length > 0
+                              ? precosItem.reduce((min, p) => (p.preco < min.preco ? p : min)).fornecedorId
+                              : null;
+
+                            return (
+                              <tr
+                                key={item.id}
+                                className={`transition-colors ${
+                                  isItemSelected
+                                    ? 'bg-green-50 hover:bg-green-100/60'
+                                    : itemIdx % 2 === 0
+                                      ? 'bg-white hover:bg-gray-50'
+                                      : 'bg-gray-50/40 hover:bg-gray-100/50'
+                                }`}
+                              >
+                                <td className="px-4 py-2.5 text-gray-700 border-b border-gray-100">
+                                  <label className="flex items-center gap-2.5 cursor-pointer">
+                                    <input
+                                      type="checkbox"
+                                      checked={isItemSelected}
+                                      onChange={() => toggleSelItem(item.id)}
+                                      className="accent-emt-verde w-3.5 h-3.5"
+                                    />
+                                    <span className="font-medium">{item.descricao}</span>
+                                  </label>
+                                </td>
+                                <td className="px-4 py-2.5 text-center text-gray-500 border-b border-gray-100 whitespace-nowrap">
+                                  {item.quantidade} <span className="text-gray-400">{item.unidade}</span>
+                                </td>
+                                {cot.fornecedores.map((cf) => {
+                                  const preco = cf.itensPrecos.find((ip) => ip.itemPedidoId === item.id);
+                                  const precoUnit = preco?.precoUnitario ?? 0;
+                                  const subtotal = precoUnit * item.quantidade;
+                                  const isMenorItem = cf.fornecedorId === menorPrecoItem;
+                                  const isColSelected = selFornecedorIds.includes(cf.fornecedorId);
+                                  return (
+                                    <td
+                                      key={cf.id}
+                                      className={`px-4 py-2.5 text-center border-b border-l border-gray-100 transition-colors ${
+                                        isColSelected ? 'bg-green-50/60' : ''
+                                      }`}
+                                    >
+                                      {cf.respondido ? (
+                                        <div>
+                                          <span className={`font-medium ${isMenorItem ? 'text-green-700' : 'text-gray-800'}`}>
+                                            {formatCurrency(precoUnit)}
+                                          </span>
+                                          <span className="text-[11px] text-gray-400 block leading-tight">
+                                            sub {formatCurrency(subtotal)}
+                                          </span>
+                                        </div>
+                                      ) : (
+                                        <span className="text-gray-300 text-xs">--</span>
+                                      )}
+                                    </td>
+                                  );
+                                })}
+                              </tr>
+                            );
+                          })}
                         </tbody>
-                        <tfoot className="border-t-2 border-gray-200">
-                          <tr className="font-semibold">
-                            <td className="px-3 py-2 text-gray-700" colSpan={2}>Total</td>
+                        <tfoot>
+                          <tr className="bg-gray-100 font-semibold">
+                            <td className="px-4 py-3 text-gray-700 border-t-2 border-gray-200" colSpan={2}>Total Geral</td>
+                            {cot.fornecedores.map((cf) => {
+                              const isMenor = cf.fornecedorId === menorPrecoId && cf.respondido;
+                              return (
+                                <td key={cf.id} className={`px-4 py-3 text-center border-t-2 border-l border-gray-200 ${isMenor ? 'text-green-700' : 'text-gray-800'}`}>
+                                  {cf.respondido ? formatCurrency(cf.total) : '--'}
+                                </td>
+                              );
+                            })}
+                          </tr>
+                          <tr className="bg-gray-50/60">
+                            <td className="px-4 py-2 text-xs text-gray-500 font-medium" colSpan={2}>Cond. Pagamento</td>
                             {cot.fornecedores.map((cf) => (
-                              <td key={cf.id} className="px-3 py-2 text-right text-gray-800">
-                                {cf.respondido ? formatCurrency(cf.total) : '-'}
+                              <td key={cf.id} className="px-4 py-2 text-center text-xs text-gray-500 border-l border-gray-100">
+                                {cf.condicaoPagamento || <span className="text-gray-300">--</span>}
                               </td>
                             ))}
                           </tr>
-                          <tr>
-                            <td className="px-3 py-1 text-xs text-gray-500" colSpan={2}>Condição</td>
+                          <tr className="bg-gray-50/60">
+                            <td className="px-4 py-2 text-xs text-gray-500 font-medium" colSpan={2}>Prazo Entrega</td>
                             {cot.fornecedores.map((cf) => (
-                              <td key={cf.id} className="px-3 py-1 text-right text-xs text-gray-500">{cf.condicaoPagamento || '-'}</td>
-                            ))}
-                          </tr>
-                          <tr>
-                            <td className="px-3 py-1 text-xs text-gray-500" colSpan={2}>Prazo</td>
-                            {cot.fornecedores.map((cf) => (
-                              <td key={cf.id} className="px-3 py-1 text-right text-xs text-gray-500">{cf.prazoEntrega || '-'}</td>
+                              <td key={cf.id} className="px-4 py-2 text-center text-xs text-gray-500 border-l border-gray-100">
+                                {cf.prazoEntrega || <span className="text-gray-300">--</span>}
+                              </td>
                             ))}
                           </tr>
                         </tfoot>
@@ -250,27 +390,55 @@ export default function CotacaoList({
                     </div>
 
                     {/* Ações */}
-                    <div className="flex flex-wrap gap-2 mt-4">
+                    <div className="flex flex-wrap items-center gap-2 mt-4">
+                      <Button
+                        variant="secondary"
+                        onClick={() => exportarCotacaoPDF(cot, fornecedoresMap)}
+                        className="text-xs"
+                      >
+                        Exportar PDF
+                      </Button>
+                      {canEdit && onEditar && (
+                        <Button variant="secondary" onClick={() => onEditar(cot)} className="text-xs">
+                          Editar Cotação
+                        </Button>
+                      )}
+                      {canEdit && onExcluir && (
+                        <Button variant="ghost" onClick={() => onExcluir(cot)} className="text-xs text-red-600 hover:text-red-800">
+                          Excluir
+                        </Button>
+                      )}
                       {canEdit && cot.fornecedores.map((cf) => {
                         const forn = fornecedoresMap.get(cf.fornecedorId);
                         return (
-                          <Fragment key={cf.id}>
-                            <Button variant="secondary" onClick={() => startPreencher(cot, cf.fornecedorId)} className="text-xs">
-                              {cf.respondido ? 'Editar' : 'Preencher'} {forn?.nome}
-                            </Button>
-                            {cf.respondido && !cf.vencedor && (
-                              <Button variant="ghost" onClick={() => marcarVencedor(cot, cf.fornecedorId)} className="text-xs text-yellow-700">
-                                Marcar Vencedor
-                              </Button>
-                            )}
-                          </Fragment>
+                          <Button key={cf.id} variant="secondary" onClick={() => startPreencher(cot, cf.fornecedorId)} className="text-xs">
+                            {cf.respondido ? 'Editar' : 'Preencher'} {forn?.nome}
+                          </Button>
                         );
                       })}
-                      {canCreate && cot.fornecedores.some((cf) => cf.respondido) && (
-                        <Button onClick={() => startGerarOC(cot)} className="text-xs">
-                          Gerar Ordem de Compra
-                        </Button>
-                      )}
+                      {canCreate && cot.fornecedores.some((cf) => cf.respondido) && (() => {
+                        const fornSel = selFornecedorIds.filter((id) => cot.fornecedores.some((cf) => cf.fornecedorId === id && cf.respondido));
+                        const itensSel = selItemIds.filter((id) => cot.itensPedido.some((it) => it.id === id));
+                        const podeGerar = fornSel.length === 1 && itensSel.length > 0;
+                        return (
+                          <div className="flex items-center gap-2">
+                            <Button
+                              onClick={() => onGerarOC(cot, fornSel[0], itensSel)}
+                              disabled={!podeGerar}
+                              className="text-xs"
+                            >
+                              Gerar Ordem de Compra
+                            </Button>
+                            {!podeGerar && (fornSel.length > 0 || itensSel.length > 0) && (
+                              <span className="text-xs text-gray-400">
+                                {fornSel.length === 0 && 'Selecione 1 fornecedor'}
+                                {fornSel.length > 1 && 'Selecione apenas 1 fornecedor'}
+                                {fornSel.length === 1 && itensSel.length === 0 && 'Selecione ao menos 1 item'}
+                              </span>
+                            )}
+                          </div>
+                        );
+                      })()}
                     </div>
                   </div>
                 )}
@@ -283,35 +451,91 @@ export default function CotacaoList({
       {/* Modal preencher preços */}
       <Modal
         open={preenchendo !== null}
-        onClose={() => setPreenchendo(null)}
+        onClose={() => { setPreenchendo(null); setPdfResultado(null); setPdfErro(''); }}
         title={`Preços - ${fornecedoresMap.get(preenchendo?.fornecedorId ?? '')?.nome ?? ''}`}
       >
         {preenchendo && (
           <div className="space-y-4">
-            {preenchendo.cotacao.itensPedido.map((item, idx) => (
-              <div key={item.id} className="flex items-end gap-3">
-                <div className="flex-1">
-                  <p className="text-sm text-gray-600 mb-1">{item.descricao} <span className="text-xs text-gray-400">({item.quantidade} {item.unidade})</span></p>
-                </div>
-                <div className="w-40">
-                  <Input
-                    label="Preço Unit. (R$)"
-                    id={`preco-${item.id}`}
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    value={precos[idx]?.precoUnitario ?? 0}
-                    onChange={(e) => {
-                      const val = parseFloat(e.target.value) || 0;
-                      setPrecos((prev) => prev.map((p, i) => (i === idx ? { ...p, precoUnitario: val } : p)));
-                    }}
-                  />
-                </div>
-                <div className="w-32 text-right text-sm font-medium text-gray-700 pb-1">
-                  {formatCurrency((precos[idx]?.precoUnitario ?? 0) * item.quantidade)}
-                </div>
+            {/* Upload PDF */}
+            <div className="border border-dashed border-gray-300 rounded-lg p-4 bg-gray-50">
+              <div className="flex items-center gap-3">
+                <input
+                  ref={pdfInputRef}
+                  type="file"
+                  accept=".pdf"
+                  className="hidden"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) handlePdfUpload(file);
+                    e.target.value = '';
+                  }}
+                />
+                <Button
+                  variant="secondary"
+                  onClick={() => pdfInputRef.current?.click()}
+                  disabled={pdfProcessando}
+                  className="text-xs"
+                >
+                  {pdfProcessando ? 'Processando...' : '📄 Upload PDF do Fornecedor'}
+                </Button>
+                {pdfProcessando && (
+                  <span className="text-xs text-gray-500 animate-pulse">Extraindo dados do PDF...</span>
+                )}
               </div>
-            ))}
+              {pdfErro && (
+                <p className="text-xs text-red-600 mt-2">{pdfErro}</p>
+              )}
+              {pdfResultado && (
+                <p className="text-xs text-green-700 mt-2">
+                  {pdfResultado.precos.filter((p) => p.matched).length} de {pdfResultado.precos.length} itens preenchidos automaticamente
+                </p>
+              )}
+            </div>
+
+            {/* Lista de itens */}
+            {preenchendo.cotacao.itensPedido.map((item, idx) => {
+              const pdfItem = pdfResultado?.precos[idx];
+              const isAutoFilled = pdfItem?.matched;
+
+              return (
+                <div key={item.id} className="flex items-end gap-3">
+                  <div className="flex-1">
+                    <p className="text-sm text-gray-600 mb-1">
+                      {item.descricao}
+                      {' '}<span className="text-xs text-gray-400">({item.quantidade} {item.unidade})</span>
+                      {isAutoFilled && <span className="text-xs text-blue-600 ml-1">(PDF)</span>}
+                      {pdfItem && pdfItem.confidence !== 'nenhuma' && (
+                        <span className={`ml-1 inline-block px-1.5 py-0.5 rounded text-[10px] font-medium ${
+                          pdfItem.confidence === 'alta' ? 'bg-green-100 text-green-800' :
+                          pdfItem.confidence === 'media' ? 'bg-yellow-100 text-yellow-800' :
+                          'bg-orange-100 text-orange-800'
+                        }`}>
+                          {pdfItem.confidence}
+                        </span>
+                      )}
+                    </p>
+                  </div>
+                  <div className="w-40">
+                    <Input
+                      label="Preço Unit. (R$)"
+                      id={`preco-${item.id}`}
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value={precos[idx]?.precoUnitario ?? 0}
+                      onChange={(e) => {
+                        const val = parseFloat(e.target.value) || 0;
+                        setPrecos((prev) => prev.map((p, i) => (i === idx ? { ...p, precoUnitario: val } : p)));
+                      }}
+                      className={isAutoFilled ? '!border-green-400 !ring-green-200' : ''}
+                    />
+                  </div>
+                  <div className="w-32 text-right text-sm font-medium text-gray-700 pb-1">
+                    {formatCurrency((precos[idx]?.precoUnitario ?? 0) * item.quantidade)}
+                  </div>
+                </div>
+              );
+            })}
             <div className="grid grid-cols-2 gap-4">
               <Input
                 label="Condição de Pagamento"
@@ -341,96 +565,6 @@ export default function CotacaoList({
         )}
       </Modal>
 
-      {/* Modal gerar OC a partir da cotação */}
-      <Modal
-        open={gerandoOC !== null}
-        onClose={() => setGerandoOC(null)}
-        title="Gerar Ordem de Compra"
-      >
-        {gerandoOC && (
-          <div className="space-y-4">
-            <p className="text-sm text-gray-600">Selecione o fornecedor e os materiais para gerar a OC.</p>
-
-            {/* Seleção de fornecedor */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Fornecedor</label>
-              <div className="space-y-2">
-                {gerandoOC.fornecedores.filter((cf) => cf.respondido).map((cf) => {
-                  const forn = fornecedoresMap.get(cf.fornecedorId);
-                  const menorPreco = getMenorPrecoTotal(gerandoOC);
-                  return (
-                    <label key={cf.id} className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${
-                      ocFornecedorId === cf.fornecedorId ? 'border-emt-verde bg-green-50' : 'border-gray-200 hover:border-gray-300'
-                    }`}>
-                      <input
-                        type="radio"
-                        name="oc-fornecedor"
-                        checked={ocFornecedorId === cf.fornecedorId}
-                        onChange={() => setOcFornecedorId(cf.fornecedorId)}
-                        className="accent-emt-verde"
-                      />
-                      <div className="flex-1">
-                        <p className="text-sm font-medium text-gray-800">{forn?.nome}</p>
-                        <p className="text-xs text-gray-500">Total: {formatCurrency(cf.total)}</p>
-                      </div>
-                      <div className="flex gap-1">
-                        {cf.vencedor && <span className="px-1.5 py-0.5 bg-yellow-100 text-yellow-800 rounded text-[10px] font-bold">★ Vencedor</span>}
-                        {cf.fornecedorId === menorPreco && <span className="px-1.5 py-0.5 bg-green-100 text-green-800 rounded text-[10px] font-bold">Menor Preço</span>}
-                      </div>
-                    </label>
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* Seleção de itens */}
-            {ocFornecedorId && (
-              <div>
-                <div className="flex items-center justify-between mb-2">
-                  <label className="text-sm font-medium text-gray-700">Materiais</label>
-                  <button
-                    type="button"
-                    className="text-xs text-emt-verde hover:text-emt-verde-escuro font-medium"
-                    onClick={() => setOcItemIds(
-                      ocItemIds.length === gerandoOC.itensPedido.length ? [] : gerandoOC.itensPedido.map((i) => i.id)
-                    )}
-                  >
-                    {ocItemIds.length === gerandoOC.itensPedido.length ? 'Desmarcar todos' : 'Selecionar todos'}
-                  </button>
-                </div>
-                <div className="space-y-1">
-                  {gerandoOC.itensPedido.map((item) => {
-                    const cf = gerandoOC.fornecedores.find((f) => f.fornecedorId === ocFornecedorId);
-                    const preco = cf?.itensPrecos.find((ip) => ip.itemPedidoId === item.id);
-                    return (
-                      <label key={item.id} className={`flex items-center gap-3 p-2 rounded-lg border cursor-pointer transition-colors ${
-                        ocItemIds.includes(item.id) ? 'border-emt-verde bg-green-50' : 'border-gray-200'
-                      }`}>
-                        <input
-                          type="checkbox"
-                          checked={ocItemIds.includes(item.id)}
-                          onChange={() => toggleOcItem(item.id)}
-                          className="accent-emt-verde"
-                        />
-                        <span className="flex-1 text-sm text-gray-700">{item.descricao}</span>
-                        <span className="text-sm text-gray-500">{item.quantidade} {item.unidade}</span>
-                        <span className="text-sm font-medium">{formatCurrency((preco?.precoUnitario ?? 0) * item.quantidade)}</span>
-                      </label>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-
-            <div className="flex justify-end gap-3 pt-2">
-              <Button variant="secondary" onClick={() => setGerandoOC(null)}>Cancelar</Button>
-              <Button onClick={confirmarGerarOC} disabled={!ocFornecedorId || ocItemIds.length === 0}>
-                Gerar OC
-              </Button>
-            </div>
-          </div>
-        )}
-      </Modal>
     </div>
   );
 }

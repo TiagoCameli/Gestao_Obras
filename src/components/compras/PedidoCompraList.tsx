@@ -42,6 +42,7 @@ interface PedidoCompraListProps {
   categorias: { value: string; label: string }[];
   onAprovar: (pedido: PedidoCompra) => void;
   onReprovar: (pedido: PedidoCompra) => void;
+  onDesaprovar: (pedido: PedidoCompra) => void;
   onEnviarCotacao: (pedido: PedidoCompra) => void;
   onGerarOC: (pedido: PedidoCompra) => void;
   canApprove: boolean;
@@ -55,6 +56,7 @@ export default function PedidoCompraList({
   categorias,
   onAprovar,
   onReprovar,
+  onDesaprovar,
   onEnviarCotacao,
   onGerarOC,
   canApprove,
@@ -105,39 +107,39 @@ export default function PedidoCompraList({
           <p className="text-gray-400 text-sm text-center py-8">Nenhum pedido encontrado.</p>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full text-sm">
+            <table className="w-full text-sm table-fixed">
               <thead className="bg-gray-50 border-b">
                 <tr>
-                  <th className="text-left px-4 py-2 font-medium text-gray-600">Nº Pedido</th>
-                  <th className="text-left px-4 py-2 font-medium text-gray-600">Data</th>
-                  <th className="text-left px-4 py-2 font-medium text-gray-600">Obra</th>
-                  <th className="text-left px-4 py-2 font-medium text-gray-600">Solicitante</th>
-                  <th className="text-center px-4 py-2 font-medium text-gray-600">Qtd Itens</th>
-                  <th className="text-center px-4 py-2 font-medium text-gray-600">Urgência</th>
-                  <th className="text-center px-4 py-2 font-medium text-gray-600">Status</th>
-                  <th className="text-right px-4 py-2 font-medium text-gray-600">Ações</th>
+                  <th className="text-left px-4 py-2.5 font-semibold text-gray-700 text-xs uppercase tracking-wider w-[90px]">Nº</th>
+                  <th className="text-left px-4 py-2.5 font-semibold text-gray-700 text-xs uppercase tracking-wider w-[100px]">Data</th>
+                  <th className="text-left px-4 py-2.5 font-semibold text-gray-700 text-xs uppercase tracking-wider">Obra</th>
+                  <th className="text-left px-4 py-2.5 font-semibold text-gray-700 text-xs uppercase tracking-wider">Solicitante</th>
+                  <th className="text-center px-4 py-2.5 font-semibold text-gray-700 text-xs uppercase tracking-wider w-[70px]">Itens</th>
+                  <th className="text-center px-4 py-2.5 font-semibold text-gray-700 text-xs uppercase tracking-wider w-[90px]">Urgência</th>
+                  <th className="text-center px-4 py-2.5 font-semibold text-gray-700 text-xs uppercase tracking-wider w-[100px]">Status</th>
+                  <th className="text-right px-4 py-2.5 font-semibold text-gray-700 text-xs uppercase tracking-wider w-[180px]">Ações</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
                 {filtrados.map((p) => (
                   <tr key={p.id} className="hover:bg-gray-50">
-                    <td className="px-4 py-2 font-medium text-gray-800">{p.numero}</td>
-                    <td className="px-4 py-2 text-gray-600">{formatDate(p.data)}</td>
-                    <td className="px-4 py-2 text-gray-600">{obrasMap.get(p.obraId) || '-'}</td>
-                    <td className="px-4 py-2 text-gray-600">{p.solicitante}</td>
-                    <td className="px-4 py-2 text-center text-gray-600">{p.itens.length}</td>
-                    <td className="px-4 py-2 text-center">
+                    <td className="px-4 py-2.5 font-medium text-gray-800">{p.numero}</td>
+                    <td className="px-4 py-2.5 text-gray-600">{formatDate(p.data)}</td>
+                    <td className="px-4 py-2.5 text-gray-600 truncate">{obrasMap.get(p.obraId) || '-'}</td>
+                    <td className="px-4 py-2.5 text-gray-600 truncate">{p.solicitante}</td>
+                    <td className="px-4 py-2.5 text-center text-gray-600">{p.itens.length}</td>
+                    <td className="px-4 py-2.5 text-center">
                       <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${URGENCIA_BADGE[p.urgencia]}`}>
                         {URGENCIA_LABEL[p.urgencia]}
                       </span>
                     </td>
-                    <td className="px-4 py-2 text-center">
+                    <td className="px-4 py-2.5 text-center">
                       <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${STATUS_BADGE[p.status]}`}>
                         {STATUS_LABEL[p.status]}
                       </span>
                     </td>
-                    <td className="px-4 py-2 text-right">
-                      <div className="flex justify-end gap-1 flex-wrap">
+                    <td className="px-4 py-2.5 text-right">
+                      <div className="flex justify-end gap-2 flex-wrap">
                         <button onClick={() => setDetalhePedido(p)} className="text-xs text-blue-600 hover:text-blue-800 font-medium">
                           Detalhes
                         </button>
@@ -160,6 +162,11 @@ export default function PedidoCompraList({
                               Gerar OC
                             </button>
                           </>
+                        )}
+                        {(p.status === 'aprovado' || p.status === 'reprovado') && canApprove && (
+                          <button onClick={() => onDesaprovar(p)} className="text-xs text-yellow-600 hover:text-yellow-800 font-medium">
+                            Voltar p/ Pendente
+                          </button>
                         )}
                       </div>
                     </td>

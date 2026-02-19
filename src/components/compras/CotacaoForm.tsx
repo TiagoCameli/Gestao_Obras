@@ -1,7 +1,159 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useRef, useEffect } from 'react';
 import type { Cotacao, PedidoCompra, Fornecedor, CotacaoFornecedor, ItemPedidoCompra } from '../../types';
 import Button from '../ui/Button';
 import Input from '../ui/Input';
+
+function FornecedorMultiSelect({
+  fornecedores,
+  selecionados,
+  onToggle,
+  onCreateFornecedor,
+}: {
+  fornecedores: Fornecedor[];
+  selecionados: string[];
+  onToggle: (id: string) => void;
+  onCreateFornecedor?: (nome: string) => Promise<string>;
+}) {
+  const [busca, setBusca] = useState('');
+  const [aberto, setAberto] = useState(false);
+  const [criando, setCriando] = useState(false);
+  const [novoNome, setNovoNome] = useState('');
+  const [salvando, setSalvando] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClickFora(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) {
+        setAberto(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickFora);
+    return () => document.removeEventListener('mousedown', handleClickFora);
+  }, []);
+
+  const filtrados = fornecedores.filter((f) =>
+    f.nome.toLowerCase().includes(busca.toLowerCase()) ||
+    (f.cnpj && f.cnpj.includes(busca))
+  );
+
+  const selecionadosInfo = fornecedores.filter((f) => selecionados.includes(f.id));
+
+  return (
+    <div ref={ref} className="relative">
+      {/* Chips dos selecionados */}
+      {selecionadosInfo.length > 0 && (
+        <div className="flex flex-wrap gap-1.5 mb-2">
+          {selecionadosInfo.map((f) => (
+            <span
+              key={f.id}
+              className="inline-flex items-center gap-1 px-2.5 py-1 bg-green-100 text-green-800 rounded-full text-xs font-medium"
+            >
+              {f.nome}
+              <button
+                type="button"
+                onClick={() => onToggle(f.id)}
+                className="text-green-600 hover:text-green-900 font-bold leading-none"
+              >
+                ×
+              </button>
+            </span>
+          ))}
+        </div>
+      )}
+
+      {/* Input de busca */}
+      <input
+        type="text"
+        className="w-full h-[38px] border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emt-verde bg-white"
+        placeholder={selecionados.length > 0 ? 'Buscar mais fornecedores...' : 'Buscar fornecedores...'}
+        value={busca}
+        onChange={(e) => { setBusca(e.target.value); setAberto(true); }}
+        onFocus={() => setAberto(true)}
+        autoComplete="off"
+      />
+
+      {/* Dropdown */}
+      {aberto && (
+        <ul className="absolute z-50 w-full mt-1 max-h-52 overflow-auto bg-white border border-gray-300 rounded-lg shadow-lg">
+          {filtrados.length === 0 ? (
+            <li className="px-3 py-2 text-sm text-gray-400">Nenhum fornecedor encontrado</li>
+          ) : (
+            filtrados.map((f) => {
+              const checked = selecionados.includes(f.id);
+              return (
+                <li
+                  key={f.id}
+                  className={`flex items-center gap-3 px-3 py-2 text-sm cursor-pointer hover:bg-green-50 ${checked ? 'bg-green-50' : ''}`}
+                  onMouseDown={() => onToggle(f.id)}
+                >
+                  <input
+                    type="checkbox"
+                    checked={checked}
+                    readOnly
+                    className="accent-emt-verde pointer-events-none"
+                  />
+                  <div>
+                    <span className="font-medium text-gray-800">{f.nome}</span>
+                    {f.cnpj && <span className="text-xs text-gray-400 ml-2">{f.cnpj}</span>}
+                  </div>
+                </li>
+              );
+            })
+          )}
+        </ul>
+      )}
+
+      {/* Criar novo fornecedor inline */}
+      {onCreateFornecedor && !criando && (
+        <button
+          type="button"
+          className="text-xs text-emt-verde hover:underline mt-1"
+          onClick={() => { setCriando(true); setNovoNome(busca); }}
+        >
+          + Novo fornecedor
+        </button>
+      )}
+      {criando && (
+        <div className="mt-2 flex gap-2 items-end">
+          <input
+            className="flex-1 h-[38px] border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emt-verde"
+            value={novoNome}
+            onChange={(e) => setNovoNome(e.target.value)}
+            placeholder="Nome do fornecedor"
+            autoFocus
+          />
+          <button
+            type="button"
+            disabled={!novoNome.trim() || salvando}
+            className="px-3 py-2 bg-emt-verde text-white rounded-lg text-sm font-medium disabled:opacity-50 h-[38px]"
+            onClick={async () => {
+              if (!onCreateFornecedor || !novoNome.trim()) return;
+              setSalvando(true);
+              try {
+                const id = await onCreateFornecedor(novoNome.trim());
+                onToggle(id);
+                setCriando(false);
+                setNovoNome('');
+                setBusca('');
+              } finally {
+                setSalvando(false);
+              }
+            }}
+          >
+            {salvando ? '...' : 'Salvar'}
+          </button>
+          <button
+            type="button"
+            className="px-3 py-2 bg-gray-200 text-gray-700 rounded-lg text-sm font-medium h-[38px]"
+            onClick={() => { setCriando(false); setNovoNome(''); }}
+          >
+            Cancelar
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
 
 function genId() {
   return Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
@@ -15,6 +167,7 @@ interface CotacaoFormProps {
   onCancel: () => void;
   proximoNumero: string;
   pedidoPreSelecionado?: PedidoCompra | null;
+  onCreateFornecedor?: (nome: string) => Promise<string>;
 }
 
 export default function CotacaoForm({
@@ -25,8 +178,10 @@ export default function CotacaoForm({
   onCancel,
   proximoNumero,
   pedidoPreSelecionado,
+  onCreateFornecedor,
 }: CotacaoFormProps) {
   const [pedidoId, setPedidoId] = useState(initial?.pedidoCompraId ?? pedidoPreSelecionado?.id ?? '');
+  const [descricao, setDescricao] = useState(initial?.descricao ?? '');
   const [prazoResposta, setPrazoResposta] = useState(initial?.prazoResposta ?? '');
   const [observacoes, setObservacoes] = useState(initial?.observacoes ?? '');
   const [fornecedoresSelecionados, setFornecedoresSelecionados] = useState<string[]>(
@@ -40,7 +195,9 @@ export default function CotacaoForm({
 
   const fornecedoresAtivos = fornecedores.filter((f) => f.ativo !== false);
   const pedidoSelecionado = pedidosAprovados.find((p) => p.id === pedidoId);
-  const itensDoPedido: ItemPedidoCompra[] = pedidoSelecionado ? pedidoSelecionado.itens : itensManual;
+  const isEditing = !!initial;
+  // When editing, always use itensManual (editable); for new cotação with pedido, use pedido items read-only
+  const itensDoPedido: ItemPedidoCompra[] = (pedidoSelecionado && !isEditing) ? pedidoSelecionado.itens : itensManual;
 
   // Existing prices from initial
   const precosExistentes = useMemo(() => {
@@ -94,6 +251,7 @@ export default function CotacaoForm({
       const cotacao: Cotacao = {
         id: initial?.id ?? genId(),
         numero: initial?.numero ?? proximoNumero,
+        descricao,
         data: initial?.data ?? new Date().toISOString().slice(0, 10),
         pedidoCompraId: pedidoId,
         prazoResposta,
@@ -111,6 +269,15 @@ export default function CotacaoForm({
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
+      <Input
+        label="Descrição"
+        id="cot-descricao"
+        value={descricao}
+        onChange={(e) => setDescricao(e.target.value)}
+        placeholder="Ex: Materiais para fundação Bloco A"
+        required
+      />
+
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">Pedido de Referência</label>
@@ -134,8 +301,8 @@ export default function CotacaoForm({
         />
       </div>
 
-      {/* Itens manuais se sem pedido */}
-      {!pedidoSelecionado && (
+      {/* Editable items: when editing OR no pedido linked */}
+      {(isEditing || !pedidoSelecionado) && (
         <div>
           <div className="flex items-center justify-between mb-2">
             <label className="text-sm font-medium text-gray-700">Itens da Cotação</label>
@@ -151,7 +318,7 @@ export default function CotacaoForm({
               <div className="w-20">
                 <Input label="Qtd" id={`cot-qtd-${item.id}`} type="number" min="0.01" step="0.01" value={item.quantidade} onChange={(e) => updateItemManual(item.id, 'quantidade', parseFloat(e.target.value) || 0)} required />
               </div>
-              <div className="w-16">
+              <div className="w-24">
                 <Input label="Unid." id={`cot-un-${item.id}`} value={item.unidade} onChange={(e) => updateItemManual(item.id, 'unidade', e.target.value)} required />
               </div>
               {itensManual.length > 1 && (
@@ -162,8 +329,8 @@ export default function CotacaoForm({
         </div>
       )}
 
-      {/* Preview itens do pedido */}
-      {pedidoSelecionado && (
+      {/* Read-only preview: only for new cotação linked to a pedido */}
+      {pedidoSelecionado && !isEditing && (
         <div className="bg-gray-50 rounded-lg p-3">
           <p className="text-xs font-medium text-gray-500 mb-2">Itens do pedido ({pedidoSelecionado.itens.length})</p>
           <ul className="text-sm text-gray-700 space-y-1">
@@ -176,25 +343,18 @@ export default function CotacaoForm({
 
       {/* Seleção de fornecedores */}
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">Fornecedores<span className="text-red-500 ml-0.5">*</span></label>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-          {fornecedoresAtivos.map((f) => (
-            <label key={f.id} className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${
-              fornecedoresSelecionados.includes(f.id) ? 'border-emt-verde bg-green-50' : 'border-gray-200 hover:border-gray-300'
-            }`}>
-              <input
-                type="checkbox"
-                checked={fornecedoresSelecionados.includes(f.id)}
-                onChange={() => toggleFornecedor(f.id)}
-                className="accent-emt-verde"
-              />
-              <div>
-                <p className="text-sm font-medium text-gray-800">{f.nome}</p>
-                {f.cnpj && <p className="text-xs text-gray-500">{f.cnpj}</p>}
-              </div>
-            </label>
-          ))}
-        </div>
+        <label className="block text-sm font-medium text-gray-700 mb-2">
+          Fornecedores<span className="text-red-500 ml-0.5">*</span>
+          {fornecedoresSelecionados.length > 0 && (
+            <span className="text-xs text-gray-400 font-normal ml-2">({fornecedoresSelecionados.length} selecionado{fornecedoresSelecionados.length !== 1 ? 's' : ''})</span>
+          )}
+        </label>
+        <FornecedorMultiSelect
+          fornecedores={fornecedoresAtivos}
+          selecionados={fornecedoresSelecionados}
+          onToggle={toggleFornecedor}
+          onCreateFornecedor={onCreateFornecedor}
+        />
       </div>
 
       <div>
