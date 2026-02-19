@@ -1,5 +1,5 @@
 import { useState, Fragment } from 'react';
-import type { Cotacao, Fornecedor, ItemPedidoCompra, CotacaoFornecedor, PedidoCompra } from '../../types';
+import type { Cotacao, Fornecedor, PedidoCompra } from '../../types';
 import { formatCurrency, formatDate } from '../../utils/formatters';
 import Card from '../ui/Card';
 import Button from '../ui/Button';

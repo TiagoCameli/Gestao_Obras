@@ -5,7 +5,6 @@ import type {
   Cotacao,
   OrdemCompra,
   ItemOrdemCompra,
-  CotacaoFornecedor,
 } from '../types';
 import { usePedidosCompra, useAdicionarPedidoCompra, useAtualizarPedidoCompra } from '../hooks/usePedidosCompra';
 import { useCotacoes, useAdicionarCotacao, useAtualizarCotacao } from '../hooks/useCotacoes';
@@ -24,10 +23,6 @@ import OrdemCompraForm from '../components/compras/OrdemCompraForm';
 import OrdemCompraList from '../components/compras/OrdemCompraList';
 
 type Tab = 'pedidos' | 'cotacoes' | 'ordens';
-
-function genId() {
-  return Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
-}
 
 function proximoNumero(prefix: string, existentes: string[]): string {
   const nums = existentes

@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import type { Cotacao, PedidoCompra, Fornecedor, CotacaoFornecedor, ItemPedidoCompra, ItemPrecoCotacao } from '../../types';
+import type { Cotacao, PedidoCompra, Fornecedor, CotacaoFornecedor, ItemPedidoCompra } from '../../types';
 import Button from '../ui/Button';
 import Input from '../ui/Input';
 
