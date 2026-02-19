@@ -232,80 +232,91 @@ export default function PedidoMaterialForm({
         </div>
 
         <div className="space-y-2">
-          {itens.map((item, index) => (
-            <div
-              key={index}
-              className="grid grid-cols-[1fr_1fr_1fr_1fr_32px] gap-2 items-end"
-            >
-              <div>
-                {index === 0 && (
-                  <label className="block text-xs font-medium text-gray-500 mb-1">Material</label>
-                )}
-                <select
-                  className="w-full h-[38px] border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emt-verde bg-white"
-                  value={item.insumoId}
-                  onChange={(e) => updateItem(index, 'insumoId', e.target.value)}
-                  required
-                >
-                  <option value="">Selecione...</option>
-                  {insumosAtivos.map((ins) => (
-                    <option key={ins.id} value={ins.id}>
-                      {ins.nome}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                {index === 0 && (
-                  <label className="block text-xs font-medium text-gray-500 mb-1">Qtd</label>
-                )}
-                <input
-                  type="number"
-                  step="0.0001"
-                  min="0"
-                  className="w-full h-[38px] border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emt-verde"
-                  value={item.quantidade || ''}
-                  onChange={(e) => updateItem(index, 'quantidade', parseFloat(e.target.value) || 0)}
-                  required
-                />
-              </div>
-              <div>
-                {index === 0 && (
-                  <label className="block text-xs font-medium text-gray-500 mb-1">Vlr Unit (R$)</label>
-                )}
-                <input
-                  type="number"
-                  step="0.0001"
-                  min="0"
-                  className="w-full h-[38px] border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emt-verde"
-                  value={item.valorUnitario || ''}
-                  onChange={(e) => updateItem(index, 'valorUnitario', parseFloat(e.target.value) || 0)}
-                  required
-                />
-              </div>
-              <div>
-                {index === 0 && (
-                  <label className="block text-xs font-medium text-gray-500 mb-1">Subtotal</label>
-                )}
-                <div className="w-full h-[38px] flex items-center justify-end border border-gray-200 bg-gray-50 rounded-lg px-3 text-sm font-medium text-emt-verde">
-                  {subtotal(item).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+          {itens.map((item, index) => {
+            const insumoSelecionado = insumosAtivos.find((ins) => ins.id === item.insumoId);
+            return (
+              <div
+                key={index}
+                className="grid grid-cols-[2fr_80px_1fr_1fr_1fr_32px] gap-2 items-end"
+              >
+                <div>
+                  {index === 0 && (
+                    <label className="block text-xs font-medium text-gray-500 mb-1">Material</label>
+                  )}
+                  <select
+                    className="w-full h-[38px] border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emt-verde bg-white"
+                    value={item.insumoId}
+                    onChange={(e) => updateItem(index, 'insumoId', e.target.value)}
+                    required
+                  >
+                    <option value="">Selecione...</option>
+                    {insumosAtivos.map((ins) => (
+                      <option key={ins.id} value={ins.id}>
+                        {ins.nome}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  {index === 0 && (
+                    <label className="block text-xs font-medium text-gray-500 mb-1">Unidade</label>
+                  )}
+                  <div className="w-full h-[38px] flex items-center justify-center border border-gray-200 bg-gray-50 rounded-lg px-2 text-sm text-gray-600">
+                    {insumoSelecionado?.unidade || '—'}
+                  </div>
+                </div>
+                <div>
+                  {index === 0 && (
+                    <label className="block text-xs font-medium text-gray-500 mb-1">Qtd</label>
+                  )}
+                  <input
+                    type="number"
+                    step="0.0001"
+                    min="0"
+                    className="w-full h-[38px] border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emt-verde"
+                    value={item.quantidade || ''}
+                    onChange={(e) => updateItem(index, 'quantidade', parseFloat(e.target.value) || 0)}
+                    required
+                  />
+                </div>
+                <div>
+                  {index === 0 && (
+                    <label className="block text-xs font-medium text-gray-500 mb-1">Vlr Unit (R$)</label>
+                  )}
+                  <input
+                    type="number"
+                    step="0.0001"
+                    min="0"
+                    className="w-full h-[38px] border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emt-verde"
+                    value={item.valorUnitario || ''}
+                    onChange={(e) => updateItem(index, 'valorUnitario', parseFloat(e.target.value) || 0)}
+                    required
+                  />
+                </div>
+                <div>
+                  {index === 0 && (
+                    <label className="block text-xs font-medium text-gray-500 mb-1">Subtotal</label>
+                  )}
+                  <div className="w-full h-[38px] flex items-center justify-end border border-gray-200 bg-gray-50 rounded-lg px-3 text-sm font-medium text-emt-verde">
+                    {subtotal(item).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                  </div>
+                </div>
+                <div>
+                  {index === 0 && <div className="h-4 mb-1" />}
+                  {itens.length > 1 && (
+                    <button
+                      type="button"
+                      className="w-8 h-[38px] flex items-center justify-center text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                      onClick={() => removeItem(index)}
+                      title="Remover item"
+                    >
+                      X
+                    </button>
+                  )}
                 </div>
               </div>
-              <div>
-                {index === 0 && <div className="h-4 mb-1" />}
-                {itens.length > 1 && (
-                  <button
-                    type="button"
-                    className="w-8 h-[38px] flex items-center justify-center text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                    onClick={() => removeItem(index)}
-                    title="Remover item"
-                  >
-                    X
-                  </button>
-                )}
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </div>
 

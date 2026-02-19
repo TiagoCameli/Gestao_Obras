@@ -345,15 +345,23 @@ export default function PedidoCompraForm({ initial, obras, insumos, unidades, ca
                     onChange={(e) => updateItem(item.id, 'quantidade', parseFloat(e.target.value) || 0)}
                     required
                   />
-                  <Select
-                    label="Unid."
-                    id={`item-un-${item.id}`}
-                    options={UNIDADES}
-                    value={item.unidade}
-                    onChange={(e) => updateItem(item.id, 'unidade', e.target.value)}
-                    required
-                    disabled={!!insumoSelecionadoParaItem(item)}
-                  />
+                  {insumoSelecionadoParaItem(item) ? (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Unid.</label>
+                      <div className="w-full h-[38px] flex items-center justify-center border border-gray-200 bg-gray-50 rounded-lg px-2 text-sm text-gray-600">
+                        {item.unidade}
+                      </div>
+                    </div>
+                  ) : (
+                    <Select
+                      label="Unid."
+                      id={`item-un-${item.id}`}
+                      options={UNIDADES}
+                      value={item.unidade}
+                      onChange={(e) => updateItem(item.id, 'unidade', e.target.value)}
+                      required
+                    />
+                  )}
                 </div>
               </div>
             </div>

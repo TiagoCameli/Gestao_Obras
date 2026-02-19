@@ -852,6 +852,7 @@ export default function Frete() {
         open={pedidoModalOpen}
         onClose={() => { setPedidoModalOpen(false); setPedidoEditando(null); }}
         title={pedidoEditando ? 'Editar Pedido de Material' : 'Novo Pedido de Material'}
+        size="xl"
       >
         <PedidoMaterialForm
           initial={pedidoEditando}

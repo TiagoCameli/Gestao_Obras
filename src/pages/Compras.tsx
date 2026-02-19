@@ -255,21 +255,15 @@ export default function Compras() {
         <h1 className="text-3xl font-bold text-gray-800">Compras</h1>
         {canCreate && (
           <div className="flex gap-2">
-            {tab === 'pedidos' && (
-              <Button onClick={() => { setEditandoPedido(null); setPedidoModalOpen(true); }}>
-                Novo Pedido
-              </Button>
-            )}
-            {tab === 'cotacoes' && (
-              <Button onClick={() => { setPedidoParaCotacao(null); setCotacaoModalOpen(true); }}>
-                Nova Cotação
-              </Button>
-            )}
-            {tab === 'ordens' && (
-              <Button onClick={() => { setEditandoOC(null); setOcModalOpen(true); }}>
-                Nova OC
-              </Button>
-            )}
+            <Button onClick={() => { setEditandoPedido(null); setPedidoModalOpen(true); }}>
+              Novo Pedido
+            </Button>
+            <Button onClick={() => { setPedidoParaCotacao(null); setCotacaoModalOpen(true); }}>
+              Nova Cotação
+            </Button>
+            <Button onClick={() => { setEditandoOC(null); setOcModalOpen(true); }}>
+              Nova OC
+            </Button>
           </div>
         )}
       </div>
@@ -351,6 +345,7 @@ export default function Compras() {
         open={pedidoModalOpen}
         onClose={() => { setPedidoModalOpen(false); setEditandoPedido(null); }}
         title={editandoPedido ? 'Editar Pedido' : 'Novo Pedido de Material'}
+        size="xl"
       >
         <PedidoCompraForm
           initial={editandoPedido}

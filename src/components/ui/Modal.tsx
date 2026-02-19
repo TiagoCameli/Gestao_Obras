@@ -5,9 +5,16 @@ interface ModalProps {
   onClose: () => void;
   title: string;
   children: ReactNode;
+  size?: 'default' | 'lg' | 'xl';
 }
 
-export default function Modal({ open, onClose, title, children }: ModalProps) {
+const sizeClasses = {
+  default: 'max-w-2xl',
+  lg: 'max-w-4xl',
+  xl: 'max-w-6xl',
+};
+
+export default function Modal({ open, onClose, title, children, size = 'default' }: ModalProps) {
   useEffect(() => {
     if (open) {
       document.body.style.overflow = 'hidden';
@@ -24,7 +31,7 @@ export default function Modal({ open, onClose, title, children }: ModalProps) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
       <div className="fixed inset-0 bg-black/50" onClick={onClose} />
-      <div className="relative bg-white rounded-xl shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto mx-4">
+      <div className={`relative bg-white rounded-xl shadow-xl w-full ${sizeClasses[size]} max-h-[90vh] overflow-y-auto mx-4`}>
         <div className="flex items-center justify-between p-6 border-b">
           <h2 className="text-lg font-semibold text-gray-800">{title}</h2>
           <button
