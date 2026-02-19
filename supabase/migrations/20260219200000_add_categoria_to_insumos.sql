@@ -1,0 +1,1 @@
+ALTER TABLE insumos ADD COLUMN IF NOT EXISTS categoria text DEFAULT NULL;

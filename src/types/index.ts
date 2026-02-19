@@ -86,6 +86,7 @@ export interface Insumo {
   descricao: string;
   ativo: boolean;
   criadoPor: string;
+  categoria?: CategoriaMaterialCompra;
 }
 
 export interface TransferenciaCombustivel {
@@ -345,7 +346,15 @@ export interface AuditLogEntry {
 
 export type UrgenciaPedidoCompra = 'baixa' | 'normal' | 'alta' | 'critica';
 export type StatusPedidoCompra = 'pendente' | 'aprovado' | 'reprovado';
-export type CategoriaMaterialCompra = 'concreto_argamassa' | 'aco_ferragens' | 'madeiras' | 'eletrica' | 'hidraulica' | 'pintura' | 'acabamento' | 'epi' | 'ferramentas' | 'outros';
+export type CategoriaMaterialCompra = string;
+
+export interface CategoriaMaterial {
+  id: string;
+  nome: string;
+  valor: string;
+  ativo: boolean;
+  criadoPor: string;
+}
 export type UnidadeCompra = 'un' | 'kg' | 'm' | 'm2' | 'm3' | 'lt' | 'sc' | 'pc' | 'cx' | 'rl' | 'tb';
 
 export interface ItemPedidoCompra {

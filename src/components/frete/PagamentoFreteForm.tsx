@@ -1,9 +1,81 @@
-import { useCallback, useState, useEffect, type FormEvent } from 'react';
-import type { PagamentoFrete, MetodoPagamentoFrete, Funcionario } from '../../types';
+import { useCallback, useMemo, useState, useEffect, useRef, type FormEvent } from 'react';
+import type { PagamentoFrete, MetodoPagamentoFrete, Funcionario, Fornecedor } from '../../types';
 import Input from '../ui/Input';
 import Select from '../ui/Select';
 import Button from '../ui/Button';
 import ImportExcelModal, { parseStr, parseNumero, parseData, type ParsedRow } from '../ui/ImportExcelModal';
+
+function PagoPorCombobox({ id, opcoes, value, onChange }: {
+  id: string;
+  opcoes: { nome: string; tipo: string }[];
+  value: string;
+  onChange: (nome: string) => void;
+}) {
+  const [busca, setBusca] = useState('');
+  const [aberto, setAberto] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClickFora(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) {
+        setAberto(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickFora);
+    return () => document.removeEventListener('mousedown', handleClickFora);
+  }, []);
+
+  const filtrados = opcoes.filter((o) =>
+    o.nome.toLowerCase().includes(busca.toLowerCase())
+  );
+
+  return (
+    <div ref={ref} className="relative">
+      <input
+        id={id}
+        type="text"
+        className="w-full h-[38px] border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emt-verde bg-white"
+        placeholder="Buscar por nome..."
+        value={aberto ? busca : value}
+        onChange={(e) => { setBusca(e.target.value); setAberto(true); }}
+        onFocus={() => { setAberto(true); setBusca(''); }}
+        autoComplete="off"
+        required={!value}
+      />
+      {aberto && (
+        <ul className="absolute z-50 w-full mt-1 max-h-48 overflow-auto bg-white border border-gray-300 rounded-lg shadow-lg">
+          {filtrados.length === 0 ? (
+            <li className="px-3 py-2 text-sm text-gray-400">Nenhum resultado</li>
+          ) : (
+            filtrados.map((o, i) => (
+              <li
+                key={`${o.nome}-${i}`}
+                className={`px-3 py-2 text-sm cursor-pointer hover:bg-green-50 ${o.nome === value ? 'bg-green-100 font-medium' : ''}`}
+                onMouseDown={() => { onChange(o.nome); setAberto(false); setBusca(''); }}
+              >
+                {o.nome} <span className="text-gray-400 text-xs">({o.tipo})</span>
+              </li>
+            ))
+          )}
+        </ul>
+      )}
+    </div>
+  );
+}
+
+function gerarMeses(): { value: string; label: string }[] {
+  const hoje = new Date();
+  const meses: { value: string; label: string }[] = [];
+  const nomesMes = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
+
+  for (let offset = -24; offset <= 6; offset++) {
+    const d = new Date(hoje.getFullYear(), hoje.getMonth() + offset, 1);
+    const valor = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+    const label = `${nomesMes[d.getMonth()]} ${d.getFullYear()}`;
+    meses.push({ value: valor, label });
+  }
+  return meses;
+}
 
 interface PagamentoFreteFormProps {
   initial?: PagamentoFrete | null;
@@ -11,6 +83,8 @@ interface PagamentoFreteFormProps {
   onCancel: () => void;
   transportadoras: string[];
   funcionarios: Funcionario[];
+  fornecedores: Fornecedor[];
+  nomeUsuario?: string;
   onImportBatch?: (items: PagamentoFrete[]) => void;
 }
 
@@ -40,6 +114,8 @@ export default function PagamentoFreteForm({
   onCancel,
   transportadoras,
   funcionarios,
+  fornecedores,
+  nomeUsuario,
   onImportBatch,
 }: PagamentoFreteFormProps) {
   const [data, setData] = useState(initial?.data || '');
@@ -50,7 +126,7 @@ export default function PagamentoFreteForm({
   const [quantidadeCombustivel, setQuantidadeCombustivel] = useState(
     initial?.quantidadeCombustivel?.toString() || ''
   );
-  const [responsavel, setResponsavel] = useState(initial?.responsavel || '');
+  const [responsavel, setResponsavel] = useState(initial?.responsavel || nomeUsuario || '');
   const [notaFiscal, setNotaFiscal] = useState(initial?.notaFiscal || '');
   const [pagoPor, setPagoPor] = useState(initial?.pagoPor || '');
   const [observacoes, setObservacoes] = useState(initial?.observacoes || '');
@@ -155,7 +231,20 @@ export default function PagamentoFreteForm({
 
   const funcionariosAtivos = funcionarios.filter((f) => f.status === 'ativo');
 
-  const isValid = data && transportadora && mesReferencia && valor && responsavel;
+  const mesesOptions = useMemo(() => gerarMeses(), []);
+
+  const pagoPorOpcoes = useMemo(() => {
+    const lista: { nome: string; tipo: string }[] = [];
+    for (const f of fornecedores.filter((f) => f.ativo)) {
+      lista.push({ nome: f.nome, tipo: 'Fornecedor' });
+    }
+    for (const f of funcionariosAtivos) {
+      lista.push({ nome: f.nome, tipo: 'Funcionário' });
+    }
+    return lista;
+  }, [fornecedores, funcionariosAtivos]);
+
+  const isValid = data && transportadora && mesReferencia && valor && responsavel && pagoPor;
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
@@ -184,12 +273,13 @@ export default function PagamentoFreteForm({
           placeholder="Selecione a transportadora"
           required
         />
-        <Input
+        <Select
           label="Mês Referência"
           id="pagFreteMesRef"
-          type="month"
           value={mesReferencia}
           onChange={(e) => setMesReferencia(e.target.value)}
+          options={mesesOptions}
+          placeholder="Selecione o mês"
           required
         />
         <Input
@@ -222,14 +312,13 @@ export default function PagamentoFreteForm({
             required
           />
         )}
-        <Select
-          label="Responsavel"
+        <Input
+          label="Responsável"
           id="pagFreteResponsavel"
           value={responsavel}
           onChange={(e) => setResponsavel(e.target.value)}
-          options={funcionariosAtivos.map((f) => ({ value: f.nome, label: f.nome }))}
-          placeholder="Selecione o responsavel"
           required
+          readOnly
         />
         <Input
           label="Nota Fiscal (opcional)"
@@ -239,14 +328,15 @@ export default function PagamentoFreteForm({
           onChange={(e) => setNotaFiscal(e.target.value)}
           placeholder="Ex: NF-e 12345"
         />
-        <Input
-          label="Pago Por (opcional)"
-          id="pagFretePagoPor"
-          type="text"
-          value={pagoPor}
-          onChange={(e) => setPagoPor(e.target.value)}
-          placeholder="Nome de quem efetuou o pagamento"
-        />
+        <div>
+          <label htmlFor="pagFretePagoPor" className="block text-sm font-medium text-gray-700 mb-1">Pago Por</label>
+          <PagoPorCombobox
+            id="pagFretePagoPor"
+            opcoes={pagoPorOpcoes}
+            value={pagoPor}
+            onChange={setPagoPor}
+          />
+        </div>
       </div>
       <div>
         <label htmlFor="pagFreteObs" className="block text-sm font-medium text-gray-700 mb-1">

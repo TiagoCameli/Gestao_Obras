@@ -31,19 +31,6 @@ const STATUS_LABEL: Record<string, string> = {
   reprovado: 'Reprovado',
 };
 
-const CATEGORIA_LABEL: Record<string, string> = {
-  concreto_argamassa: 'Concreto e Argamassa',
-  aco_ferragens: 'Aço e Ferragens',
-  madeiras: 'Madeiras',
-  eletrica: 'Elétrica',
-  hidraulica: 'Hidráulica',
-  pintura: 'Pintura',
-  acabamento: 'Acabamento',
-  epi: 'EPI',
-  ferramentas: 'Ferramentas',
-  outros: 'Outros',
-};
-
 const UNIDADE_LABEL: Record<string, string> = {
   un: 'un', kg: 'kg', m: 'm', m2: 'm²', m3: 'm³', lt: 'lt', sc: 'sc', pc: 'pç', cx: 'cx', rl: 'rl', tb: 'tb',
 };
@@ -52,6 +39,7 @@ interface PedidoCompraListProps {
   pedidos: PedidoCompra[];
   obras: Obra[];
   busca: string;
+  categorias: { value: string; label: string }[];
   onAprovar: (pedido: PedidoCompra) => void;
   onReprovar: (pedido: PedidoCompra) => void;
   onEnviarCotacao: (pedido: PedidoCompra) => void;
@@ -64,6 +52,7 @@ export default function PedidoCompraList({
   pedidos,
   obras,
   busca,
+  categorias,
   onAprovar,
   onReprovar,
   onEnviarCotacao,
@@ -73,6 +62,7 @@ export default function PedidoCompraList({
 }: PedidoCompraListProps) {
   const [detalhePedido, setDetalhePedido] = useState<PedidoCompra | null>(null);
   const obrasMap = new Map(obras.map((o) => [o.id, o.nome]));
+  const categoriaLabelMap = new Map(categorias.map((c) => [c.value, c.label]));
 
   const buscaLower = busca.toLowerCase();
   const filtrados = pedidos
@@ -232,7 +222,7 @@ export default function PedidoCompraList({
                   {detalhePedido.itens.map((item) => (
                     <tr key={item.id}>
                       <td className="px-3 py-1.5">{item.descricao}</td>
-                      <td className="px-3 py-1.5 text-gray-500">{CATEGORIA_LABEL[item.categoria] || item.categoria}</td>
+                      <td className="px-3 py-1.5 text-gray-500">{categoriaLabelMap.get(item.categoria) || item.categoria}</td>
                       <td className="px-3 py-1.5 text-right">{item.quantidade}</td>
                       <td className="px-3 py-1.5">{UNIDADE_LABEL[item.unidade] || item.unidade}</td>
                     </tr>
@@ -250,4 +240,4 @@ export default function PedidoCompraList({
   );
 }
 
-export { URGENCIA_BADGE, URGENCIA_LABEL, STATUS_BADGE, STATUS_LABEL, CATEGORIA_LABEL, UNIDADE_LABEL };
+export { URGENCIA_BADGE, URGENCIA_LABEL, STATUS_BADGE, STATUS_LABEL, UNIDADE_LABEL };

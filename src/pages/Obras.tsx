@@ -1,11 +1,12 @@
 import { useCallback, useMemo, useState, type FormEvent } from 'react';
-import type { Deposito, DepositoMaterial, Equipamento, Fornecedor, Insumo, Obra, TipoInsumo, TipoMedicao, UnidadeMedida } from '../types';
+import type { CategoriaMaterial, CategoriaMaterialCompra, Deposito, DepositoMaterial, Equipamento, Fornecedor, Insumo, Obra, TipoInsumo, TipoMedicao, UnidadeMedida } from '../types';
 import { useObras } from '../hooks/useObras';
 import { useDepositos, useAdicionarDeposito, useAtualizarDeposito, useExcluirDeposito } from '../hooks/useDepositos';
 import { useEquipamentos, useAdicionarEquipamento, useAtualizarEquipamento, useExcluirEquipamento } from '../hooks/useEquipamentos';
 import { useInsumos, useAdicionarInsumo, useAtualizarInsumo, useExcluirInsumo } from '../hooks/useInsumos';
 import { useFornecedores, useAdicionarFornecedor, useAtualizarFornecedor, useExcluirFornecedor } from '../hooks/useFornecedores';
 import { useUnidades, useAdicionarUnidade, useAtualizarUnidade, useExcluirUnidade } from '../hooks/useUnidades';
+import { useCategoriasMaterial, useAdicionarCategoriaMaterial, useAtualizarCategoriaMaterial, useExcluirCategoriaMaterial } from '../hooks/useCategoriasMaterial';
 import { useDepositosMaterial, useAdicionarDepositoMaterial, useAtualizarDepositoMaterial, useExcluirDepositoMaterial } from '../hooks/useDepositosMaterial';
 import Input from '../components/ui/Input';
 import Select from '../components/ui/Select';
@@ -565,15 +566,169 @@ function UnidadeMedidaForm({
   );
 }
 
+function gerarSlug(texto: string) {
+  return texto
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .trim()
+    .replace(/\s+/g, '_')
+    .replace(/[^a-z0-9_]/g, '');
+}
+
+function CategoriaMaterialForm({
+  initial,
+  onSubmit,
+  onCancel,
+  onImportBatch,
+}: {
+  initial: CategoriaMaterial | null;
+  onSubmit: (categoria: CategoriaMaterial) => void;
+  onCancel: () => void;
+  onImportBatch?: (items: CategoriaMaterial[]) => void;
+}) {
+  const [nome, setNome] = useState(initial?.nome || '');
+  const [ativo, setAtivo] = useState(initial?.ativo !== false);
+
+  const [importModalOpen, setImportModalOpen] = useState(false);
+  const [toastMsg, setToastMsg] = useState('');
+
+  function handleSubmit(e: FormEvent) {
+    e.preventDefault();
+    onSubmit({
+      id: initial?.id || gerarId(),
+      nome,
+      valor: initial?.valor || gerarSlug(nome),
+      ativo,
+      criadoPor: initial?.criadoPor || '',
+    });
+  }
+
+  const isValid = !!nome;
+
+  const parseCategoriaRow = useCallback((row: unknown[], _index: number): ParsedRow => {
+    const erros: string[] = [];
+    const nomeVal = parseStr(row[0]);
+
+    if (!nomeVal) erros.push('Nome obrigatorio');
+
+    return {
+      valido: erros.length === 0,
+      erros,
+      resumo: `${nomeVal} → ${gerarSlug(nomeVal)}`,
+      dados: { nome: nomeVal },
+    };
+  }, []);
+
+  const categoriaToEntity = useCallback((row: ParsedRow): Record<string, unknown> => ({
+    id: gerarId(),
+    nome: row.dados.nome,
+    valor: gerarSlug(row.dados.nome as string),
+    ativo: true,
+    criadoPor: '',
+  }), []);
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-4">
+      {!initial && onImportBatch && (
+        <div className="flex justify-end">
+          <Button type="button" variant="secondary" className="text-xs px-3 py-1.5" onClick={() => setImportModalOpen(true)}>
+            Importar do Excel
+          </Button>
+        </div>
+      )}
+      <Input
+        label="Nome"
+        id="categoriaNome"
+        value={nome}
+        onChange={(e) => setNome(e.target.value)}
+        placeholder="Ex: Concreto e Argamassa"
+        required
+      />
+      {initial && (
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">Status</label>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                ativo
+                  ? 'bg-green-600 text-white'
+                  : 'bg-gray-200 text-gray-600 hover:bg-gray-300'
+              }`}
+              onClick={() => setAtivo(true)}
+            >
+              Ativo
+            </button>
+            <button
+              type="button"
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                !ativo
+                  ? 'bg-red-600 text-white'
+                  : 'bg-gray-200 text-gray-600 hover:bg-gray-300'
+              }`}
+              onClick={() => setAtivo(false)}
+            >
+              Inativo
+            </button>
+          </div>
+        </div>
+      )}
+      <div className="flex justify-end gap-3 pt-2">
+        <Button variant="secondary" type="button" onClick={onCancel}>
+          Cancelar
+        </Button>
+        <Button type="submit" disabled={!isValid}>
+          {initial ? 'Salvar Alteracoes' : 'Cadastrar'}
+        </Button>
+      </div>
+
+      {onImportBatch && (
+        <ImportExcelModal
+          open={importModalOpen}
+          onClose={() => setImportModalOpen(false)}
+          onImport={(items) => {
+            onImportBatch(items as unknown as CategoriaMaterial[]);
+            setImportModalOpen(false);
+            setToastMsg(`${items.length} categoria${items.length !== 1 ? 's' : ''} importada${items.length !== 1 ? 's' : ''} com sucesso`);
+            setTimeout(() => setToastMsg(''), 4000);
+          }}
+          title="Importar Categorias de Material do Excel"
+          entityLabel="Categoria"
+          genderFem={true}
+          templateData={[
+            ['Nome'],
+            ['Concreto e Argamassa'],
+          ]}
+          templateFileName="template_categorias_material.xlsx"
+          sheetName="Categorias"
+          templateColWidths={[30]}
+          formatHintHeaders={['Nome']}
+          formatHintExample={['Concreto e Argamassa']}
+          parseRow={parseCategoriaRow}
+          toEntity={categoriaToEntity}
+        />
+      )}
+
+      {toastMsg && (
+        <div className="fixed bottom-6 right-6 z-[60] bg-green-600 text-white px-5 py-3 rounded-lg shadow-lg text-sm font-medium">
+          {toastMsg}
+        </div>
+      )}
+    </form>
+  );
+}
+
 function InsumoForm({
   initial,
   unidades,
+  categorias,
   onSubmit,
   onCancel,
   onImportBatch,
 }: {
   initial: Insumo | null;
   unidades: UnidadeMedida[];
+  categorias: { value: string; label: string }[];
   onSubmit: (insumo: Insumo) => void;
   onCancel: () => void;
   onImportBatch?: (items: Insumo[]) => void;
@@ -583,6 +738,7 @@ function InsumoForm({
   const [unidade, setUnidade] = useState(initial?.unidade || '');
   const [descricao, setDescricao] = useState(initial?.descricao || '');
   const [ativo, setAtivo] = useState(initial?.ativo !== false);
+  const [categoria, setCategoria] = useState<CategoriaMaterialCompra>(initial?.categoria || 'outros');
 
   const [importModalOpen, setImportModalOpen] = useState(false);
   const [toastMsg, setToastMsg] = useState('');
@@ -602,6 +758,7 @@ function InsumoForm({
       descricao,
       ativo,
       criadoPor: initial?.criadoPor || '',
+      categoria,
     });
   }
 
@@ -680,6 +837,13 @@ function InsumoForm({
           options={unidadeOptions}
           placeholder="Selecione a unidade"
           required
+        />
+        <Select
+          label="Categoria"
+          id="insumoCategoria"
+          value={categoria}
+          onChange={(e) => setCategoria(e.target.value as CategoriaMaterialCompra)}
+          options={categorias}
         />
       </div>
       <div>
@@ -1171,8 +1335,10 @@ export default function Obras() {
   const { data: todosFornecedores = [], isLoading: loadingFornecedores } = useFornecedores();
   const { data: todasUnidades = [], isLoading: loadingUnidades } = useUnidades();
   const { data: todosDepositosMat = [], isLoading: loadingDepositosMat } = useDepositosMaterial();
+  const { data: todasCategorias = [], isLoading: loadingCategorias } = useCategoriasMaterial();
 
   const unidadesMap = useMemo(() => new Map(todasUnidades.map((u) => [u.sigla, u.nome])), [todasUnidades]);
+  const categoriasOptions = useMemo(() => todasCategorias.filter((c) => c.ativo).map((c) => ({ value: c.valor, label: c.nome })), [todasCategorias]);
 
   // ---- Supabase mutation hooks (must be called at top level) ----
   const adicionarDepositoMutation = useAdicionarDeposito();
@@ -1193,9 +1359,12 @@ export default function Obras() {
   const adicionarDepositoMaterialMutation = useAdicionarDepositoMaterial();
   const atualizarDepositoMaterialMutation = useAtualizarDepositoMaterial();
   const excluirDepositoMaterialMutation = useExcluirDepositoMaterial();
+  const adicionarCategoriaMutation = useAdicionarCategoriaMaterial();
+  const atualizarCategoriaMutation = useAtualizarCategoriaMaterial();
+  const excluirCategoriaMutation = useExcluirCategoriaMaterial();
 
-  // ---- Loading state ----
-  const isLoading = loadingObras || loadingDepositos || loadingEquipamentos || loadingInsumos || loadingFornecedores || loadingUnidades || loadingDepositosMat;
+  // ---- Loading state (minimal — only block if obras not ready, used by many sections) ----
+  const isLoading = loadingObras;
 
   const [deleteDepId, setDeleteDepId] = useState<string | null>(null);
 
@@ -1357,6 +1526,30 @@ export default function Obras() {
     setDeleteUnidadeId(null);
   }, [excluirUnidadeMutation]);
 
+  // Categoria de Material state
+  const [categoriasVisiveis, setCategoriasVisiveis] = useState(true);
+  const [modalCategoriaOpen, setModalCategoriaOpen] = useState(false);
+  const [editandoCategoria, setEditandoCategoria] = useState<CategoriaMaterial | null>(null);
+  const [deleteCategoriaId, setDeleteCategoriaId] = useState<string | null>(null);
+
+  const handleSubmitCategoria = useCallback(
+    async (categoria: CategoriaMaterial) => {
+      if (editandoCategoria) {
+        await atualizarCategoriaMutation.mutateAsync(categoria);
+      } else {
+        await adicionarCategoriaMutation.mutateAsync({ ...categoria, criadoPor: usuario?.nome || '' });
+      }
+      setModalCategoriaOpen(false);
+      setEditandoCategoria(null);
+    },
+    [editandoCategoria, atualizarCategoriaMutation, adicionarCategoriaMutation, usuario]
+  );
+
+  const handleDeleteCategoria = useCallback(async (id: string) => {
+    await excluirCategoriaMutation.mutateAsync(id);
+    setDeleteCategoriaId(null);
+  }, [excluirCategoriaMutation]);
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-20">
@@ -1371,6 +1564,14 @@ export default function Obras() {
         <h1 className="text-3xl font-bold text-gray-800">Cadastros</h1>
         <div className="flex gap-3">
           {canCreate && <>
+            <Button
+              onClick={() => {
+                setEditandoCategoria(null);
+                setModalCategoriaOpen(true);
+              }}
+            >
+              Nova Categoria
+            </Button>
             <Button
               onClick={() => {
                 setEditandoUnidade(null);
@@ -1427,7 +1628,8 @@ export default function Obras() {
       <div className="mt-10">
         <div className="flex items-center gap-3 mb-4">
           <h2 className="text-xl font-bold text-gray-800">Tanques de Combustível</h2>
-          {todosDepositos.length > 0 && (
+          {loadingDepositos && <span className="text-sm text-gray-400 animate-pulse">Carregando...</span>}
+          {!loadingDepositos && todosDepositos.length > 0 && (
             <button
               className="text-sm text-gray-500 hover:text-gray-700 transition-colors"
               onClick={() => setTanquesVisiveis((v) => !v)}
@@ -1436,7 +1638,7 @@ export default function Obras() {
             </button>
           )}
         </div>
-        {todosDepositos.length === 0 ? (
+        {!loadingDepositos && todosDepositos.length === 0 ? (
           <Card>
             <div className="text-center py-6">
               <p className="text-gray-500 mb-4">Nenhum tanque cadastrado ainda.</p>
@@ -1528,7 +1730,8 @@ export default function Obras() {
       <div className="mt-10">
         <div className="flex items-center gap-3 mb-4">
           <h2 className="text-xl font-bold text-gray-800">Depositos</h2>
-          {todosDepositosMat.length > 0 && (
+          {loadingDepositosMat && <span className="text-sm text-gray-400 animate-pulse">Carregando...</span>}
+          {!loadingDepositosMat && todosDepositosMat.length > 0 && (
             <button
               className="text-sm text-gray-500 hover:text-gray-700 transition-colors"
               onClick={() => setDepositosMatVisiveis((v) => !v)}
@@ -1537,7 +1740,7 @@ export default function Obras() {
             </button>
           )}
         </div>
-        {todosDepositosMat.length === 0 ? (
+        {!loadingDepositosMat && todosDepositosMat.length === 0 ? (
           <Card>
             <div className="text-center py-6">
               <p className="text-gray-500 mb-4">Nenhum deposito cadastrado ainda.</p>
@@ -1658,7 +1861,8 @@ export default function Obras() {
       <div className="mt-10">
         <div className="flex items-center gap-3 mb-4">
           <h2 className="text-xl font-bold text-gray-800">Equipamentos</h2>
-          {todosEquipamentos.length > 0 && (
+          {loadingEquipamentos && <span className="text-sm text-gray-400 animate-pulse">Carregando...</span>}
+          {!loadingEquipamentos && todosEquipamentos.length > 0 && (
             <button
               className="text-sm text-gray-500 hover:text-gray-700 transition-colors"
               onClick={() => setEquipamentosVisiveis((v) => !v)}
@@ -1667,7 +1871,7 @@ export default function Obras() {
             </button>
           )}
         </div>
-        {todosEquipamentos.length === 0 ? (
+        {!loadingEquipamentos && todosEquipamentos.length === 0 ? (
           <Card>
             <div className="text-center py-6">
               <p className="text-gray-500 mb-4">Nenhum equipamento cadastrado ainda.</p>
@@ -1770,7 +1974,8 @@ export default function Obras() {
       <div className="mt-10">
         <div className="flex items-center gap-3 mb-4">
           <h2 className="text-xl font-bold text-gray-800">Insumos</h2>
-          {todosInsumos.length > 0 && (
+          {loadingInsumos && <span className="text-sm text-gray-400 animate-pulse">Carregando...</span>}
+          {!loadingInsumos && todosInsumos.length > 0 && (
             <button
               className="text-sm text-gray-500 hover:text-gray-700 transition-colors"
               onClick={() => setInsumosVisiveis((v) => !v)}
@@ -1779,7 +1984,7 @@ export default function Obras() {
             </button>
           )}
         </div>
-        {todosInsumos.length === 0 ? (
+        {!loadingInsumos && todosInsumos.length === 0 ? (
           <Card>
             <div className="text-center py-6">
               <p className="text-gray-500 mb-4">Nenhum insumo cadastrado ainda.</p>
@@ -1865,7 +2070,8 @@ export default function Obras() {
       <div className="mt-10">
         <div className="flex items-center gap-3 mb-4">
           <h2 className="text-xl font-bold text-gray-800">Fornecedores</h2>
-          {todosFornecedores.length > 0 && (
+          {loadingFornecedores && <span className="text-sm text-gray-400 animate-pulse">Carregando...</span>}
+          {!loadingFornecedores && todosFornecedores.length > 0 && (
             <button
               className="text-sm text-gray-500 hover:text-gray-700 transition-colors"
               onClick={() => setFornecedoresVisiveis((v) => !v)}
@@ -1874,7 +2080,7 @@ export default function Obras() {
             </button>
           )}
         </div>
-        {todosFornecedores.length === 0 ? (
+        {!loadingFornecedores && todosFornecedores.length === 0 ? (
           <Card>
             <div className="text-center py-6">
               <p className="text-gray-500 mb-4">Nenhum fornecedor cadastrado ainda.</p>
@@ -1956,11 +2162,91 @@ export default function Obras() {
         ) : null}
       </div>
 
+      {/* Secao Categorias de Material */}
+      <div className="mt-10">
+        <div className="flex items-center gap-3 mb-4">
+          <h2 className="text-xl font-bold text-gray-800">Categorias de Material</h2>
+          {loadingCategorias && <span className="text-sm text-gray-400 animate-pulse">Carregando...</span>}
+          {!loadingCategorias && todasCategorias.length > 0 && (
+            <button
+              className="text-sm text-gray-500 hover:text-gray-700 transition-colors"
+              onClick={() => setCategoriasVisiveis((v) => !v)}
+            >
+              {categoriasVisiveis ? 'Ocultar' : 'Mostrar'}
+            </button>
+          )}
+        </div>
+        {!loadingCategorias && todasCategorias.length === 0 ? (
+          <Card>
+            <div className="text-center py-6">
+              <p className="text-gray-500 mb-4">Nenhuma categoria cadastrada ainda.</p>
+              <Button
+                onClick={() => {
+                  setEditandoCategoria(null);
+                  setModalCategoriaOpen(true);
+                }}
+              >
+                Cadastrar Primeira Categoria
+              </Button>
+            </div>
+          </Card>
+        ) : categoriasVisiveis ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {todasCategorias.map((cat) => (
+              <Card key={cat.id} className={cat.ativo === false ? 'opacity-60' : ''}>
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-sm font-semibold text-gray-800">
+                    {cat.nome}
+                  </span>
+                  <span
+                    className={`px-2 py-0.5 rounded-full text-xs font-medium ${
+                      cat.ativo !== false
+                        ? 'bg-green-100 text-green-800'
+                        : 'bg-red-100 text-red-800'
+                    }`}
+                  >
+                    {cat.ativo !== false ? 'Ativo' : 'Inativo'}
+                  </span>
+                </div>
+                <div className="space-y-1 text-xs text-gray-500 mb-3">
+                  <div className="flex justify-between">
+                    <span>Valor (slug)</span>
+                    <span className="text-gray-700 font-medium">{cat.valor}</span>
+                  </div>
+                </div>
+                <div className="flex gap-2 pt-2 border-t border-gray-100">
+                  <Button
+                    variant="ghost"
+                    className="text-xs px-2 py-1"
+                    onClick={() => {
+                      pedirSenha(() => {
+                        setEditandoCategoria(cat);
+                        setModalCategoriaOpen(true);
+                      });
+                    }}
+                  >
+                    Editar
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    className="text-xs px-2 py-1 text-red-600 hover:bg-red-50"
+                    onClick={() => pedirSenha(() => setDeleteCategoriaId(cat.id))}
+                  >
+                    Excluir
+                  </Button>
+                </div>
+              </Card>
+            ))}
+          </div>
+        ) : null}
+      </div>
+
       {/* Secao Unidades de Medida */}
       <div className="mt-10">
         <div className="flex items-center gap-3 mb-4">
           <h2 className="text-xl font-bold text-gray-800">Unidades de Medida</h2>
-          {todasUnidades.length > 0 && (
+          {loadingUnidades && <span className="text-sm text-gray-400 animate-pulse">Carregando...</span>}
+          {!loadingUnidades && todasUnidades.length > 0 && (
             <button
               className="text-sm text-gray-500 hover:text-gray-700 transition-colors"
               onClick={() => setUnidadesVisiveis((v) => !v)}
@@ -1969,7 +2255,7 @@ export default function Obras() {
             </button>
           )}
         </div>
-        {todasUnidades.length === 0 ? (
+        {!loadingUnidades && todasUnidades.length === 0 ? (
           <Card>
             <div className="text-center py-6">
               <p className="text-gray-500 mb-4">Nenhuma unidade cadastrada ainda.</p>
@@ -2070,6 +2356,42 @@ export default function Obras() {
         message="Tem certeza que deseja excluir esta unidade de medida?"
       />
 
+      {/* Modal Categoria de Material */}
+      <Modal
+        open={modalCategoriaOpen}
+        onClose={() => {
+          setModalCategoriaOpen(false);
+          setEditandoCategoria(null);
+        }}
+        title={editandoCategoria ? 'Editar Categoria de Material' : 'Nova Categoria de Material'}
+      >
+        <CategoriaMaterialForm
+          initial={editandoCategoria}
+          onSubmit={handleSubmitCategoria}
+          onCancel={() => {
+            setModalCategoriaOpen(false);
+            setEditandoCategoria(null);
+          }}
+          onImportBatch={async (novos) => {
+            for (const c of novos) {
+              await adicionarCategoriaMutation.mutateAsync(c);
+            }
+            setModalCategoriaOpen(false);
+            setEditandoCategoria(null);
+          }}
+        />
+      </Modal>
+
+      <ConfirmDialog
+        open={deleteCategoriaId !== null}
+        onClose={() => setDeleteCategoriaId(null)}
+        onConfirm={() => {
+          if (deleteCategoriaId) handleDeleteCategoria(deleteCategoriaId);
+        }}
+        title="Excluir Categoria de Material"
+        message="Tem certeza que deseja excluir esta categoria de material?"
+      />
+
       {/* Modal Fornecedor */}
       <Modal
         open={modalFornecedorOpen}
@@ -2108,6 +2430,7 @@ export default function Obras() {
         <InsumoForm
           initial={editandoInsumo}
           unidades={todasUnidades}
+          categorias={categoriasOptions}
           onSubmit={handleSubmitInsumo}
           onCancel={() => {
             setModalInsumoOpen(false);

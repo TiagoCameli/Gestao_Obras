@@ -10,6 +10,7 @@ import type {
   Fornecedor,
   DepositoMaterial,
   UnidadeMedida,
+  CategoriaMaterial,
   EntradaMaterial,
   SaidaMaterial,
   TransferenciaMaterial,
@@ -234,6 +235,7 @@ export function dbToInsumo(row: any): Insumo {
     descricao: row.descricao,
     ativo: row.ativo,
     criadoPor: row.criado_por ?? '',
+    categoria: row.categoria ?? undefined,
   };
 }
 
@@ -246,6 +248,7 @@ export function insumoToDb(i: Insumo) {
     descricao: i.descricao,
     ativo: i.ativo,
     criado_por: i.criadoPor,
+    categoria: i.categoria ?? null,
   };
 }
 
@@ -354,6 +357,29 @@ export function unidadeMedidaToDb(u: UnidadeMedida) {
     sigla: u.sigla,
     ativo: u.ativo,
     criado_por: u.criadoPor,
+  };
+}
+
+// ── Categorias Material ──
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function dbToCategoriaMaterial(row: any): CategoriaMaterial {
+  return {
+    id: row.id,
+    nome: row.nome,
+    valor: row.valor,
+    ativo: row.ativo,
+    criadoPor: row.criado_por ?? '',
+  };
+}
+
+export function categoriaMaterialToDb(c: CategoriaMaterial) {
+  return {
+    id: c.id,
+    nome: c.nome,
+    valor: c.valor,
+    ativo: c.ativo,
+    criado_por: c.criadoPor,
   };
 }
 

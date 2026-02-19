@@ -537,6 +537,8 @@ export default function Frete() {
           onCancel={() => { setPagModalOpen(false); setPagEditando(null); }}
           transportadoras={transportadoras}
           funcionarios={funcionarios}
+          fornecedores={fornecedores}
+          nomeUsuario={usuario?.nome}
           onImportBatch={async (items) => {
             for (const item of items) {
               await adicionarPagamentoMutation.mutateAsync({ ...item, criadoPor: usuario?.nome || '' });

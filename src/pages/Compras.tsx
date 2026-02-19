@@ -12,6 +12,9 @@ import { useOrdensCompra, useAdicionarOrdemCompra, useAtualizarOrdemCompra } fro
 import { useObras } from '../hooks/useObras';
 import { useEtapas } from '../hooks/useEtapas';
 import { useFornecedores } from '../hooks/useFornecedores';
+import { useInsumos } from '../hooks/useInsumos';
+import { useUnidades } from '../hooks/useUnidades';
+import { useCategoriasMaterial } from '../hooks/useCategoriasMaterial';
 import { useAuth } from '../contexts/AuthContext';
 import Button from '../components/ui/Button';
 import Modal from '../components/ui/Modal';
@@ -54,6 +57,14 @@ export default function Compras() {
   const { data: obras = [] } = useObras();
   const { data: etapas = [] } = useEtapas();
   const { data: fornecedores = [] } = useFornecedores();
+  const { data: insumos = [] } = useInsumos();
+  const { data: unidades = [] } = useUnidades();
+  const { data: categoriasMaterial = [] } = useCategoriasMaterial();
+
+  const categoriasOptions = useMemo(
+    () => categoriasMaterial.filter((c) => c.ativo).map((c) => ({ value: c.valor, label: c.nome })),
+    [categoriasMaterial]
+  );
 
   const adicionarPedidoMut = useAdicionarPedidoCompra();
   const atualizarPedidoMut = useAtualizarPedidoCompra();
@@ -295,6 +306,7 @@ export default function Compras() {
             pedidos={pedidos}
             obras={obras}
             busca={buscaPedido}
+            categorias={categoriasOptions}
             onAprovar={handleAprovar}
             onReprovar={handleReprovar}
             onEnviarCotacao={handleEnviarCotacao}
@@ -343,9 +355,13 @@ export default function Compras() {
         <PedidoCompraForm
           initial={editandoPedido}
           obras={obras}
+          insumos={insumos}
+          unidades={unidades}
+          categorias={categoriasOptions}
           onSubmit={handlePedidoSubmit}
           onCancel={() => { setPedidoModalOpen(false); setEditandoPedido(null); }}
           proximoNumero={proxPedido}
+          nomeUsuario={usuario?.nome}
         />
       </Modal>
 
