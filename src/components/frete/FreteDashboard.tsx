@@ -79,7 +79,6 @@ export default function FreteDashboard({
   // ── Totais ──
   const totalFretes = fretesF.reduce((sum, f) => sum + f.valorTotal, 0);
   const totalPagamentos = pagamentosF.reduce((sum, p) => sum + p.valor, 0);
-  const saldo = totalFretes - totalPagamentos;
 
   // ── Saldo Areacre ──
   const totalAbastCarreta = abastCarretaF.reduce((s, a) => s + a.valorTotal, 0);
@@ -94,6 +93,23 @@ export default function FreteDashboard({
   const pagosParaAmazonia = pagamentosF.filter((p) => p.transportadora === AMAZONIA).reduce((s, p) => s + p.valor, 0);
   const pagosPelaAmazonia = pagamentosF.filter((p) => p.pagoPor?.trim() === AMAZONIA).reduce((s, p) => s + p.valor, 0);
   const saldoAmazonia = fretesAmazonia - abastAmazonia - pagosParaAmazonia + pagosPelaAmazonia;
+
+  // ── Saldo Triunfo ──
+  const TRIUNFO = 'Transportadora Triunfo';
+  const fretesTriunfo = fretesF.filter((f) => f.transportadora === TRIUNFO).reduce((s, f) => s + f.valorTotal, 0);
+  const pagosParaTriunfo = pagamentosF.filter((p) => p.transportadora === TRIUNFO).reduce((s, p) => s + p.valor, 0);
+  const abastTriunfo = abastCarretaF.filter((a) => a.transportadora === TRIUNFO).reduce((s, a) => s + a.valorTotal, 0);
+  const saldoTriunfo = fretesTriunfo - pagosParaTriunfo - abastTriunfo;
+
+  // ── Saldo Etam Construtora ──
+  const ETAM = 'ETAM Construtora';
+  const fretesEtam = fretesF.filter((f) => f.transportadora === ETAM).reduce((s, f) => s + f.valorTotal, 0);
+  const pagosPelaEtam = pagamentosF.filter((p) => p.pagoPor?.trim() === ETAM).reduce((s, p) => s + p.valor, 0);
+  const pagosParaEtam = pagamentosF.filter((p) => p.transportadora === ETAM).reduce((s, p) => s + p.valor, 0);
+  const saldoEtam = fretesEtam + pagosPelaEtam - pagosParaEtam;
+
+  // ── A Pagar EMT ──
+  const aPagarEmt = saldoAreacre + saldoAmazonia + saldoTriunfo + saldoEtam;
 
   // ── Media ponderada de km (peso como peso) ──
   const totalPesoKm = fretesF.reduce((sum, f) => sum + f.kmRodados * f.pesoToneladas, 0);
@@ -418,8 +434,8 @@ export default function FreteDashboard({
         )}
       </div>
 
-      {/* Cards resumo */}
-      <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4">
+      {/* Cards resumo - fileira 1 */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <Card>
           <p className="text-sm text-gray-500">Total Fretes</p>
           <p className="text-2xl font-bold text-emt-verde mt-1">
@@ -439,13 +455,16 @@ export default function FreteDashboard({
           </p>
         </Card>
         <Card>
-          <p className="text-sm text-gray-500">Saldo (Fretes - Pagamentos)</p>
-          <p className={`text-2xl font-bold mt-1 ${saldo >= 0 ? 'text-red-600' : 'text-green-600'}`}>
-            {formatCurrency(saldo)}
+          <p className="text-sm text-gray-500">A Pagar EMT</p>
+          <p className={`text-2xl font-bold mt-1 ${aPagarEmt > 0 ? 'text-red-600' : aPagarEmt < 0 ? 'text-green-600' : 'text-gray-500'}`}>
+            {formatCurrency(aPagarEmt)}
           </p>
-          <p className="text-xs text-gray-400 mt-0.5">
-            {saldo > 0 ? 'A pagar' : saldo < 0 ? 'Pago a mais' : 'Quitado'}
-          </p>
+          <div className="text-xs text-gray-400 mt-1 space-y-0.5">
+            <p>Areacre: {formatCurrency(saldoAreacre)}</p>
+            <p>Amazonia: {formatCurrency(saldoAmazonia)}</p>
+            <p>Triunfo: {formatCurrency(saldoTriunfo)}</p>
+            <p>ETAM: {formatCurrency(saldoEtam)}</p>
+          </div>
         </Card>
         <Card>
           <p className="text-sm text-gray-500">Media Ponderada KM</p>
@@ -456,6 +475,10 @@ export default function FreteDashboard({
             {totalPeso.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} t transportadas
           </p>
         </Card>
+      </div>
+
+      {/* Cards resumo - fileira 2 */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <Card>
           <p className="text-sm text-gray-500">Saldo Areacre</p>
           <p className={`text-2xl font-bold mt-1 ${saldoAreacre > 0 ? 'text-red-600' : saldoAreacre < 0 ? 'text-green-600' : 'text-gray-500'}`}>
@@ -477,6 +500,28 @@ export default function FreteDashboard({
             <p>Abastecimentos: −{formatCurrency(abastAmazonia)}</p>
             <p>Pago p/ Amazonia: −{formatCurrency(pagosParaAmazonia)}</p>
             <p>Pago pela Amazonia: +{formatCurrency(pagosPelaAmazonia)}</p>
+          </div>
+        </Card>
+        <Card>
+          <p className="text-sm text-gray-500">Saldo Triunfo</p>
+          <p className={`text-2xl font-bold mt-1 ${saldoTriunfo > 0 ? 'text-red-600' : saldoTriunfo < 0 ? 'text-green-600' : 'text-gray-500'}`}>
+            {formatCurrency(saldoTriunfo)}
+          </p>
+          <div className="text-xs text-gray-400 mt-1 space-y-0.5">
+            <p>Fretes: {formatCurrency(fretesTriunfo)}</p>
+            <p>Pago p/ Triunfo: −{formatCurrency(pagosParaTriunfo)}</p>
+            <p>Abastecimentos: −{formatCurrency(abastTriunfo)}</p>
+          </div>
+        </Card>
+        <Card>
+          <p className="text-sm text-gray-500">Saldo ETAM</p>
+          <p className={`text-2xl font-bold mt-1 ${saldoEtam > 0 ? 'text-red-600' : saldoEtam < 0 ? 'text-green-600' : 'text-gray-500'}`}>
+            {formatCurrency(saldoEtam)}
+          </p>
+          <div className="text-xs text-gray-400 mt-1 space-y-0.5">
+            <p>Total Fretes: {formatCurrency(fretesEtam)}</p>
+            <p>Pago pela Etam: +{formatCurrency(pagosPelaEtam)}</p>
+            <p>Pago p/ Etam: −{formatCurrency(pagosParaEtam)}</p>
           </div>
         </Card>
       </div>
