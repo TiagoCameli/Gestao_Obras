@@ -1,12 +1,3 @@
-import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-} from 'recharts';
 import { Fragment, useState } from 'react';
 import type { Frete, PagamentoFrete, AbastecimentoCarreta, Obra, PedidoMaterial, Fornecedor } from '../../types';
 import { useInsumos } from '../../hooks/useInsumos';
@@ -21,13 +12,6 @@ const METODO_LABELS: Record<string, string> = {
   transferencia: 'Transferência',
   combustivel: 'Combustível',
 };
-
-function formatMesRef(mesRef: string): string {
-  if (!mesRef) return '-';
-  const [ano, mes] = mesRef.split('-');
-  const meses = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
-  return `${meses[parseInt(mes, 10) - 1]}/${ano}`;
-}
 
 interface FreteDashboardProps {
   fretes: Frete[];
@@ -78,7 +62,6 @@ export default function FreteDashboard({
 
   // ── Totais ──
   const totalFretes = fretesF.reduce((sum, f) => sum + f.valorTotal, 0);
-  const totalPagamentos = pagamentosF.reduce((sum, p) => sum + p.valor, 0);
 
   // ── Saldo Areacre ──
   const totalAbastCarreta = abastCarretaF.reduce((s, a) => s + a.valorTotal, 0);
@@ -101,7 +84,12 @@ export default function FreteDashboard({
   const abastTriunfo = abastCarretaF.filter((a) => a.transportadora === TRIUNFO).reduce((s, a) => s + a.valorTotal, 0);
   const saldoTriunfo = fretesTriunfo - pagosParaTriunfo - abastTriunfo;
 
-  // ── Saldo Etam Construtora ──
+  // ── Pagamentos EMT Construtora ──
+  const EMT = 'EMT Construtora';
+  const pagamentosEmt = pagamentosF.filter((p) => p.pagoPor?.trim() === EMT);
+  const pagosPelaEmt = pagamentosEmt.reduce((s, p) => s + p.valor, 0);
+
+  // ── Saldo ETAM Construtora ──
   const ETAM = 'ETAM Construtora';
   const fretesEtam = fretesF.filter((f) => f.transportadora === ETAM).reduce((s, f) => s + f.valorTotal, 0);
   const pagosPelaEtam = pagamentosF.filter((p) => p.pagoPor?.trim() === ETAM).reduce((s, p) => s + p.valor, 0);
@@ -115,34 +103,6 @@ export default function FreteDashboard({
   const totalPesoKm = fretesF.reduce((sum, f) => sum + f.kmRodados * f.pesoToneladas, 0);
   const totalPeso = fretesF.reduce((sum, f) => sum + f.pesoToneladas, 0);
   const mediaKmPonderada = totalPeso > 0 ? totalPesoKm / totalPeso : 0;
-
-  // ── Gasto mensal em fretes (chart) ──
-  const gastoMensal = new Map<string, number>();
-  fretesF.forEach((f) => {
-    if (!f.data) return;
-    const key = f.data.slice(0, 7); // "YYYY-MM"
-    gastoMensal.set(key, (gastoMensal.get(key) || 0) + f.valorTotal);
-  });
-
-  // ── Pagamentos mensais (chart) ──
-  const pagMensal = new Map<string, number>();
-  pagamentosF.forEach((p) => {
-    if (!p.mesReferencia) return;
-    pagMensal.set(p.mesReferencia, (pagMensal.get(p.mesReferencia) || 0) + p.valor);
-  });
-
-  // ── Chart combinado: fretes vs pagamentos por mes ──
-  const allMonths = new Set<string>();
-  gastoMensal.forEach((_, k) => allMonths.add(k));
-  pagMensal.forEach((_, k) => allMonths.add(k));
-
-  const chartComparado = Array.from(allMonths)
-    .sort()
-    .map((mes) => ({
-      mes: formatMesRef(mes),
-      fretes: parseFloat((gastoMensal.get(mes) || 0).toFixed(2)),
-      pagamentos: parseFloat((pagMensal.get(mes) || 0).toFixed(2)),
-    }));
 
   // ── Gasto por transportadora ──
   const gastoPorTransportadora = new Map<string, number>();
@@ -228,12 +188,6 @@ export default function FreteDashboard({
   });
   const listaMaterialTransporte = Array.from(materialTransporte.entries())
     .sort((a, b) => (b[1].pesoEntregue + b[1].pesoTransito) - (a[1].pesoEntregue + a[1].pesoTransito));
-
-  // ── Pagamentos por metodo ──
-  const pagPorMetodo = new Map<string, number>();
-  pagamentosF.forEach((p) => {
-    pagPorMetodo.set(p.metodo, (pagPorMetodo.get(p.metodo) || 0) + p.valor);
-  });
 
   // ── Pagamentos por empresa (pagoPor) + abastecimentos como Areacre ──
   const pagPorPessoa = new Map<string, { valor: number; count: number }>();
@@ -446,12 +400,12 @@ export default function FreteDashboard({
           </p>
         </Card>
         <Card>
-          <p className="text-sm text-gray-500">Total Pagamentos</p>
+          <p className="text-sm text-gray-500">Pagamentos EMT</p>
           <p className="text-2xl font-bold text-blue-600 mt-1">
-            {formatCurrency(totalPagamentos)}
+            {formatCurrency(pagosPelaEmt)}
           </p>
           <p className="text-xs text-gray-400 mt-0.5">
-            {pagamentosF.length} pagamento{pagamentosF.length !== 1 ? 's' : ''}
+            {pagamentosEmt.length} pagamento{pagamentosEmt.length !== 1 ? 's' : ''}
           </p>
         </Card>
         <Card>
@@ -525,30 +479,6 @@ export default function FreteDashboard({
           </div>
         </Card>
       </div>
-
-      {/* Grafico comparado: fretes vs pagamentos por mes */}
-      {chartComparado.length > 0 && (
-        <Card>
-          <h3 className="text-sm font-semibold text-gray-700 mb-4">
-            Fretes x Pagamentos por Mês (R$)
-          </h3>
-          <div className="h-64">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={chartComparado}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="mes" fontSize={12} />
-                <YAxis fontSize={12} />
-                <Tooltip
-                  formatter={(value) => formatCurrency(Number(value))}
-                  labelStyle={{ fontWeight: 'bold' }}
-                />
-                <Bar dataKey="fretes" fill="#16a34a" radius={[4, 4, 0, 0]} name="Fretes" />
-                <Bar dataKey="pagamentos" fill="#2563eb" radius={[4, 4, 0, 0]} name="Pagamentos" />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        </Card>
-      )}
 
       {/* Gasto por transportadora com saldo */}
       <Card>
@@ -842,34 +772,6 @@ export default function FreteDashboard({
         )}
       </Card>
 
-      {/* Gasto por Obra */}
-      <Card>
-        <h3 className="text-sm font-semibold text-gray-700 mb-3">
-          Gasto por Obra
-        </h3>
-        {gastoPorObra.size === 0 ? (
-          <p className="text-gray-400 text-sm">Sem dados</p>
-        ) : (
-          <div className="space-y-2">
-            {Array.from(gastoPorObra.entries())
-              .sort((a, b) => b[1] - a[1])
-              .map(([obraId, valor]) => (
-                <div
-                  key={obraId}
-                  className="flex justify-between items-center py-1 border-b border-gray-100 last:border-0"
-                >
-                  <span className="text-sm text-gray-700">
-                    {obrasMap.get(obraId) || 'Sem obra'}
-                  </span>
-                  <span className="text-sm font-medium">
-                    {formatCurrency(valor)}
-                  </span>
-                </div>
-              ))}
-          </div>
-        )}
-      </Card>
-
       {/* Material transportado / em transito */}
       {listaMaterialTransporte.length > 0 && (
         <Card>
@@ -951,31 +853,33 @@ export default function FreteDashboard({
         </Card>
       )}
 
-      {/* Pagamentos por metodo */}
-      {pagPorMetodo.size > 0 && (
-        <Card>
-          <h3 className="text-sm font-semibold text-gray-700 mb-3">
-            Pagamentos por Método
-          </h3>
-          <div className="flex flex-wrap gap-3">
-            {Array.from(pagPorMetodo.entries())
+      {/* Gasto por Obra */}
+      <Card>
+        <h3 className="text-sm font-semibold text-gray-700 mb-3">
+          Gasto por Obra
+        </h3>
+        {gastoPorObra.size === 0 ? (
+          <p className="text-gray-400 text-sm">Sem dados</p>
+        ) : (
+          <div className="space-y-2">
+            {Array.from(gastoPorObra.entries())
               .sort((a, b) => b[1] - a[1])
-              .map(([metodo, valor]) => (
+              .map(([obraId, valor]) => (
                 <div
-                  key={metodo}
-                  className="flex items-center gap-2 px-4 py-3 rounded-lg bg-blue-50 border border-blue-200"
+                  key={obraId}
+                  className="flex justify-between items-center py-1 border-b border-gray-100 last:border-0"
                 >
-                  <span className="text-sm font-medium text-blue-800">
-                    {METODO_LABELS[metodo] || metodo}
+                  <span className="text-sm text-gray-700">
+                    {obrasMap.get(obraId) || 'Sem obra'}
                   </span>
-                  <span className="text-lg font-bold text-blue-900">
+                  <span className="text-sm font-medium">
                     {formatCurrency(valor)}
                   </span>
                 </div>
               ))}
           </div>
-        </Card>
-      )}
+        )}
+      </Card>
     </div>
   );
 }
