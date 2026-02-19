@@ -11,6 +11,7 @@ import type {
   DepositoMaterial,
   UnidadeMedida,
   CategoriaMaterial,
+  TipoInsumoEntity,
   EntradaMaterial,
   SaidaMaterial,
   TransferenciaMaterial,
@@ -380,6 +381,29 @@ export function categoriaMaterialToDb(c: CategoriaMaterial) {
     valor: c.valor,
     ativo: c.ativo,
     criado_por: c.criadoPor,
+  };
+}
+
+// ── Tipos Insumo ──
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function dbToTipoInsumo(row: any): TipoInsumoEntity {
+  return {
+    id: row.id,
+    nome: row.nome,
+    valor: row.valor,
+    ativo: row.ativo,
+    criadoPor: row.criado_por ?? '',
+  };
+}
+
+export function tipoInsumoToDb(t: TipoInsumoEntity) {
+  return {
+    id: t.id,
+    nome: t.nome,
+    valor: t.valor,
+    ativo: t.ativo,
+    criado_por: t.criadoPor,
   };
 }
 

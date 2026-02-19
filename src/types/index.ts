@@ -76,7 +76,15 @@ export interface Equipamento {
   criadoPor: string;
 }
 
-export type TipoInsumo = 'combustivel' | 'material';
+export type TipoInsumo = string;
+
+export interface TipoInsumoEntity {
+  id: string;
+  nome: string;
+  valor: string;
+  ativo: boolean;
+  criadoPor: string;
+}
 
 export interface Insumo {
   id: string;

@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useState, type FormEvent } from 'react';
-import type { CategoriaMaterial, CategoriaMaterialCompra, Deposito, DepositoMaterial, Equipamento, Fornecedor, Insumo, Obra, TipoInsumo, TipoMedicao, UnidadeMedida } from '../types';
+import type { CategoriaMaterial, CategoriaMaterialCompra, Deposito, DepositoMaterial, Equipamento, Fornecedor, Insumo, Obra, TipoInsumo, TipoInsumoEntity, TipoMedicao, UnidadeMedida } from '../types';
 import { useObras } from '../hooks/useObras';
 import { useDepositos, useAdicionarDeposito, useAtualizarDeposito, useExcluirDeposito } from '../hooks/useDepositos';
 import { useEquipamentos, useAdicionarEquipamento, useAtualizarEquipamento, useExcluirEquipamento } from '../hooks/useEquipamentos';
@@ -7,6 +7,7 @@ import { useInsumos, useAdicionarInsumo, useAtualizarInsumo, useExcluirInsumo } 
 import { useFornecedores, useAdicionarFornecedor, useAtualizarFornecedor, useExcluirFornecedor } from '../hooks/useFornecedores';
 import { useUnidades, useAdicionarUnidade, useAtualizarUnidade, useExcluirUnidade } from '../hooks/useUnidades';
 import { useCategoriasMaterial, useAdicionarCategoriaMaterial, useAtualizarCategoriaMaterial, useExcluirCategoriaMaterial } from '../hooks/useCategoriasMaterial';
+import { useTiposInsumo, useAdicionarTipoInsumo, useAtualizarTipoInsumo, useExcluirTipoInsumo } from '../hooks/useTiposInsumo';
 import { useDepositosMaterial, useAdicionarDepositoMaterial, useAtualizarDepositoMaterial, useExcluirDepositoMaterial } from '../hooks/useDepositosMaterial';
 import Input from '../components/ui/Input';
 import Select from '../components/ui/Select';
@@ -575,6 +576,82 @@ function gerarSlug(texto: string) {
     .replace(/[^a-z0-9_]/g, '');
 }
 
+function TipoInsumoForm({
+  initial,
+  onSubmit,
+  onCancel,
+}: {
+  initial: TipoInsumoEntity | null;
+  onSubmit: (tipo: TipoInsumoEntity) => void;
+  onCancel: () => void;
+}) {
+  const [nome, setNome] = useState(initial?.nome || '');
+  const [ativo, setAtivo] = useState(initial?.ativo !== false);
+
+  function handleSubmit(e: FormEvent) {
+    e.preventDefault();
+    onSubmit({
+      id: initial?.id || gerarId(),
+      nome,
+      valor: initial?.valor || gerarSlug(nome),
+      ativo,
+      criadoPor: initial?.criadoPor || '',
+    });
+  }
+
+  const isValid = !!nome;
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-4">
+      <Input
+        label="Nome"
+        id="tipoInsumoNome"
+        value={nome}
+        onChange={(e) => setNome(e.target.value)}
+        placeholder="Ex: Combustível, Material, Peça"
+        required
+      />
+      {initial && (
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">Status</label>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                ativo
+                  ? 'bg-green-600 text-white'
+                  : 'bg-gray-200 text-gray-600 hover:bg-gray-300'
+              }`}
+              onClick={() => setAtivo(true)}
+            >
+              Ativo
+            </button>
+            <button
+              type="button"
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                !ativo
+                  ? 'bg-red-600 text-white'
+                  : 'bg-gray-200 text-gray-600 hover:bg-gray-300'
+              }`}
+              onClick={() => setAtivo(false)}
+            >
+              Inativo
+            </button>
+          </div>
+        </div>
+      )}
+      <div className="flex justify-end gap-3 pt-2">
+        <Button variant="secondary" type="button" onClick={onCancel}>
+          Cancelar
+        </Button>
+        <Button type="submit" disabled={!isValid}>
+          {initial ? 'Salvar Alteracoes' : 'Cadastrar'}
+        </Button>
+      </div>
+    </form>
+  );
+}
+
 function CategoriaMaterialForm({
   initial,
   onSubmit,
@@ -722,6 +799,7 @@ function InsumoForm({
   initial,
   unidades,
   categorias,
+  tipos,
   onSubmit,
   onCancel,
   onImportBatch,
@@ -729,12 +807,13 @@ function InsumoForm({
   initial: Insumo | null;
   unidades: UnidadeMedida[];
   categorias: { value: string; label: string }[];
+  tipos: { value: string; label: string }[];
   onSubmit: (insumo: Insumo) => void;
   onCancel: () => void;
   onImportBatch?: (items: Insumo[]) => void;
 }) {
   const [nome, setNome] = useState(initial?.nome || '');
-  const [tipo, setTipo] = useState<TipoInsumo>(initial?.tipo || 'material');
+  const [tipo, setTipo] = useState<TipoInsumo>(initial?.tipo || tipos[0]?.value || 'material');
   const [unidade, setUnidade] = useState(initial?.unidade || '');
   const [descricao, setDescricao] = useState(initial?.descricao || '');
   const [ativo, setAtivo] = useState(initial?.ativo !== false);
@@ -772,7 +851,8 @@ function InsumoForm({
     const descricaoVal = parseStr(row[3]);
 
     if (!nomeVal) erros.push('Nome obrigatorio');
-    if (tipoVal !== 'combustivel' && tipoVal !== 'material') erros.push('Tipo deve ser "combustivel" ou "material"');
+    const tiposValidos = tipos.map(t => t.value);
+    if (!tiposValidos.includes(tipoVal)) erros.push(`Tipo "${tipoVal}" nao encontrado (validos: ${tiposValidos.join(', ')})`);
 
     let siglaMatch: UnidadeMedida | undefined;
     if (!unidadeVal) {
@@ -788,7 +868,7 @@ function InsumoForm({
       resumo: `${nomeVal} | ${tipoVal} | ${siglaMatch?.sigla || unidadeVal}`,
       dados: { nome: nomeVal, tipo: tipoVal as TipoInsumo, unidade: siglaMatch?.sigla || '', descricao: descricaoVal },
     };
-  }, [unidades]);
+  }, [unidades, tipos]);
 
   const insumoToEntity = useCallback((row: ParsedRow): Record<string, unknown> => ({
     id: gerarId(),
@@ -823,10 +903,7 @@ function InsumoForm({
           id="insumoTipo"
           value={tipo}
           onChange={(e) => setTipo(e.target.value as TipoInsumo)}
-          options={[
-            { value: 'combustivel', label: 'Combustível' },
-            { value: 'material', label: 'Material' },
-          ]}
+          options={tipos}
           required
         />
         <Select
@@ -1336,9 +1413,12 @@ export default function Obras() {
   const { data: todasUnidades = [], isLoading: loadingUnidades } = useUnidades();
   const { data: todosDepositosMat = [], isLoading: loadingDepositosMat } = useDepositosMaterial();
   const { data: todasCategorias = [], isLoading: loadingCategorias } = useCategoriasMaterial();
+  const { data: todosTiposInsumo = [], isLoading: loadingTiposInsumo } = useTiposInsumo();
 
   const unidadesMap = useMemo(() => new Map(todasUnidades.map((u) => [u.sigla, u.nome])), [todasUnidades]);
   const categoriasOptions = useMemo(() => todasCategorias.filter((c) => c.ativo).map((c) => ({ value: c.valor, label: c.nome })), [todasCategorias]);
+  const tiposInsumoOptions = useMemo(() => todosTiposInsumo.filter((t) => t.ativo).map((t) => ({ value: t.valor, label: t.nome })), [todosTiposInsumo]);
+  const tiposInsumoMap = useMemo(() => new Map(todosTiposInsumo.map((t) => [t.valor, t.nome])), [todosTiposInsumo]);
 
   // ---- Supabase mutation hooks (must be called at top level) ----
   const adicionarDepositoMutation = useAdicionarDeposito();
@@ -1362,6 +1442,9 @@ export default function Obras() {
   const adicionarCategoriaMutation = useAdicionarCategoriaMaterial();
   const atualizarCategoriaMutation = useAtualizarCategoriaMaterial();
   const excluirCategoriaMutation = useExcluirCategoriaMaterial();
+  const adicionarTipoInsumoMutation = useAdicionarTipoInsumo();
+  const atualizarTipoInsumoMutation = useAtualizarTipoInsumo();
+  const excluirTipoInsumoMutation = useExcluirTipoInsumo();
 
   // ---- Loading state (minimal — only block if obras not ready, used by many sections) ----
   const isLoading = loadingObras;
@@ -1550,6 +1633,30 @@ export default function Obras() {
     setDeleteCategoriaId(null);
   }, [excluirCategoriaMutation]);
 
+  // Tipo de Insumo state
+  const [tiposInsumoVisiveis, setTiposInsumoVisiveis] = useState(true);
+  const [modalTipoInsumoOpen, setModalTipoInsumoOpen] = useState(false);
+  const [editandoTipoInsumo, setEditandoTipoInsumo] = useState<TipoInsumoEntity | null>(null);
+  const [deleteTipoInsumoId, setDeleteTipoInsumoId] = useState<string | null>(null);
+
+  const handleSubmitTipoInsumo = useCallback(
+    async (tipo: TipoInsumoEntity) => {
+      if (editandoTipoInsumo) {
+        await atualizarTipoInsumoMutation.mutateAsync(tipo);
+      } else {
+        await adicionarTipoInsumoMutation.mutateAsync({ ...tipo, criadoPor: usuario?.nome || '' });
+      }
+      setModalTipoInsumoOpen(false);
+      setEditandoTipoInsumo(null);
+    },
+    [editandoTipoInsumo, atualizarTipoInsumoMutation, adicionarTipoInsumoMutation, usuario]
+  );
+
+  const handleDeleteTipoInsumo = useCallback(async (id: string) => {
+    await excluirTipoInsumoMutation.mutateAsync(id);
+    setDeleteTipoInsumoId(null);
+  }, [excluirTipoInsumoMutation]);
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-20">
@@ -1564,6 +1671,14 @@ export default function Obras() {
         <h1 className="text-3xl font-bold text-gray-800">Cadastros</h1>
         <div className="flex gap-3">
           {canCreate && <>
+            <Button
+              onClick={() => {
+                setEditandoTipoInsumo(null);
+                setModalTipoInsumoOpen(true);
+              }}
+            >
+              Novo Tipo de Insumo
+            </Button>
             <Button
               onClick={() => {
                 setEditandoCategoria(null);
@@ -2016,7 +2131,7 @@ export default function Obras() {
                             : 'bg-emt-verde-claro text-emt-verde-escuro'
                         }`}
                       >
-                        {insumo.tipo === 'combustivel' ? 'Combustível' : 'Material'}
+                        {tiposInsumoMap.get(insumo.tipo) || insumo.tipo}
                       </span>
                       <span
                         className={`px-2 py-0.5 rounded-full text-xs font-medium ${
@@ -2152,6 +2267,85 @@ export default function Obras() {
                     variant="ghost"
                     className="text-xs px-2 py-1 text-red-600 hover:bg-red-50"
                     onClick={() => pedirSenha(() => setDeleteFornecedorId(forn.id))}
+                  >
+                    Excluir
+                  </Button>
+                </div>
+              </Card>
+            ))}
+          </div>
+        ) : null}
+      </div>
+
+      {/* Secao Tipos de Insumo */}
+      <div className="mt-10">
+        <div className="flex items-center gap-3 mb-4">
+          <h2 className="text-xl font-bold text-gray-800">Tipos de Insumo</h2>
+          {loadingTiposInsumo && <span className="text-sm text-gray-400 animate-pulse">Carregando...</span>}
+          {!loadingTiposInsumo && todosTiposInsumo.length > 0 && (
+            <button
+              className="text-sm text-gray-500 hover:text-gray-700 transition-colors"
+              onClick={() => setTiposInsumoVisiveis((v) => !v)}
+            >
+              {tiposInsumoVisiveis ? 'Ocultar' : 'Mostrar'}
+            </button>
+          )}
+        </div>
+        {!loadingTiposInsumo && todosTiposInsumo.length === 0 ? (
+          <Card>
+            <div className="text-center py-6">
+              <p className="text-gray-500 mb-4">Nenhum tipo de insumo cadastrado ainda.</p>
+              <Button
+                onClick={() => {
+                  setEditandoTipoInsumo(null);
+                  setModalTipoInsumoOpen(true);
+                }}
+              >
+                Cadastrar Primeiro Tipo
+              </Button>
+            </div>
+          </Card>
+        ) : tiposInsumoVisiveis ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {todosTiposInsumo.map((tipo) => (
+              <Card key={tipo.id} className={tipo.ativo === false ? 'opacity-60' : ''}>
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-sm font-semibold text-gray-800">
+                    {tipo.nome}
+                  </span>
+                  <span
+                    className={`px-2 py-0.5 rounded-full text-xs font-medium ${
+                      tipo.ativo !== false
+                        ? 'bg-green-100 text-green-800'
+                        : 'bg-red-100 text-red-800'
+                    }`}
+                  >
+                    {tipo.ativo !== false ? 'Ativo' : 'Inativo'}
+                  </span>
+                </div>
+                <div className="space-y-1 text-xs text-gray-500 mb-3">
+                  <div className="flex justify-between">
+                    <span>Valor (slug)</span>
+                    <span className="text-gray-700 font-medium">{tipo.valor}</span>
+                  </div>
+                </div>
+                <div className="flex gap-2 pt-2 border-t border-gray-100">
+                  <Button
+                    variant="ghost"
+                    className="text-xs px-2 py-1"
+                    onClick={() => {
+                      pedirSenha(() => {
+                        setEditandoTipoInsumo(tipo);
+                        setModalTipoInsumoOpen(true);
+                      });
+                    }}
+                  >
+                    Editar
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    className="text-xs px-2 py-1 text-red-600 hover:bg-red-50"
+                    onClick={() => pedirSenha(() => setDeleteTipoInsumoId(tipo.id))}
                   >
                     Excluir
                   </Button>
@@ -2356,6 +2550,35 @@ export default function Obras() {
         message="Tem certeza que deseja excluir esta unidade de medida?"
       />
 
+      {/* Modal Tipo de Insumo */}
+      <Modal
+        open={modalTipoInsumoOpen}
+        onClose={() => {
+          setModalTipoInsumoOpen(false);
+          setEditandoTipoInsumo(null);
+        }}
+        title={editandoTipoInsumo ? 'Editar Tipo de Insumo' : 'Novo Tipo de Insumo'}
+      >
+        <TipoInsumoForm
+          initial={editandoTipoInsumo}
+          onSubmit={handleSubmitTipoInsumo}
+          onCancel={() => {
+            setModalTipoInsumoOpen(false);
+            setEditandoTipoInsumo(null);
+          }}
+        />
+      </Modal>
+
+      <ConfirmDialog
+        open={deleteTipoInsumoId !== null}
+        onClose={() => setDeleteTipoInsumoId(null)}
+        onConfirm={() => {
+          if (deleteTipoInsumoId) handleDeleteTipoInsumo(deleteTipoInsumoId);
+        }}
+        title="Excluir Tipo de Insumo"
+        message="Tem certeza que deseja excluir este tipo de insumo?"
+      />
+
       {/* Modal Categoria de Material */}
       <Modal
         open={modalCategoriaOpen}
@@ -2431,6 +2654,7 @@ export default function Obras() {
           initial={editandoInsumo}
           unidades={todasUnidades}
           categorias={categoriasOptions}
+          tipos={tiposInsumoOptions}
           onSubmit={handleSubmitInsumo}
           onCancel={() => {
             setModalInsumoOpen(false);
