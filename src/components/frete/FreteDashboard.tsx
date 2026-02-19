@@ -99,11 +99,6 @@ export default function FreteDashboard({
   // ── A Pagar EMT ──
   const aPagarEmt = saldoAreacre + saldoAmazonia + saldoTriunfo + saldoEtam;
 
-  // ── Media ponderada de km (peso como peso) ──
-  const totalPesoKm = fretesF.reduce((sum, f) => sum + f.kmRodados * f.pesoToneladas, 0);
-  const totalPeso = fretesF.reduce((sum, f) => sum + f.pesoToneladas, 0);
-  const mediaKmPonderada = totalPeso > 0 ? totalPesoKm / totalPeso : 0;
-
   // ── Gasto por transportadora ──
   const gastoPorTransportadora = new Map<string, number>();
   const tkmPorTransportadora = new Map<string, { somaValorTkm: number; somaTkm: number; count: number }>();
@@ -389,7 +384,7 @@ export default function FreteDashboard({
       </div>
 
       {/* Cards resumo - fileira 1 */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Card>
           <p className="text-sm text-gray-500">Total Fretes</p>
           <p className="text-2xl font-bold text-emt-verde mt-1">
@@ -419,15 +414,6 @@ export default function FreteDashboard({
             <p>Triunfo: {formatCurrency(saldoTriunfo)}</p>
             <p>ETAM: {formatCurrency(saldoEtam)}</p>
           </div>
-        </Card>
-        <Card>
-          <p className="text-sm text-gray-500">Media Ponderada KM</p>
-          <p className="text-2xl font-bold text-orange-600 mt-1">
-            {mediaKmPonderada.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} km
-          </p>
-          <p className="text-xs text-gray-400 mt-0.5">
-            {totalPeso.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} t transportadas
-          </p>
         </Card>
       </div>
 
