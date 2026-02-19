@@ -4,6 +4,7 @@ import { AuthProvider, useAuth } from './contexts/AuthContext';
 import MainLayout from './components/layout/MainLayout';
 import ProtectedRoute from './components/auth/ProtectedRoute';
 import Dashboard from './pages/Dashboard';
+import ObrasPage from './pages/ObrasPage';
 import Obras from './pages/Obras';
 import Combustivel from './pages/Combustivel';
 import Insumos from './pages/Insumos';
@@ -22,7 +23,8 @@ const queryClient = new QueryClient({
 });
 
 const PAGINAS_FALLBACK: { acao: string; rota: string }[] = [
-  { acao: 'ver_cadastros', rota: '/obras' },
+  { acao: 'ver_obras', rota: '/obras' },
+  { acao: 'ver_cadastros', rota: '/cadastros' },
   { acao: 'ver_combustivel', rota: '/combustivel' },
   { acao: 'ver_insumos', rota: '/insumos' },
   { acao: 'ver_frete', rota: '/frete' },
@@ -61,7 +63,8 @@ export default function App() {
               }
             >
               <Route path="/" element={<HomeRedirect />} />
-              <Route path="/obras" element={<ProtectedRoute modulo="cadastros"><Obras /></ProtectedRoute>} />
+              <Route path="/obras" element={<ProtectedRoute modulo="obras"><ObrasPage /></ProtectedRoute>} />
+              <Route path="/cadastros" element={<ProtectedRoute modulo="cadastros"><Obras /></ProtectedRoute>} />
               <Route path="/combustivel" element={<ProtectedRoute modulo="combustivel"><Combustivel /></ProtectedRoute>} />
               <Route path="/insumos" element={<ProtectedRoute modulo="insumos"><Insumos /></ProtectedRoute>} />
               <Route path="/frete" element={<ProtectedRoute modulo="frete"><Frete /></ProtectedRoute>} />

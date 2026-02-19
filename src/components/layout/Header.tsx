@@ -4,7 +4,8 @@ import UserMenu from './UserMenu';
 
 const links: { to: string; label: string; acao?: string }[] = [
   { to: '/', label: 'Dashboard', acao: 'ver_dashboard' },
-  { to: '/obras', label: 'Cadastros', acao: 'ver_cadastros' },
+  { to: '/obras', label: 'Obras', acao: 'ver_obras' },
+  { to: '/cadastros', label: 'Cadastros', acao: 'ver_cadastros' },
   { to: '/combustivel', label: 'Combustível', acao: 'ver_combustivel' },
   { to: '/insumos', label: 'Insumos', acao: 'ver_insumos' },
   { to: '/frete', label: 'Frete', acao: 'ver_frete' },

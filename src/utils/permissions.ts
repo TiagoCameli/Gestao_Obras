@@ -109,6 +109,11 @@ export const ACOES_PLATAFORMA: AcaoPlataforma[] = [
   // Dashboard
   { chave: 'ver_dashboard', label: 'Visualizar o Dashboard', grupo: 'Dashboard' },
   { chave: 'filtros_dashboard', label: 'Ajustar filtros do Dashboard', grupo: 'Dashboard' },
+  // Obras
+  { chave: 'ver_obras', label: 'Visualizar obras', grupo: 'Obras' },
+  { chave: 'criar_obras', label: 'Criar obras', grupo: 'Obras' },
+  { chave: 'editar_obras', label: 'Editar obras', grupo: 'Obras' },
+  { chave: 'excluir_obras', label: 'Excluir obras', grupo: 'Obras' },
   // Cadastros
   { chave: 'ver_cadastros', label: 'Visualizar cadastros', grupo: 'Cadastros' },
   { chave: 'criar_cadastros', label: 'Criar novos cadastros', grupo: 'Cadastros' },
