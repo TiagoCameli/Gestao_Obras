@@ -150,6 +150,8 @@ export default function Compras() {
       totalMateriais: 0,
       totalGeral: 0,
       condicaoPagamento: '',
+      formaPagamento: '',
+      parcelas: [],
       prazoEntrega: '',
       status: 'emitida',
       observacoes: '',
@@ -218,6 +220,8 @@ export default function Compras() {
       totalMateriais: totalMat,
       totalGeral: totalMat,
       condicaoPagamento: cf.condicaoPagamento,
+      formaPagamento: '',
+      parcelas: [],
       prazoEntrega: cf.prazoEntrega,
       status: 'emitida',
       observacoes: '',
@@ -394,6 +398,9 @@ export default function Compras() {
           initial={editandoCotacao}
           pedidosAprovados={pedidosAprovados}
           fornecedores={fornecedores}
+          insumos={insumos}
+          unidades={unidades}
+          categorias={categoriasOptions}
           onSubmit={handleCotacaoSubmit}
           onCancel={() => { setCotacaoModalOpen(false); setPedidoParaCotacao(null); setEditandoCotacao(null); }}
           proximoNumero={proxCotacao}

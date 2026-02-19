@@ -1,8 +1,68 @@
-import { useState, useMemo } from 'react';
-import type { OrdemCompra, ItemOrdemCompra, CustosAdicionaisOC, Obra, EtapaObra, Fornecedor } from '../../types';
+import { useState, useMemo, useRef, useEffect } from 'react';
+import type { OrdemCompra, ItemOrdemCompra, CustosAdicionaisOC, Obra, EtapaObra, Fornecedor, ParcelaPagamento } from '../../types';
 import Button from '../ui/Button';
 import Input from '../ui/Input';
 import Select from '../ui/Select';
+
+function EtapaCombobox({ id, etapas, value, onChange }: {
+  id: string;
+  etapas: EtapaObra[];
+  value: string;
+  onChange: (etapaId: string) => void;
+}) {
+  const [busca, setBusca] = useState('');
+  const [aberto, setAberto] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  const etapaSelecionada = etapas.find((e) => e.id === value);
+
+  useEffect(() => {
+    function handleClickFora(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) {
+        setAberto(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickFora);
+    return () => document.removeEventListener('mousedown', handleClickFora);
+  }, []);
+
+  const filtradas = etapas.filter((e) =>
+    e.nome.toLowerCase().includes(busca.toLowerCase())
+  );
+
+  return (
+    <div ref={ref} className="relative">
+      <label className="block text-sm font-medium text-gray-700 mb-1" htmlFor={id}>Etapa da Obra</label>
+      <input
+        id={id}
+        type="text"
+        className="w-full h-[38px] border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emt-verde bg-white"
+        placeholder="Buscar etapa..."
+        value={aberto ? busca : (etapaSelecionada?.nome ?? '')}
+        onChange={(e) => { setBusca(e.target.value); setAberto(true); }}
+        onFocus={() => { setAberto(true); setBusca(''); }}
+        autoComplete="off"
+      />
+      {aberto && (
+        <ul className="absolute z-50 w-full mt-1 max-h-48 overflow-auto bg-white border border-gray-300 rounded-lg shadow-lg">
+          {filtradas.length === 0 ? (
+            <li className="px-3 py-2 text-sm text-gray-400">Nenhuma etapa encontrada</li>
+          ) : (
+            filtradas.map((e) => (
+              <li
+                key={e.id}
+                className={`px-3 py-2 text-sm cursor-pointer hover:bg-green-50 ${e.id === value ? 'bg-green-100 font-medium' : ''}`}
+                onMouseDown={() => { onChange(e.id); setAberto(false); setBusca(''); }}
+              >
+                {e.nome}
+              </li>
+            ))
+          )}
+        </ul>
+      )}
+    </div>
+  );
+}
 
 function genId() {
   return Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
@@ -31,6 +91,8 @@ export default function OrdemCompraForm({
   const [etapaObraId, setEtapaObraId] = useState(initial?.etapaObraId ?? '');
   const [fornecedorId, setFornecedorId] = useState(initial?.fornecedorId ?? '');
   const [condicaoPagamento, setCondicaoPagamento] = useState(initial?.condicaoPagamento ?? '');
+  const [formaPagamento, setFormaPagamento] = useState(initial?.formaPagamento ?? '');
+  const [parcelas, setParcelas] = useState<ParcelaPagamento[]>(initial?.parcelas ?? []);
   const [prazoEntrega, setPrazoEntrega] = useState(initial?.prazoEntrega ?? '');
   const [observacoes, setObservacoes] = useState(initial?.observacoes ?? '');
   const [entradaInsumos, setEntradaInsumos] = useState(initial?.entradaInsumos ?? false);
@@ -48,6 +110,51 @@ export default function OrdemCompraForm({
 
   const totalMateriais = useMemo(() => itens.reduce((sum, i) => sum + i.quantidade * i.precoUnitario, 0), [itens]);
   const totalGeral = useMemo(() => totalMateriais + custos.frete + custos.outrasDespesas + custos.impostos - custos.desconto, [totalMateriais, custos]);
+
+  // ── Parcelas helpers ──
+  function handleCondicaoChange(valor: string) {
+    setCondicaoPagamento(valor);
+    if (valor === 'a_prazo') {
+      setParcelas([{ numero: 1, data: '', valor: totalGeral }]);
+    } else if (valor === 'parcelado') {
+      const n = parcelas.length >= 2 ? parcelas.length : 2;
+      setParcelas(distribuirParcelas(n, totalGeral));
+    } else {
+      setParcelas([]);
+    }
+  }
+
+  function distribuirParcelas(n: number, total: number): ParcelaPagamento[] {
+    if (n <= 0) return [];
+    const valorBase = Math.floor((total / n) * 100) / 100;
+    const resto = Math.round((total - valorBase * n) * 100) / 100;
+    return Array.from({ length: n }, (_, i) => ({
+      numero: i + 1,
+      data: parcelas[i]?.data ?? '',
+      valor: i === 0 ? valorBase + resto : valorBase,
+    }));
+  }
+
+  function setNumeroParcelas(n: number) {
+    if (n < 2) n = 2;
+    if (n > 36) n = 36;
+    setParcelas(distribuirParcelas(n, totalGeral));
+  }
+
+  function updateParcela(idx: number, field: 'data' | 'valor', value: string | number) {
+    setParcelas((prev) => prev.map((p, i) => i === idx ? { ...p, [field]: value } : p));
+  }
+
+  // Keep parcela values in sync when totalGeral changes
+  useEffect(() => {
+    if (condicaoPagamento === 'a_prazo' && parcelas.length === 1) {
+      setParcelas([{ ...parcelas[0], valor: totalGeral }]);
+    }
+    // Don't auto-redistribute parcelado — user may have manually adjusted
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [totalGeral, condicaoPagamento]);
+
+  const fmt = (v: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v);
 
   function addItem() {
     setItens([...itens, { id: genId(), descricao: '', quantidade: 1, unidade: 'un', precoUnitario: 0, subtotal: 0 }]);
@@ -86,6 +193,8 @@ export default function OrdemCompraForm({
         totalMateriais,
         totalGeral,
         condicaoPagamento,
+        formaPagamento,
+        parcelas: condicaoPagamento === 'a_vista' ? [] : parcelas,
         prazoEntrega,
         status: initial?.status ?? 'emitida',
         observacoes,
@@ -137,13 +246,11 @@ export default function OrdemCompraForm({
 
       {/* Etapa */}
       {!entradaInsumos && obraId && etapasFiltradas.length > 0 && (
-        <Select
-          label="Etapa da Obra"
+        <EtapaCombobox
           id="oc-etapa"
-          options={etapasFiltradas.map((e) => ({ value: e.id, label: e.nome }))}
+          etapas={etapasFiltradas}
           value={etapaObraId}
-          onChange={(e) => setEtapaObraId(e.target.value)}
-          placeholder="Selecione a etapa..."
+          onChange={(id) => setEtapaObraId(id)}
         />
       )}
 
@@ -203,10 +310,133 @@ export default function OrdemCompraForm({
         <p className="text-lg font-bold text-gray-800">Total Geral: {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(totalGeral)}</p>
       </div>
 
-      <div className="grid grid-cols-2 gap-4">
-        <Input label="Condição de Pagamento" id="oc-cond" value={condicaoPagamento} onChange={(e) => setCondicaoPagamento(e.target.value)} placeholder="Ex: 30/60/90 dias" />
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <Select
+          label="Forma de Pagamento"
+          id="oc-forma-pgto"
+          options={[
+            { value: 'pix', label: 'PIX' },
+            { value: 'boleto', label: 'Boleto' },
+            { value: 'transferencia', label: 'Transferência' },
+            { value: 'dinheiro', label: 'Dinheiro' },
+            { value: 'cartao_credito', label: 'Cartão de Crédito' },
+            { value: 'cartao_debito', label: 'Cartão de Débito' },
+            { value: 'cheque', label: 'Cheque' },
+          ]}
+          value={formaPagamento}
+          onChange={(e) => setFormaPagamento(e.target.value)}
+          placeholder="Selecione..."
+        />
+        <Select
+          label="Condição de Pagamento"
+          id="oc-cond"
+          options={[
+            { value: 'a_vista', label: 'À Vista' },
+            { value: 'a_prazo', label: 'A Prazo' },
+            { value: 'parcelado', label: 'Parcelado' },
+          ]}
+          value={condicaoPagamento}
+          onChange={(e) => handleCondicaoChange(e.target.value)}
+          placeholder="Selecione..."
+        />
         <Input label="Prazo de Entrega" id="oc-prazo-ent" value={prazoEntrega} onChange={(e) => setPrazoEntrega(e.target.value)} placeholder="Ex: 10 dias úteis" />
       </div>
+
+      {/* A Prazo — data da parcela única */}
+      {condicaoPagamento === 'a_prazo' && parcelas.length === 1 && (
+        <div className="border border-gray-200 rounded-lg p-3 bg-gray-50">
+          <p className="text-sm font-medium text-gray-700 mb-2">Pagamento a prazo</p>
+          <div className="grid grid-cols-2 gap-4">
+            <Input
+              label="Data do Pagamento"
+              id="oc-parcela-data"
+              type="date"
+              value={parcelas[0].data}
+              onChange={(e) => updateParcela(0, 'data', e.target.value)}
+              required
+            />
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Valor</label>
+              <div className="w-full h-[38px] flex items-center border border-gray-200 bg-gray-100 rounded-lg px-3 text-sm font-medium text-gray-700">
+                {fmt(totalGeral)}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Parcelado — múltiplas parcelas */}
+      {condicaoPagamento === 'parcelado' && (
+        <div className="border border-gray-200 rounded-lg p-3 bg-gray-50">
+          <div className="flex items-center justify-between mb-3">
+            <p className="text-sm font-medium text-gray-700">Parcelas</p>
+            <div className="flex items-center gap-2">
+              <label className="text-xs text-gray-500">Nº parcelas:</label>
+              <input
+                type="number"
+                min="2"
+                max="36"
+                className="w-16 h-[32px] border border-gray-300 rounded-lg px-2 text-sm text-center focus:outline-none focus:ring-2 focus:ring-emt-verde"
+                value={parcelas.length}
+                onChange={(e) => setNumeroParcelas(parseInt(e.target.value) || 2)}
+              />
+              <Button
+                type="button"
+                variant="secondary"
+                className="text-xs px-2 py-1"
+                onClick={() => setParcelas(distribuirParcelas(parcelas.length, totalGeral))}
+              >
+                Redistribuir
+              </Button>
+            </div>
+          </div>
+          <div className="space-y-2">
+            {parcelas.map((p, idx) => (
+              <div key={idx} className="grid grid-cols-12 gap-2 items-end">
+                <div className="col-span-1 flex items-end pb-2">
+                  <span className="text-xs font-medium text-gray-500">{p.numero}ª</span>
+                </div>
+                <div className="col-span-5">
+                  <Input
+                    label={idx === 0 ? 'Data' : ''}
+                    id={`oc-parc-data-${idx}`}
+                    type="date"
+                    value={p.data}
+                    onChange={(e) => updateParcela(idx, 'data', e.target.value)}
+                    required
+                  />
+                </div>
+                <div className="col-span-4">
+                  <Input
+                    label={idx === 0 ? 'Valor (R$)' : ''}
+                    id={`oc-parc-valor-${idx}`}
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={p.valor}
+                    onChange={(e) => updateParcela(idx, 'valor', parseFloat(e.target.value) || 0)}
+                    required
+                  />
+                </div>
+                <div className="col-span-2 flex items-end pb-2">
+                  <span className="text-xs text-gray-400">{fmt(p.valor)}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+          {parcelas.length > 0 && (
+            <div className="mt-2 pt-2 border-t border-gray-200 flex justify-between text-sm">
+              <span className="text-gray-500">Soma das parcelas:</span>
+              <span className={`font-medium ${Math.abs(parcelas.reduce((s, p) => s + p.valor, 0) - totalGeral) > 0.01 ? 'text-red-600' : 'text-green-700'}`}>
+                {fmt(parcelas.reduce((s, p) => s + p.valor, 0))}
+                {Math.abs(parcelas.reduce((s, p) => s + p.valor, 0) - totalGeral) > 0.01 && (
+                  <span className="text-xs ml-1">(diferença: {fmt(parcelas.reduce((s, p) => s + p.valor, 0) - totalGeral)})</span>
+                )}
+              </span>
+            </div>
+          )}
+        </div>
+      )}
 
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-1">Observações</label>

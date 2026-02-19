@@ -437,6 +437,12 @@ export interface CustosAdicionaisOC {
   desconto: number;
 }
 
+export interface ParcelaPagamento {
+  numero: number;
+  data: string;
+  valor: number;
+}
+
 export interface OrdemCompra {
   id: string;
   numero: string;
@@ -452,6 +458,8 @@ export interface OrdemCompra {
   totalMateriais: number;
   totalGeral: number;
   condicaoPagamento: string;
+  formaPagamento: string;
+  parcelas: ParcelaPagamento[];
   prazoEntrega: string;
   status: StatusOrdemCompra;
   observacoes: string;

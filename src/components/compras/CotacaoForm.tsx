@@ -1,7 +1,69 @@
 import { useState, useMemo, useRef, useEffect } from 'react';
-import type { Cotacao, PedidoCompra, Fornecedor, CotacaoFornecedor, ItemPedidoCompra } from '../../types';
+import type { Cotacao, PedidoCompra, Fornecedor, CotacaoFornecedor, ItemPedidoCompra, Insumo, UnidadeMedida, CategoriaMaterialCompra, UnidadeCompra } from '../../types';
+import { useAdicionarInsumo } from '../../hooks/useInsumos';
 import Button from '../ui/Button';
 import Input from '../ui/Input';
+import Select from '../ui/Select';
+
+function InsumoCombobox({ id, insumos, value, onChange }: {
+  id: string;
+  insumos: Insumo[];
+  value: string;
+  onChange: (insumoId: string) => void;
+}) {
+  const [busca, setBusca] = useState('');
+  const [aberto, setAberto] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  const insumoSelecionado = insumos.find((i) => i.id === value);
+
+  useEffect(() => {
+    function handleClickFora(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) {
+        setAberto(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickFora);
+    return () => document.removeEventListener('mousedown', handleClickFora);
+  }, []);
+
+  const filtrados = insumos.filter((i) =>
+    i.nome.toLowerCase().includes(busca.toLowerCase())
+  );
+
+  return (
+    <div ref={ref} className="relative">
+      <input
+        id={id}
+        type="text"
+        className="w-full h-[38px] border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emt-verde bg-white"
+        placeholder="Buscar insumo..."
+        value={aberto ? busca : (insumoSelecionado?.nome ?? '')}
+        onChange={(e) => { setBusca(e.target.value); setAberto(true); }}
+        onFocus={() => { setAberto(true); setBusca(''); }}
+        autoComplete="off"
+        required={!value}
+      />
+      {aberto && (
+        <ul className="absolute z-50 w-full mt-1 max-h-48 overflow-auto bg-white border border-gray-300 rounded-lg shadow-lg">
+          {filtrados.length === 0 ? (
+            <li className="px-3 py-2 text-sm text-gray-400">Nenhum insumo encontrado</li>
+          ) : (
+            filtrados.map((ins) => (
+              <li
+                key={ins.id}
+                className={`px-3 py-2 text-sm cursor-pointer hover:bg-green-50 ${ins.id === value ? 'bg-green-100 font-medium' : ''}`}
+                onMouseDown={() => { onChange(ins.id); setAberto(false); setBusca(''); }}
+              >
+                {ins.nome} <span className="text-gray-400 text-xs">({ins.unidade})</span>
+              </li>
+            ))
+          )}
+        </ul>
+      )}
+    </div>
+  );
+}
 
 function FornecedorMultiSelect({
   fornecedores,
@@ -163,6 +225,9 @@ interface CotacaoFormProps {
   initial: Cotacao | null;
   pedidosAprovados: PedidoCompra[];
   fornecedores: Fornecedor[];
+  insumos: Insumo[];
+  unidades: UnidadeMedida[];
+  categorias: { value: string; label: string }[];
   onSubmit: (cotacao: Cotacao) => Promise<void>;
   onCancel: () => void;
   proximoNumero: string;
@@ -174,6 +239,9 @@ export default function CotacaoForm({
   initial,
   pedidosAprovados,
   fornecedores,
+  insumos,
+  unidades,
+  categorias,
   onSubmit,
   onCancel,
   proximoNumero,
@@ -192,6 +260,15 @@ export default function CotacaoForm({
     initial?.itensPedido.length ? initial.itensPedido : []
   );
   const [saving, setSaving] = useState(false);
+
+  // Inline insumo creation
+  const adicionarInsumoMutation = useAdicionarInsumo();
+  const [listaInsumosLocal, setListaInsumosLocal] = useState<Insumo[]>([]);
+  const [novoInsumoAberto, setNovoInsumoAberto] = useState<string | null>(null);
+  const [novoInsumoNome, setNovoInsumoNome] = useState('');
+  const [novoInsumoUnidade, setNovoInsumoUnidade] = useState('');
+  const [novoInsumoCategoria, setNovoInsumoCategoria] = useState<CategoriaMaterialCompra>('outros');
+  const insumosAtivos = useMemo(() => [...insumos.filter((i) => i.ativo !== false), ...listaInsumosLocal], [insumos, listaInsumosLocal]);
 
   const fornecedoresAtivos = fornecedores.filter((f) => f.ativo !== false);
   const pedidoSelecionado = pedidosAprovados.find((p) => p.id === pedidoId);
@@ -222,6 +299,50 @@ export default function CotacaoForm({
 
   function updateItemManual(id: string, field: string, value: string | number) {
     setItensManual(itensManual.map((i) => (i.id === id ? { ...i, [field]: value } : i)));
+  }
+
+  function selectInsumo(itemId: string, insumoId: string) {
+    const insumo = insumosAtivos.find((i) => i.id === insumoId);
+    if (!insumo) return;
+    setItensManual((prev) => prev.map((i) =>
+      i.id === itemId
+        ? { ...i, descricao: insumo.nome, unidade: (insumo.unidade || 'un') as UnidadeCompra, categoria: insumo.categoria || 'outros' }
+        : i
+    ));
+  }
+
+  function insumoSelecionadoParaItem(item: ItemPedidoCompra) {
+    return insumosAtivos.find((ins) => ins.nome === item.descricao);
+  }
+
+  async function handleCriarInsumo(itemId: string) {
+    if (!novoInsumoNome || !novoInsumoUnidade) return;
+    const novoInsumo: Insumo = {
+      id: genId(),
+      nome: novoInsumoNome,
+      tipo: 'material',
+      unidade: novoInsumoUnidade,
+      descricao: '',
+      ativo: true,
+      criadoPor: '',
+      categoria: novoInsumoCategoria,
+    };
+    try {
+      await adicionarInsumoMutation.mutateAsync(novoInsumo);
+      setListaInsumosLocal((prev) => [...prev, novoInsumo]);
+      // Select the newly created insumo for the item
+      setItensManual((prev) => prev.map((i) =>
+        i.id === itemId
+          ? { ...i, descricao: novoInsumo.nome, unidade: (novoInsumo.unidade || 'un') as UnidadeCompra, categoria: novoInsumo.categoria || 'outros' }
+          : i
+      ));
+      setNovoInsumoAberto(null);
+      setNovoInsumoNome('');
+      setNovoInsumoUnidade('');
+      setNovoInsumoCategoria('outros');
+    } catch {
+      // mutation error handled by react-query
+    }
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -310,22 +431,108 @@ export default function CotacaoForm({
               + Item
             </Button>
           </div>
-          {itensManual.map((item, idx) => (
-            <div key={item.id} className="flex gap-2 mb-2 items-end">
-              <div className="flex-1">
-                <Input label={`Descrição #${idx + 1}`} id={`cot-item-${item.id}`} value={item.descricao} onChange={(e) => updateItemManual(item.id, 'descricao', e.target.value)} required />
+          <div className="space-y-3">
+            {itensManual.map((item, idx) => (
+              <div key={item.id} className="border border-gray-200 rounded-lg p-3 bg-gray-50">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-xs font-medium text-gray-500">Item {idx + 1}</span>
+                  {itensManual.length > 1 && (
+                    <button type="button" onClick={() => removeItemManual(item.id)} className="text-red-500 hover:text-red-700 text-xs font-medium">
+                      Remover
+                    </button>
+                  )}
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+                  <div className="md:col-span-2">
+                    <label className="block text-sm font-medium text-gray-700 mb-1" htmlFor={`cot-insumo-${item.id}`}>Insumo</label>
+                    <InsumoCombobox
+                      id={`cot-insumo-${item.id}`}
+                      insumos={insumosAtivos}
+                      value={insumosAtivos.find((ins) => ins.nome === item.descricao)?.id ?? ''}
+                      onChange={(insumoId) => selectInsumo(item.id, insumoId)}
+                    />
+                    {novoInsumoAberto !== item.id && (
+                      <button
+                        type="button"
+                        className="text-xs text-green-700 hover:text-green-900 mt-1 font-medium"
+                        onClick={() => { setNovoInsumoAberto(item.id); setNovoInsumoNome(''); setNovoInsumoUnidade(''); setNovoInsumoCategoria('outros'); }}
+                      >
+                        + Novo Insumo
+                      </button>
+                    )}
+                    {novoInsumoAberto === item.id && (
+                      <div className="mt-2 border border-green-200 rounded-lg p-3 bg-green-50 space-y-2">
+                        <p className="text-xs font-medium text-green-800">Cadastrar novo insumo</p>
+                        <Input
+                          label="Nome"
+                          id={`novo-insumo-nome-${item.id}`}
+                          value={novoInsumoNome}
+                          onChange={(e) => setNovoInsumoNome(e.target.value)}
+                          placeholder="Nome do insumo"
+                          required
+                        />
+                        <div className="grid grid-cols-2 gap-2">
+                          <Select
+                            label="Unidade"
+                            id={`novo-insumo-un-${item.id}`}
+                            options={unidades.filter((u) => u.ativo).map((u) => ({ value: u.sigla, label: u.nome }))}
+                            value={novoInsumoUnidade}
+                            onChange={(e) => setNovoInsumoUnidade(e.target.value)}
+                            placeholder="Selecione"
+                            required
+                          />
+                          <Select
+                            label="Categoria"
+                            id={`novo-insumo-cat-${item.id}`}
+                            options={categorias}
+                            value={novoInsumoCategoria}
+                            onChange={(e) => setNovoInsumoCategoria(e.target.value as CategoriaMaterialCompra)}
+                          />
+                        </div>
+                        <div className="flex gap-2 justify-end">
+                          <Button type="button" variant="secondary" className="text-xs px-3 py-1" onClick={() => setNovoInsumoAberto(null)}>
+                            Cancelar
+                          </Button>
+                          <Button
+                            type="button"
+                            className="text-xs px-3 py-1"
+                            disabled={!novoInsumoNome || !novoInsumoUnidade || adicionarInsumoMutation.isPending}
+                            onClick={() => handleCriarInsumo(item.id)}
+                          >
+                            {adicionarInsumoMutation.isPending ? 'Salvando...' : 'Salvar Insumo'}
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                  <div>
+                    <Input
+                      label="Qtd"
+                      id={`cot-qtd-${item.id}`}
+                      type="number"
+                      min="0.01"
+                      step="0.01"
+                      value={item.quantidade}
+                      onChange={(e) => updateItemManual(item.id, 'quantidade', parseFloat(e.target.value) || 0)}
+                      required
+                    />
+                  </div>
+                  <div>
+                    {insumoSelecionadoParaItem(item) ? (
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Unid.</label>
+                        <div className="w-full h-[38px] flex items-center justify-center border border-gray-200 bg-gray-50 rounded-lg px-2 text-sm text-gray-600">
+                          {item.unidade}
+                        </div>
+                      </div>
+                    ) : (
+                      <Input label="Unid." id={`cot-un-${item.id}`} value={item.unidade} onChange={(e) => updateItemManual(item.id, 'unidade', e.target.value)} required />
+                    )}
+                  </div>
+                </div>
               </div>
-              <div className="w-20">
-                <Input label="Qtd" id={`cot-qtd-${item.id}`} type="number" min="0.01" step="0.01" value={item.quantidade} onChange={(e) => updateItemManual(item.id, 'quantidade', parseFloat(e.target.value) || 0)} required />
-              </div>
-              <div className="w-24">
-                <Input label="Unid." id={`cot-un-${item.id}`} value={item.unidade} onChange={(e) => updateItemManual(item.id, 'unidade', e.target.value)} required />
-              </div>
-              {itensManual.length > 1 && (
-                <button type="button" onClick={() => removeItemManual(item.id)} className="text-red-500 hover:text-red-700 text-sm pb-1">✕</button>
-              )}
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
       )}
 
