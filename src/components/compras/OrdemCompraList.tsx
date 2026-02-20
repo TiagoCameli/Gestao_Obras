@@ -287,8 +287,8 @@ export default function OrdemCompraList({
                         <td className="px-3 py-2">{item.unidade}</td>
                         <td className="px-3 py-2 text-right">{formatCurrency(item.precoUnitario)}</td>
                         <td className="px-3 py-2 text-right font-medium">{formatCurrency(item.subtotal)}</td>
-                        <td className="px-3 py-2 text-gray-600">{obrasMap.get(item.obraId) || '-'}</td>
-                        <td className="px-3 py-2 text-gray-600">{item.etapaObraId ? (etapasMap.get(item.etapaObraId) || '-') : '-'}</td>
+                        <td className="px-3 py-2 text-gray-600">{visualizando.entradaInsumos ? '' : (obrasMap.get(item.obraId) || '-')}</td>
+                        <td className="px-3 py-2 text-gray-600">{visualizando.entradaInsumos ? '' : (item.etapaObraId ? (etapasMap.get(item.etapaObraId) || '-') : '-')}</td>
                       </tr>
                     ))}
                   </tbody>
