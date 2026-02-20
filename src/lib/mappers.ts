@@ -875,6 +875,8 @@ export function dbToOrdemCompra(row: any): OrdemCompra {
     status: row.status ?? 'emitida',
     observacoes: row.observacoes ?? '',
     entradaInsumos: row.entrada_insumos ?? false,
+    entradaGerada: row.entrada_gerada ?? false,
+    empresaFaturamento: row.empresa_faturamento ?? '',
     aprovada: row.aprovada ?? false,
     criadoPor: row.criado_por ?? '',
   };
@@ -902,6 +904,8 @@ export function ordemCompraToDb(o: OrdemCompra) {
     status: o.status,
     observacoes: o.observacoes,
     entrada_insumos: o.entradaInsumos,
+    entrada_gerada: o.entradaGerada,
+    empresa_faturamento: o.empresaFaturamento,
     aprovada: o.aprovada,
     criado_por: o.criadoPor,
   };

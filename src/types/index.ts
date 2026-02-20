@@ -428,6 +428,8 @@ export interface ItemOrdemCompra {
   unidade: string;
   precoUnitario: number;
   subtotal: number;
+  obraId: string;
+  etapaObraId: string;
 }
 
 export interface CustosAdicionaisOC {
@@ -464,6 +466,8 @@ export interface OrdemCompra {
   status: StatusOrdemCompra;
   observacoes: string;
   entradaInsumos: boolean;
+  entradaGerada: boolean;
+  empresaFaturamento: string;
   aprovada: boolean;
   criadoPor: string;
 }

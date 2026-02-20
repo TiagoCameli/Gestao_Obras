@@ -218,17 +218,16 @@ export default function OrdemCompraForm({
   proximoNumero,
   onCreateFornecedor,
 }: OrdemCompraFormProps) {
-  const [obraId, setObraId] = useState(initial?.obraId ?? '');
-  const [etapaObraId, setEtapaObraId] = useState(initial?.etapaObraId ?? '');
   const [fornecedorId, setFornecedorId] = useState(initial?.fornecedorId ?? '');
   const [condicaoPagamento, setCondicaoPagamento] = useState(initial?.condicaoPagamento ?? '');
   const [formaPagamento, setFormaPagamento] = useState(initial?.formaPagamento ?? '');
   const [parcelas, setParcelas] = useState<ParcelaPagamento[]>(initial?.parcelas ?? []);
   const [prazoEntrega, setPrazoEntrega] = useState(initial?.prazoEntrega ?? '');
+  const [empresaFaturamento, setEmpresaFaturamento] = useState(initial?.empresaFaturamento ?? '');
   const [observacoes, setObservacoes] = useState(initial?.observacoes ?? '');
   const [entradaInsumos, setEntradaInsumos] = useState(initial?.entradaInsumos ?? false);
   const [itens, setItens] = useState<ItemOrdemCompra[]>(
-    initial?.itens.length ? initial.itens : [{ id: genId(), descricao: '', quantidade: 1, unidade: 'un', precoUnitario: 0, subtotal: 0 }]
+    initial?.itens.length ? initial.itens : [{ id: genId(), descricao: '', quantidade: 1, unidade: 'un', precoUnitario: 0, subtotal: 0, obraId: initial?.obraId ?? '', etapaObraId: initial?.etapaObraId ?? '' }]
   );
   const [custos, setCustos] = useState<CustosAdicionaisOC>(
     initial?.custosAdicionais ?? { frete: 0, outrasDespesas: 0, impostos: 0, desconto: 0 }
@@ -241,7 +240,6 @@ export default function OrdemCompraForm({
   const [novoFornecedorNome, setNovoFornecedorNome] = useState('');
   const [salvandoFornecedor, setSalvandoFornecedor] = useState(false);
 
-  const etapasFiltradas = etapas.filter((e) => e.obraId === obraId);
   const fornecedoresAtivos = fornecedores.filter((f) => f.ativo !== false);
   const fornecedorSelecionado = fornecedores.find((f) => f.id === fornecedorId);
   const insumosAtivos = useMemo(() => insumos.filter((i) => i.ativo !== false), [insumos]);
@@ -305,7 +303,7 @@ export default function OrdemCompraForm({
   const fmt = (v: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v);
 
   function addItem() {
-    setItens([...itens, { id: genId(), descricao: '', quantidade: 1, unidade: 'un', precoUnitario: 0, subtotal: 0 }]);
+    setItens([...itens, { id: genId(), descricao: '', quantidade: 1, unidade: 'un', precoUnitario: 0, subtotal: 0, obraId: '', etapaObraId: '' }]);
   }
 
   function removeItem(id: string) {
@@ -317,6 +315,7 @@ export default function OrdemCompraForm({
     setItens(itens.map((i) => {
       if (i.id !== id) return i;
       const updated = { ...i, [field]: value };
+      if (field === 'obraId') updated.etapaObraId = '';
       updated.subtotal = updated.quantidade * updated.precoUnitario;
       return updated;
     }));
@@ -332,12 +331,12 @@ export default function OrdemCompraForm({
         numero: initial?.numero || proximoNumero,
         dataCriacao: initial?.dataCriacao || new Date().toISOString().slice(0, 10),
         dataEntrega: initial?.dataEntrega ?? '',
-        obraId,
-        etapaObraId: entradaInsumos ? '' : etapaObraId,
+        obraId: '',
+        etapaObraId: '',
         fornecedorId,
         cotacaoId: initial?.cotacaoId ?? '',
         pedidoCompraId: initial?.pedidoCompraId ?? '',
-        itens: itens.map((i) => ({ ...i, subtotal: i.quantidade * i.precoUnitario })),
+        itens: itens.map((i) => ({ ...i, subtotal: i.quantidade * i.precoUnitario, etapaObraId: entradaInsumos ? '' : i.etapaObraId })),
         custosAdicionais: custos,
         totalMateriais,
         totalGeral,
@@ -348,7 +347,9 @@ export default function OrdemCompraForm({
         status: initial?.status ?? 'emitida',
         observacoes,
         entradaInsumos,
+        empresaFaturamento,
         aprovada: initial?.aprovada ?? false,
+        entradaGerada: initial?.entradaGerada ?? false,
         criadoPor: initial?.criadoPor ?? '',
       };
       await onSubmit(oc);
@@ -364,74 +365,63 @@ export default function OrdemCompraForm({
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div>
-          <GenericCombobox
-            id="oc-fornecedor"
-            label="Fornecedor"
-            items={fornecedoresAtivos}
-            value={fornecedorId}
-            onChange={(id) => setFornecedorId(id)}
-            placeholder="Buscar fornecedor..."
-            getLabel={(f) => f.nome}
-            getDetail={(f) => f.cnpj || ''}
-          />
-          {onCreateFornecedor && !criandoFornecedor && (
+      <div>
+        <GenericCombobox
+          id="oc-fornecedor"
+          label="Fornecedor"
+          items={fornecedoresAtivos}
+          value={fornecedorId}
+          onChange={(id) => setFornecedorId(id)}
+          placeholder="Buscar fornecedor..."
+          getLabel={(f) => f.nome}
+          getDetail={(f) => f.cnpj || ''}
+        />
+        {onCreateFornecedor && !criandoFornecedor && (
+          <button
+            type="button"
+            className="text-xs text-emt-verde hover:underline mt-1"
+            onClick={() => { setCriandoFornecedor(true); setNovoFornecedorNome(''); }}
+          >
+            + Novo fornecedor
+          </button>
+        )}
+        {criandoFornecedor && (
+          <div className="mt-2 flex gap-2 items-end">
+            <input
+              className="flex-1 h-[38px] border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emt-verde"
+              value={novoFornecedorNome}
+              onChange={(e) => setNovoFornecedorNome(e.target.value)}
+              placeholder="Nome do fornecedor"
+              autoFocus
+            />
             <button
               type="button"
-              className="text-xs text-emt-verde hover:underline mt-1"
-              onClick={() => { setCriandoFornecedor(true); setNovoFornecedorNome(''); }}
+              disabled={!novoFornecedorNome.trim() || salvandoFornecedor}
+              className="px-3 py-2 bg-emt-verde text-white rounded-lg text-sm font-medium disabled:opacity-50 h-[38px]"
+              onClick={async () => {
+                if (!onCreateFornecedor || !novoFornecedorNome.trim()) return;
+                setSalvandoFornecedor(true);
+                try {
+                  const id = await onCreateFornecedor(novoFornecedorNome.trim());
+                  setFornecedorId(id);
+                  setCriandoFornecedor(false);
+                  setNovoFornecedorNome('');
+                } finally {
+                  setSalvandoFornecedor(false);
+                }
+              }}
             >
-              + Novo fornecedor
+              {salvandoFornecedor ? '...' : 'Salvar'}
             </button>
-          )}
-          {criandoFornecedor && (
-            <div className="mt-2 flex gap-2 items-end">
-              <input
-                className="flex-1 h-[38px] border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emt-verde"
-                value={novoFornecedorNome}
-                onChange={(e) => setNovoFornecedorNome(e.target.value)}
-                placeholder="Nome do fornecedor"
-                autoFocus
-              />
-              <button
-                type="button"
-                disabled={!novoFornecedorNome.trim() || salvandoFornecedor}
-                className="px-3 py-2 bg-emt-verde text-white rounded-lg text-sm font-medium disabled:opacity-50 h-[38px]"
-                onClick={async () => {
-                  if (!onCreateFornecedor || !novoFornecedorNome.trim()) return;
-                  setSalvandoFornecedor(true);
-                  try {
-                    const id = await onCreateFornecedor(novoFornecedorNome.trim());
-                    setFornecedorId(id);
-                    setCriandoFornecedor(false);
-                    setNovoFornecedorNome('');
-                  } finally {
-                    setSalvandoFornecedor(false);
-                  }
-                }}
-              >
-                {salvandoFornecedor ? '...' : 'Salvar'}
-              </button>
-              <button
-                type="button"
-                className="px-3 py-2 bg-gray-200 text-gray-700 rounded-lg text-sm font-medium h-[38px]"
-                onClick={() => { setCriandoFornecedor(false); setNovoFornecedorNome(''); }}
-              >
-                Cancelar
-              </button>
-            </div>
-          )}
-        </div>
-        <GenericCombobox
-          id="oc-obra"
-          label="Obra"
-          items={obras}
-          value={obraId}
-          onChange={(id) => { setObraId(id); setEtapaObraId(''); }}
-          placeholder="Buscar obra..."
-          getLabel={(o) => o.nome}
-        />
+            <button
+              type="button"
+              className="px-3 py-2 bg-gray-200 text-gray-700 rounded-lg text-sm font-medium h-[38px]"
+              onClick={() => { setCriandoFornecedor(false); setNovoFornecedorNome(''); }}
+            >
+              Cancelar
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Preview fornecedor */}
@@ -449,16 +439,6 @@ export default function OrdemCompraForm({
         <input type="checkbox" checked={entradaInsumos} onChange={(e) => setEntradaInsumos(e.target.checked)} className="accent-emt-verde" />
         <span className="text-gray-700">Entrada no estoque de insumos (gasto alocado na saída)</span>
       </label>
-
-      {/* Etapa */}
-      {!entradaInsumos && obraId && etapasFiltradas.length > 0 && (
-        <EtapaCombobox
-          id="oc-etapa"
-          etapas={etapasFiltradas}
-          value={etapaObraId}
-          onChange={(id) => setEtapaObraId(id)}
-        />
-      )}
 
       {/* Itens */}
       <div>
@@ -509,6 +489,29 @@ export default function OrdemCompraForm({
                   </p>
                 </div>
               </div>
+              {!entradaInsumos && (
+                <div className="grid grid-cols-12 gap-2 mt-2">
+                  <div className="col-span-6">
+                    <GenericCombobox
+                      id={`oc-item-obra-${item.id}`}
+                      label="Obra"
+                      items={obras}
+                      value={item.obraId}
+                      onChange={(id) => updateItem(item.id, 'obraId', id)}
+                      placeholder="Buscar obra..."
+                      getLabel={(o) => o.nome}
+                    />
+                  </div>
+                  <div className="col-span-6">
+                    <EtapaCombobox
+                      id={`oc-item-etapa-${item.id}`}
+                      etapas={etapas.filter((e) => e.obraId === item.obraId)}
+                      value={item.etapaObraId}
+                      onChange={(id) => updateItem(item.id, 'etapaObraId', id)}
+                    />
+                  </div>
+                </div>
+              )}
             </div>
           ))}
         </div>
@@ -562,6 +565,20 @@ export default function OrdemCompraForm({
         />
         <Input label="Prazo de Entrega" id="oc-prazo-ent" value={prazoEntrega} onChange={(e) => setPrazoEntrega(e.target.value)} placeholder="Ex: 10 dias úteis" />
       </div>
+
+      <Select
+        label="Empresa de Faturamento"
+        id="oc-empresa-fat"
+        options={[
+          { value: 'emt_construtora', label: 'EMT Construtora' },
+          { value: 'amazonia_agroindustria', label: 'Amazonia Agroindustria' },
+          { value: 'james_castro_cameli', label: 'James Castro Cameli' },
+          { value: 'tiago_melo_cameli', label: 'Tiago de Melo Cameli' },
+        ]}
+        value={empresaFaturamento}
+        onChange={(e) => setEmpresaFaturamento(e.target.value)}
+        placeholder="Selecione..."
+      />
 
       {/* A Prazo — data da parcela única */}
       {condicaoPagamento === 'a_prazo' && parcelas.length === 1 && (

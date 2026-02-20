@@ -5,10 +5,16 @@ import type {
   Cotacao,
   OrdemCompra,
   ItemOrdemCompra,
+  EntradaMaterial,
+  EntradaCombustivel,
 } from '../types';
 import { usePedidosCompra, useAdicionarPedidoCompra, useAtualizarPedidoCompra } from '../hooks/usePedidosCompra';
 import { useCotacoes, useAdicionarCotacao, useAtualizarCotacao, useExcluirCotacao } from '../hooks/useCotacoes';
-import { useOrdensCompra, useAdicionarOrdemCompra, useAtualizarOrdemCompra } from '../hooks/useOrdensCompra';
+import { useOrdensCompra, useAdicionarOrdemCompra, useAtualizarOrdemCompra, useExcluirOrdemCompra } from '../hooks/useOrdensCompra';
+import { useDepositosMaterial } from '../hooks/useDepositosMaterial';
+import { useDepositos } from '../hooks/useDepositos';
+import { useAdicionarEntradaMaterial } from '../hooks/useEntradasMaterial';
+import { useAdicionarEntradaCombustivel } from '../hooks/useEntradasCombustivel';
 import { useObras } from '../hooks/useObras';
 import { useEtapas } from '../hooks/useEtapas';
 import { useFornecedores, useAdicionarFornecedor } from '../hooks/useFornecedores';
@@ -61,6 +67,8 @@ export default function Compras() {
   const { data: insumos = [] } = useInsumos();
   const { data: unidades = [] } = useUnidades();
   const { data: categoriasMaterial = [] } = useCategoriasMaterial();
+  const { data: depositosMaterial = [] } = useDepositosMaterial();
+  const { data: depositosCombustivel = [] } = useDepositos();
 
   const categoriasOptions = useMemo(
     () => categoriasMaterial.filter((c) => c.ativo).map((c) => ({ value: c.valor, label: c.nome })),
@@ -75,6 +83,9 @@ export default function Compras() {
   const excluirCotacaoMut = useExcluirCotacao();
   const adicionarOCMut = useAdicionarOrdemCompra();
   const atualizarOCMut = useAtualizarOrdemCompra();
+  const excluirOCMut = useExcluirOrdemCompra();
+  const adicionarEntradaMaterialMut = useAdicionarEntradaMaterial();
+  const adicionarEntradaCombustivelMut = useAdicionarEntradaCombustivel();
 
   // State
   const [pedidoModalOpen, setPedidoModalOpen] = useState(false);
@@ -134,6 +145,8 @@ export default function Compras() {
       unidade: item.unidade,
       precoUnitario: 0,
       subtotal: 0,
+      obraId: pedido.obraId,
+      etapaObraId: '',
     }));
     setEditandoOC({
       id: '',
@@ -156,6 +169,8 @@ export default function Compras() {
       status: 'emitida',
       observacoes: '',
       entradaInsumos: false,
+      entradaGerada: false,
+      empresaFaturamento: '',
       aprovada: false,
       criadoPor: '',
     });
@@ -189,6 +204,8 @@ export default function Compras() {
     const cf = cotacao.fornecedores.find((f) => f.fornecedorId === fornecedorId);
     if (!cf) return;
 
+    const pedidoRef = pedidos.find((p) => p.id === cotacao.pedidoCompraId);
+
     const itens: ItemOrdemCompra[] = cotacao.itensPedido
       .filter((item) => itemIds.includes(item.id))
       .map((item) => {
@@ -200,10 +217,10 @@ export default function Compras() {
           unidade: item.unidade,
           precoUnitario: preco?.precoUnitario ?? 0,
           subtotal: item.quantidade * (preco?.precoUnitario ?? 0),
+          obraId: pedidoRef?.obraId ?? '',
+          etapaObraId: '',
         };
       });
-
-    const pedidoRef = pedidos.find((p) => p.id === cotacao.pedidoCompraId);
     const totalMat = itens.reduce((sum, i) => sum + i.subtotal, 0);
 
     setEditandoOC({
@@ -227,6 +244,8 @@ export default function Compras() {
       status: 'emitida',
       observacoes: '',
       entradaInsumos: false,
+      entradaGerada: false,
+      empresaFaturamento: '',
       aprovada: false,
       criadoPor: '',
     });
@@ -257,13 +276,62 @@ export default function Compras() {
     await atualizarOCMut.mutateAsync({ ...oc, status: 'emitida', dataEntrega: '' });
   }, [atualizarOCMut]);
 
-  const handleCancelarOC = useCallback(async (oc: OrdemCompra) => {
-    await atualizarOCMut.mutateAsync({ ...oc, status: 'cancelada' });
-  }, [atualizarOCMut]);
+  const handleExcluirOC = useCallback(async (oc: OrdemCompra) => {
+    if (oc.aprovada || oc.entradaGerada) return;
+    if (!window.confirm(`Excluir permanentemente a OC ${oc.numero}?`)) return;
+    await excluirOCMut.mutateAsync(oc.id);
+  }, [excluirOCMut]);
 
   const handleAprovarOC = useCallback(async (oc: OrdemCompra) => {
     await atualizarOCMut.mutateAsync(oc);
   }, [atualizarOCMut]);
+
+  const handleGerarEntrada = useCallback(async (oc: OrdemCompra, tipo: 'insumos' | 'combustivel', depositoId: string) => {
+    const genId = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+    const agora = new Date().toISOString();
+    const nomeUsuario = usuario?.nome || '';
+    const forn = fornecedores.find((f) => f.id === oc.fornecedorId);
+
+    if (tipo === 'insumos') {
+      // Create one EntradaMaterial per OC item, matching to insumo by descricao
+      for (const item of oc.itens) {
+        const insumo = insumos.find((i) => i.nome.toLowerCase() === item.descricao.toLowerCase());
+        const entrada: EntradaMaterial = {
+          id: genId(),
+          dataHora: agora,
+          depositoMaterialId: depositoId,
+          insumoId: insumo?.id || '',
+          obraId: oc.obraId,
+          quantidade: item.quantidade,
+          valorTotal: item.subtotal,
+          fornecedorId: oc.fornecedorId,
+          notaFiscal: '',
+          observacoes: `Gerado a partir da OC ${oc.numero}`,
+          criadoPor: nomeUsuario,
+        };
+        await adicionarEntradaMaterialMut.mutateAsync(entrada);
+      }
+    } else {
+      // Combustível: create one entry with the OC total
+      const totalLitros = oc.itens.reduce((sum, i) => sum + i.quantidade, 0);
+      const entrada: EntradaCombustivel = {
+        id: genId(),
+        dataHora: agora,
+        depositoId,
+        tipoCombustivel: oc.itens[0]?.descricao || 'diesel',
+        obraId: oc.obraId,
+        quantidadeLitros: totalLitros,
+        valorTotal: oc.totalGeral,
+        fornecedor: forn?.nome || '',
+        notaFiscal: '',
+        observacoes: `Gerado a partir da OC ${oc.numero}`,
+        criadoPor: nomeUsuario,
+      };
+      await adicionarEntradaCombustivelMut.mutateAsync(entrada);
+    }
+    // Marca a OC como entrada já gerada
+    await atualizarOCMut.mutateAsync({ ...oc, entradaGerada: true });
+  }, [usuario, fornecedores, insumos, adicionarEntradaMaterialMut, adicionarEntradaCombustivelMut, atualizarOCMut]);
 
   if (loadingPedidos) {
     return (
@@ -329,6 +397,8 @@ export default function Compras() {
           <PedidoCompraList
             pedidos={pedidos}
             obras={obras}
+            cotacoes={cotacoes}
+            ordens={ordens}
             busca={buscaPedido}
             categorias={categoriasOptions}
             onAprovar={handleAprovar}
@@ -373,8 +443,11 @@ export default function Compras() {
           onEdit={(oc) => { setEditandoOC(oc); setOcModalOpen(true); }}
           onMarcarEntregue={handleMarcarEntregue}
           onReabrir={handleReabrirOC}
-          onCancelar={handleCancelarOC}
+          onExcluir={handleExcluirOC}
           onAprovar={handleAprovarOC}
+          onGerarEntrada={handleGerarEntrada}
+          depositosMaterial={depositosMaterial}
+          depositosCombustivel={depositosCombustivel}
           canEdit={canEdit}
         />
       )}
@@ -439,6 +512,7 @@ export default function Compras() {
         open={ocModalOpen}
         onClose={() => { setOcModalOpen(false); setEditandoOC(null); }}
         title={editandoOC?.id ? 'Editar Ordem de Compra' : 'Nova Ordem de Compra'}
+        size="xl"
       >
         <OrdemCompraForm
           initial={editandoOC}

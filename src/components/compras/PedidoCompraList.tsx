@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import type { PedidoCompra, Obra } from '../../types';
+import type { PedidoCompra, Obra, Cotacao, OrdemCompra } from '../../types';
 import { formatDate } from '../../utils/formatters';
 import Card from '../ui/Card';
 import Button from '../ui/Button';
@@ -38,6 +38,8 @@ const UNIDADE_LABEL: Record<string, string> = {
 interface PedidoCompraListProps {
   pedidos: PedidoCompra[];
   obras: Obra[];
+  cotacoes: Cotacao[];
+  ordens: OrdemCompra[];
   busca: string;
   categorias: { value: string; label: string }[];
   onAprovar: (pedido: PedidoCompra) => void;
@@ -49,9 +51,20 @@ interface PedidoCompraListProps {
   canCreate: boolean;
 }
 
+function getVinculoInfo(pedidoId: string, cotacoes: Cotacao[], ordens: OrdemCompra[]): { bloqueado: boolean; motivos: string[] } {
+  const motivos: string[] = [];
+  const cotsVinculadas = cotacoes.filter((c) => c.pedidoCompraId === pedidoId);
+  const ocsVinculadas = ordens.filter((o) => o.pedidoCompraId === pedidoId);
+  if (cotsVinculadas.length > 0) motivos.push(`Cotação vinculada: ${cotsVinculadas.map((c) => c.numero).join(', ')}`);
+  if (ocsVinculadas.length > 0) motivos.push(`OC vinculada: ${ocsVinculadas.map((o) => o.numero).join(', ')}`);
+  return { bloqueado: motivos.length > 0, motivos };
+}
+
 export default function PedidoCompraList({
   pedidos,
   obras,
+  cotacoes,
+  ordens,
   busca,
   categorias,
   onAprovar,
@@ -121,57 +134,68 @@ export default function PedidoCompraList({
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
-                {filtrados.map((p) => (
-                  <tr key={p.id} className="hover:bg-gray-50">
-                    <td className="px-4 py-2.5 font-medium text-gray-800">{p.numero}</td>
-                    <td className="px-4 py-2.5 text-gray-600">{formatDate(p.data)}</td>
-                    <td className="px-4 py-2.5 text-gray-600 truncate">{obrasMap.get(p.obraId) || '-'}</td>
-                    <td className="px-4 py-2.5 text-gray-600 truncate">{p.solicitante}</td>
-                    <td className="px-4 py-2.5 text-center text-gray-600">{p.itens.length}</td>
-                    <td className="px-4 py-2.5 text-center">
-                      <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${URGENCIA_BADGE[p.urgencia]}`}>
-                        {URGENCIA_LABEL[p.urgencia]}
-                      </span>
-                    </td>
-                    <td className="px-4 py-2.5 text-center">
-                      <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${STATUS_BADGE[p.status]}`}>
-                        {STATUS_LABEL[p.status]}
-                      </span>
-                    </td>
-                    <td className="px-4 py-2.5 text-right">
-                      <div className="flex justify-end gap-2 flex-wrap">
-                        <button onClick={() => setDetalhePedido(p)} className="text-xs text-blue-600 hover:text-blue-800 font-medium">
-                          Detalhes
-                        </button>
-                        {p.status === 'pendente' && canApprove && (
-                          <>
-                            <button onClick={() => onAprovar(p)} className="text-xs text-green-600 hover:text-green-800 font-medium">
-                              Aprovar
-                            </button>
-                            <button onClick={() => onReprovar(p)} className="text-xs text-red-600 hover:text-red-800 font-medium">
-                              Reprovar
-                            </button>
-                          </>
-                        )}
-                        {p.status === 'aprovado' && canCreate && (
-                          <>
-                            <button onClick={() => onEnviarCotacao(p)} className="text-xs text-purple-600 hover:text-purple-800 font-medium">
-                              Cotação
-                            </button>
-                            <button onClick={() => onGerarOC(p)} className="text-xs text-emt-verde hover:text-emt-verde-escuro font-medium">
-                              Gerar OC
-                            </button>
-                          </>
-                        )}
-                        {(p.status === 'aprovado' || p.status === 'reprovado') && canApprove && (
-                          <button onClick={() => onDesaprovar(p)} className="text-xs text-yellow-600 hover:text-yellow-800 font-medium">
-                            Voltar p/ Pendente
+                {filtrados.map((p) => {
+                  const vinculo = getVinculoInfo(p.id, cotacoes, ordens);
+                  return (
+                    <tr key={p.id} className="hover:bg-gray-50">
+                      <td className="px-4 py-2.5 font-medium text-gray-800">{p.numero}</td>
+                      <td className="px-4 py-2.5 text-gray-600">{formatDate(p.data)}</td>
+                      <td className="px-4 py-2.5 text-gray-600 truncate">{obrasMap.get(p.obraId) || '-'}</td>
+                      <td className="px-4 py-2.5 text-gray-600 truncate">{p.solicitante}</td>
+                      <td className="px-4 py-2.5 text-center text-gray-600">{p.itens.length}</td>
+                      <td className="px-4 py-2.5 text-center">
+                        <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${URGENCIA_BADGE[p.urgencia]}`}>
+                          {URGENCIA_LABEL[p.urgencia]}
+                        </span>
+                      </td>
+                      <td className="px-4 py-2.5 text-center">
+                        <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${STATUS_BADGE[p.status]}`}>
+                          {STATUS_LABEL[p.status]}
+                        </span>
+                      </td>
+                      <td className="px-4 py-2.5 text-right">
+                        <div className="flex justify-end gap-2 flex-wrap items-center">
+                          <button onClick={() => setDetalhePedido(p)} className="text-xs text-blue-600 hover:text-blue-800 font-medium">
+                            Detalhes
                           </button>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
-                ))}
+                          {vinculo.bloqueado ? (
+                            <span className="text-xs text-gray-400 italic" title={vinculo.motivos.join(' | ')}>
+                              Bloqueado
+                            </span>
+                          ) : (
+                            <>
+                              {p.status === 'pendente' && canApprove && (
+                                <>
+                                  <button onClick={() => onAprovar(p)} className="text-xs text-green-600 hover:text-green-800 font-medium">
+                                    Aprovar
+                                  </button>
+                                  <button onClick={() => onReprovar(p)} className="text-xs text-red-600 hover:text-red-800 font-medium">
+                                    Reprovar
+                                  </button>
+                                </>
+                              )}
+                              {p.status === 'aprovado' && canCreate && (
+                                <>
+                                  <button onClick={() => onEnviarCotacao(p)} className="text-xs text-purple-600 hover:text-purple-800 font-medium">
+                                    Cotação
+                                  </button>
+                                  <button onClick={() => onGerarOC(p)} className="text-xs text-emt-verde hover:text-emt-verde-escuro font-medium">
+                                    Gerar OC
+                                  </button>
+                                </>
+                              )}
+                              {(p.status === 'aprovado' || p.status === 'reprovado') && canApprove && (
+                                <button onClick={() => onDesaprovar(p)} className="text-xs text-yellow-600 hover:text-yellow-800 font-medium">
+                                  Voltar p/ Pendente
+                                </button>
+                              )}
+                            </>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
@@ -180,8 +204,18 @@ export default function PedidoCompraList({
 
       {/* Modal Detalhes */}
       <Modal open={detalhePedido !== null} onClose={() => setDetalhePedido(null)} title={`Pedido ${detalhePedido?.numero || ''}`}>
-        {detalhePedido && (
+        {detalhePedido && (() => {
+          const vinculoDetalhe = getVinculoInfo(detalhePedido.id, cotacoes, ordens);
+          return (
           <div className="space-y-4">
+            {vinculoDetalhe.bloqueado && (
+              <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-sm">
+                <p className="font-medium text-amber-800">Este pedido não pode ser editado ou excluído</p>
+                <ul className="mt-1 text-amber-700 list-disc list-inside">
+                  {vinculoDetalhe.motivos.map((m, i) => <li key={i}>{m}</li>)}
+                </ul>
+              </div>
+            )}
             <div className="grid grid-cols-2 gap-4 text-sm">
               <div>
                 <p className="text-gray-500">Data</p>
@@ -241,7 +275,8 @@ export default function PedidoCompraList({
               <Button variant="secondary" onClick={() => setDetalhePedido(null)}>Fechar</Button>
             </div>
           </div>
-        )}
+          );
+        })()}
       </Modal>
     </div>
   );
