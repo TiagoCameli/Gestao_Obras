@@ -156,6 +156,7 @@ export default function Compras() {
       status: 'emitida',
       observacoes: '',
       entradaInsumos: false,
+      aprovada: false,
       criadoPor: '',
     });
     setOcModalOpen(true);
@@ -226,6 +227,7 @@ export default function Compras() {
       status: 'emitida',
       observacoes: '',
       entradaInsumos: false,
+      aprovada: false,
       criadoPor: '',
     });
     setOcModalOpen(true);
@@ -251,8 +253,16 @@ export default function Compras() {
     });
   }, [atualizarOCMut]);
 
+  const handleReabrirOC = useCallback(async (oc: OrdemCompra) => {
+    await atualizarOCMut.mutateAsync({ ...oc, status: 'emitida', dataEntrega: '' });
+  }, [atualizarOCMut]);
+
   const handleCancelarOC = useCallback(async (oc: OrdemCompra) => {
     await atualizarOCMut.mutateAsync({ ...oc, status: 'cancelada' });
+  }, [atualizarOCMut]);
+
+  const handleAprovarOC = useCallback(async (oc: OrdemCompra) => {
+    await atualizarOCMut.mutateAsync(oc);
   }, [atualizarOCMut]);
 
   if (loadingPedidos) {
@@ -362,7 +372,9 @@ export default function Compras() {
           pedidos={pedidos}
           onEdit={(oc) => { setEditandoOC(oc); setOcModalOpen(true); }}
           onMarcarEntregue={handleMarcarEntregue}
+          onReabrir={handleReabrirOC}
           onCancelar={handleCancelarOC}
+          onAprovar={handleAprovarOC}
           canEdit={canEdit}
         />
       )}
@@ -437,6 +449,20 @@ export default function Compras() {
           onSubmit={handleOCSubmit}
           onCancel={() => { setOcModalOpen(false); setEditandoOC(null); }}
           proximoNumero={proxOC}
+          onCreateFornecedor={async (nome) => {
+            const id = Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+            await adicionarFornecedorMut.mutateAsync({
+              id,
+              nome,
+              cnpj: '',
+              telefone: '',
+              email: '',
+              observacoes: '',
+              ativo: true,
+              criadoPor: usuario?.nome || '',
+            });
+            return id;
+          }}
         />
       </Modal>
 

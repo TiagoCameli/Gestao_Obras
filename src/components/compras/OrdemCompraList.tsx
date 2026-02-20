@@ -25,7 +25,9 @@ interface OrdemCompraListProps {
   pedidos: PedidoCompra[];
   onEdit: (oc: OrdemCompra) => void;
   onMarcarEntregue: (oc: OrdemCompra) => void;
+  onReabrir: (oc: OrdemCompra) => void;
   onCancelar: (oc: OrdemCompra) => void;
+  onAprovar: (oc: OrdemCompra) => void;
   canEdit: boolean;
 }
 
@@ -38,7 +40,9 @@ export default function OrdemCompraList({
   pedidos,
   onEdit,
   onMarcarEntregue,
+  onReabrir,
   onCancelar,
+  onAprovar,
   canEdit,
 }: OrdemCompraListProps) {
   const [visualizando, setVisualizando] = useState<OrdemCompra | null>(null);
@@ -126,6 +130,11 @@ export default function OrdemCompraList({
                               </button>
                             </>
                           )}
+                          {oc.status === 'entregue' && canEdit && (
+                            <button onClick={() => onReabrir(oc)} className="text-xs text-orange-600 hover:text-orange-800 font-medium">
+                              Reabrir
+                            </button>
+                          )}
                         </div>
                       </td>
                     </tr>
@@ -138,7 +147,7 @@ export default function OrdemCompraList({
       </Card>
 
       {/* Modal Visualização OC formal */}
-      <Modal open={visualizando !== null} onClose={() => setVisualizando(null)} title="">
+      <Modal open={visualizando !== null} onClose={() => setVisualizando(null)} title={visualizando ? `Ordem de Compra ${visualizando.numero}` : ''}>
         {visualizando && (() => {
           const forn = fornecedoresMap.get(visualizando.fornecedorId);
           return (
@@ -224,6 +233,36 @@ export default function OrdemCompraList({
                 <div className="text-sm">
                   <span className="text-gray-500">Observações:</span>
                   <p className="text-gray-700 mt-0.5">{visualizando.observacoes}</p>
+                </div>
+              )}
+
+              {/* Aprovação */}
+              {canEdit && visualizando.status === 'emitida' && (
+                <label className="flex items-center gap-3 bg-gray-50 rounded-lg p-4 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={visualizando.aprovada}
+                    onChange={() => {
+                      const atualizada = { ...visualizando, aprovada: !visualizando.aprovada };
+                      onAprovar(atualizada);
+                      setVisualizando(atualizada);
+                    }}
+                    className="w-5 h-5 accent-emt-verde"
+                  />
+                  <div>
+                    <span className="text-sm font-medium text-gray-800">Aprovar Ordem de Compra</span>
+                    <p className="text-xs text-gray-500 mt-0.5">
+                      {visualizando.aprovada ? 'Ordem de compra aprovada' : 'Marque para aprovar esta ordem de compra'}
+                    </p>
+                  </div>
+                  {visualizando.aprovada && (
+                    <span className="ml-auto px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">Aprovada</span>
+                  )}
+                </label>
+              )}
+              {visualizando.aprovada && visualizando.status !== 'emitida' && (
+                <div className="flex items-center gap-2 text-sm text-green-700 bg-green-50 rounded-lg p-3">
+                  <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">Aprovada</span>
                 </div>
               )}
 

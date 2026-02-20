@@ -4,6 +4,73 @@ import Button from '../ui/Button';
 import Input from '../ui/Input';
 import Select from '../ui/Select';
 
+function GenericCombobox<T extends { id: string }>({ id, label, items, value, onChange, placeholder, getLabel, getDetail }: {
+  id: string;
+  label: string;
+  items: T[];
+  value: string;
+  onChange: (itemId: string) => void;
+  placeholder: string;
+  getLabel: (item: T) => string;
+  getDetail?: (item: T) => string;
+}) {
+  const [busca, setBusca] = useState('');
+  const [aberto, setAberto] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  const selecionado = items.find((i) => i.id === value);
+
+  useEffect(() => {
+    function handleClickFora(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) {
+        setAberto(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickFora);
+    return () => document.removeEventListener('mousedown', handleClickFora);
+  }, []);
+
+  const filtrados = items.filter((i) =>
+    getLabel(i).toLowerCase().includes(busca.toLowerCase()) ||
+    (getDetail && getDetail(i).toLowerCase().includes(busca.toLowerCase()))
+  );
+
+  return (
+    <div ref={ref} className="relative">
+      <label className="block text-sm font-medium text-gray-700 mb-1" htmlFor={id}>{label}<span className="text-red-500 ml-0.5">*</span></label>
+      <input
+        id={id}
+        type="text"
+        className="w-full h-[38px] border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emt-verde bg-white"
+        placeholder={placeholder}
+        value={aberto ? busca : (selecionado ? getLabel(selecionado) : '')}
+        onChange={(e) => { setBusca(e.target.value); setAberto(true); }}
+        onFocus={() => { setAberto(true); setBusca(''); }}
+        autoComplete="off"
+        required={!value}
+      />
+      {aberto && (
+        <ul className="absolute z-50 w-full mt-1 max-h-48 overflow-auto bg-white border border-gray-300 rounded-lg shadow-lg">
+          {filtrados.length === 0 ? (
+            <li className="px-3 py-2 text-sm text-gray-400">Nenhum resultado encontrado</li>
+          ) : (
+            filtrados.map((item) => (
+              <li
+                key={item.id}
+                className={`px-3 py-2 text-sm cursor-pointer hover:bg-green-50 ${item.id === value ? 'bg-green-100 font-medium' : ''}`}
+                onMouseDown={() => { onChange(item.id); setAberto(false); setBusca(''); }}
+              >
+                {getLabel(item)}
+                {getDetail && <span className="text-gray-400 text-xs ml-2">{getDetail(item)}</span>}
+              </li>
+            ))
+          )}
+        </ul>
+      )}
+    </div>
+  );
+}
+
 function EtapaCombobox({ id, etapas, value, onChange }: {
   id: string;
   etapas: EtapaObra[];
@@ -137,6 +204,7 @@ interface OrdemCompraFormProps {
   onSubmit: (oc: OrdemCompra) => Promise<void>;
   onCancel: () => void;
   proximoNumero: string;
+  onCreateFornecedor?: (nome: string) => Promise<string>;
 }
 
 export default function OrdemCompraForm({
@@ -148,6 +216,7 @@ export default function OrdemCompraForm({
   onSubmit,
   onCancel,
   proximoNumero,
+  onCreateFornecedor,
 }: OrdemCompraFormProps) {
   const [obraId, setObraId] = useState(initial?.obraId ?? '');
   const [etapaObraId, setEtapaObraId] = useState(initial?.etapaObraId ?? '');
@@ -165,6 +234,12 @@ export default function OrdemCompraForm({
     initial?.custosAdicionais ?? { frete: 0, outrasDespesas: 0, impostos: 0, desconto: 0 }
   );
   const [saving, setSaving] = useState(false);
+  const [erro, setErro] = useState('');
+
+  // Inline fornecedor creation
+  const [criandoFornecedor, setCriandoFornecedor] = useState(false);
+  const [novoFornecedorNome, setNovoFornecedorNome] = useState('');
+  const [salvandoFornecedor, setSalvandoFornecedor] = useState(false);
 
   const etapasFiltradas = etapas.filter((e) => e.obraId === obraId);
   const fornecedoresAtivos = fornecedores.filter((f) => f.ativo !== false);
@@ -249,12 +324,13 @@ export default function OrdemCompraForm({
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    setErro('');
     setSaving(true);
     try {
       const oc: OrdemCompra = {
-        id: initial?.id ?? genId(),
-        numero: initial?.numero ?? proximoNumero,
-        dataCriacao: initial?.dataCriacao ?? new Date().toISOString().slice(0, 10),
+        id: initial?.id || genId(),
+        numero: initial?.numero || proximoNumero,
+        dataCriacao: initial?.dataCriacao || new Date().toISOString().slice(0, 10),
         dataEntrega: initial?.dataEntrega ?? '',
         obraId,
         etapaObraId: entradaInsumos ? '' : etapaObraId,
@@ -272,9 +348,15 @@ export default function OrdemCompraForm({
         status: initial?.status ?? 'emitida',
         observacoes,
         entradaInsumos,
+        aprovada: initial?.aprovada ?? false,
         criadoPor: initial?.criadoPor ?? '',
       };
       await onSubmit(oc);
+    } catch (err: unknown) {
+      const e = err as { message?: string; code?: string; details?: string };
+      const msg = e?.message || (err instanceof Error ? err.message : JSON.stringify(err));
+      setErro(msg);
+      console.error('Erro ao salvar OC:', err);
     } finally {
       setSaving(false);
     }
@@ -283,21 +365,72 @@ export default function OrdemCompraForm({
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <Select
-          label="Fornecedor"
-          id="oc-fornecedor"
-          options={fornecedoresAtivos.map((f) => ({ value: f.id, label: f.nome }))}
-          value={fornecedorId}
-          onChange={(e) => setFornecedorId(e.target.value)}
-          required
-        />
-        <Select
-          label="Obra"
+        <div>
+          <GenericCombobox
+            id="oc-fornecedor"
+            label="Fornecedor"
+            items={fornecedoresAtivos}
+            value={fornecedorId}
+            onChange={(id) => setFornecedorId(id)}
+            placeholder="Buscar fornecedor..."
+            getLabel={(f) => f.nome}
+            getDetail={(f) => f.cnpj || ''}
+          />
+          {onCreateFornecedor && !criandoFornecedor && (
+            <button
+              type="button"
+              className="text-xs text-emt-verde hover:underline mt-1"
+              onClick={() => { setCriandoFornecedor(true); setNovoFornecedorNome(''); }}
+            >
+              + Novo fornecedor
+            </button>
+          )}
+          {criandoFornecedor && (
+            <div className="mt-2 flex gap-2 items-end">
+              <input
+                className="flex-1 h-[38px] border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emt-verde"
+                value={novoFornecedorNome}
+                onChange={(e) => setNovoFornecedorNome(e.target.value)}
+                placeholder="Nome do fornecedor"
+                autoFocus
+              />
+              <button
+                type="button"
+                disabled={!novoFornecedorNome.trim() || salvandoFornecedor}
+                className="px-3 py-2 bg-emt-verde text-white rounded-lg text-sm font-medium disabled:opacity-50 h-[38px]"
+                onClick={async () => {
+                  if (!onCreateFornecedor || !novoFornecedorNome.trim()) return;
+                  setSalvandoFornecedor(true);
+                  try {
+                    const id = await onCreateFornecedor(novoFornecedorNome.trim());
+                    setFornecedorId(id);
+                    setCriandoFornecedor(false);
+                    setNovoFornecedorNome('');
+                  } finally {
+                    setSalvandoFornecedor(false);
+                  }
+                }}
+              >
+                {salvandoFornecedor ? '...' : 'Salvar'}
+              </button>
+              <button
+                type="button"
+                className="px-3 py-2 bg-gray-200 text-gray-700 rounded-lg text-sm font-medium h-[38px]"
+                onClick={() => { setCriandoFornecedor(false); setNovoFornecedorNome(''); }}
+              >
+                Cancelar
+              </button>
+            </div>
+          )}
+        </div>
+        <GenericCombobox
           id="oc-obra"
-          options={obras.map((o) => ({ value: o.id, label: o.nome }))}
+          label="Obra"
+          items={obras}
           value={obraId}
-          onChange={(e) => { setObraId(e.target.value); setEtapaObraId(''); }}
-          required
+          onChange={(id) => { setObraId(id); setEtapaObraId(''); }}
+          placeholder="Buscar obra..."
+          getLabel={(o) => o.nome}
         />
       </div>
 
@@ -535,6 +668,12 @@ export default function OrdemCompraForm({
           onChange={(e) => setObservacoes(e.target.value)}
         />
       </div>
+
+      {erro && (
+        <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-sm text-red-700">
+          {erro}
+        </div>
+      )}
 
       <div className="flex justify-end gap-3 pt-2">
         <Button type="button" variant="secondary" onClick={onCancel}>Cancelar</Button>

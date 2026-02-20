@@ -464,5 +464,6 @@ export interface OrdemCompra {
   status: StatusOrdemCompra;
   observacoes: string;
   entradaInsumos: boolean;
+  aprovada: boolean;
   criadoPor: string;
 }
