@@ -204,6 +204,7 @@ interface OrdemCompraFormProps {
   onSubmit: (oc: OrdemCompra) => Promise<void>;
   onCancel: () => void;
   proximoNumero: string;
+  onImportExcel?: () => void;
   onCreateFornecedor?: (nome: string) => Promise<string>;
 }
 
@@ -216,6 +217,7 @@ export default function OrdemCompraForm({
   onSubmit,
   onCancel,
   proximoNumero,
+  onImportExcel,
   onCreateFornecedor,
 }: OrdemCompraFormProps) {
   const [fornecedorId, setFornecedorId] = useState(initial?.fornecedorId ?? '');
@@ -365,6 +367,13 @@ export default function OrdemCompraForm({
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
+      {onImportExcel && !initial?.id && (
+        <div className="flex justify-end">
+          <Button type="button" variant="secondary" className="text-xs px-3 py-1.5" onClick={onImportExcel}>
+            Importar do Excel
+          </Button>
+        </div>
+      )}
       <div>
         <GenericCombobox
           id="oc-fornecedor"

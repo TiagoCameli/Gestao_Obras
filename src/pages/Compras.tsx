@@ -31,6 +31,7 @@ import CotacaoForm from '../components/compras/CotacaoForm';
 import CotacaoList from '../components/compras/CotacaoList';
 import OrdemCompraForm from '../components/compras/OrdemCompraForm';
 import OrdemCompraList from '../components/compras/OrdemCompraList';
+import ImportOCModal from '../components/compras/ImportOCModal';
 
 type Tab = 'pedidos' | 'cotacoes' | 'ordens';
 
@@ -99,6 +100,7 @@ export default function Compras() {
 
   const [ocModalOpen, setOcModalOpen] = useState(false);
   const [editandoOC, setEditandoOC] = useState<OrdemCompra | null>(null);
+  const [importOCOpen, setImportOCOpen] = useState(false);
 
   const pedidosAprovados = useMemo(() => pedidos.filter((p) => p.status === 'aprovado'), [pedidos]);
 
@@ -277,7 +279,7 @@ export default function Compras() {
   }, [atualizarOCMut]);
 
   const handleExcluirOC = useCallback(async (oc: OrdemCompra) => {
-    if (oc.aprovada || oc.entradaGerada) return;
+    if (oc.entradaGerada) return;
     if (!window.confirm(`Excluir permanentemente a OC ${oc.numero}?`)) return;
     await excluirOCMut.mutateAsync(oc.id);
   }, [excluirOCMut]);
@@ -332,6 +334,82 @@ export default function Compras() {
     // Marca a OC como entrada já gerada
     await atualizarOCMut.mutateAsync({ ...oc, entradaGerada: true });
   }, [usuario, fornecedores, insumos, adicionarEntradaMaterialMut, adicionarEntradaCombustivelMut, atualizarOCMut]);
+
+  // ── Import OC handler ──
+  const handleImportOCs = useCallback(async (items: Record<string, unknown>[]) => {
+    const genId = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+
+    // Group items by fornecedor (case-insensitive, trimmed)
+    const grupos = new Map<string, Record<string, unknown>[]>();
+    for (const item of items) {
+      const key = String(item.fornecedor).trim().toLowerCase();
+      if (!grupos.has(key)) grupos.set(key, []);
+      grupos.get(key)!.push(item);
+    }
+
+    // Compute starting OC number
+    const numerosExistentes = ordens.map((o) => o.numero);
+    let maxNum = numerosExistentes
+      .map((n) => { const m = n.match(/^OC-(\d+)$/); return m ? parseInt(m[1], 10) : 0; })
+      .reduce((a, b) => Math.max(a, b), 0);
+
+    for (const [, grupoItens] of grupos) {
+      maxNum++;
+      const numero = `OC-${String(maxNum).padStart(4, '0')}`;
+
+      const nomeFornecedor = String(grupoItens[0].fornecedor).trim();
+      const forn = fornecedores.find((f) => f.nome.trim().toLowerCase() === nomeFornecedor.toLowerCase());
+
+      const ocItens: ItemOrdemCompra[] = grupoItens.map((it) => {
+        const qty = Number(it.quantidade);
+        const price = Number(it.precoUnitario);
+        return {
+          id: genId(),
+          descricao: String(it.descricao),
+          quantidade: qty,
+          unidade: String(it.unidade),
+          precoUnitario: price,
+          subtotal: qty * price,
+          obraId: '',
+          etapaObraId: '',
+        };
+      });
+
+      const totalMateriais = ocItens.reduce((sum, i) => sum + i.subtotal, 0);
+
+      const empresaFat = String(grupoItens[0].empresaFaturamento || '').trim();
+      const obs = grupoItens.map((it) => String(it.observacoes || '').trim()).filter(Boolean).join('; ');
+
+      const oc: OrdemCompra = {
+        id: '',
+        numero,
+        dataCriacao: '',
+        dataEntrega: '',
+        obraId: '',
+        etapaObraId: '',
+        fornecedorId: forn?.id || '',
+        cotacaoId: '',
+        pedidoCompraId: '',
+        itens: ocItens,
+        custosAdicionais: { frete: 0, outrasDespesas: 0, impostos: 0, desconto: 0 },
+        totalMateriais,
+        totalGeral: totalMateriais,
+        condicaoPagamento: '',
+        formaPagamento: '',
+        parcelas: [],
+        prazoEntrega: '',
+        status: 'emitida',
+        observacoes: obs,
+        entradaInsumos: false,
+        entradaGerada: false,
+        empresaFaturamento: empresaFat,
+        aprovada: false,
+        criadoPor: usuario?.nome || '',
+      };
+
+      await adicionarOCMut.mutateAsync(oc);
+    }
+  }, [ordens, fornecedores, usuario, adicionarOCMut]);
 
   if (loadingPedidos) {
     return (
@@ -523,6 +601,7 @@ export default function Compras() {
           onSubmit={handleOCSubmit}
           onCancel={() => { setOcModalOpen(false); setEditandoOC(null); }}
           proximoNumero={proxOC}
+          onImportExcel={() => { setOcModalOpen(false); setEditandoOC(null); setImportOCOpen(true); }}
           onCreateFornecedor={async (nome) => {
             const id = Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
             await adicionarFornecedorMut.mutateAsync({
@@ -539,6 +618,13 @@ export default function Compras() {
           }}
         />
       </Modal>
+
+      {/* Modal Importar OCs */}
+      <ImportOCModal
+        open={importOCOpen}
+        onClose={() => setImportOCOpen(false)}
+        onImport={handleImportOCs}
+      />
 
       {/* Confirmação excluir cotação */}
       <ConfirmDialog

@@ -216,7 +216,7 @@ export default function OrdemCompraList({
                               Reabrir
                             </button>
                           )}
-                          {!oc.aprovada && !oc.entradaGerada && canEdit && (
+                          {!oc.entradaGerada && canEdit && (
                             <button onClick={() => onExcluir(oc)} className="text-xs text-red-600 hover:text-red-800 font-medium">
                               Excluir
                             </button>
@@ -369,7 +369,18 @@ export default function OrdemCompraList({
                 visualizando.entradaGerada ? (
                   <div className="bg-green-50 border border-green-200 rounded-lg p-4 flex items-center gap-2">
                     <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">Entrada Gerada</span>
-                    <span className="text-sm text-green-700">A entrada no estoque já foi gerada para esta OC.</span>
+                    <span className="text-sm text-green-700 flex-1">A entrada no estoque já foi gerada para esta OC.</span>
+                    <button
+                      type="button"
+                      className="text-xs text-orange-600 hover:text-orange-800 font-medium whitespace-nowrap"
+                      onClick={() => {
+                        const atualizada = { ...visualizando, entradaGerada: false };
+                        onAprovar(atualizada);
+                        setVisualizando(atualizada);
+                      }}
+                    >
+                      Regerar Entrada
+                    </button>
                   </div>
                 ) : (
                   <div className="bg-purple-50 border border-purple-200 rounded-lg p-4 space-y-3">

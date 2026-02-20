@@ -63,7 +63,6 @@ export default function Insumos() {
   const { data: insumos = [] } = useInsumos();
   const { data: fornecedores = [] } = useFornecedores();
   const { data: unidades = [] } = useUnidades();
-
   const adicionarEntradaMut = useAdicionarEntradaMaterial();
   const atualizarEntradaMut = useAtualizarEntradaMaterial();
   const excluirEntradaMut = useExcluirEntradaMaterial();

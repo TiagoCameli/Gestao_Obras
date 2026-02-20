@@ -52,7 +52,6 @@ export default function Combustivel() {
   const { data: todosAbastecimentos = [] } = useAbastecimentos();
   const { data: todasEntradas = [] } = useEntradasCombustivel();
   const { data: todasTransferencias = [] } = useTransferenciasCombustivel();
-
   const adicionarAbastecimentoMut = useAdicionarAbastecimento();
   const atualizarAbastecimentoMut = useAtualizarAbastecimento();
   const excluirAbastecimentoMut = useExcluirAbastecimento();
