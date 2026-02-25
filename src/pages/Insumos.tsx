@@ -363,6 +363,7 @@ export default function Insumos() {
           insumos={insumos}
           fornecedores={fornecedores}
           depositosMaterial={depositosMaterial}
+          unidades={unidades}
           onImportBatch={async (items) => {
             for (const item of items) {
               await adicionarEntradaMut.mutateAsync({ ...item, criadoPor: usuario?.nome || '' });

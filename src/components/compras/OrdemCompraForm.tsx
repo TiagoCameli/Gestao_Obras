@@ -475,7 +475,7 @@ export default function OrdemCompraForm({
                   />
                 </div>
                 <div className="col-span-2">
-                  <Input label="Qtd" id={`oc-qtd-${item.id}`} type="number" min="0.01" step="0.01" value={item.quantidade} onChange={(e) => updateItem(item.id, 'quantidade', parseFloat(e.target.value) || 0)} required />
+                  <Input label="Qtd" id={`oc-qtd-${item.id}`} type="number" min="0.01" step="0.0001" value={item.quantidade} onChange={(e) => updateItem(item.id, 'quantidade', parseFloat(e.target.value) || 0)} required />
                 </div>
                 <div className="col-span-2">
                   {insumosAtivos.find((ins) => ins.nome === item.descricao) ? (
@@ -490,7 +490,7 @@ export default function OrdemCompraForm({
                   )}
                 </div>
                 <div className="col-span-2">
-                  <Input label="Preço Unit." id={`oc-preco-${item.id}`} type="number" min="0" step="0.01" value={item.precoUnitario} onChange={(e) => updateItem(item.id, 'precoUnitario', parseFloat(e.target.value) || 0)} required />
+                  <Input label="Preço Unit." id={`oc-preco-${item.id}`} type="number" min="0" step="0.0001" value={item.precoUnitario} onChange={(e) => updateItem(item.id, 'precoUnitario', parseFloat(e.target.value) || 0)} required />
                 </div>
                 <div className="col-span-2 flex items-end pb-1">
                   <p className="text-sm font-medium text-gray-700 text-right w-full">

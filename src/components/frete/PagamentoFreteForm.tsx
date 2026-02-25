@@ -80,6 +80,7 @@ function gerarMeses(): { value: string; label: string }[] {
 interface PagamentoFreteFormProps {
   initial?: PagamentoFrete | null;
   onSubmit: (data: PagamentoFrete) => void;
+  onSubmitBatch?: (data: PagamentoFrete[]) => void;
   onCancel: () => void;
   transportadoras: string[];
   funcionarios: Funcionario[];
@@ -111,6 +112,7 @@ const METODOS_VALIDOS = ['pix', 'boleto', 'cheque', 'dinheiro', 'transferencia',
 export default function PagamentoFreteForm({
   initial,
   onSubmit,
+  onSubmitBatch,
   onCancel,
   transportadoras,
   funcionarios,
@@ -130,6 +132,13 @@ export default function PagamentoFreteForm({
   const [notaFiscal, setNotaFiscal] = useState(initial?.notaFiscal || '');
   const [pagoPor, setPagoPor] = useState(initial?.pagoPor || '');
   const [observacoes, setObservacoes] = useState(initial?.observacoes || '');
+
+  // Dividir entre meses
+  const [dividir, setDividir] = useState(false);
+  const [parcelas, setParcelas] = useState<{ mesReferencia: string; valor: string }[]>([
+    { mesReferencia: '', valor: '' },
+    { mesReferencia: '', valor: '' },
+  ]);
 
   // Import Excel
   const [importModalOpen, setImportModalOpen] = useState(false);
@@ -213,20 +222,38 @@ export default function PagamentoFreteForm({
 
   function handleSubmit(e: FormEvent) {
     e.preventDefault();
-    onSubmit({
-      id: initial?.id || gerarId(),
-      data,
-      transportadora,
-      mesReferencia,
-      valor: parseFloat(valor) || 0,
-      metodo,
-      quantidadeCombustivel: metodo === 'combustivel' ? (parseFloat(quantidadeCombustivel) || 0) : 0,
-      responsavel,
-      notaFiscal,
-      pagoPor,
-      observacoes,
-      criadoPor: initial?.criadoPor || '',
-    });
+    if (dividir && !initial && onSubmitBatch) {
+      const items: PagamentoFrete[] = parcelas.map((p) => ({
+        id: gerarId(),
+        data,
+        transportadora,
+        mesReferencia: p.mesReferencia,
+        valor: parseFloat(p.valor) || 0,
+        metodo,
+        quantidadeCombustivel: metodo === 'combustivel' ? (parseFloat(quantidadeCombustivel) || 0) : 0,
+        responsavel,
+        notaFiscal,
+        pagoPor,
+        observacoes,
+        criadoPor: '',
+      }));
+      onSubmitBatch(items);
+    } else {
+      onSubmit({
+        id: initial?.id || gerarId(),
+        data,
+        transportadora,
+        mesReferencia,
+        valor: parseFloat(valor) || 0,
+        metodo,
+        quantidadeCombustivel: metodo === 'combustivel' ? (parseFloat(quantidadeCombustivel) || 0) : 0,
+        responsavel,
+        notaFiscal,
+        pagoPor,
+        observacoes,
+        criadoPor: initial?.criadoPor || '',
+      });
+    }
   }
 
   const funcionariosAtivos = funcionarios.filter((f) => f.status === 'ativo');
@@ -234,7 +261,9 @@ export default function PagamentoFreteForm({
   const mesesOptions = useMemo(() => gerarMeses(), []);
 
   const pagoPorOpcoes = useMemo(() => {
-    const lista: { nome: string; tipo: string }[] = [];
+    const lista: { nome: string; tipo: string }[] = [
+      { nome: 'EMT Construtora', tipo: 'Empresa' },
+    ];
     for (const f of fornecedores.filter((f) => f.ativo)) {
       lista.push({ nome: f.nome, tipo: 'Fornecedor' });
     }
@@ -244,7 +273,12 @@ export default function PagamentoFreteForm({
     return lista;
   }, [fornecedores, funcionariosAtivos]);
 
-  const isValid = data && transportadora && mesReferencia && valor && responsavel && pagoPor;
+  const parcelasValidas = dividir && !initial
+    ? parcelas.length >= 2 && parcelas.every((p) => p.mesReferencia && p.valor && parseFloat(p.valor) > 0)
+    : true;
+  const isValid = dividir && !initial
+    ? data && transportadora && responsavel && pagoPor && parcelasValidas
+    : data && transportadora && mesReferencia && valor && responsavel && pagoPor;
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
@@ -273,25 +307,29 @@ export default function PagamentoFreteForm({
           placeholder="Selecione a transportadora"
           required
         />
-        <Select
-          label="Mês Referência"
-          id="pagFreteMesRef"
-          value={mesReferencia}
-          onChange={(e) => setMesReferencia(e.target.value)}
-          options={mesesOptions}
-          placeholder="Selecione o mês"
-          required
-        />
-        <Input
-          label="Valor (R$)"
-          id="pagFreteValor"
-          type="number"
-          step="0.0001"
-          min="0"
-          value={valor}
-          onChange={(e) => setValor(e.target.value)}
-          required
-        />
+        {!(dividir && !initial) && (
+          <>
+            <Select
+              label="Mês Referência"
+              id="pagFreteMesRef"
+              value={mesReferencia}
+              onChange={(e) => setMesReferencia(e.target.value)}
+              options={mesesOptions}
+              placeholder="Selecione o mês"
+              required
+            />
+            <Input
+              label="Valor (R$)"
+              id="pagFreteValor"
+              type="number"
+              step="0.0001"
+              min="0"
+              value={valor}
+              onChange={(e) => setValor(e.target.value)}
+              required
+            />
+          </>
+        )}
         <Select
           label="Método de Pagamento"
           id="pagFreteMetodo"
@@ -338,6 +376,93 @@ export default function PagamentoFreteForm({
           />
         </div>
       </div>
+
+      {/* Toggle dividir entre meses — só para novo pagamento */}
+      {!initial && onSubmitBatch && (
+        <div className="space-y-3">
+          <label className="flex items-center gap-2 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={dividir}
+              onChange={(e) => setDividir(e.target.checked)}
+              className="w-4 h-4 rounded border-gray-300 text-green-600 focus:ring-green-500"
+            />
+            <span className="text-sm font-medium text-gray-700">Dividir entre meses</span>
+          </label>
+
+          {dividir && (
+            <div className="border border-gray-200 rounded-lg p-4 space-y-3 bg-gray-50">
+              <p className="text-xs text-gray-500">Adicione o mês e valor de cada parcela:</p>
+              {parcelas.map((parcela, idx) => (
+                <div key={idx} className="flex items-end gap-2">
+                  <div className="flex-1">
+                    {idx === 0 && (
+                      <label className="block text-xs font-medium text-gray-600 mb-1">Mês Referência</label>
+                    )}
+                    <select
+                      className="w-full h-[38px] border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emt-verde bg-white"
+                      value={parcela.mesReferencia}
+                      onChange={(e) => {
+                        const novas = [...parcelas];
+                        novas[idx] = { ...novas[idx], mesReferencia: e.target.value };
+                        setParcelas(novas);
+                      }}
+                      required
+                    >
+                      <option value="">Selecione o mês</option>
+                      {mesesOptions.map((m) => (
+                        <option key={m.value} value={m.value}>{m.label}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="w-36">
+                    {idx === 0 && (
+                      <label className="block text-xs font-medium text-gray-600 mb-1">Valor (R$)</label>
+                    )}
+                    <input
+                      type="number"
+                      step="0.0001"
+                      min="0"
+                      className="w-full h-[38px] border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emt-verde bg-white"
+                      placeholder="0,00"
+                      value={parcela.valor}
+                      onChange={(e) => {
+                        const novas = [...parcelas];
+                        novas[idx] = { ...novas[idx], valor: e.target.value };
+                        setParcelas(novas);
+                      }}
+                      required
+                    />
+                  </div>
+                  {parcelas.length > 2 && (
+                    <button
+                      type="button"
+                      className="h-[38px] px-2 text-red-500 hover:text-red-700 text-lg font-bold"
+                      title="Remover parcela"
+                      onClick={() => setParcelas(parcelas.filter((_, i) => i !== idx))}
+                    >
+                      &times;
+                    </button>
+                  )}
+                </div>
+              ))}
+              <div className="flex items-center justify-between pt-1">
+                <button
+                  type="button"
+                  className="text-sm text-green-600 hover:text-green-800 font-medium"
+                  onClick={() => setParcelas([...parcelas, { mesReferencia: '', valor: '' }])}
+                >
+                  + Adicionar mês
+                </button>
+                <span className="text-sm font-semibold text-gray-700">
+                  Total: {parcelas.reduce((s, p) => s + (parseFloat(p.valor) || 0), 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                </span>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
       <div>
         <label htmlFor="pagFreteObs" className="block text-sm font-medium text-gray-700 mb-1">
           Observações (opcional)

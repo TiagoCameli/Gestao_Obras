@@ -8,7 +8,7 @@ import type {
   EntradaMaterial,
   EntradaCombustivel,
 } from '../types';
-import { usePedidosCompra, useAdicionarPedidoCompra, useAtualizarPedidoCompra } from '../hooks/usePedidosCompra';
+import { usePedidosCompra, useAdicionarPedidoCompra, useAtualizarPedidoCompra, useExcluirPedidoCompra } from '../hooks/usePedidosCompra';
 import { useCotacoes, useAdicionarCotacao, useAtualizarCotacao, useExcluirCotacao } from '../hooks/useCotacoes';
 import { useOrdensCompra, useAdicionarOrdemCompra, useAtualizarOrdemCompra, useExcluirOrdemCompra } from '../hooks/useOrdensCompra';
 import { useDepositosMaterial } from '../hooks/useDepositosMaterial';
@@ -79,6 +79,7 @@ export default function Compras() {
   const adicionarFornecedorMut = useAdicionarFornecedor();
   const adicionarPedidoMut = useAdicionarPedidoCompra();
   const atualizarPedidoMut = useAtualizarPedidoCompra();
+  const excluirPedidoMut = useExcluirPedidoCompra();
   const adicionarCotacaoMut = useAdicionarCotacao();
   const atualizarCotacaoMut = useAtualizarCotacao();
   const excluirCotacaoMut = useExcluirCotacao();
@@ -92,6 +93,7 @@ export default function Compras() {
   const [pedidoModalOpen, setPedidoModalOpen] = useState(false);
   const [editandoPedido, setEditandoPedido] = useState<PedidoCompra | null>(null);
   const [buscaPedido, setBuscaPedido] = useState('');
+  const [deletePedidoId, setDeletePedidoId] = useState<string | null>(null);
 
   const [cotacaoModalOpen, setCotacaoModalOpen] = useState(false);
   const [pedidoParaCotacao, setPedidoParaCotacao] = useState<PedidoCompra | null>(null);
@@ -179,6 +181,12 @@ export default function Compras() {
     setOcModalOpen(true);
     setTab('ordens');
   }, [setTab]);
+
+  const handleExcluirPedido = useCallback(async () => {
+    if (!deletePedidoId) return;
+    await excluirPedidoMut.mutateAsync(deletePedidoId);
+    setDeletePedidoId(null);
+  }, [deletePedidoId, excluirPedidoMut]);
 
   // ── Cotação handlers ──
   const handleCotacaoSubmit = useCallback(async (cotacao: Cotacao) => {
@@ -482,6 +490,7 @@ export default function Compras() {
             onAprovar={handleAprovar}
             onReprovar={handleReprovar}
             onDesaprovar={handleDesaprovar}
+            onExcluir={(p) => setDeletePedidoId(p.id)}
             onEnviarCotacao={handleEnviarCotacao}
             onGerarOC={handleGerarOCDireto}
             canApprove={canApprove}
@@ -624,6 +633,15 @@ export default function Compras() {
         open={importOCOpen}
         onClose={() => setImportOCOpen(false)}
         onImport={handleImportOCs}
+      />
+
+      {/* Confirmação excluir pedido */}
+      <ConfirmDialog
+        open={deletePedidoId !== null}
+        title="Excluir Pedido"
+        message="Tem certeza que deseja excluir este pedido? Esta ação não pode ser desfeita."
+        onConfirm={handleExcluirPedido}
+        onClose={() => setDeletePedidoId(null)}
       />
 
       {/* Confirmação excluir cotação */}

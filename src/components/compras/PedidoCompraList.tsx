@@ -45,6 +45,7 @@ interface PedidoCompraListProps {
   onAprovar: (pedido: PedidoCompra) => void;
   onReprovar: (pedido: PedidoCompra) => void;
   onDesaprovar: (pedido: PedidoCompra) => void;
+  onExcluir: (pedido: PedidoCompra) => void;
   onEnviarCotacao: (pedido: PedidoCompra) => void;
   onGerarOC: (pedido: PedidoCompra) => void;
   canApprove: boolean;
@@ -70,6 +71,7 @@ export default function PedidoCompraList({
   onAprovar,
   onReprovar,
   onDesaprovar,
+  onExcluir,
   onEnviarCotacao,
   onGerarOC,
   canApprove,
@@ -189,6 +191,11 @@ export default function PedidoCompraList({
                                   Voltar p/ Pendente
                                 </button>
                               )}
+                              {canCreate && (
+                                <button onClick={() => onExcluir(p)} className="text-xs text-red-600 hover:text-red-800 font-medium">
+                                  Excluir
+                                </button>
+                              )}
                             </>
                           )}
                         </div>
@@ -271,7 +278,14 @@ export default function PedidoCompraList({
                 </tbody>
               </table>
             </div>
-            <div className="flex justify-end">
+            <div className="flex justify-between">
+              <div>
+                {!vinculoDetalhe.bloqueado && canCreate && (
+                  <Button variant="danger" onClick={() => { onExcluir(detalhePedido); setDetalhePedido(null); }}>
+                    Excluir
+                  </Button>
+                )}
+              </div>
               <Button variant="secondary" onClick={() => setDetalhePedido(null)}>Fechar</Button>
             </div>
           </div>

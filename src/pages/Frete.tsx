@@ -680,6 +680,13 @@ export default function Frete() {
         <PagamentoFreteForm
           initial={pagEditando}
           onSubmit={handlePagSubmit}
+          onSubmitBatch={async (pagamentos) => {
+            for (const pag of pagamentos) {
+              await adicionarPagamentoMutation.mutateAsync({ ...pag, criadoPor: usuario?.nome || '' });
+            }
+            setPagModalOpen(false);
+            setPagEditando(null);
+          }}
           onCancel={() => { setPagModalOpen(false); setPagEditando(null); }}
           transportadoras={transportadoras}
           funcionarios={funcionarios}

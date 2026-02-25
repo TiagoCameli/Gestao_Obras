@@ -202,7 +202,18 @@ export default function OrdemCompraList({
                         />
                       </td>
                       {/* 9. Entrega */}
-                      <td className="px-3 py-3 text-center text-gray-500">{oc.dataEntrega ? formatDate(oc.dataEntrega) : '-'}</td>
+                      <td className="px-3 py-3 text-center" onClick={(e) => e.stopPropagation()}>
+                        {canEdit ? (
+                          <input
+                            type="date"
+                            className="border border-gray-200 rounded px-1.5 py-0.5 text-xs text-gray-700 focus:outline-none focus:ring-1 focus:ring-emt-verde w-[120px]"
+                            value={oc.dataEntrega || ''}
+                            onChange={(e) => onAprovar({ ...oc, dataEntrega: e.target.value })}
+                          />
+                        ) : (
+                          <span className="text-gray-500">{oc.dataEntrega ? formatDate(oc.dataEntrega) : '-'}</span>
+                        )}
+                      </td>
                       {/* Ações */}
                       <td className="px-3 py-3 text-right" onClick={(e) => e.stopPropagation()}>
                         <div className="flex justify-end gap-1 flex-wrap">

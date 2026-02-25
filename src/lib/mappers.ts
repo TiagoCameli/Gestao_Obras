@@ -177,7 +177,7 @@ export function entradaCombustivelToDb(e: EntradaCombustivel) {
     data_hora: e.dataHora,
     deposito_id: e.depositoId,
     tipo_combustivel: e.tipoCombustivel,
-    obra_id: e.obraId,
+    obra_id: e.obraId || null,
     quantidade_litros: e.quantidadeLitros,
     valor_total: e.valorTotal,
     fornecedor: e.fornecedor,

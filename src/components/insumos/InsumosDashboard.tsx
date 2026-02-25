@@ -42,7 +42,7 @@ export default function InsumosDashboard({
   const obrasMap = new Map(obras.map((o) => [o.id, o.nome]));
   const etapasMap = new Map(etapas.map((e) => [e.id, e]));
   const { data: insumosData } = useInsumos();
-  const insumos = (insumosData ?? []).filter((i) => i.tipo === 'material');
+  const insumos = insumosData ?? [];
   const insumosMap = new Map(insumos.map((i) => [i.id, i]));
   const depositosMap = new Map(depositosMaterial.map((d) => [d.id, d]));
 

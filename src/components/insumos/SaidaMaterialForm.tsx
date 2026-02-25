@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import type { AlocacaoEtapa, DepositoMaterial, EtapaObra, Insumo, Obra, SaidaMaterial, UnidadeMedida } from '../../types';
 import { useEntradasMaterial } from '../../hooks/useEntradasMaterial';
-import { calcularEstoqueMaterial, calcularEstoqueMaterialNaData } from '../../hooks/useEstoque';
+import { calcularEstoqueMaterial, calcularEstoqueMaterialNaData, calcularTodoEstoqueMaterial } from '../../hooks/useEstoque';
 import Input from '../ui/Input';
 import Select from '../ui/Select';
+import FilterCombobox from '../ui/FilterCombobox';
 import Button from '../ui/Button';
 import ImportExcelModal, { parseStr, parseNumero, type ParsedRow } from '../ui/ImportExcelModal';
 
@@ -39,13 +40,17 @@ export default function SaidaMaterialForm({
   unidades,
   onImportBatch,
 }: SaidaMaterialFormProps) {
-  const insumosMaterial = allInsumos.filter(
-    (i) => i.tipo === 'material' && i.ativo !== false
-  );
+  const insumosAtivos = allInsumos.filter((i) => i.ativo !== false);
   const unidadesMap = new Map(unidades.map((u) => [u.sigla, u.nome]));
 
   const { data: entradasMaterialData } = useEntradasMaterial();
   const allEntradasMaterial = entradasMaterialData ?? [];
+
+  // Estoque global para filtrar insumos com saldo > 0
+  const [estoqueMap, setEstoqueMap] = useState<Map<string, number>>(new Map());
+  useEffect(() => {
+    calcularTodoEstoqueMaterial().then(setEstoqueMap);
+  }, []);
 
   const [dataHora, setDataHora] = useState(initial?.dataHora || '');
   const [obraId, setObraId] = useState(initial?.obraId || '');
@@ -62,6 +67,14 @@ export default function SaidaMaterialForm({
   const [observacoes, setObservacoes] = useState(initial?.observacoes || '');
   const [importModalOpen, setImportModalOpen] = useState(false);
   const [toastMsg, setToastMsg] = useState('');
+
+  // Insumos com estoque > 0 no depósito selecionado
+  const insumosComEstoque = depositoMaterialId
+    ? insumosAtivos.filter((i) => {
+        const key = `${depositoMaterialId}|${i.id}`;
+        return (estoqueMap.get(key) ?? 0) > 0;
+      })
+    : insumosAtivos;
 
   const parseRow = useCallback((row: unknown[], _index: number): ParsedRow => {
     const erros: string[] = [];
@@ -127,7 +140,7 @@ export default function SaidaMaterialForm({
     }
   }, [obraId, initial]);
 
-  const insumoSelecionado = insumosMaterial.find((i) => i.id === insumoId);
+  const insumoSelecionado = insumosAtivos.find((i) => i.id === insumoId);
   const unidadeLabel = insumoSelecionado
     ? unidadesMap.get(insumoSelecionado.unidade) || insumoSelecionado.unidade
     : '';
@@ -295,22 +308,26 @@ export default function SaidaMaterialForm({
             </p>
           )}
         </div>
-        <Select
-          label="Material"
-          id="saiMatInsumoId"
-          value={insumoId}
-          onChange={(e) => setInsumoId(e.target.value)}
-          options={insumosMaterial.map((i) => ({
-            value: i.id,
-            label: i.nome,
-          }))}
-          placeholder={
-            insumosMaterial.length === 0
-              ? 'Nenhum material cadastrado'
-              : 'Selecione o material'
-          }
-          required
-        />
+        <div>
+          <label htmlFor="saiMatInsumoId" className="block text-sm font-medium text-gray-700 mb-1">
+            Material<span className="text-red-500 ml-0.5">*</span>
+          </label>
+          <FilterCombobox
+            value={insumoId}
+            onChange={(val) => setInsumoId(val)}
+            options={insumosComEstoque.map((i) => ({
+              value: i.id,
+              label: i.nome,
+            }))}
+            placeholder={
+              !depositoMaterialId
+                ? 'Selecione o depósito primeiro'
+                : insumosComEstoque.length === 0
+                  ? 'Nenhum insumo com estoque'
+                  : 'Buscar insumo...'
+            }
+          />
+        </div>
         <Input
           label={`Quantidade${unidadeLabel ? ` (${unidadeLabel})` : ''}`}
           id="saiMatQtd"

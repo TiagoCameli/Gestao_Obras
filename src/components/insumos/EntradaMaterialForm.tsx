@@ -4,6 +4,7 @@ import { useAdicionarFornecedor } from '../../hooks/useFornecedores';
 import { useAdicionarInsumo } from '../../hooks/useInsumos';
 import Input from '../ui/Input';
 import Select from '../ui/Select';
+import FilterCombobox from '../ui/FilterCombobox';
 import Button from '../ui/Button';
 import ImportExcelModal, { parseStr, parseNumero, type ParsedRow } from '../ui/ImportExcelModal';
 
@@ -17,6 +18,14 @@ interface EntradaMaterialFormProps {
   depositosMaterial: DepositoMaterial[];
   unidades?: UnidadeMedida[];
   onImportBatch?: (items: EntradaMaterial[]) => void;
+}
+
+interface ItemLinha {
+  id: string;
+  insumoId: string;
+  quantidade: string;
+  precoUnitario: string;
+  valorTotal: string;
 }
 
 const ENTRADA_MAT_TEMPLATE = [
@@ -45,11 +54,11 @@ export default function EntradaMaterialForm({
   const adicionarFornecedorMutation = useAdicionarFornecedor();
 
   const [listaMateriais, setListaMateriais] = useState(() =>
-    allInsumos.filter((i) => i.tipo === 'material' && i.ativo !== false)
+    allInsumos.filter((i) => i.ativo !== false)
   );
   useEffect(() => {
     if (allInsumos.length > 0) {
-      setListaMateriais(allInsumos.filter((i) => i.tipo === 'material' && i.ativo !== false));
+      setListaMateriais(allInsumos.filter((i) => i.ativo !== false));
     }
   }, [allInsumos]);
 
@@ -74,6 +83,7 @@ export default function EntradaMaterialForm({
   const [depositoMaterialId, setDepositoMaterialId] = useState(
     initial?.depositoMaterialId || ''
   );
+  // Single-item states (edit mode only)
   const [insumoId, setInsumoId] = useState(initial?.insumoId || '');
   const [quantidade, setQuantidade] = useState(
     initial?.quantidade?.toString() || ''
@@ -86,6 +96,43 @@ export default function EntradaMaterialForm({
   const [observacoes, setObservacoes] = useState(initial?.observacoes || '');
   const [importModalOpen, setImportModalOpen] = useState(false);
   const [toastMsg, setToastMsg] = useState('');
+
+  // Multi-item state (creation mode only)
+  const [itens, setItens] = useState<ItemLinha[]>([
+    { id: gerarId(), insumoId: '', quantidade: '', precoUnitario: '', valorTotal: '' },
+  ]);
+
+  function calcularValorTotal(qtd: string, preco: string): string {
+    const q = parseFloat(qtd) || 0;
+    const p = parseFloat(preco) || 0;
+    if (q > 0 && p > 0) return (q * p).toFixed(2);
+    return '';
+  }
+
+  function updateItem(itemId: string, field: keyof ItemLinha, value: string) {
+    setItens((prev) =>
+      prev.map((it) => {
+        if (it.id !== itemId) return it;
+        const updated = { ...it, [field]: value };
+        if (field === 'quantidade' || field === 'precoUnitario') {
+          updated.valorTotal = calcularValorTotal(
+            field === 'quantidade' ? value : it.quantidade,
+            field === 'precoUnitario' ? value : it.precoUnitario
+          );
+        }
+        return updated;
+      })
+    );
+  }
+  function addItem() {
+    setItens((prev) => [
+      ...prev,
+      { id: gerarId(), insumoId: '', quantidade: '', precoUnitario: '', valorTotal: '' },
+    ]);
+  }
+  function removeItem(itemId: string) {
+    setItens((prev) => prev.filter((it) => it.id !== itemId));
+  }
 
   const parseRow = useCallback((row: unknown[], _index: number): ParsedRow => {
     const erros: string[] = [];
@@ -140,10 +187,12 @@ export default function EntradaMaterialForm({
     };
   }, []);
 
-  // Filter depositos by obraId from props
-  const depositos = obraId
-    ? allDepositos.filter((d) => d.obraId === obraId && d.ativo !== false)
-    : [];
+  // Filter depositos: by obraId in edit mode, show all active in creation mode
+  const depositos = initial
+    ? obraId
+      ? allDepositos.filter((d) => d.obraId === obraId && d.ativo !== false)
+      : []
+    : allDepositos.filter((d) => d.ativo !== false);
 
   useEffect(() => {
     if (!initial) {
@@ -156,31 +205,71 @@ export default function EntradaMaterialForm({
     ? unidadesMap.get(insumoSelecionado.unidade) || insumoSelecionado.unidade
     : '';
 
-  function handleSubmit(e: FormEvent) {
-    e.preventDefault();
-    onSubmit({
-      id: initial?.id || gerarId(),
-      dataHora,
-      depositoMaterialId,
-      insumoId,
-      obraId,
-      quantidade: parseFloat(quantidade) || 0,
-      valorTotal: parseFloat(valorTotal) || 0,
-      fornecedorId,
-      notaFiscal,
-      observacoes,
-      criadoPor: initial?.criadoPor || '',
-    });
+  function getUnidadeLabel(matId: string): string {
+    const mat = listaMateriais.find((i) => i.id === matId);
+    if (!mat) return '';
+    return unidadesMap.get(mat.unidade) || mat.unidade;
   }
 
-  const isValid =
-    dataHora &&
-    obraId &&
-    depositoMaterialId &&
-    insumoId &&
-    parseFloat(quantidade) > 0 &&
-    parseFloat(valorTotal) > 0 &&
-    fornecedorId;
+  function handleSubmit(e: FormEvent) {
+    e.preventDefault();
+    if (initial) {
+      // Edit mode: single item
+      onSubmit({
+        id: initial.id,
+        dataHora,
+        depositoMaterialId,
+        insumoId,
+        obraId,
+        quantidade: parseFloat(quantidade) || 0,
+        valorTotal: parseFloat(valorTotal) || 0,
+        fornecedorId,
+        notaFiscal,
+        observacoes,
+        criadoPor: initial.criadoPor || '',
+      });
+    } else {
+      // Creation mode: multi-item — derive obraId from selected depósito
+      const depositoSel = allDepositos.find((d) => d.id === depositoMaterialId);
+      const obraIdDerivado = depositoSel?.obraId ?? '';
+      const entries: EntradaMaterial[] = itens.map((it) => ({
+        id: gerarId(),
+        dataHora,
+        depositoMaterialId,
+        insumoId: it.insumoId,
+        obraId: obraIdDerivado,
+        quantidade: parseFloat(it.quantidade) || 0,
+        valorTotal: parseFloat(it.valorTotal) || 0,
+        fornecedorId,
+        notaFiscal,
+        observacoes,
+        criadoPor: '',
+      }));
+      if (onImportBatch) {
+        onImportBatch(entries);
+      } else {
+        entries.forEach((entry) => onSubmit(entry));
+      }
+    }
+  }
+
+  const headerValid = initial
+    ? dataHora && obraId && depositoMaterialId && fornecedorId
+    : dataHora && depositoMaterialId && fornecedorId;
+
+  const isValid = initial
+    ? headerValid &&
+      insumoId &&
+      parseFloat(quantidade) > 0 &&
+      parseFloat(valorTotal) > 0
+    : headerValid &&
+      itens.length > 0 &&
+      itens.every(
+        (it) =>
+          it.insumoId &&
+          parseFloat(it.quantidade) > 0 &&
+          parseFloat(it.precoUnitario) > 0
+      );
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
@@ -200,15 +289,17 @@ export default function EntradaMaterialForm({
           onChange={(e) => setDataHora(e.target.value)}
           required
         />
-        <Select
-          label="Obra"
-          id="entMatObraId"
-          value={obraId}
-          onChange={(e) => setObraId(e.target.value)}
-          options={obras.map((o) => ({ value: o.id, label: o.nome }))}
-          placeholder="Selecione a obra"
-          required
-        />
+        {initial && (
+          <Select
+            label="Obra"
+            id="entMatObraId"
+            value={obraId}
+            onChange={(e) => setObraId(e.target.value)}
+            options={obras.map((o) => ({ value: o.id, label: o.nome }))}
+            placeholder="Selecione a obra"
+            required
+          />
+        )}
         <Select
           label="Depósito de Destino"
           id="entMatDepositoId"
@@ -219,132 +310,138 @@ export default function EntradaMaterialForm({
             label: d.nome,
           }))}
           placeholder={
-            !obraId
+            initial && !obraId
               ? 'Selecione a obra primeiro'
               : depositos.length === 0
                 ? 'Nenhum depósito cadastrado'
                 : 'Selecione o depósito'
           }
-          disabled={!obraId || depositos.length === 0}
+          disabled={initial ? (!obraId || depositos.length === 0) : depositos.length === 0}
           required
         />
-        <div>
-          <Select
-            label="Material"
-            id="entMatInsumoId"
-            value={insumoId}
-            onChange={(e) => setInsumoId(e.target.value)}
-            options={listaMateriais.map((i) => ({
-              value: i.id,
-              label: i.nome,
-            }))}
-            placeholder={
-              listaMateriais.length === 0
-                ? 'Nenhum material cadastrado'
-                : 'Selecione o material'
-            }
-            required
-          />
-          {!novoMaterialAberto ? (
-            <button
-              type="button"
-              className="mt-1 text-xs text-emt-verde hover:text-emt-verde-escuro font-medium"
-              onClick={() => setNovoMaterialAberto(true)}
-            >
-              + Novo Material
-            </button>
-          ) : (
-            <div className="mt-2 space-y-2">
-              <div className="flex items-center gap-2">
-                <input
-                  type="text"
-                  className="flex-1 border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-emt-verde"
-                  placeholder="Nome do material"
-                  value={novoMaterialNome}
-                  onChange={(e) => setNovoMaterialNome(e.target.value)}
-                  autoFocus
-                />
-                <select
-                  className="border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-emt-verde bg-white"
-                  value={novoMaterialUnidade}
-                  onChange={(e) => setNovoMaterialUnidade(e.target.value)}
-                >
-                  <option value="">Unidade</option>
-                  {unidades
-                    .filter((u) => u.ativo !== false)
-                    .map((u) => (
-                      <option key={u.id} value={u.sigla}>
-                        {u.nome}
-                      </option>
-                    ))}
-                </select>
-              </div>
-              <div className="flex items-center gap-2">
-                <Button
-                  type="button"
-                  className="text-xs px-3 py-1.5"
-                  disabled={!novoMaterialNome.trim() || !novoMaterialUnidade}
-                  onClick={() => {
-                    const novo = {
-                      id: gerarId(),
-                      nome: novoMaterialNome.trim(),
-                      tipo: 'material' as const,
-                      unidade: novoMaterialUnidade,
-                      descricao: '',
-                      ativo: true,
-                      criadoPor: '',
-                    };
-                    adicionarInsumoMutation.mutate(novo);
-                    setListaMateriais((prev) => [...prev, novo]);
-                    setInsumoId(novo.id);
-                    setNovoMaterialNome('');
-                    setNovoMaterialUnidade('');
-                    setNovoMaterialAberto(false);
-                  }}
-                >
-                  Salvar
-                </Button>
+        {/* Edit mode: single-item Material / Qtd / Valor inline */}
+        {initial && (
+          <>
+            <div>
+              <Select
+                label="Material"
+                id="entMatInsumoId"
+                value={insumoId}
+                onChange={(e) => setInsumoId(e.target.value)}
+                options={listaMateriais.map((i) => ({
+                  value: i.id,
+                  label: i.nome,
+                }))}
+                placeholder={
+                  listaMateriais.length === 0
+                    ? 'Nenhum material cadastrado'
+                    : 'Selecione o material'
+                }
+                required
+              />
+              {!novoMaterialAberto ? (
                 <button
                   type="button"
-                  className="text-xs text-gray-500 hover:text-gray-700"
-                  onClick={() => {
-                    setNovoMaterialAberto(false);
-                    setNovoMaterialNome('');
-                    setNovoMaterialUnidade('');
-                  }}
+                  className="mt-1 text-xs text-emt-verde hover:text-emt-verde-escuro font-medium"
+                  onClick={() => setNovoMaterialAberto(true)}
                 >
-                  Cancelar
+                  + Novo Material
                 </button>
-              </div>
+              ) : (
+                <div className="mt-2 space-y-2">
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="text"
+                      className="flex-1 border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-emt-verde"
+                      placeholder="Nome do material"
+                      value={novoMaterialNome}
+                      onChange={(e) => setNovoMaterialNome(e.target.value)}
+                      autoFocus
+                    />
+                    <select
+                      className="border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-emt-verde bg-white"
+                      value={novoMaterialUnidade}
+                      onChange={(e) => setNovoMaterialUnidade(e.target.value)}
+                    >
+                      <option value="">Unidade</option>
+                      {unidades
+                        .filter((u) => u.ativo !== false)
+                        .map((u) => (
+                          <option key={u.id} value={u.sigla}>
+                            {u.nome}
+                          </option>
+                        ))}
+                    </select>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      type="button"
+                      className="text-xs px-3 py-1.5"
+                      disabled={!novoMaterialNome.trim() || !novoMaterialUnidade}
+                      onClick={() => {
+                        const novo = {
+                          id: gerarId(),
+                          nome: novoMaterialNome.trim(),
+                          tipo: 'material' as const,
+                          unidade: novoMaterialUnidade,
+                          descricao: '',
+                          ativo: true,
+                          criadoPor: '',
+                        };
+                        adicionarInsumoMutation.mutate(novo);
+                        setListaMateriais((prev) => [...prev, novo]);
+                        setInsumoId(novo.id);
+                        setNovoMaterialNome('');
+                        setNovoMaterialUnidade('');
+                        setNovoMaterialAberto(false);
+                      }}
+                    >
+                      Salvar
+                    </Button>
+                    <button
+                      type="button"
+                      className="text-xs text-gray-500 hover:text-gray-700"
+                      onClick={() => {
+                        setNovoMaterialAberto(false);
+                        setNovoMaterialNome('');
+                        setNovoMaterialUnidade('');
+                      }}
+                    >
+                      Cancelar
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
-          )}
-        </div>
-        <Input
-          label={`Quantidade${unidadeLabel ? ` (${unidadeLabel})` : ''}`}
-          id="entMatQtd"
-          type="number"
-          step="0.0001"
-          min="0"
-          value={quantidade}
-          onChange={(e) => setQuantidade(e.target.value)}
-          required
-        />
-        <Input
-          label="Valor Total (R$)"
-          id="entMatValor"
-          type="number"
-          step="0.0001"
-          min="0"
-          value={valorTotal}
-          onChange={(e) => setValorTotal(e.target.value)}
-          required
-        />
+            <Input
+              label={`Quantidade${unidadeLabel ? ` (${unidadeLabel})` : ''}`}
+              id="entMatQtd"
+              type="number"
+              step="0.0001"
+              min="0"
+              value={quantidade}
+              onChange={(e) => setQuantidade(e.target.value)}
+              required
+            />
+            <Input
+              label="Valor Total (R$)"
+              id="entMatValor"
+              type="number"
+              step="0.0001"
+              min="0"
+              value={valorTotal}
+              onChange={(e) => setValorTotal(e.target.value)}
+              required
+            />
+          </>
+        )}
         <div>
-          <Select
-            label="Fornecedor"
-            id="entMatFornecedor"
+          <label htmlFor="entMatFornecedor" className="block text-sm font-medium text-gray-700 mb-1">
+            Fornecedor<span className="text-red-500 ml-0.5">*</span>
+          </label>
+          <FilterCombobox
             value={fornecedorId}
-            onChange={(e) => setFornecedorId(e.target.value)}
+            onChange={(val) => setFornecedorId(val)}
             options={listaFornecedores.map((f) => ({
               value: f.id,
               label: f.nome,
@@ -352,9 +449,8 @@ export default function EntradaMaterialForm({
             placeholder={
               listaFornecedores.length === 0
                 ? 'Nenhum fornecedor cadastrado'
-                : 'Selecione o fornecedor'
+                : 'Buscar fornecedor...'
             }
-            required
           />
           {!novoFornecedorAberto ? (
             <button
@@ -420,6 +516,169 @@ export default function EntradaMaterialForm({
           placeholder="Ex: NF-e 12345"
         />
       </div>
+
+      {/* Creation mode: multi-item section */}
+      {!initial && (
+        <div className="space-y-3">
+          <label className="block text-sm font-medium text-gray-700">Itens</label>
+          {itens.map((item, idx) => {
+            const unitLabel = getUnidadeLabel(item.insumoId);
+            return (
+              <div key={item.id} className="flex items-end gap-2">
+                <div className="flex-[2]">
+                  {idx === 0 && (
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Material<span className="text-red-500 ml-0.5">*</span>
+                    </label>
+                  )}
+                  {idx > 0 && <div className="mb-1 text-sm">&nbsp;</div>}
+                  <FilterCombobox
+                    value={item.insumoId}
+                    onChange={(val) => updateItem(item.id, 'insumoId', val)}
+                    options={listaMateriais.map((i) => ({
+                      value: i.id,
+                      label: i.nome,
+                    }))}
+                    placeholder="Buscar material..."
+                  />
+                </div>
+                <div className="flex-1">
+                  <Input
+                    label={idx === 0 ? `Qtd${unitLabel ? ` (${unitLabel})` : ''}` : unitLabel ? `(${unitLabel})` : '\u00A0'}
+                    id={`entMatQtd_${item.id}`}
+                    type="number"
+                    step="0.0001"
+                    min="0"
+                    value={item.quantidade}
+                    onChange={(e) => updateItem(item.id, 'quantidade', e.target.value)}
+                    placeholder="Qtd"
+                    required
+                  />
+                </div>
+                <div className="flex-1">
+                  <Input
+                    label={idx === 0 ? 'Preço Unit. (R$)' : '\u00A0'}
+                    id={`entMatPreco_${item.id}`}
+                    type="number"
+                    step="0.0001"
+                    min="0"
+                    value={item.precoUnitario}
+                    onChange={(e) => updateItem(item.id, 'precoUnitario', e.target.value)}
+                    placeholder="Preço"
+                    required
+                  />
+                </div>
+                <div className="flex-1">
+                  <label className={`block text-sm font-medium text-gray-700 mb-1 ${idx > 0 ? 'invisible' : ''}`}>
+                    Total (R$)
+                  </label>
+                  <div className="h-[38px] flex items-center px-3 text-sm bg-gray-50 border border-gray-200 rounded-lg text-gray-700">
+                    {item.valorTotal ? parseFloat(item.valorTotal).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '—'}
+                  </div>
+                </div>
+                {itens.length > 1 && (
+                  <button
+                    type="button"
+                    className="mb-1 text-red-400 hover:text-red-600 text-lg font-bold px-1"
+                    title="Remover item"
+                    onClick={() => removeItem(item.id)}
+                  >
+                    &times;
+                  </button>
+                )}
+              </div>
+            );
+          })}
+          <div className="flex items-center gap-4">
+            <button
+              type="button"
+              className="text-sm text-emt-verde hover:text-emt-verde-escuro font-medium"
+              onClick={addItem}
+            >
+              + Adicionar Material
+            </button>
+            {!novoMaterialAberto ? (
+              <button
+                type="button"
+                className="text-xs text-emt-verde hover:text-emt-verde-escuro font-medium"
+                onClick={() => setNovoMaterialAberto(true)}
+              >
+                + Novo Material
+              </button>
+            ) : (
+              <div className="flex items-center gap-2 flex-1">
+                <input
+                  type="text"
+                  className="border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-emt-verde"
+                  placeholder="Nome do material"
+                  value={novoMaterialNome}
+                  onChange={(e) => setNovoMaterialNome(e.target.value)}
+                  autoFocus
+                />
+                <select
+                  className="border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-emt-verde bg-white"
+                  value={novoMaterialUnidade}
+                  onChange={(e) => setNovoMaterialUnidade(e.target.value)}
+                >
+                  <option value="">Unidade</option>
+                  {unidades
+                    .filter((u) => u.ativo !== false)
+                    .map((u) => (
+                      <option key={u.id} value={u.sigla}>
+                        {u.nome}
+                      </option>
+                    ))}
+                </select>
+                <Button
+                  type="button"
+                  className="text-xs px-3 py-1.5"
+                  disabled={!novoMaterialNome.trim() || !novoMaterialUnidade}
+                  onClick={() => {
+                    const novo = {
+                      id: gerarId(),
+                      nome: novoMaterialNome.trim(),
+                      tipo: 'material' as const,
+                      unidade: novoMaterialUnidade,
+                      descricao: '',
+                      ativo: true,
+                      criadoPor: '',
+                    };
+                    adicionarInsumoMutation.mutate(novo);
+                    setListaMateriais((prev) => [...prev, novo]);
+                    setNovoMaterialNome('');
+                    setNovoMaterialUnidade('');
+                    setNovoMaterialAberto(false);
+                  }}
+                >
+                  Salvar
+                </Button>
+                <button
+                  type="button"
+                  className="text-xs text-gray-500 hover:text-gray-700"
+                  onClick={() => {
+                    setNovoMaterialAberto(false);
+                    setNovoMaterialNome('');
+                    setNovoMaterialUnidade('');
+                  }}
+                >
+                  Cancelar
+                </button>
+              </div>
+            )}
+          </div>
+          {itens.length > 0 && (
+            <div className="flex justify-end pt-1 text-sm font-medium text-gray-700">
+              Valor Total da Entrada:&nbsp;
+              <span className="text-emt-verde-escuro">
+                R$&nbsp;{itens
+                  .reduce((acc, it) => acc + (parseFloat(it.valorTotal) || 0), 0)
+                  .toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              </span>
+            </div>
+          )}
+        </div>
+      )}
+
       <div>
         <label
           htmlFor="entMatObs"
