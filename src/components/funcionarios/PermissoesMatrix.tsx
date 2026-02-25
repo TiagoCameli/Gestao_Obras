@@ -95,8 +95,8 @@ export default function PermissoesMatrix({ funcionario, perfilPermissao, onClose
                   if (a.valor === 'ajustar_filtros' && m.valor !== 'dashboard') {
                     return <td key={a.valor} className="text-center px-3 py-2.5"><span className="text-gray-300">-</span></td>;
                   }
-                  // Exportar only for combustivel and insumos
-                  if (a.valor === 'exportar' && m.valor !== 'combustivel' && m.valor !== 'insumos') {
+                  // Exportar: nenhum módulo ativo usa exportar no momento
+                  if (a.valor === 'exportar') {
                     return <td key={a.valor} className="text-center px-3 py-2.5"><span className="text-gray-300">-</span></td>;
                   }
                   const checked = permissoes[m.valor]?.includes(a.valor) || false;
