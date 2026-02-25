@@ -199,7 +199,7 @@ export interface FiltrosInsumos {
 
 export type CargoFuncionario = 'Administrador' | 'Gerente' | 'Supervisor' | 'Operador' | 'Financeiro';
 
-export type ModuloPermissao = 'dashboard' | 'cadastros' | 'combustivel' | 'insumos' | 'frete' | 'compras' | 'funcionarios';
+export type ModuloPermissao = 'dashboard' | 'cadastros' | 'frete' | 'funcionarios';
 
 export type AcaoPermissao = 'visualizar' | 'criar' | 'editar' | 'excluir' | 'exportar' | 'ajustar_filtros';
 
