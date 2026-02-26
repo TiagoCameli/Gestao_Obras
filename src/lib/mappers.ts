@@ -28,6 +28,7 @@ import type {
   PedidoCompra,
   Cotacao,
   OrdemCompra,
+  Colaborador,
 } from '../types';
 
 // ── Obras ──
@@ -908,6 +909,53 @@ export function ordemCompraToDb(o: OrdemCompra) {
     empresa_faturamento: o.empresaFaturamento,
     aprovada: o.aprovada,
     criado_por: o.criadoPor,
+  };
+}
+
+// ── Colaboradores ──
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function dbToColaborador(row: any): Colaborador {
+  return {
+    id: row.id,
+    nome: row.nome,
+    fornecedorId: row.fornecedor_id,
+    dataNascimento: row.data_nascimento ?? '',
+    dataIngresso: row.data_ingresso ?? '',
+    telefone: row.telefone ?? '',
+    email: row.email ?? '',
+    altura: row.altura ?? '',
+    tamanhoCamisa: row.tamanho_camisa ?? '',
+    tamanhoCalca: row.tamanho_calca ?? '',
+    tamanhoSapato: row.tamanho_sapato ?? '',
+    endereco: row.endereco ?? '',
+    cpf: row.cpf ?? '',
+    rg: row.rg ?? '',
+    observacoes: row.observacoes ?? '',
+    ativo: row.ativo,
+    criadoPor: row.criado_por ?? '',
+  };
+}
+
+export function colaboradorToDb(c: Colaborador) {
+  return {
+    id: c.id,
+    nome: c.nome,
+    fornecedor_id: c.fornecedorId,
+    data_nascimento: c.dataNascimento,
+    data_ingresso: c.dataIngresso,
+    telefone: c.telefone,
+    email: c.email,
+    altura: c.altura,
+    tamanho_camisa: c.tamanhoCamisa,
+    tamanho_calca: c.tamanhoCalca,
+    tamanho_sapato: c.tamanhoSapato,
+    endereco: c.endereco,
+    cpf: c.cpf,
+    rg: c.rg,
+    observacoes: c.observacoes,
+    ativo: c.ativo,
+    criado_por: c.criadoPor,
   };
 }
 

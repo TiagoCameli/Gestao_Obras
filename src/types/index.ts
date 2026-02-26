@@ -351,6 +351,28 @@ export interface AuditLogEntry {
   dataHora: string;
 }
 
+// === Colaboradores ===
+
+export interface Colaborador {
+  id: string;
+  nome: string;
+  fornecedorId: string;
+  dataNascimento: string;
+  dataIngresso: string;
+  telefone: string;
+  email: string;
+  altura: string;
+  tamanhoCamisa: string;
+  tamanhoCalca: string;
+  tamanhoSapato: string;
+  endereco: string;
+  cpf: string;
+  rg: string;
+  observacoes: string;
+  ativo: boolean;
+  criadoPor: string;
+}
+
 // === Módulo de Compras ===
 
 export type UrgenciaPedidoCompra = 'baixa' | 'normal' | 'alta' | 'critica';

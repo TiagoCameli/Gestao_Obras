@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useState, type FormEvent } from 'react';
-import type { CategoriaMaterial, CategoriaMaterialCompra, Deposito, DepositoMaterial, Equipamento, Fornecedor, Insumo, Obra, TipoInsumo, TipoInsumoEntity, TipoMedicao, UnidadeMedida } from '../types';
+import type { CategoriaMaterial, CategoriaMaterialCompra, Colaborador, Deposito, DepositoMaterial, Equipamento, Fornecedor, Insumo, Obra, TipoInsumo, TipoInsumoEntity, TipoMedicao, UnidadeMedida } from '../types';
 import { useObras } from '../hooks/useObras';
 import { useDepositos, useAdicionarDeposito, useAtualizarDeposito, useExcluirDeposito } from '../hooks/useDepositos';
 import { useEquipamentos, useAdicionarEquipamento, useAtualizarEquipamento, useExcluirEquipamento } from '../hooks/useEquipamentos';
@@ -9,9 +9,10 @@ import { useUnidades, useAdicionarUnidade, useAtualizarUnidade, useExcluirUnidad
 import { useCategoriasMaterial, useAdicionarCategoriaMaterial, useAtualizarCategoriaMaterial, useExcluirCategoriaMaterial } from '../hooks/useCategoriasMaterial';
 import { useTiposInsumo, useAdicionarTipoInsumo, useAtualizarTipoInsumo, useExcluirTipoInsumo } from '../hooks/useTiposInsumo';
 import { useDepositosMaterial, useAdicionarDepositoMaterial, useAtualizarDepositoMaterial, useExcluirDepositoMaterial } from '../hooks/useDepositosMaterial';
+import { useColaboradores, useAdicionarColaborador, useAtualizarColaborador, useExcluirColaborador } from '../hooks/useColaboradores';
 import Input from '../components/ui/Input';
 import Select from '../components/ui/Select';
-import { formatDate } from '../utils/formatters';
+import { formatDate, formatCPF, formatTelefone } from '../utils/formatters';
 import Button from '../components/ui/Button';
 import Modal from '../components/ui/Modal';
 import Card from '../components/ui/Card';
@@ -1518,6 +1519,248 @@ function FornecedorForm({
   );
 }
 
+function ColaboradorForm({
+  initial,
+  fornecedores,
+  onSubmit,
+  onCancel,
+  onImportBatch,
+}: {
+  initial: Colaborador | null;
+  fornecedores: Fornecedor[];
+  onSubmit: (colab: Colaborador) => void;
+  onCancel: () => void;
+  onImportBatch?: (items: Colaborador[]) => void;
+}) {
+  const [nome, setNome] = useState(initial?.nome || '');
+  const [fornecedorId, setFornecedorId] = useState(initial?.fornecedorId || '');
+  const [dataNascimento, setDataNascimento] = useState(initial?.dataNascimento || '');
+  const [dataIngresso, setDataIngresso] = useState(initial?.dataIngresso || '');
+  const [telefone, setTelefone] = useState(initial?.telefone || '');
+  const [email, setEmail] = useState(initial?.email || '');
+  const [altura, setAltura] = useState(initial?.altura || '');
+  const [tamanhoCamisa, setTamanhoCamisa] = useState(initial?.tamanhoCamisa || '');
+  const [tamanhoCalca, setTamanhoCalca] = useState(initial?.tamanhoCalca || '');
+  const [tamanhoSapato, setTamanhoSapato] = useState(initial?.tamanhoSapato || '');
+  const [endereco, setEndereco] = useState(initial?.endereco || '');
+  const [cpf, setCpf] = useState(initial?.cpf || '');
+  const [rg, setRg] = useState(initial?.rg || '');
+  const [observacoes, setObservacoes] = useState(initial?.observacoes || '');
+  const [ativo, setAtivo] = useState(initial?.ativo !== false);
+
+  const [importModalOpen, setImportModalOpen] = useState(false);
+  const [toastMsg, setToastMsg] = useState('');
+
+  const isValid = nome.trim() && fornecedorId;
+
+  function handleSubmit(e: FormEvent) {
+    e.preventDefault();
+    onSubmit({
+      id: initial?.id || gerarId(),
+      nome: nome.trim(),
+      fornecedorId,
+      dataNascimento,
+      dataIngresso,
+      telefone,
+      email: email.trim(),
+      altura,
+      tamanhoCamisa,
+      tamanhoCalca,
+      tamanhoSapato,
+      endereco,
+      cpf,
+      rg,
+      observacoes,
+      ativo,
+      criadoPor: initial?.criadoPor || '',
+    });
+  }
+
+  const fornecedoresAtivos = fornecedores.filter(f => f.ativo !== false);
+
+  const parseColabRow = useCallback((row: unknown[]): ParsedRow => {
+    const erros: string[] = [];
+    const nomeVal = parseStr(row[0]);
+    const empresaName = parseStr(row[1]);
+    const cpfVal = parseStr(row[2]);
+    const rgVal = parseStr(row[3]);
+    const telVal = parseStr(row[4]);
+    const emailVal = parseStr(row[5]);
+    const altVal = parseStr(row[6]);
+    const camisaVal = parseStr(row[7]);
+    const calcaVal = parseStr(row[8]);
+    const sapatoVal = parseStr(row[9]);
+    const endVal = parseStr(row[10]);
+    const obsVal = parseStr(row[11]);
+
+    if (!nomeVal) erros.push('Nome obrigatorio');
+    let fornMatch: Fornecedor | undefined;
+    if (!empresaName) {
+      erros.push('Empresa obrigatoria');
+    } else {
+      fornMatch = fornecedores.find(f => f.nome.toLowerCase() === empresaName.toLowerCase());
+      if (!fornMatch) erros.push(`Empresa "${empresaName}" nao encontrada nos fornecedores`);
+    }
+
+    return {
+      valido: erros.length === 0,
+      erros,
+      resumo: `${nomeVal || '(sem nome)'} | ${empresaName || '(sem empresa)'}`,
+      dados: { nome: nomeVal, fornecedorId: fornMatch?.id || '', cpf: cpfVal, rg: rgVal, telefone: telVal, email: emailVal, altura: altVal, tamanhoCamisa: camisaVal, tamanhoCalca: calcaVal, tamanhoSapato: sapatoVal, endereco: endVal, observacoes: obsVal },
+    };
+  }, [fornecedores]);
+
+  const colabToEntity = useCallback((row: ParsedRow): Record<string, unknown> => {
+    const d = row.dados;
+    return {
+      id: gerarId(),
+      nome: (d.nome as string).trim(),
+      fornecedorId: d.fornecedorId || '',
+      dataNascimento: '',
+      dataIngresso: '',
+      telefone: d.telefone || '',
+      email: ((d.email as string) || '').trim(),
+      altura: d.altura || '',
+      tamanhoCamisa: d.tamanhoCamisa || '',
+      tamanhoCalca: d.tamanhoCalca || '',
+      tamanhoSapato: d.tamanhoSapato || '',
+      endereco: d.endereco || '',
+      cpf: d.cpf || '',
+      rg: d.rg || '',
+      observacoes: d.observacoes || '',
+      ativo: true,
+      criadoPor: '',
+    };
+  }, []);
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-4">
+      {!initial && onImportBatch && (
+        <div className="flex justify-end">
+          <Button type="button" variant="secondary" className="text-xs px-3 py-1.5" onClick={() => setImportModalOpen(true)}>
+            Importar do Excel
+          </Button>
+        </div>
+      )}
+
+      <div>
+        <h3 className="text-sm font-semibold text-gray-700 mb-3">Dados Obrigatórios</h3>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <Input label="Nome" id="colabNome" value={nome} onChange={(e) => setNome(e.target.value)} required />
+          <Select
+            label="Empresa"
+            id="colabEmpresa"
+            value={fornecedorId}
+            onChange={(e) => setFornecedorId(e.target.value)}
+            options={fornecedoresAtivos.map((f) => ({ value: f.id, label: f.nome }))}
+            placeholder="Selecione a empresa"
+            required
+          />
+        </div>
+      </div>
+
+      <div>
+        <h3 className="text-sm font-semibold text-gray-700 mb-3">Documentos</h3>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <Input label="CPF" id="colabCpf" value={cpf} onChange={(e) => setCpf(formatCPF(e.target.value))} placeholder="000.000.000-00" />
+          <Input label="RG" id="colabRg" value={rg} onChange={(e) => setRg(e.target.value)} />
+        </div>
+      </div>
+
+      <div>
+        <h3 className="text-sm font-semibold text-gray-700 mb-3">Dados Pessoais</h3>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <Input label="Data de Nascimento" id="colabNasc" type="date" value={dataNascimento} onChange={(e) => setDataNascimento(e.target.value)} />
+          <Input label="Data de Ingresso" id="colabIngresso" type="date" value={dataIngresso} onChange={(e) => setDataIngresso(e.target.value)} />
+          <Input label="Telefone" id="colabTel" value={telefone} onChange={(e) => setTelefone(formatTelefone(e.target.value))} placeholder="(00) 00000-0000" />
+          <Input label="E-mail" id="colabEmail" type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
+          <Input label="Endereço" id="colabEndereco" value={endereco} onChange={(e) => setEndereco(e.target.value)} />
+        </div>
+      </div>
+
+      <div>
+        <h3 className="text-sm font-semibold text-gray-700 mb-3">Medidas / Uniformes</h3>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <Input label="Altura" id="colabAltura" value={altura} onChange={(e) => setAltura(e.target.value)} placeholder="Ex: 1.75" />
+          <Input label="Camisa" id="colabCamisa" value={tamanhoCamisa} onChange={(e) => setTamanhoCamisa(e.target.value)} placeholder="Ex: M, G, GG" />
+          <Input label="Calça" id="colabCalca" value={tamanhoCalca} onChange={(e) => setTamanhoCalca(e.target.value)} placeholder="Ex: 40, 42" />
+          <Input label="Sapato" id="colabSapato" value={tamanhoSapato} onChange={(e) => setTamanhoSapato(e.target.value)} placeholder="Ex: 41, 42" />
+        </div>
+      </div>
+
+      {initial && (
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">Status</label>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${ativo ? 'bg-green-600 text-white' : 'bg-gray-200 text-gray-600 hover:bg-gray-300'}`}
+              onClick={() => setAtivo(true)}
+            >
+              Ativo
+            </button>
+            <button
+              type="button"
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${!ativo ? 'bg-red-600 text-white' : 'bg-gray-200 text-gray-600 hover:bg-gray-300'}`}
+              onClick={() => setAtivo(false)}
+            >
+              Inativo
+            </button>
+          </div>
+        </div>
+      )}
+
+      <div>
+        <label htmlFor="colabObs" className="block text-sm font-medium text-gray-700 mb-1">Observações</label>
+        <textarea
+          id="colabObs"
+          className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emt-verde"
+          rows={2}
+          value={observacoes}
+          onChange={(e) => setObservacoes(e.target.value)}
+        />
+      </div>
+
+      <div className="flex justify-end gap-3 pt-2">
+        <Button variant="secondary" type="button" onClick={onCancel}>Cancelar</Button>
+        <Button type="submit" disabled={!isValid}>{initial ? 'Salvar Alterações' : 'Cadastrar Colaborador'}</Button>
+      </div>
+
+      {onImportBatch && (
+        <ImportExcelModal
+          open={importModalOpen}
+          onClose={() => setImportModalOpen(false)}
+          onImport={(items) => {
+            onImportBatch(items as unknown as Colaborador[]);
+            setImportModalOpen(false);
+            setToastMsg(`${items.length} colaborador${items.length !== 1 ? 'es' : ''} importado${items.length !== 1 ? 's' : ''} com sucesso`);
+            setTimeout(() => setToastMsg(''), 4000);
+          }}
+          title="Importar Colaboradores do Excel"
+          entityLabel="Colaborador"
+          templateData={[
+            ['Nome', 'Empresa', 'CPF', 'RG', 'Telefone', 'Email', 'Altura', 'Camisa', 'Calça', 'Sapato', 'Endereço', 'Observações'],
+            ['João Silva', 'Empresa ABC', '123.456.789-00', '12.345.678-9', '(11) 99999-0000', 'joao@email.com', '1.75', 'G', '42', '41', 'Rua A, 123', ''],
+          ]}
+          templateFileName="template_colaboradores.xlsx"
+          sheetName="Colaboradores"
+          templateColWidths={[20, 20, 16, 14, 16, 22, 8, 8, 8, 8, 25, 20]}
+          formatHintHeaders={['Nome', 'Empresa', 'CPF', 'RG', 'Telefone', 'Email', 'Altura', 'Camisa', 'Calça', 'Sapato', 'Endereço', 'Obs']}
+          formatHintExample={['João Silva', 'Empresa ABC', '', '', '', '', '1.75', 'G', '42', '41', '', '']}
+          parseRow={parseColabRow}
+          toEntity={colabToEntity}
+        />
+      )}
+
+      {toastMsg && (
+        <div className="fixed bottom-6 right-6 z-[60] bg-green-600 text-white px-5 py-3 rounded-lg shadow-lg text-sm font-medium">
+          {toastMsg}
+        </div>
+      )}
+    </form>
+  );
+}
+
 export default function Obras() {
   const { temAcao, usuario } = useAuth();
   const canCreate = temAcao('criar_cadastros');
@@ -1532,6 +1775,7 @@ export default function Obras() {
   const { data: todosDepositosMat = [], isLoading: loadingDepositosMat } = useDepositosMaterial();
   const { data: todasCategorias = [], isLoading: loadingCategorias } = useCategoriasMaterial();
   const { data: todosTiposInsumo = [], isLoading: loadingTiposInsumo } = useTiposInsumo();
+  const { data: todosColaboradores = [], isLoading: loadingColaboradores } = useColaboradores();
 
   const unidadesMap = useMemo(() => new Map(todasUnidades.map((u) => [u.sigla, u.nome])), [todasUnidades]);
   const categoriasOptions = useMemo(() => todasCategorias.filter((c) => c.ativo).map((c) => ({ value: c.valor, label: c.nome })), [todasCategorias]);
@@ -1563,6 +1807,9 @@ export default function Obras() {
   const adicionarTipoInsumoMutation = useAdicionarTipoInsumo();
   const atualizarTipoInsumoMutation = useAtualizarTipoInsumo();
   const excluirTipoInsumoMutation = useExcluirTipoInsumo();
+  const adicionarColaboradorMutation = useAdicionarColaborador();
+  const atualizarColaboradorMutation = useAtualizarColaborador();
+  const excluirColaboradorMutation = useExcluirColaborador();
 
   // ---- Loading state (minimal — only block if obras not ready, used by many sections) ----
   const isLoading = loadingObras;
@@ -1679,6 +1926,32 @@ export default function Obras() {
     await excluirFornecedorMutation.mutateAsync(id);
     setDeleteFornecedorId(null);
   }, [excluirFornecedorMutation]);
+
+  // Colaborador state
+  const [colaboradoresVisiveis, setColaboradoresVisiveis] = useState(true);
+  const [modalColaboradorOpen, setModalColaboradorOpen] = useState(false);
+  const [editandoColaborador, setEditandoColaborador] = useState<Colaborador | null>(null);
+  const [deleteColaboradorId, setDeleteColaboradorId] = useState<string | null>(null);
+
+  const fornecedoresMap = useMemo(() => new Map(todosFornecedores.map((f) => [f.id, f.nome])), [todosFornecedores]);
+
+  const handleSubmitColaborador = useCallback(
+    async (colab: Colaborador) => {
+      if (editandoColaborador) {
+        await atualizarColaboradorMutation.mutateAsync(colab);
+      } else {
+        await adicionarColaboradorMutation.mutateAsync({ ...colab, criadoPor: usuario?.nome || '' });
+      }
+      setModalColaboradorOpen(false);
+      setEditandoColaborador(null);
+    },
+    [editandoColaborador, atualizarColaboradorMutation, adicionarColaboradorMutation, usuario]
+  );
+
+  const handleDeleteColaborador = useCallback(async (id: string) => {
+    await excluirColaboradorMutation.mutateAsync(id);
+    setDeleteColaboradorId(null);
+  }, [excluirColaboradorMutation]);
 
   // Deposito Material state
   const [depositosMatVisiveis, setDepositosMatVisiveis] = useState(true);
@@ -1820,6 +2093,14 @@ export default function Obras() {
               }}
             >
               Novo Fornecedor
+            </Button>
+            <Button
+              onClick={() => {
+                setEditandoColaborador(null);
+                setModalColaboradorOpen(true);
+              }}
+            >
+              Novo Colaborador
             </Button>
             <Button
               onClick={() => {
@@ -2395,6 +2676,103 @@ export default function Obras() {
         ) : null}
       </div>
 
+      {/* Secao Colaboradores */}
+      <div className="mt-10">
+        <div className="flex items-center gap-3 mb-4">
+          <h2 className="text-xl font-bold text-gray-800">Colaboradores</h2>
+          {loadingColaboradores && <span className="text-sm text-gray-400 animate-pulse">Carregando...</span>}
+          {!loadingColaboradores && todosColaboradores.length > 0 && (
+            <button
+              className="text-sm text-gray-500 hover:text-gray-700 transition-colors"
+              onClick={() => setColaboradoresVisiveis((v) => !v)}
+            >
+              {colaboradoresVisiveis ? 'Ocultar' : 'Mostrar'}
+            </button>
+          )}
+        </div>
+        {!loadingColaboradores && todosColaboradores.length === 0 ? (
+          <Card>
+            <div className="text-center py-6">
+              <p className="text-gray-500 mb-4">Nenhum colaborador cadastrado ainda.</p>
+              <Button
+                onClick={() => {
+                  setEditandoColaborador(null);
+                  setModalColaboradorOpen(true);
+                }}
+              >
+                Cadastrar Primeiro Colaborador
+              </Button>
+            </div>
+          </Card>
+        ) : colaboradoresVisiveis ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {todosColaboradores.map((colab) => (
+              <Card key={colab.id} className={colab.ativo === false ? 'opacity-60' : ''}>
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-sm font-semibold text-gray-800">
+                    {colab.nome}
+                  </span>
+                  <span
+                    className={`px-2 py-0.5 rounded-full text-xs font-medium ${
+                      colab.ativo !== false
+                        ? 'bg-green-100 text-green-800'
+                        : 'bg-red-100 text-red-800'
+                    }`}
+                  >
+                    {colab.ativo !== false ? 'Ativo' : 'Inativo'}
+                  </span>
+                </div>
+                <div className="space-y-1 text-xs text-gray-500 mb-3">
+                  <div className="flex justify-between">
+                    <span>Empresa</span>
+                    <span className="text-gray-700 font-medium">{fornecedoresMap.get(colab.fornecedorId) || '-'}</span>
+                  </div>
+                  {colab.cpf && (
+                    <div className="flex justify-between">
+                      <span>CPF</span>
+                      <span className="text-gray-700 font-medium">{colab.cpf}</span>
+                    </div>
+                  )}
+                  {colab.telefone && (
+                    <div className="flex justify-between">
+                      <span>Telefone</span>
+                      <span className="text-gray-700 font-medium">{colab.telefone}</span>
+                    </div>
+                  )}
+                  {colab.email && (
+                    <div className="flex justify-between">
+                      <span>E-mail</span>
+                      <span className="text-gray-700 font-medium">{colab.email}</span>
+                    </div>
+                  )}
+                </div>
+                <div className="flex gap-2 pt-2 border-t border-gray-100">
+                  <Button
+                    variant="ghost"
+                    className="text-xs px-2 py-1"
+                    onClick={() => {
+                      pedirSenha(() => {
+                        setEditandoColaborador(colab);
+                        setModalColaboradorOpen(true);
+                      });
+                    }}
+                  >
+                    Editar
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    className="text-xs px-2 py-1 text-red-600 hover:bg-red-50"
+                    onClick={() => pedirSenha(() => setDeleteColaboradorId(colab.id))}
+                  >
+                    Excluir
+                  </Button>
+                </div>
+              </Card>
+            ))}
+          </div>
+        ) : null}
+      </div>
+
       {/* Secao Tipos de Insumo */}
       <div className="mt-10">
         <div className="flex items-center gap-3 mb-4">
@@ -2759,6 +3137,33 @@ export default function Obras() {
         />
       </Modal>
 
+      {/* Modal Colaborador */}
+      <Modal
+        open={modalColaboradorOpen}
+        onClose={() => {
+          setModalColaboradorOpen(false);
+          setEditandoColaborador(null);
+        }}
+        title={editandoColaborador ? 'Editar Colaborador' : 'Novo Colaborador'}
+      >
+        <ColaboradorForm
+          initial={editandoColaborador}
+          fornecedores={todosFornecedores}
+          onSubmit={handleSubmitColaborador}
+          onCancel={() => {
+            setModalColaboradorOpen(false);
+            setEditandoColaborador(null);
+          }}
+          onImportBatch={async (novos) => {
+            for (const c of novos) {
+              await adicionarColaboradorMutation.mutateAsync({ ...c, criadoPor: usuario?.nome || '' });
+            }
+            setModalColaboradorOpen(false);
+            setEditandoColaborador(null);
+          }}
+        />
+      </Modal>
+
       {/* Modal Insumo */}
       <Modal
         open={modalInsumoOpen}
@@ -2915,6 +3320,16 @@ export default function Obras() {
         }}
         title="Excluir Fornecedor"
         message="Tem certeza que deseja excluir este fornecedor?"
+      />
+
+      <ConfirmDialog
+        open={deleteColaboradorId !== null}
+        onClose={() => setDeleteColaboradorId(null)}
+        onConfirm={() => {
+          if (deleteColaboradorId) handleDeleteColaborador(deleteColaboradorId);
+        }}
+        title="Excluir Colaborador"
+        message="Tem certeza que deseja excluir este colaborador? Esta ação não pode ser desfeita."
       />
     </div>
   );
