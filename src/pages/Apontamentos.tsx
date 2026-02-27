@@ -7,6 +7,8 @@ import { useEtapas } from '../hooks/useEtapas';
 import { useEquipamentos } from '../hooks/useEquipamentos';
 import { useColaboradores } from '../hooks/useColaboradores';
 import { useEmpresas } from '../hooks/useEmpresas';
+import { useSequenciasDiarias } from '../hooks/useSequenciasDiarias';
+import { useRegistrosHorasDiaristas } from '../hooks/useRegistrosHorasDiaristas';
 import { useAuth } from '../contexts/AuthContext';
 import Button from '../components/ui/Button';
 import Modal from '../components/ui/Modal';
@@ -910,6 +912,8 @@ export default function Apontamentos() {
   const { data: todosEquipamentos = [] } = useEquipamentos();
   const { data: todosColaboradores = [] } = useColaboradores();
   const { data: todasEmpresas = [] } = useEmpresas();
+  const { data: sequenciasDiarias = [] } = useSequenciasDiarias();
+  const { data: registrosHorasDiaristas = [] } = useRegistrosHorasDiaristas();
 
   // Mutations
   const adicionarMutation = useAdicionarApontamento();
@@ -1086,6 +1090,61 @@ export default function Apontamentos() {
       return { id: c.id, nome: c.nome, diasUteis: diasUteis.length, diasComRegistro: diasComRegistro.size, semRegistro };
     }).filter((r) => r.semRegistro > 0).sort((a, b) => b.semRegistro - a.semRegistro);
   }, [colaboradoresAtivos, apontamentosPeriodo, diasUteis]);
+
+  // Relatório Diaristas
+  const fmtBRL = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+
+  const relatorioDiaristas = useMemo(() => {
+    let registros = registrosHorasDiaristas.filter(r => r.data >= dataInicio && r.data <= dataFim);
+    if (filtroObraIds.length > 0) registros = registros.filter(r => filtroObraIds.includes(r.obraId));
+
+    const registrosPorSeq = new Map<string, number>();
+    for (const r of registros) {
+      registrosPorSeq.set(r.sequenciaId, (registrosPorSeq.get(r.sequenciaId) || 0) + 1);
+    }
+
+    const seqIds = new Set(registrosPorSeq.keys());
+    const seqsNoPeriodo = sequenciasDiarias.filter(s => seqIds.has(s.id));
+
+    let totalAPagar = 0;
+    let totalPago = 0;
+    let abertas = 0;
+    let fechadas = 0;
+    let pagas = 0;
+    const porObra = new Map<string, { obraNome: string; valor: number; dias: number; abertas: number; fechadas: number; pagas: number }>();
+
+    for (const seq of seqsNoPeriodo) {
+      const diasNoPeriodo = registrosPorSeq.get(seq.id) || 0;
+      const valorSeq = diasNoPeriodo * seq.valorDiaria;
+      totalAPagar += valorSeq;
+
+      if (seq.status === 'aberta') abertas++;
+      else fechadas++;
+      if (seq.pago) { pagas++; totalPago += valorSeq; }
+
+      const obraNome = obrasMap.get(seq.obraId) || 'Obra';
+      const entry = porObra.get(seq.obraId) || { obraNome, valor: 0, dias: 0, abertas: 0, fechadas: 0, pagas: 0 };
+      entry.valor += valorSeq;
+      entry.dias += diasNoPeriodo;
+      if (seq.status === 'aberta') entry.abertas++;
+      else entry.fechadas++;
+      if (seq.pago) entry.pagas++;
+      porObra.set(seq.obraId, entry);
+    }
+
+    return {
+      totalAPagar,
+      totalPago,
+      abertas,
+      fechadas,
+      pagas,
+      totalSequencias: seqsNoPeriodo.length,
+      totalDias: registros.length,
+      porObra: [...porObra.entries()]
+        .map(([obraId, v]) => ({ obraId, ...v }))
+        .sort((a, b) => b.valor - a.valor),
+    };
+  }, [sequenciasDiarias, registrosHorasDiaristas, dataInicio, dataFim, filtroObraIds, obrasMap]);
 
   // Handlers
   const handleClockIn = useCallback(
@@ -1280,28 +1339,6 @@ export default function Apontamentos() {
                   onChange={(e) => setDataFim(e.target.value)}
                 />
               </div>
-              <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1">Equipamento</label>
-                <select
-                  className="h-[44px] border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white w-full sm:w-48"
-                  value={filtroEquipId}
-                  onChange={(e) => setFiltroEquipId(e.target.value)}
-                >
-                  <option value="">Todos</option>
-                  {equipamentosAtivos.map((e) => <option key={e.id} value={e.id}>{e.nome}</option>)}
-                </select>
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1">Colaborador</label>
-                <select
-                  className="h-[44px] border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white w-full sm:w-48"
-                  value={filtroColabId}
-                  onChange={(e) => setFiltroColabId(e.target.value)}
-                >
-                  <option value="">Todos</option>
-                  {colaboradoresAtivos.map((c) => <option key={c.id} value={c.id}>{c.nome}</option>)}
-                </select>
-              </div>
               <div className="w-full sm:w-56">
                 <label className="block text-xs font-medium text-gray-600 mb-1">Obras</label>
                 <MultiSearchableSelect
@@ -1323,36 +1360,44 @@ export default function Apontamentos() {
             </div>
 
             {/* Período label */}
-            <p className="text-xs text-gray-500 mb-4">
+            <p className="text-xs text-gray-500 mb-6">
               Período: {formatDateBR(dataInicio)} a {formatDateBR(dataFim)}
             </p>
 
-            {/* Totais */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
-              <div className="bg-white rounded-lg p-4 border shadow-sm">
-                <p className="text-xs text-gray-500 uppercase">Horas Equip.</p>
-                <p className="text-2xl font-bold text-emt-verde">{formatHoras(totalHorasEquip)}</p>
+            {/* ═══ EQUIPAMENTOS ═══ */}
+            <div className="mb-8">
+              <div className="flex items-center gap-2 mb-4">
+                <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z" /></svg>
+                <h3 className="text-base font-semibold text-gray-800">Equipamentos</h3>
               </div>
-              <div className="bg-white rounded-lg p-4 border shadow-sm">
-                <p className="text-xs text-gray-500 uppercase">Horas Colab.</p>
-                <p className="text-2xl font-bold text-emt-verde">{formatHoras(totalHorasColab)}</p>
-              </div>
-              <div className="bg-white rounded-lg p-4 border shadow-sm">
-                <p className="text-xs text-gray-500 uppercase">Equip. no Período</p>
-                <p className="text-2xl font-bold text-gray-700">{relatorioEquip.length}</p>
-              </div>
-              <div className="bg-white rounded-lg p-4 border shadow-sm">
-                <p className="text-xs text-gray-500 uppercase">Colab. no Período</p>
-                <p className="text-2xl font-bold text-gray-700">{relatorioColab.length}</p>
-              </div>
-            </div>
 
-            {/* Tabelas de relatório */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {/* Equipamentos */}
+              {/* Cards Equip */}
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 mb-4">
+                <div className="bg-white rounded-lg p-4 border shadow-sm">
+                  <p className="text-xs text-gray-500 uppercase">Horas Totais</p>
+                  <p className="text-2xl font-bold text-emt-verde">{formatHoras(totalHorasEquip)}</p>
+                </div>
+                <div className="bg-white rounded-lg p-4 border shadow-sm">
+                  <p className="text-xs text-gray-500 uppercase">No Período</p>
+                  <p className="text-2xl font-bold text-gray-700">{relatorioEquip.length}</p>
+                </div>
+                <div className="bg-white rounded-lg p-4 border shadow-sm">
+                  <p className="text-xs text-gray-500 uppercase">Filtro</p>
+                  <select
+                    className="mt-1 w-full border border-gray-300 rounded-md px-2 py-1 text-sm bg-white"
+                    value={filtroEquipId}
+                    onChange={(e) => setFiltroEquipId(e.target.value)}
+                  >
+                    <option value="">Todos</option>
+                    {equipamentosAtivos.map((e) => <option key={e.id} value={e.id}>{e.nome}</option>)}
+                  </select>
+                </div>
+              </div>
+
+              {/* Tabela Equip */}
               <div className="bg-white rounded-lg border shadow-sm overflow-hidden">
-                <div className="bg-gray-50 px-4 py-3 border-b">
-                  <h3 className="text-sm font-semibold text-gray-700">Equipamentos</h3>
+                <div className="bg-blue-50 px-4 py-3 border-b">
+                  <h3 className="text-sm font-semibold text-blue-800">Horas por Equipamento</h3>
                 </div>
                 {relatorioEquip.length === 0 ? (
                   <p className="text-sm text-gray-400 italic p-4">Nenhum registro no período.</p>
@@ -1388,10 +1433,150 @@ export default function Apontamentos() {
                 )}
               </div>
 
-              {/* Colaboradores */}
+              {/* Horas por Obra/Etapa — Equip */}
+              {relatorioObraEtapaEquip.totalHoras > 0 && (
+                <div className="mt-4 bg-white rounded-lg border shadow-sm overflow-hidden">
+                  <div className="bg-blue-50 px-4 py-3 border-b">
+                    <h3 className="text-sm font-semibold text-blue-800">Horas por Obra / Etapa</h3>
+                    <p className="text-xs text-gray-400 mt-0.5">Total: {formatHoras(relatorioObraEtapaEquip.totalHoras)}</p>
+                  </div>
+                  <div className="p-4 space-y-4">
+                    {relatorioObraEtapaEquip.obras.map((obra) => (
+                      <div key={obra.obraId}>
+                        <div className="flex items-center justify-between mb-1">
+                          <span className="text-sm font-semibold text-gray-800">{obra.obraNome}</span>
+                          <span className="text-sm font-semibold text-gray-700">{formatHoras(obra.horasObra)} ({obra.percentualObra}%)</span>
+                        </div>
+                        <div className="w-full bg-gray-200 rounded-full h-3 mb-2">
+                          <div className="bg-blue-600 h-3 rounded-full" style={{ width: `${obra.percentualObra}%` }} />
+                        </div>
+                        {obra.etapas.length > 0 && (
+                          <div className="ml-4 space-y-1.5">
+                            {obra.etapas.map((etapa) => (
+                              <div key={etapa.etapaId}>
+                                <div className="flex items-center justify-between">
+                                  <span className="text-xs text-gray-600">{etapa.etapaNome}</span>
+                                  <span className="text-xs text-gray-500">{formatHoras(etapa.horas)} ({etapa.percentual}%)</span>
+                                </div>
+                                <div className="w-full bg-gray-100 rounded-full h-2">
+                                  <div className="bg-blue-400 h-2 rounded-full" style={{ width: `${etapa.percentual}%` }} />
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Manutenção/Ociosidade — Equip */}
+              {relatorioStatusEquip.length > 0 && (
+                <div className="mt-4 bg-white rounded-lg border shadow-sm overflow-hidden">
+                  <div className="bg-blue-50 px-4 py-3 border-b">
+                    <h3 className="text-sm font-semibold text-blue-800">Manutenção e Ociosidade</h3>
+                  </div>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="border-b bg-gray-50 text-gray-600 text-xs uppercase">
+                          <th className="text-left px-4 py-2">Equipamento</th>
+                          <th className="text-right px-4 py-2">Manutenção</th>
+                          <th className="text-right px-4 py-2">Ocioso</th>
+                          <th className="text-right px-4 py-2">Total dias</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {relatorioStatusEquip.map((r) => (
+                          <tr key={r.id} className="border-b last:border-0 hover:bg-gray-50">
+                            <td className="px-4 py-2 font-medium text-gray-800">{r.nome}</td>
+                            <td className="px-4 py-2 text-right text-orange-600 font-semibold">{r.manutencao || '-'}</td>
+                            <td className="px-4 py-2 text-right text-gray-500 font-semibold">{r.ocioso || '-'}</td>
+                            <td className="px-4 py-2 text-right font-bold text-gray-700">{r.total}</td>
+                          </tr>
+                        ))}
+                        <tr className="bg-gray-50 font-semibold">
+                          <td className="px-4 py-2 text-gray-700">Total</td>
+                          <td className="px-4 py-2 text-right text-orange-600">{relatorioStatusEquip.reduce((s, r) => s + r.manutencao, 0)}</td>
+                          <td className="px-4 py-2 text-right text-gray-500">{relatorioStatusEquip.reduce((s, r) => s + r.ocioso, 0)}</td>
+                          <td className="px-4 py-2 text-right text-gray-700">{relatorioStatusEquip.reduce((s, r) => s + r.total, 0)}</td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+
+              {/* Dias sem Registro — Equip */}
+              <div className="mt-4 bg-white rounded-lg border shadow-sm overflow-hidden">
+                <div className="bg-blue-50 px-4 py-3 border-b">
+                  <h3 className="text-sm font-semibold text-blue-800">Dias sem Registro</h3>
+                  <p className="text-xs text-gray-400 mt-0.5">{diasUteis.length} dias úteis no período</p>
+                </div>
+                {relatorioDiasSemRegistroEquip.length === 0 ? (
+                  <p className="text-sm text-gray-400 italic p-4">Todos os equipamentos têm registro em todos os dias úteis.</p>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="border-b bg-gray-50 text-gray-600 text-xs uppercase">
+                          <th className="text-left px-4 py-2">Equipamento</th>
+                          <th className="text-right px-4 py-2">Com registro</th>
+                          <th className="text-right px-4 py-2">Sem registro</th>
+                          <th className="text-right px-4 py-2">%</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {relatorioDiasSemRegistroEquip.map((r) => (
+                          <tr key={r.id} className="border-b last:border-0 hover:bg-gray-50">
+                            <td className="px-4 py-2 font-medium text-gray-800">{r.nome}</td>
+                            <td className="px-4 py-2 text-right text-green-600">{r.diasComRegistro}</td>
+                            <td className="px-4 py-2 text-right text-red-600 font-semibold">{r.semRegistro}</td>
+                            <td className="px-4 py-2 text-right text-gray-500">{r.diasUteis > 0 ? ((r.semRegistro / r.diasUteis) * 100).toFixed(0) : 0}%</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* ═══ COLABORADORES ═══ */}
+            <div className="mb-8">
+              <div className="flex items-center gap-2 mb-4">
+                <svg className="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+                <h3 className="text-base font-semibold text-gray-800">Colaboradores</h3>
+              </div>
+
+              {/* Cards Colab */}
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 mb-4">
+                <div className="bg-white rounded-lg p-4 border shadow-sm">
+                  <p className="text-xs text-gray-500 uppercase">Horas Totais</p>
+                  <p className="text-2xl font-bold text-emt-verde">{formatHoras(totalHorasColab)}</p>
+                </div>
+                <div className="bg-white rounded-lg p-4 border shadow-sm">
+                  <p className="text-xs text-gray-500 uppercase">No Período</p>
+                  <p className="text-2xl font-bold text-gray-700">{relatorioColab.length}</p>
+                </div>
+                <div className="bg-white rounded-lg p-4 border shadow-sm">
+                  <p className="text-xs text-gray-500 uppercase">Filtro</p>
+                  <select
+                    className="mt-1 w-full border border-gray-300 rounded-md px-2 py-1 text-sm bg-white"
+                    value={filtroColabId}
+                    onChange={(e) => setFiltroColabId(e.target.value)}
+                  >
+                    <option value="">Todos</option>
+                    {colaboradoresAtivos.map((c) => <option key={c.id} value={c.id}>{c.nome}</option>)}
+                  </select>
+                </div>
+              </div>
+
+              {/* Tabela Colab */}
               <div className="bg-white rounded-lg border shadow-sm overflow-hidden">
-                <div className="bg-gray-50 px-4 py-3 border-b">
-                  <h3 className="text-sm font-semibold text-gray-700">Colaboradores</h3>
+                <div className="bg-green-50 px-4 py-3 border-b">
+                  <h3 className="text-sm font-semibold text-green-800">Horas por Colaborador</h3>
                 </div>
                 {relatorioColab.length === 0 ? (
                   <p className="text-sm text-gray-400 italic p-4">Nenhum registro no período.</p>
@@ -1426,201 +1611,89 @@ export default function Apontamentos() {
                   </div>
                 )}
               </div>
-            </div>
 
-            {/* Horas por Obra / Etapa — Equipamentos */}
-            {relatorioObraEtapaEquip.totalHoras > 0 && (
-              <div className="mt-6 bg-white rounded-lg border shadow-sm overflow-hidden">
-                <div className="bg-gray-50 px-4 py-3 border-b">
-                  <h3 className="text-sm font-semibold text-gray-700">Horas Equipamentos por Obra / Etapa</h3>
-                  <p className="text-xs text-gray-400 mt-0.5">Total: {formatHoras(relatorioObraEtapaEquip.totalHoras)}</p>
-                </div>
-                <div className="p-4 space-y-4">
-                  {relatorioObraEtapaEquip.obras.map((obra) => (
-                    <div key={obra.obraId}>
-                      <div className="flex items-center justify-between mb-1">
-                        <span className="text-sm font-semibold text-gray-800">{obra.obraNome}</span>
-                        <span className="text-sm font-semibold text-gray-700">{formatHoras(obra.horasObra)} ({obra.percentualObra}%)</span>
-                      </div>
-                      <div className="w-full bg-gray-200 rounded-full h-3 mb-2">
-                        <div className="bg-blue-600 h-3 rounded-full" style={{ width: `${obra.percentualObra}%` }} />
-                      </div>
-                      {obra.etapas.length > 0 && (
-                        <div className="ml-4 space-y-1.5">
-                          {obra.etapas.map((etapa) => (
-                            <div key={etapa.etapaId}>
-                              <div className="flex items-center justify-between">
-                                <span className="text-xs text-gray-600">{etapa.etapaNome}</span>
-                                <span className="text-xs text-gray-500">{formatHoras(etapa.horas)} ({etapa.percentual}%)</span>
-                              </div>
-                              <div className="w-full bg-gray-100 rounded-full h-2">
-                                <div className="bg-blue-400 h-2 rounded-full" style={{ width: `${etapa.percentual}%` }} />
-                              </div>
-                            </div>
-                          ))}
+              {/* Horas por Obra/Etapa — Colab */}
+              {relatorioObraEtapaColab.totalHoras > 0 && (
+                <div className="mt-4 bg-white rounded-lg border shadow-sm overflow-hidden">
+                  <div className="bg-green-50 px-4 py-3 border-b">
+                    <h3 className="text-sm font-semibold text-green-800">Horas por Obra / Etapa</h3>
+                    <p className="text-xs text-gray-400 mt-0.5">Total: {formatHoras(relatorioObraEtapaColab.totalHoras)}</p>
+                  </div>
+                  <div className="p-4 space-y-4">
+                    {relatorioObraEtapaColab.obras.map((obra) => (
+                      <div key={obra.obraId}>
+                        <div className="flex items-center justify-between mb-1">
+                          <span className="text-sm font-semibold text-gray-800">{obra.obraNome}</span>
+                          <span className="text-sm font-semibold text-gray-700">{formatHoras(obra.horasObra)} ({obra.percentualObra}%)</span>
                         </div>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Horas por Obra / Etapa — Colaboradores */}
-            {relatorioObraEtapaColab.totalHoras > 0 && (
-              <div className="mt-6 bg-white rounded-lg border shadow-sm overflow-hidden">
-                <div className="bg-gray-50 px-4 py-3 border-b">
-                  <h3 className="text-sm font-semibold text-gray-700">Horas Colaboradores por Obra / Etapa</h3>
-                  <p className="text-xs text-gray-400 mt-0.5">Total: {formatHoras(relatorioObraEtapaColab.totalHoras)}</p>
-                </div>
-                <div className="p-4 space-y-4">
-                  {relatorioObraEtapaColab.obras.map((obra) => (
-                    <div key={obra.obraId}>
-                      <div className="flex items-center justify-between mb-1">
-                        <span className="text-sm font-semibold text-gray-800">{obra.obraNome}</span>
-                        <span className="text-sm font-semibold text-gray-700">{formatHoras(obra.horasObra)} ({obra.percentualObra}%)</span>
-                      </div>
-                      <div className="w-full bg-gray-200 rounded-full h-3 mb-2">
-                        <div className="bg-green-600 h-3 rounded-full" style={{ width: `${obra.percentualObra}%` }} />
-                      </div>
-                      {obra.etapas.length > 0 && (
-                        <div className="ml-4 space-y-1.5">
-                          {obra.etapas.map((etapa) => (
-                            <div key={etapa.etapaId}>
-                              <div className="flex items-center justify-between">
-                                <span className="text-xs text-gray-600">{etapa.etapaNome}</span>
-                                <span className="text-xs text-gray-500">{formatHoras(etapa.horas)} ({etapa.percentual}%)</span>
-                              </div>
-                              <div className="w-full bg-gray-100 rounded-full h-2">
-                                <div className="bg-green-400 h-2 rounded-full" style={{ width: `${etapa.percentual}%` }} />
-                              </div>
-                            </div>
-                          ))}
+                        <div className="w-full bg-gray-200 rounded-full h-3 mb-2">
+                          <div className="bg-green-600 h-3 rounded-full" style={{ width: `${obra.percentualObra}%` }} />
                         </div>
-                      )}
-                    </div>
-                  ))}
+                        {obra.etapas.length > 0 && (
+                          <div className="ml-4 space-y-1.5">
+                            {obra.etapas.map((etapa) => (
+                              <div key={etapa.etapaId}>
+                                <div className="flex items-center justify-between">
+                                  <span className="text-xs text-gray-600">{etapa.etapaNome}</span>
+                                  <span className="text-xs text-gray-500">{formatHoras(etapa.horas)} ({etapa.percentual}%)</span>
+                                </div>
+                                <div className="w-full bg-gray-100 rounded-full h-2">
+                                  <div className="bg-green-400 h-2 rounded-full" style={{ width: `${etapa.percentual}%` }} />
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
                 </div>
-              </div>
-            )}
+              )}
 
-            {/* Relatório de Ausências — Colaboradores */}
-            {relatorioAusenciasColab.length > 0 && (
-              <div className="mt-6 bg-white rounded-lg border shadow-sm overflow-hidden">
-                <div className="bg-gray-50 px-4 py-3 border-b">
-                  <h3 className="text-sm font-semibold text-gray-700">Faltas, Licenças e Férias — Colaboradores</h3>
-                </div>
-                <div className="overflow-x-auto">
-                  <table className="w-full text-sm">
-                    <thead>
-                      <tr className="border-b bg-gray-50 text-gray-600 text-xs uppercase">
-                        <th className="text-left px-4 py-2">Colaborador</th>
-                        <th className="text-right px-4 py-2">Faltas</th>
-                        <th className="text-right px-4 py-2">Licenças</th>
-                        <th className="text-right px-4 py-2">Férias</th>
-                        <th className="text-right px-4 py-2">Total dias</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {relatorioAusenciasColab.map((r) => (
-                        <tr key={r.id} className="border-b last:border-0 hover:bg-gray-50">
-                          <td className="px-4 py-2 font-medium text-gray-800">{r.nome}</td>
-                          <td className="px-4 py-2 text-right text-red-600 font-semibold">{r.faltas || '-'}</td>
-                          <td className="px-4 py-2 text-right text-purple-600 font-semibold">{r.licencas || '-'}</td>
-                          <td className="px-4 py-2 text-right text-cyan-600 font-semibold">{r.ferias || '-'}</td>
-                          <td className="px-4 py-2 text-right font-bold text-gray-700">{r.total}</td>
-                        </tr>
-                      ))}
-                      <tr className="bg-gray-50 font-semibold">
-                        <td className="px-4 py-2 text-gray-700">Total</td>
-                        <td className="px-4 py-2 text-right text-red-600">{relatorioAusenciasColab.reduce((s, r) => s + r.faltas, 0)}</td>
-                        <td className="px-4 py-2 text-right text-purple-600">{relatorioAusenciasColab.reduce((s, r) => s + r.licencas, 0)}</td>
-                        <td className="px-4 py-2 text-right text-cyan-600">{relatorioAusenciasColab.reduce((s, r) => s + r.ferias, 0)}</td>
-                        <td className="px-4 py-2 text-right text-gray-700">{relatorioAusenciasColab.reduce((s, r) => s + r.total, 0)}</td>
-                      </tr>
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            )}
-
-            {/* Relatório Manutenção/Ocioso — Equipamentos */}
-            {relatorioStatusEquip.length > 0 && (
-              <div className="mt-6 bg-white rounded-lg border shadow-sm overflow-hidden">
-                <div className="bg-gray-50 px-4 py-3 border-b">
-                  <h3 className="text-sm font-semibold text-gray-700">Manutenção e Ociosidade — Equipamentos</h3>
-                </div>
-                <div className="overflow-x-auto">
-                  <table className="w-full text-sm">
-                    <thead>
-                      <tr className="border-b bg-gray-50 text-gray-600 text-xs uppercase">
-                        <th className="text-left px-4 py-2">Equipamento</th>
-                        <th className="text-right px-4 py-2">Manutenção</th>
-                        <th className="text-right px-4 py-2">Ocioso</th>
-                        <th className="text-right px-4 py-2">Total dias</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {relatorioStatusEquip.map((r) => (
-                        <tr key={r.id} className="border-b last:border-0 hover:bg-gray-50">
-                          <td className="px-4 py-2 font-medium text-gray-800">{r.nome}</td>
-                          <td className="px-4 py-2 text-right text-orange-600 font-semibold">{r.manutencao || '-'}</td>
-                          <td className="px-4 py-2 text-right text-gray-500 font-semibold">{r.ocioso || '-'}</td>
-                          <td className="px-4 py-2 text-right font-bold text-gray-700">{r.total}</td>
-                        </tr>
-                      ))}
-                      <tr className="bg-gray-50 font-semibold">
-                        <td className="px-4 py-2 text-gray-700">Total</td>
-                        <td className="px-4 py-2 text-right text-orange-600">{relatorioStatusEquip.reduce((s, r) => s + r.manutencao, 0)}</td>
-                        <td className="px-4 py-2 text-right text-gray-500">{relatorioStatusEquip.reduce((s, r) => s + r.ocioso, 0)}</td>
-                        <td className="px-4 py-2 text-right text-gray-700">{relatorioStatusEquip.reduce((s, r) => s + r.total, 0)}</td>
-                      </tr>
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            )}
-
-            {/* Dias sem Registro */}
-            <div className="mt-6 grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {/* Equipamentos sem registro */}
-              <div className="bg-white rounded-lg border shadow-sm overflow-hidden">
-                <div className="bg-gray-50 px-4 py-3 border-b">
-                  <h3 className="text-sm font-semibold text-gray-700">Dias sem Registro — Equipamentos</h3>
-                  <p className="text-xs text-gray-400 mt-0.5">{diasUteis.length} dias úteis no período</p>
-                </div>
-                {relatorioDiasSemRegistroEquip.length === 0 ? (
-                  <p className="text-sm text-gray-400 italic p-4">Todos os equipamentos têm registro em todos os dias úteis.</p>
-                ) : (
+              {/* Faltas, Licenças e Férias */}
+              {relatorioAusenciasColab.length > 0 && (
+                <div className="mt-4 bg-white rounded-lg border shadow-sm overflow-hidden">
+                  <div className="bg-green-50 px-4 py-3 border-b">
+                    <h3 className="text-sm font-semibold text-green-800">Faltas, Licenças e Férias</h3>
+                  </div>
                   <div className="overflow-x-auto">
                     <table className="w-full text-sm">
                       <thead>
                         <tr className="border-b bg-gray-50 text-gray-600 text-xs uppercase">
-                          <th className="text-left px-4 py-2">Equipamento</th>
-                          <th className="text-right px-4 py-2">Com registro</th>
-                          <th className="text-right px-4 py-2">Sem registro</th>
-                          <th className="text-right px-4 py-2">%</th>
+                          <th className="text-left px-4 py-2">Colaborador</th>
+                          <th className="text-right px-4 py-2">Faltas</th>
+                          <th className="text-right px-4 py-2">Licenças</th>
+                          <th className="text-right px-4 py-2">Férias</th>
+                          <th className="text-right px-4 py-2">Total dias</th>
                         </tr>
                       </thead>
                       <tbody>
-                        {relatorioDiasSemRegistroEquip.map((r) => (
+                        {relatorioAusenciasColab.map((r) => (
                           <tr key={r.id} className="border-b last:border-0 hover:bg-gray-50">
                             <td className="px-4 py-2 font-medium text-gray-800">{r.nome}</td>
-                            <td className="px-4 py-2 text-right text-green-600">{r.diasComRegistro}</td>
-                            <td className="px-4 py-2 text-right text-red-600 font-semibold">{r.semRegistro}</td>
-                            <td className="px-4 py-2 text-right text-gray-500">{r.diasUteis > 0 ? ((r.semRegistro / r.diasUteis) * 100).toFixed(0) : 0}%</td>
+                            <td className="px-4 py-2 text-right text-red-600 font-semibold">{r.faltas || '-'}</td>
+                            <td className="px-4 py-2 text-right text-purple-600 font-semibold">{r.licencas || '-'}</td>
+                            <td className="px-4 py-2 text-right text-cyan-600 font-semibold">{r.ferias || '-'}</td>
+                            <td className="px-4 py-2 text-right font-bold text-gray-700">{r.total}</td>
                           </tr>
                         ))}
+                        <tr className="bg-gray-50 font-semibold">
+                          <td className="px-4 py-2 text-gray-700">Total</td>
+                          <td className="px-4 py-2 text-right text-red-600">{relatorioAusenciasColab.reduce((s, r) => s + r.faltas, 0)}</td>
+                          <td className="px-4 py-2 text-right text-purple-600">{relatorioAusenciasColab.reduce((s, r) => s + r.licencas, 0)}</td>
+                          <td className="px-4 py-2 text-right text-cyan-600">{relatorioAusenciasColab.reduce((s, r) => s + r.ferias, 0)}</td>
+                          <td className="px-4 py-2 text-right text-gray-700">{relatorioAusenciasColab.reduce((s, r) => s + r.total, 0)}</td>
+                        </tr>
                       </tbody>
                     </table>
                   </div>
-                )}
-              </div>
+                </div>
+              )}
 
-              {/* Colaboradores sem registro */}
-              <div className="bg-white rounded-lg border shadow-sm overflow-hidden">
-                <div className="bg-gray-50 px-4 py-3 border-b">
-                  <h3 className="text-sm font-semibold text-gray-700">Dias sem Registro — Colaboradores</h3>
+              {/* Dias sem Registro — Colab */}
+              <div className="mt-4 bg-white rounded-lg border shadow-sm overflow-hidden">
+                <div className="bg-green-50 px-4 py-3 border-b">
+                  <h3 className="text-sm font-semibold text-green-800">Dias sem Registro</h3>
                   <p className="text-xs text-gray-400 mt-0.5">{diasUteis.length} dias úteis no período</p>
                 </div>
                 {relatorioDiasSemRegistroColab.length === 0 ? (
@@ -1650,6 +1723,85 @@ export default function Apontamentos() {
                   </div>
                 )}
               </div>
+            </div>
+
+            {/* ═══ DIARISTAS ═══ */}
+            <div className="mb-8">
+              <div className="flex items-center gap-2 mb-4">
+                <svg className="w-5 h-5 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                <h3 className="text-base font-semibold text-gray-800">Diárias</h3>
+              </div>
+
+              {relatorioDiaristas.totalSequencias === 0 ? (
+                <p className="text-sm text-gray-400 italic">Nenhuma diária registrada no período.</p>
+              ) : (
+                <>
+                  {/* Cards Diaristas */}
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-4">
+                    <div className="bg-white rounded-lg p-4 border shadow-sm">
+                      <p className="text-xs text-gray-500 uppercase">Total a Pagar</p>
+                      <p className="text-xl font-bold text-orange-600">{fmtBRL(relatorioDiaristas.totalAPagar)}</p>
+                      <p className="text-xs text-gray-400 mt-1">{relatorioDiaristas.totalDias} dias registrados</p>
+                    </div>
+                    <div className="bg-white rounded-lg p-4 border shadow-sm">
+                      <p className="text-xs text-gray-500 uppercase">Total Pago</p>
+                      <p className="text-xl font-bold text-green-600">{fmtBRL(relatorioDiaristas.totalPago)}</p>
+                      <p className="text-xs text-gray-400 mt-1">{relatorioDiaristas.pagas} seq. pagas</p>
+                    </div>
+                    <div className="bg-white rounded-lg p-4 border shadow-sm">
+                      <p className="text-xs text-gray-500 uppercase">Seq. Abertas</p>
+                      <p className="text-xl font-bold text-amber-600">{relatorioDiaristas.abertas}</p>
+                      <p className="text-xs text-gray-400 mt-1">em andamento</p>
+                    </div>
+                    <div className="bg-white rounded-lg p-4 border shadow-sm">
+                      <p className="text-xs text-gray-500 uppercase">Seq. Fechadas</p>
+                      <p className="text-xl font-bold text-blue-600">{relatorioDiaristas.fechadas}</p>
+                      <p className="text-xs text-gray-400 mt-1">{relatorioDiaristas.pagas} pagas</p>
+                    </div>
+                  </div>
+
+                  {/* Tabela Diaristas por Obra */}
+                  <div className="bg-white rounded-lg border shadow-sm overflow-hidden">
+                    <div className="bg-orange-50 px-4 py-3 border-b">
+                      <h3 className="text-sm font-semibold text-orange-800">Diárias por Obra</h3>
+                    </div>
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-sm">
+                        <thead>
+                          <tr className="border-b bg-gray-50 text-gray-600 text-xs uppercase">
+                            <th className="text-left px-4 py-2">Obra</th>
+                            <th className="text-right px-4 py-2">Dias</th>
+                            <th className="text-right px-4 py-2">Valor</th>
+                            <th className="text-right px-4 py-2">Abertas</th>
+                            <th className="text-right px-4 py-2">Fechadas</th>
+                            <th className="text-right px-4 py-2">Pagas</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {relatorioDiaristas.porObra.map((r) => (
+                            <tr key={r.obraId} className="border-b last:border-0 hover:bg-gray-50">
+                              <td className="px-4 py-2 font-medium text-gray-800">{r.obraNome}</td>
+                              <td className="px-4 py-2 text-right text-gray-600">{r.dias}</td>
+                              <td className="px-4 py-2 text-right font-semibold text-orange-600">{fmtBRL(r.valor)}</td>
+                              <td className="px-4 py-2 text-right text-amber-600">{r.abertas || '-'}</td>
+                              <td className="px-4 py-2 text-right text-blue-600">{r.fechadas || '-'}</td>
+                              <td className="px-4 py-2 text-right text-green-600">{r.pagas || '-'}</td>
+                            </tr>
+                          ))}
+                          <tr className="bg-gray-50 font-semibold">
+                            <td className="px-4 py-2 text-gray-700">Total</td>
+                            <td className="px-4 py-2 text-right text-gray-600">{relatorioDiaristas.totalDias}</td>
+                            <td className="px-4 py-2 text-right text-orange-600">{fmtBRL(relatorioDiaristas.totalAPagar)}</td>
+                            <td className="px-4 py-2 text-right text-amber-600">{relatorioDiaristas.abertas}</td>
+                            <td className="px-4 py-2 text-right text-blue-600">{relatorioDiaristas.fechadas}</td>
+                            <td className="px-4 py-2 text-right text-green-600">{relatorioDiaristas.pagas}</td>
+                          </tr>
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                </>
+              )}
             </div>
           </div>
         </div>
