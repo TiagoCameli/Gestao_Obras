@@ -1767,12 +1767,12 @@ export default function Obras() {
 
   // ---- Supabase query hooks ----
   const { data: obras = [], isLoading: loadingObras } = useObras();
-  const { data: todosDepositos = [], isLoading: loadingDepositos } = useDepositos();
+  useDepositos();
   const { data: todosEquipamentos = [], isLoading: loadingEquipamentos } = useEquipamentos();
   const { data: todosInsumos = [], isLoading: loadingInsumos } = useInsumos();
   const { data: todosFornecedores = [], isLoading: loadingFornecedores } = useFornecedores();
   const { data: todasUnidades = [], isLoading: loadingUnidades } = useUnidades();
-  const { data: todosDepositosMat = [], isLoading: loadingDepositosMat } = useDepositosMaterial();
+  useDepositosMaterial();
   const { data: todasCategorias = [], isLoading: loadingCategorias } = useCategoriasMaterial();
   const { data: todosTiposInsumo = [], isLoading: loadingTiposInsumo } = useTiposInsumo();
   const { data: todosColaboradores = [], isLoading: loadingColaboradores } = useColaboradores();
@@ -1835,7 +1835,6 @@ export default function Obras() {
   }, [excluirDepositoMutation]);
 
   // Visibilidade das secoes
-  const [tanquesVisiveis, setTanquesVisiveis] = useState(true);
   const [equipamentosVisiveis, setEquipamentosVisiveis] = useState(true);
   const [insumosVisiveis, setInsumosVisiveis] = useState(true);
   const [fornecedoresVisiveis, setFornecedoresVisiveis] = useState(true);
@@ -1954,7 +1953,6 @@ export default function Obras() {
   }, [excluirColaboradorMutation]);
 
   // Deposito Material state
-  const [depositosMatVisiveis, setDepositosMatVisiveis] = useState(true);
   const [modalDepMatOpen, setModalDepMatOpen] = useState(false);
   const [editandoDepMat, setEditandoDepMat] = useState<DepositoMaterial | null>(null);
   const [deleteDepMatId, setDeleteDepMatId] = useState<string | null>(null);
@@ -2062,22 +2060,6 @@ export default function Obras() {
         <h1 className="text-3xl font-bold text-gray-800">Cadastros</h1>
         <div className="flex gap-3">
           {canCreate && <>
-            <Button
-              onClick={() => {
-                setEditandoTipoInsumo(null);
-                setModalTipoInsumoOpen(true);
-              }}
-            >
-              Novo Tipo de Insumo
-            </Button>
-            <Button
-              onClick={() => {
-                setEditandoCategoria(null);
-                setModalCategoriaOpen(true);
-              }}
-            >
-              Nova Categoria
-            </Button>
             <Button
               onClick={() => {
                 setEditandoUnidade(null);
