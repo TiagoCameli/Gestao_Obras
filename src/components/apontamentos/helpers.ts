@@ -45,7 +45,9 @@ export function formatDateBR(d: string): string {
 export function diasUteisPeriodo(inicio: string, fim: string): string[] {
   const dias: string[] = [];
   const d = new Date(inicio + 'T00:00:00');
-  const end = new Date(fim + 'T00:00:00');
+  const hoje = new Date(hojeStr() + 'T00:00:00');
+  const endDate = new Date(fim + 'T00:00:00');
+  const end = endDate > hoje ? hoje : endDate;
   while (d <= end) {
     const dow = d.getDay();
     if (dow >= 1 && dow <= 6) {
