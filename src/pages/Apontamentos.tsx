@@ -1,6 +1,6 @@
 import { useCallback, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import type { Apontamento, Obra, EtapaObra, TipoApontamento, StatusApontamento } from '../types';
+import type { Apontamento, TipoApontamento, StatusApontamento } from '../types';
 import { useApontamentos, useAdicionarApontamento, useAtualizarApontamento, useExcluirApontamento } from '../hooks/useApontamentos';
 import { useObras } from '../hooks/useObras';
 import { useEtapas } from '../hooks/useEtapas';
@@ -13,7 +13,7 @@ import { useAuth } from '../contexts/AuthContext';
 import Modal from '../components/ui/Modal';
 import DiaristasList from '../components/apontamentos/DiaristasList';
 import StatusBadge, { getStatusEntidade } from '../components/apontamentos/StatusBadge';
-import { gerarId, hojeStr, agoraStr, calcHoras, formatHoras, inicioMes, fimMes, formatDateBR, diasUteisPeriodo, formatCurrency, tabs } from '../components/apontamentos/helpers';
+import { gerarId, hojeStr, agoraStr, calcHoras, formatHoras, inicioMes, fimMes, diasUteisPeriodo, formatCurrency, tabs } from '../components/apontamentos/helpers';
 import type { Tab } from '../components/apontamentos/helpers';
 import SummaryCards from '../components/apontamentos/SummaryCards';
 import ActiveEntityCard from '../components/apontamentos/ActiveEntityCard';

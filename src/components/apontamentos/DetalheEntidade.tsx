@@ -1,7 +1,6 @@
 import { useMemo, useState, type FormEvent } from 'react';
 import type { Apontamento, Obra, EtapaObra, TipoApontamento, StatusApontamento } from '../../types';
 import Button from '../ui/Button';
-import Modal from '../ui/Modal';
 import SearchableSelect from './SearchableSelect';
 import { hojeStr, agoraStr, calcHoras, formatHoras, inicioMes, fimMes, formatDateBR, diasUteisPeriodo, STATUS_AUSENCIA_LABELS } from './helpers';
 import ConfirmWithCountdown from './ConfirmWithCountdown';
