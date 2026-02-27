@@ -2154,9 +2154,9 @@ export default function Obras() {
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="text-3xl font-bold text-gray-800">Cadastros</h1>
-        <div className="flex gap-3">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+        <h1 className="text-2xl sm:text-3xl font-bold text-gray-800">Cadastros</h1>
+        <div className="flex flex-wrap gap-2">
           {canCreate && <>
             <Button
               onClick={() => {

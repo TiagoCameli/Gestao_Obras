@@ -304,10 +304,10 @@ export default function Frete() {
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="text-3xl font-bold text-gray-800">Frete</h1>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+        <h1 className="text-2xl sm:text-3xl font-bold text-gray-800">Frete</h1>
         {canCreate && (
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             <Button variant="secondary" onClick={() => setLocalidadeModalOpen(true)}>
               Nova Localidade
             </Button>
@@ -328,7 +328,7 @@ export default function Frete() {
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-1 mb-6 bg-gray-200 rounded-lg p-1 w-fit">
+      <div className="flex gap-1 mb-6 bg-gray-200 rounded-lg p-1 w-full sm:w-fit overflow-x-auto">
         {tabs.map((t) => (
           <button
             key={t.key}

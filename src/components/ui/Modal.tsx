@@ -9,9 +9,9 @@ interface ModalProps {
 }
 
 const sizeClasses = {
-  default: 'max-w-2xl',
-  lg: 'max-w-4xl',
-  xl: 'max-w-6xl',
+  default: 'sm:max-w-2xl',
+  lg: 'sm:max-w-4xl',
+  xl: 'sm:max-w-6xl',
 };
 
 export default function Modal({ open, onClose, title, children, size = 'default' }: ModalProps) {
@@ -31,17 +31,17 @@ export default function Modal({ open, onClose, title, children, size = 'default'
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
       <div className="fixed inset-0 bg-black/50" onClick={onClose} />
-      <div className={`relative bg-white rounded-xl shadow-xl w-full ${sizeClasses[size]} max-h-[90vh] overflow-y-auto mx-4`}>
-        <div className="flex items-center justify-between p-6 border-b">
+      <div className={`relative bg-white sm:rounded-xl shadow-xl w-full ${sizeClasses[size]} max-h-[100dvh] sm:max-h-[90vh] overflow-y-auto sm:mx-4`}>
+        <div className="flex items-center justify-between p-4 sm:p-6 border-b sticky top-0 bg-white z-10">
           <h2 className="text-lg font-semibold text-gray-800">{title}</h2>
           <button
             onClick={onClose}
-            className="text-gray-400 hover:text-gray-600 text-2xl leading-none"
+            className="text-gray-400 hover:text-gray-600 text-2xl leading-none p-2 -m-2"
           >
             &times;
           </button>
         </div>
-        <div className="p-6">{children}</div>
+        <div className="p-4 sm:p-6">{children}</div>
       </div>
     </div>
   );

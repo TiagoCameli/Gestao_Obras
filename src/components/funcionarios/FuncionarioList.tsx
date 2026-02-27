@@ -51,7 +51,7 @@ export default function FuncionarioList({ funcionarios, onEdit, onDelete, canEdi
       {/* Filtros */}
       <div className="flex flex-wrap gap-3 mb-4">
         <input
-          className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emt-verde w-64"
+          className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emt-verde w-full sm:w-64"
           placeholder="Buscar por nome ou e-mail..."
           value={busca}
           onChange={(e) => { setBusca(e.target.value); setPagina(0); }}
