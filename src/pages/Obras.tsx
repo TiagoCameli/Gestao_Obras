@@ -2118,22 +2118,6 @@ export default function Obras() {
             >
               Novo Equipamento
             </Button>
-            <Button
-              onClick={() => {
-                setEditandoDepMat(null);
-                setModalDepMatOpen(true);
-              }}
-            >
-              Novo Deposito
-            </Button>
-            <Button
-              onClick={() => {
-                setEditandoTanque(null);
-                setModalTanqueOpen(true);
-              }}
-            >
-              Novo Tanque
-            </Button>
           </>}
         </div>
       </div>
