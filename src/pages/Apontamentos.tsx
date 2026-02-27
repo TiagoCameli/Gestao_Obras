@@ -1386,10 +1386,7 @@ export default function Apontamentos() {
                 </div>
                 <div className="w-full sm:w-48">
                   <label className="block text-xs font-medium text-gray-600 mb-1">Equipamento</label>
-                  <select className="h-[38px] border border-gray-300 rounded-lg px-3 py-1.5 text-sm bg-white w-full" value={eqEquipId} onChange={(e) => setEqEquipId(e.target.value)}>
-                    <option value="">Todos</option>
-                    {equipamentosAtivos.map((e) => <option key={e.id} value={e.id}>{e.nome}</option>)}
-                  </select>
+                  <SearchableSelect options={[{ id: '', label: 'Todos' }, ...equipamentosAtivos.map((e) => ({ id: e.id, label: e.nome }))]} value={eqEquipId} onChange={setEqEquipId} placeholder="Todos" />
                 </div>
               </div>
               <p className="text-xs text-gray-400 mb-4">Período: {formatDateBR(eqDataInicio)} a {formatDateBR(eqDataFim)}</p>
@@ -1582,10 +1579,7 @@ export default function Apontamentos() {
                 </div>
                 <div className="w-full sm:w-48">
                   <label className="block text-xs font-medium text-gray-600 mb-1">Colaborador</label>
-                  <select className="h-[38px] border border-gray-300 rounded-lg px-3 py-1.5 text-sm bg-white w-full" value={coColabId} onChange={(e) => setCoColabId(e.target.value)}>
-                    <option value="">Todos</option>
-                    {colaboradoresAtivos.map((c) => <option key={c.id} value={c.id}>{c.nome}</option>)}
-                  </select>
+                  <SearchableSelect options={[{ id: '', label: 'Todos' }, ...colaboradoresAtivos.map((c) => ({ id: c.id, label: c.nome }))]} value={coColabId} onChange={setCoColabId} placeholder="Todos" />
                 </div>
               </div>
               <p className="text-xs text-gray-400 mb-4">Período: {formatDateBR(coDataInicio)} a {formatDateBR(coDataFim)}</p>
@@ -1781,10 +1775,7 @@ export default function Apontamentos() {
                 </div>
                 <div className="w-full sm:w-48">
                   <label className="block text-xs font-medium text-gray-600 mb-1">Diarista</label>
-                  <select className="h-[38px] border border-gray-300 rounded-lg px-3 py-1.5 text-sm bg-white w-full" value={diDiaristaFilter} onChange={(e) => setDiDiaristaFilter(e.target.value)}>
-                    <option value="">Todos</option>
-                    {diaristaNames.map((name) => <option key={name} value={name}>{name}</option>)}
-                  </select>
+                  <SearchableSelect options={[{ id: '', label: 'Todos' }, ...diaristaNames.map((name) => ({ id: name, label: name }))]} value={diDiaristaFilter} onChange={setDiDiaristaFilter} placeholder="Todos" />
                 </div>
               </div>
               <p className="text-xs text-gray-400 mb-4">Período: {formatDateBR(diDataInicio)} a {formatDateBR(diDataFim)}</p>
