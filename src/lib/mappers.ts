@@ -30,6 +30,7 @@ import type {
   OrdemCompra,
   Empresa,
   Colaborador,
+  Apontamento,
 } from '../types';
 
 // ── Obras ──
@@ -1003,4 +1004,43 @@ export function dbToAlocacoes(data: any[]): AlocacaoEtapa[] {
     etapaId: a.etapa_id ?? a.etapaId,
     percentual: a.percentual,
   }));
+}
+
+// ── Apontamentos ──
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function dbToApontamento(row: any): Apontamento {
+  return {
+    id: row.id,
+    data: row.data ?? '',
+    horaInicio: row.hora_inicio ?? '',
+    horaFim: row.hora_fim ?? '',
+    obraId: row.obra_id ?? '',
+    etapaObraId: row.etapa_obra_id ?? '',
+    equipamentoId: row.equipamento_id ?? '',
+    colaboradorId: row.colaborador_id ?? '',
+    tipo: row.tipo ?? 'equipamento',
+    horasTrabalhadas: Number(row.horas_trabalhadas) || 0,
+    observacoes: row.observacoes ?? '',
+    status: row.status ?? 'aberto',
+    criadoPor: row.criado_por ?? '',
+  };
+}
+
+export function apontamentoToDb(a: Apontamento) {
+  return {
+    id: a.id,
+    data: a.data,
+    hora_inicio: a.horaInicio,
+    hora_fim: a.horaFim,
+    obra_id: a.obraId,
+    etapa_obra_id: a.etapaObraId,
+    equipamento_id: a.equipamentoId || null,
+    colaborador_id: a.colaboradorId || null,
+    tipo: a.tipo,
+    horas_trabalhadas: a.horasTrabalhadas,
+    observacoes: a.observacoes,
+    status: a.status,
+    criado_por: a.criadoPor,
+  };
 }

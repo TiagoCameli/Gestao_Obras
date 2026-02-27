@@ -199,7 +199,7 @@ export interface FiltrosInsumos {
 
 export type CargoFuncionario = 'Administrador' | 'Gerente' | 'Gerente Financeiro' | 'Gerente de Compras' | 'Supervisor' | 'Operador' | 'Financeiro' | 'Apontador' | 'Engenheiro Civil Sênior' | 'Engenheiro Civil';
 
-export type ModuloPermissao = 'dashboard' | 'cadastros' | 'frete' | 'funcionarios';
+export type ModuloPermissao = 'dashboard' | 'cadastros' | 'frete' | 'funcionarios' | 'apontamentos';
 
 export type AcaoPermissao = 'visualizar' | 'criar' | 'editar' | 'excluir' | 'exportar' | 'ajustar_filtros';
 
@@ -503,5 +503,26 @@ export interface OrdemCompra {
   entradaGerada: boolean;
   empresaFaturamento: string;
   aprovada: boolean;
+  criadoPor: string;
+}
+
+// === Apontamentos ===
+
+export type TipoApontamento = 'equipamento' | 'colaborador';
+export type StatusApontamento = 'aberto' | 'encerrado';
+
+export interface Apontamento {
+  id: string;
+  data: string;
+  horaInicio: string;
+  horaFim: string;
+  obraId: string;
+  etapaObraId: string;
+  equipamentoId: string;
+  colaboradorId: string;
+  tipo: TipoApontamento;
+  horasTrabalhadas: number;
+  observacoes: string;
+  status: StatusApontamento;
   criadoPor: string;
 }

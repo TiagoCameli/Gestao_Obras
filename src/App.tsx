@@ -8,6 +8,7 @@ import ObrasPage from './pages/ObrasPage';
 import Obras from './pages/Obras';
 import Frete from './pages/Frete';
 import Funcionarios from './pages/Funcionarios';
+import Apontamentos from './pages/Apontamentos';
 import Login from './pages/Login';
 import AcessoNegado from './pages/AcessoNegado';
 import NotFound from './pages/NotFound';
@@ -24,6 +25,7 @@ const PAGINAS_FALLBACK: { acao: string; rota: string }[] = [
   { acao: 'ver_cadastros', rota: '/cadastros' },
   { acao: 'ver_frete', rota: '/frete' },
   { acao: 'ver_funcionarios', rota: '/funcionarios' },
+  { acao: 'ver_apontamentos', rota: '/apontamentos' },
 ];
 
 function HomeRedirect() {
@@ -61,6 +63,7 @@ export default function App() {
               <Route path="/cadastros" element={<ProtectedRoute modulo="cadastros"><Obras /></ProtectedRoute>} />
               <Route path="/frete" element={<ProtectedRoute modulo="frete"><Frete /></ProtectedRoute>} />
               <Route path="/funcionarios" element={<ProtectedRoute modulo="funcionarios"><Funcionarios /></ProtectedRoute>} />
+              <Route path="/apontamentos" element={<ProtectedRoute modulo="apontamentos"><Apontamentos /></ProtectedRoute>} />
               <Route path="/migrar-dados" element={<MigrarDados />} />
               <Route path="/acesso-negado" element={<AcessoNegado />} />
               <Route path="*" element={<NotFound />} />

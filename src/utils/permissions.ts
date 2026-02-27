@@ -5,6 +5,7 @@ export const MODULOS: { valor: ModuloPermissao; label: string }[] = [
   { valor: 'cadastros', label: 'Cadastros' },
   { valor: 'frete', label: 'Frete' },
   { valor: 'funcionarios', label: 'Usuários' },
+  { valor: 'apontamentos', label: 'Apontamentos' },
 ];
 
 export const ACOES: { valor: AcaoPermissao; label: string }[] = [
@@ -42,6 +43,7 @@ export const PERFIL_ADMINISTRADOR: PermissoesFuncionario = {
   cadastros: TODAS,
   frete: TODAS,
   funcionarios: TODAS,
+  apontamentos: TODAS,
 };
 
 export const PERFIL_GERENTE: PermissoesFuncionario = {
@@ -49,6 +51,7 @@ export const PERFIL_GERENTE: PermissoesFuncionario = {
   cadastros: VCE,
   frete: VCEEX,
   funcionarios: VCE,
+  apontamentos: VCEEX,
 };
 
 export const PERFIL_SUPERVISOR: PermissoesFuncionario = {
@@ -56,6 +59,7 @@ export const PERFIL_SUPERVISOR: PermissoesFuncionario = {
   cadastros: VCE,
   frete: VCE,
   funcionarios: V,
+  apontamentos: VCE,
 };
 
 export const PERFIL_OPERADOR: PermissoesFuncionario = {
@@ -63,6 +67,7 @@ export const PERFIL_OPERADOR: PermissoesFuncionario = {
   cadastros: V,
   frete: VCE,
   funcionarios: NENHUMA,
+  apontamentos: V,
 };
 
 export const PERFIL_FINANCEIRO: PermissoesFuncionario = {
@@ -70,6 +75,7 @@ export const PERFIL_FINANCEIRO: PermissoesFuncionario = {
   cadastros: V,
   frete: VE,
   funcionarios: V,
+  apontamentos: V,
 };
 
 export const PERFIL_APONTADOR: PermissoesFuncionario = {
@@ -77,6 +83,7 @@ export const PERFIL_APONTADOR: PermissoesFuncionario = {
   cadastros: V,
   frete: VCE,
   funcionarios: NENHUMA,
+  apontamentos: VCEEX,
 };
 
 export const PERFIL_GERENTE_FINANCEIRO: PermissoesFuncionario = {
@@ -84,6 +91,7 @@ export const PERFIL_GERENTE_FINANCEIRO: PermissoesFuncionario = {
   cadastros: VCE,
   frete: VCEEX,
   funcionarios: V,
+  apontamentos: V,
 };
 
 export const PERFIL_GERENTE_COMPRAS: PermissoesFuncionario = {
@@ -91,6 +99,7 @@ export const PERFIL_GERENTE_COMPRAS: PermissoesFuncionario = {
   cadastros: VCEEX,
   frete: VCEEX,
   funcionarios: V,
+  apontamentos: V,
 };
 
 export const PERFIL_ENGENHEIRO_CIVIL_SENIOR: PermissoesFuncionario = {
@@ -98,6 +107,7 @@ export const PERFIL_ENGENHEIRO_CIVIL_SENIOR: PermissoesFuncionario = {
   cadastros: VCE,
   frete: VCE,
   funcionarios: V,
+  apontamentos: VCE,
 };
 
 export const PERFIL_ENGENHEIRO_CIVIL: PermissoesFuncionario = {
@@ -105,6 +115,7 @@ export const PERFIL_ENGENHEIRO_CIVIL: PermissoesFuncionario = {
   cadastros: VCE,
   frete: VCE,
   funcionarios: NENHUMA,
+  apontamentos: VCE,
 };
 
 export const PERFIS_PADRAO: Record<CargoFuncionario, PermissoesFuncionario> = {
@@ -156,6 +167,11 @@ export const ACOES_PLATAFORMA: AcaoPlataforma[] = [
   { chave: 'criar_funcionarios', label: 'Cadastrar usuários', grupo: 'Usuários' },
   { chave: 'editar_funcionarios', label: 'Editar usuários', grupo: 'Usuários' },
   { chave: 'excluir_funcionarios', label: 'Excluir usuários', grupo: 'Usuários' },
+  // Apontamentos
+  { chave: 'ver_apontamentos', label: 'Visualizar apontamentos', grupo: 'Apontamentos' },
+  { chave: 'criar_apontamentos', label: 'Criar apontamentos', grupo: 'Apontamentos' },
+  { chave: 'editar_apontamentos', label: 'Editar apontamentos', grupo: 'Apontamentos' },
+  { chave: 'excluir_apontamentos', label: 'Excluir apontamentos', grupo: 'Apontamentos' },
 ];
 
 export const TODAS_ACOES_PLATAFORMA: string[] = ACOES_PLATAFORMA.map((a) => a.chave);
@@ -168,5 +184,6 @@ export function permissoesVazias(): PermissoesFuncionario {
     cadastros: [],
     frete: [],
     funcionarios: [],
+    apontamentos: [],
   };
 }
