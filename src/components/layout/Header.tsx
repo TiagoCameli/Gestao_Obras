@@ -7,7 +7,7 @@ const links: { to: string; label: string; acao?: string }[] = [
   { to: '/obras', label: 'Obras', acao: 'ver_obras' },
   { to: '/cadastros', label: 'Cadastros', acao: 'ver_cadastros' },
   { to: '/frete', label: 'Frete', acao: 'ver_frete' },
-  { to: '/funcionarios', label: 'Funcionários', acao: 'ver_funcionarios' },
+  { to: '/funcionarios', label: 'Usuários', acao: 'ver_funcionarios' },
 ];
 
 export default function Header() {

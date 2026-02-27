@@ -83,10 +83,10 @@ export default function Funcionarios() {
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
-        <h1 className="text-3xl font-bold text-gray-800">Funcionarios</h1>
+        <h1 className="text-3xl font-bold text-gray-800">Usuários</h1>
         {canCreate && (
           <Button onClick={() => { setEditando(null); setModalOpen(true); }}>
-            Novo Funcionario
+            Novo Usuário
           </Button>
         )}
       </div>
@@ -103,7 +103,7 @@ export default function Funcionarios() {
       <Modal
         open={modalOpen}
         onClose={() => { setModalOpen(false); setEditando(null); }}
-        title={editando ? 'Editar Funcionario' : 'Novo Funcionario'}
+        title={editando ? 'Editar Usuário' : 'Novo Usuário'}
       >
         <FuncionarioForm
           initial={editando}

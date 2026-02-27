@@ -406,11 +406,11 @@ export default function FuncionarioForm({ initial, onSubmit, onCancel, onImportB
             });
             onImportBatch(funcs, senhas);
             setImportModalOpen(false);
-            setToastMsg(`${funcs.length} funcionario${funcs.length !== 1 ? 's' : ''} importado${funcs.length !== 1 ? 's' : ''} com sucesso`);
+            setToastMsg(`${funcs.length} usuário${funcs.length !== 1 ? 's' : ''} importado${funcs.length !== 1 ? 's' : ''} com sucesso`);
             setTimeout(() => setToastMsg(''), 4000);
           }}
-          title="Importar Funcionários do Excel"
-          entityLabel="Funcionario"
+          title="Importar Usuários do Excel"
+          entityLabel="Usuário"
           templateData={FUNC_TEMPLATE}
           templateFileName="template_funcionarios.xlsx"
           sheetName="Funcionarios"

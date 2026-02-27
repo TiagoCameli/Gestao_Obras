@@ -36,9 +36,14 @@ export default function FuncionarioList({ funcionarios, onEdit, onDelete, canEdi
   const CARGO_COLORS: Record<CargoFuncionario, string> = {
     Administrador: 'bg-purple-100 text-purple-800',
     Gerente: 'bg-emt-verde-claro text-emt-verde-escuro',
+    'Gerente Financeiro': 'bg-emerald-100 text-emerald-800',
+    'Gerente de Compras': 'bg-teal-100 text-teal-800',
     Supervisor: 'bg-cyan-100 text-cyan-800',
     Operador: 'bg-gray-100 text-gray-800',
     Financeiro: 'bg-amber-100 text-amber-800',
+    Apontador: 'bg-sky-100 text-sky-800',
+    'Engenheiro Civil Sênior': 'bg-indigo-100 text-indigo-800',
+    'Engenheiro Civil': 'bg-blue-100 text-blue-800',
   };
 
   return (

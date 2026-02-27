@@ -197,7 +197,7 @@ export interface FiltrosInsumos {
 
 // === Auth & Funcionarios ===
 
-export type CargoFuncionario = 'Administrador' | 'Gerente' | 'Supervisor' | 'Operador' | 'Financeiro';
+export type CargoFuncionario = 'Administrador' | 'Gerente' | 'Gerente Financeiro' | 'Gerente de Compras' | 'Supervisor' | 'Operador' | 'Financeiro' | 'Apontador' | 'Engenheiro Civil Sênior' | 'Engenheiro Civil';
 
 export type ModuloPermissao = 'dashboard' | 'cadastros' | 'frete' | 'funcionarios';
 

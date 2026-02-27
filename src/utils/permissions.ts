@@ -4,7 +4,7 @@ export const MODULOS: { valor: ModuloPermissao; label: string }[] = [
   { valor: 'dashboard', label: 'Dashboard' },
   { valor: 'cadastros', label: 'Cadastros' },
   { valor: 'frete', label: 'Frete' },
-  { valor: 'funcionarios', label: 'Funcionários' },
+  { valor: 'funcionarios', label: 'Usuários' },
 ];
 
 export const ACOES: { valor: AcaoPermissao; label: string }[] = [
@@ -19,9 +19,14 @@ export const ACOES: { valor: AcaoPermissao; label: string }[] = [
 export const CARGOS: { valor: CargoFuncionario; label: string }[] = [
   { valor: 'Administrador', label: 'Administrador' },
   { valor: 'Gerente', label: 'Gerente' },
+  { valor: 'Gerente Financeiro', label: 'Gerente Financeiro' },
+  { valor: 'Gerente de Compras', label: 'Gerente de Compras' },
   { valor: 'Supervisor', label: 'Supervisor' },
   { valor: 'Operador', label: 'Operador' },
   { valor: 'Financeiro', label: 'Financeiro' },
+  { valor: 'Apontador', label: 'Apontador' },
+  { valor: 'Engenheiro Civil Sênior', label: 'Engenheiro Civil Sênior' },
+  { valor: 'Engenheiro Civil', label: 'Engenheiro Civil' },
 ];
 
 const TODAS: AcaoPermissao[] = ['visualizar', 'criar', 'editar', 'excluir', 'exportar', 'ajustar_filtros'];
@@ -67,12 +72,52 @@ export const PERFIL_FINANCEIRO: PermissoesFuncionario = {
   funcionarios: V,
 };
 
+export const PERFIL_APONTADOR: PermissoesFuncionario = {
+  dashboard: V,
+  cadastros: V,
+  frete: VCE,
+  funcionarios: NENHUMA,
+};
+
+export const PERFIL_GERENTE_FINANCEIRO: PermissoesFuncionario = {
+  dashboard: VF,
+  cadastros: VCE,
+  frete: VCEEX,
+  funcionarios: V,
+};
+
+export const PERFIL_GERENTE_COMPRAS: PermissoesFuncionario = {
+  dashboard: VF,
+  cadastros: VCEEX,
+  frete: VCEEX,
+  funcionarios: V,
+};
+
+export const PERFIL_ENGENHEIRO_CIVIL_SENIOR: PermissoesFuncionario = {
+  dashboard: VF,
+  cadastros: VCE,
+  frete: VCE,
+  funcionarios: V,
+};
+
+export const PERFIL_ENGENHEIRO_CIVIL: PermissoesFuncionario = {
+  dashboard: VF,
+  cadastros: VCE,
+  frete: VCE,
+  funcionarios: NENHUMA,
+};
+
 export const PERFIS_PADRAO: Record<CargoFuncionario, PermissoesFuncionario> = {
   Administrador: PERFIL_ADMINISTRADOR,
   Gerente: PERFIL_GERENTE,
+  'Gerente Financeiro': PERFIL_GERENTE_FINANCEIRO,
+  'Gerente de Compras': PERFIL_GERENTE_COMPRAS,
   Supervisor: PERFIL_SUPERVISOR,
   Operador: PERFIL_OPERADOR,
   Financeiro: PERFIL_FINANCEIRO,
+  Apontador: PERFIL_APONTADOR,
+  'Engenheiro Civil Sênior': PERFIL_ENGENHEIRO_CIVIL_SENIOR,
+  'Engenheiro Civil': PERFIL_ENGENHEIRO_CIVIL,
 };
 
 export function perfilPadraoPorCargo(cargo: CargoFuncionario): PermissoesFuncionario {
@@ -106,11 +151,11 @@ export const ACOES_PLATAFORMA: AcaoPlataforma[] = [
   { chave: 'criar_frete', label: 'Criar frete', grupo: 'Frete' },
   { chave: 'editar_frete', label: 'Editar frete', grupo: 'Frete' },
   { chave: 'excluir_frete', label: 'Excluir frete', grupo: 'Frete' },
-  // Funcionarios
-  { chave: 'ver_funcionarios', label: 'Visualizar funcionários', grupo: 'Funcionários' },
-  { chave: 'criar_funcionarios', label: 'Cadastrar funcionários', grupo: 'Funcionários' },
-  { chave: 'editar_funcionarios', label: 'Editar funcionários', grupo: 'Funcionários' },
-  { chave: 'excluir_funcionarios', label: 'Excluir funcionários', grupo: 'Funcionários' },
+  // Usuarios
+  { chave: 'ver_funcionarios', label: 'Visualizar usuários', grupo: 'Usuários' },
+  { chave: 'criar_funcionarios', label: 'Cadastrar usuários', grupo: 'Usuários' },
+  { chave: 'editar_funcionarios', label: 'Editar usuários', grupo: 'Usuários' },
+  { chave: 'excluir_funcionarios', label: 'Excluir usuários', grupo: 'Usuários' },
 ];
 
 export const TODAS_ACOES_PLATAFORMA: string[] = ACOES_PLATAFORMA.map((a) => a.chave);
