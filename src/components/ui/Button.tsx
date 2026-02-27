@@ -6,9 +6,9 @@ interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
 
 const variants = {
   primary: 'bg-emt-verde text-white hover:bg-emt-verde-escuro transition-colors duration-200',
-  secondary: 'border border-emt-verde text-emt-verde hover:bg-emt-verde-claro bg-transparent transition-colors duration-200',
+  secondary: 'border border-emt-verde text-emt-verde dark:text-emerald-400 dark:border-emerald-400 hover:bg-emt-verde-claro bg-transparent transition-colors duration-200',
   danger: 'bg-red-600 text-white hover:bg-red-700 transition-colors duration-200',
-  ghost: 'bg-transparent text-gray-600 hover:bg-gray-100 transition-colors duration-200',
+  ghost: 'bg-transparent text-gray-600 dark:text-slate-300 hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors duration-200',
 };
 
 export default function Button({

@@ -47,22 +47,22 @@ export default function UserMenu() {
         </button>
 
         {open && (
-          <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-50">
+          <div className="absolute right-0 mt-2 w-48 bg-white dark:bg-slate-800 rounded-lg shadow-lg border border-gray-200 dark:border-slate-600 py-1 z-50">
             <button
-              className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors"
+              className="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-slate-200 hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors"
               onClick={() => { setOpen(false); setPerfilOpen(true); }}
             >
               Meu Perfil
             </button>
             <button
-              className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors"
+              className="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-slate-200 hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors"
               onClick={() => { setOpen(false); setSenhaOpen(true); }}
             >
               Alterar Senha
             </button>
-            <div className="border-t border-gray-100 my-1" />
+            <div className="border-t border-gray-100 dark:border-slate-600 my-1" />
             <button
-              className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors"
+              className="w-full text-left px-4 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30 transition-colors"
               onClick={() => { setOpen(false); logout(); }}
             >
               Sair

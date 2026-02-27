@@ -1,8 +1,88 @@
-import { Fragment, useState } from 'react';
+import { Fragment, useState, useRef, useEffect, useMemo } from 'react';
 import type { Frete, PagamentoFrete, AbastecimentoCarreta, Obra, PedidoMaterial, Fornecedor } from '../../types';
 import { useInsumos } from '../../hooks/useInsumos';
 import { formatCurrency } from '../../utils/formatters';
 import Card from '../ui/Card';
+
+function FilterMultiSelect({
+  options,
+  selected,
+  onChange,
+  placeholder = 'Todos',
+}: {
+  options: { id: string; label: string }[];
+  selected: string[];
+  onChange: (ids: string[]) => void;
+  placeholder?: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const [search, setSearch] = useState('');
+  const ref = useRef<HTMLDivElement>(null);
+
+  const filtered = useMemo(() => {
+    if (!search) return options;
+    const lower = search.toLowerCase();
+    return options.filter((o) => o.label.toLowerCase().includes(lower));
+  }, [options, search]);
+
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    }
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, []);
+
+  const toggle = (id: string) => {
+    onChange(selected.includes(id) ? selected.filter((s) => s !== id) : [...selected, id]);
+  };
+
+  const label = selected.length === 0 ? placeholder : selected.length === 1 ? (options.find((o) => o.id === selected[0])?.label || selected[0]) : `${selected.length} selecionados`;
+
+  return (
+    <div ref={ref} className="relative">
+      <button
+        type="button"
+        className={`border rounded-md px-2 py-1 text-xs text-left flex items-center gap-1 min-w-[130px] ${selected.length > 0 ? 'bg-blue-50 border-blue-300 text-blue-800' : 'bg-white dark:bg-slate-800 border-gray-300 dark:border-slate-600 text-gray-600 dark:text-slate-300'}`}
+        onClick={() => { setOpen(!open); setSearch(''); }}
+      >
+        <span className="truncate flex-1">{label}</span>
+        <svg className="w-3 h-3 shrink-0 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+      </button>
+      {open && (
+        <div className="absolute z-50 mt-1 min-w-[200px] bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-600 rounded-lg shadow-lg max-h-64 overflow-hidden">
+          <div className="p-1.5 border-b dark:border-slate-600">
+            <input
+              type="text"
+              className="w-full border border-gray-300 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-200 rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-blue-500"
+              placeholder="Buscar..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              autoFocus
+            />
+          </div>
+          <div className="overflow-y-auto max-h-48">
+            {filtered.length === 0 ? (
+              <p className="text-xs text-gray-400 p-2">Nenhum resultado</p>
+            ) : (
+              filtered.map((o) => (
+                <label key={o.id} className="flex items-center gap-2 px-2 py-1 hover:bg-gray-50 dark:hover:bg-slate-700 cursor-pointer text-xs dark:text-slate-200">
+                  <input type="checkbox" checked={selected.includes(o.id)} onChange={() => toggle(o.id)} className="rounded border-gray-300 dark:border-slate-600 text-blue-600 focus:ring-blue-500" />
+                  <span className="truncate">{o.label}</span>
+                </label>
+              ))
+            )}
+          </div>
+          {selected.length > 0 && (
+            <div className="border-t dark:border-slate-600 p-1.5">
+              <button onClick={() => onChange([])} className="text-xs text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-300 font-medium w-full text-left">Limpar seleção</button>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
 
 const METODO_LABELS: Record<string, string> = {
   pix: 'Pix',
@@ -33,6 +113,25 @@ export default function FreteDashboard({
   const [dataInicio, setDataInicio] = useState('');
   const [dataFim, setDataFim] = useState('');
   const [obraIdFiltro, setObraIdFiltro] = useState('');
+  const [cmfMaterialFiltro, setCmfMaterialFiltro] = useState<string[]>([]);
+  const [cmfDestinoFiltro, setCmfDestinoFiltro] = useState<string[]>([]);
+  const [cmfPedreiraFiltro, setCmfPedreiraFiltro] = useState<string[]>([]);
+  // Filtros: Resumo por Transportadora
+  const [rptPedreiraFiltro, setRptPedreiraFiltro] = useState<string[]>([]);
+  const [rptMaterialFiltro, setRptMaterialFiltro] = useState<string[]>([]);
+  const [rptDestinoFiltro, setRptDestinoFiltro] = useState<string[]>([]);
+  // Filtros: Pedidos de Material por Fornecedor
+  const [pmfPedreiraFiltro, setPmfPedreiraFiltro] = useState<string[]>([]);
+  const [pmfMaterialFiltro, setPmfMaterialFiltro] = useState<string[]>([]);
+  const [pmfDestinoFiltro, setPmfDestinoFiltro] = useState<string[]>([]);
+  // Filtros: Gasto com Transporte por Material e Pedreira
+  const [gtmpPedreiraFiltro, setGtmpPedreiraFiltro] = useState<string[]>([]);
+  const [gtmpMaterialFiltro, setGtmpMaterialFiltro] = useState<string[]>([]);
+  const [gtmpDestinoFiltro, setGtmpDestinoFiltro] = useState<string[]>([]);
+  // Filtros: Material Transportado
+  const [mtPedreiraFiltro, setMtPedreiraFiltro] = useState<string[]>([]);
+  const [mtMaterialFiltro, setMtMaterialFiltro] = useState<string[]>([]);
+  const [mtDestinoFiltro, setMtDestinoFiltro] = useState<string[]>([]);
 
   // ── Filtrar por período ──
   const inRange = (d: string) => {
@@ -59,6 +158,12 @@ export default function FreteDashboard({
   const obrasMap = new Map(obras.map((o) => [o.id, o.nome]));
   const { data: insumosData } = useInsumos();
   const insumosMap = new Map((insumosData ?? []).map((i) => [i.id, i.nome]));
+
+  // ── Opções de filtro extraídas dos fretes ──
+  const opsPedreiras = Array.from(new Set(fretesF.map((f) => f.origem?.trim()).filter(Boolean))).sort((a, b) => a.localeCompare(b)).map((o) => ({ id: o, label: o }));
+  const opsDestinos = Array.from(new Set(fretesF.map((f) => f.destino?.trim()).filter(Boolean))).sort((a, b) => a.localeCompare(b)).map((d) => ({ id: d, label: d }));
+  const opsMateriais = Array.from(new Set(fretesF.map((f) => f.insumoId).filter(Boolean))).sort((a, b) => (insumosMap.get(a) || a).localeCompare(insumosMap.get(b) || b)).map((id) => ({ id, label: insumosMap.get(id) || id }));
+  const matchFiltro = (val: string | undefined, filtro: string[]) => filtro.length === 0 || (val != null && filtro.includes(val.trim()));
 
   // ── Totais ──
   const totalFretes = fretesF.reduce((sum, f) => sum + f.valorTotal, 0);
@@ -115,7 +220,7 @@ export default function FreteDashboard({
       count: prev.count + 1,
     });
   });
-  const listaTransportadoras = Array.from(gastoPorTransportadora.entries())
+  Array.from(gastoPorTransportadora.entries())
     .sort((a, b) => b[1] - a[1]);
 
   // ── Gasto por obra ──
@@ -181,7 +286,7 @@ export default function FreteDashboard({
       });
     }
   });
-  const listaMaterialTransporte = Array.from(materialTransporte.entries())
+  Array.from(materialTransporte.entries())
     .sort((a, b) => (b[1].pesoEntregue + b[1].pesoTransito) - (a[1].pesoEntregue + a[1].pesoTransito));
 
   // ── Pagamentos por empresa (pagoPor) + abastecimentos como Areacre ──
@@ -338,8 +443,80 @@ export default function FreteDashboard({
       totalGeralSaldoValor += fornSaldoValor;
     });
 
+  // ── Custo Material + Frete por Pedreira e Local de Entrega ──
+  interface CustoMatFreteRow {
+    origem: string;
+    destino: string;
+    insumoId: string;
+    qtdTon: number;
+    custoFrete: number;
+    custoFretePorTon: number;
+    custoUnitMaterial: number;
+    custoTotalMaterial: number;
+    custoTotal: number;
+  }
+  const custoMatFreteAgg = new Map<string, Map<string, Map<string, { qtdTon: number; custoFrete: number }>>>();
+  fretesF.forEach((f) => {
+    if (!f.origem || !f.destino || !f.insumoId) return;
+    const origem = f.origem.trim();
+    const destino = f.destino.trim();
+    let destMap = custoMatFreteAgg.get(origem);
+    if (!destMap) { destMap = new Map(); custoMatFreteAgg.set(origem, destMap); }
+    let matMap = destMap.get(destino);
+    if (!matMap) { matMap = new Map(); destMap.set(destino, matMap); }
+    const prev = matMap.get(f.insumoId) || { qtdTon: 0, custoFrete: 0 };
+    matMap.set(f.insumoId, { qtdTon: prev.qtdTon + f.pesoToneladas, custoFrete: prev.custoFrete + f.valorTotal });
+  });
+  function getCustoUnitMaterial(origem: string, insumoId: string): number {
+    const fornId = findFornecedorByOrigem(origem);
+    if (!fornId) return 0;
+    const materiaisMap = pedidosPorFornecedor.get(fornId);
+    if (!materiaisMap) return 0;
+    const dados = materiaisMap.get(insumoId);
+    if (!dados || dados.qtd === 0) return 0;
+    return dados.valor / dados.qtd;
+  }
+  const custoMatFreteRows: CustoMatFreteRow[] = [];
+  interface TotaisDestinoCMF { destino: string; qtdTon: number; custoFrete: number; custoMaterial: number; custoTotal: number }
+  interface TotaisPedreiraCMF { origem: string; destinos: TotaisDestinoCMF[]; qtdTon: number; custoFrete: number; custoMaterial: number; custoTotal: number }
+  const custoMatFretePedreiras: TotaisPedreiraCMF[] = [];
+  const custoMatFreteTotalGeral = { qtdTon: 0, custoFrete: 0, custoMaterial: 0, custoTotal: 0 };
+  Array.from(custoMatFreteAgg.entries())
+    .sort((a, b) => a[0].localeCompare(b[0]))
+    .forEach(([origem, destMap]) => {
+      const pedreira: TotaisPedreiraCMF = { origem, destinos: [], qtdTon: 0, custoFrete: 0, custoMaterial: 0, custoTotal: 0 };
+      Array.from(destMap.entries())
+        .sort((a, b) => a[0].localeCompare(b[0]))
+        .forEach(([destino, matMap]) => {
+          const dest: TotaisDestinoCMF = { destino, qtdTon: 0, custoFrete: 0, custoMaterial: 0, custoTotal: 0 };
+          Array.from(matMap.entries())
+            .sort((a, b) => b[1].custoFrete - a[1].custoFrete)
+            .forEach(([insumoId, d]) => {
+              const custoFretePorTon = d.qtdTon > 0 ? d.custoFrete / d.qtdTon : 0;
+              const custoUnitMaterial = getCustoUnitMaterial(origem, insumoId);
+              const custoTotalMaterial = custoUnitMaterial * d.qtdTon;
+              const custoTotal = custoTotalMaterial + d.custoFrete;
+              custoMatFreteRows.push({ origem, destino, insumoId, qtdTon: d.qtdTon, custoFrete: d.custoFrete, custoFretePorTon, custoUnitMaterial, custoTotalMaterial, custoTotal });
+              dest.qtdTon += d.qtdTon;
+              dest.custoFrete += d.custoFrete;
+              dest.custoMaterial += custoTotalMaterial;
+              dest.custoTotal += custoTotal;
+            });
+          pedreira.destinos.push(dest);
+          pedreira.qtdTon += dest.qtdTon;
+          pedreira.custoFrete += dest.custoFrete;
+          pedreira.custoMaterial += dest.custoMaterial;
+          pedreira.custoTotal += dest.custoTotal;
+        });
+      custoMatFretePedreiras.push(pedreira);
+      custoMatFreteTotalGeral.qtdTon += pedreira.qtdTon;
+      custoMatFreteTotalGeral.custoFrete += pedreira.custoFrete;
+      custoMatFreteTotalGeral.custoMaterial += pedreira.custoMaterial;
+      custoMatFreteTotalGeral.custoTotal += pedreira.custoTotal;
+    });
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       {/* Filtros */}
       <div className="flex flex-wrap items-end gap-4">
         <div>
@@ -468,48 +645,71 @@ export default function FreteDashboard({
 
       {/* Gasto por transportadora com saldo */}
       <Card>
-        <h3 className="text-sm font-semibold text-gray-700 mb-3">
-          Resumo por Transportadora
-        </h3>
-        {listaTransportadoras.length === 0 ? (
-          <p className="text-gray-400 text-sm">Sem dados</p>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead className="bg-gray-50 border-b">
-                <tr>
-                  <th className="text-left px-4 py-2 font-medium text-gray-600">Transportadora</th>
-                  <th className="text-center px-4 py-2 font-medium text-gray-600">Total TKM</th>
-                  <th className="text-center px-4 py-2 font-medium text-gray-600">Valor Médio do TKM</th>
-                  <th className="text-center px-4 py-2 font-medium text-gray-600">Fretes</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100">
-                {listaTransportadoras.map(([nome, valorFretes]) => {
-                  const tkmData = tkmPorTransportadora.get(nome);
-                  const tkmMedio = tkmData && tkmData.count > 0 ? tkmData.somaValorTkm / tkmData.count : 0;
-                  const totalTkm = tkmData?.somaTkm || 0;
-                  return (
-                    <tr key={nome} className="hover:bg-gray-50">
-                      <td className="px-4 py-2 font-medium text-gray-700">{nome}</td>
-                      <td className="px-4 py-2 text-center text-gray-700">{totalTkm > 0 ? totalTkm.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '-'}</td>
-                      <td className="px-4 py-2 text-center text-orange-600">{tkmMedio > 0 ? formatCurrency(tkmMedio) : '-'}</td>
-                      <td className="px-4 py-2 text-center text-emt-verde">{formatCurrency(valorFretes)}</td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-              <tfoot className="border-t-2 border-gray-200">
-                <tr className="font-semibold">
-                  <td className="px-4 py-2 text-gray-700">Total</td>
-                  <td className="px-4 py-2 text-center text-gray-700">{fretesF.reduce((s, f) => s + f.kmRodados * f.pesoToneladas, 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-                  <td className="px-4 py-2 text-center text-orange-600">{fretesF.length > 0 ? formatCurrency(fretesF.reduce((s, f) => s + f.valorTkm, 0) / fretesF.length) : '-'}</td>
-                  <td className="px-4 py-2 text-center text-emt-verde">{formatCurrency(totalFretes)}</td>
-                </tr>
-              </tfoot>
-            </table>
-          </div>
-        )}
+        <div className="flex flex-wrap items-center gap-4 mb-3">
+          <h3 className="text-sm font-semibold text-gray-700">Resumo por Transportadora</h3>
+          <FilterMultiSelect options={opsPedreiras} selected={rptPedreiraFiltro} onChange={setRptPedreiraFiltro} placeholder="Todas as pedreiras" />
+          <FilterMultiSelect options={opsMateriais} selected={rptMaterialFiltro} onChange={setRptMaterialFiltro} placeholder="Todos os materiais" />
+          <FilterMultiSelect options={opsDestinos} selected={rptDestinoFiltro} onChange={setRptDestinoFiltro} placeholder="Todos os locais" />
+          {(rptPedreiraFiltro.length > 0 || rptMaterialFiltro.length > 0 || rptDestinoFiltro.length > 0) && (
+            <button onClick={() => { setRptPedreiraFiltro([]); setRptMaterialFiltro([]); setRptDestinoFiltro([]); }} className="text-xs text-red-600 hover:text-red-800 font-medium">Limpar</button>
+          )}
+        </div>
+        {(() => {
+          const rptFretes = fretesF.filter((f) => {
+            if (!matchFiltro(f.origem, rptPedreiraFiltro)) return false;
+            if (!matchFiltro(f.insumoId, rptMaterialFiltro)) return false;
+            if (!matchFiltro(f.destino, rptDestinoFiltro)) return false;
+            return true;
+          });
+          const rptGasto = new Map<string, number>();
+          const rptTkm = new Map<string, { somaValorTkm: number; somaTkm: number; count: number }>();
+          rptFretes.forEach((f) => {
+            if (!f.transportadora) return;
+            rptGasto.set(f.transportadora, (rptGasto.get(f.transportadora) || 0) + f.valorTotal);
+            const prev = rptTkm.get(f.transportadora) || { somaValorTkm: 0, somaTkm: 0, count: 0 };
+            rptTkm.set(f.transportadora, { somaValorTkm: prev.somaValorTkm + f.valorTkm, somaTkm: prev.somaTkm + f.kmRodados * f.pesoToneladas, count: prev.count + 1 });
+          });
+          const rptLista = Array.from(rptGasto.entries()).sort((a, b) => b[1] - a[1]);
+          const rptTotal = rptFretes.reduce((s, f) => s + f.valorTotal, 0);
+          if (rptLista.length === 0) return <p className="text-gray-400 text-sm">Sem dados</p>;
+          return (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="bg-gray-50 border-b">
+                  <tr>
+                    <th className="text-left px-4 py-2 font-medium text-gray-600">Transportadora</th>
+                    <th className="text-center px-4 py-2 font-medium text-gray-600">Total TKM</th>
+                    <th className="text-center px-4 py-2 font-medium text-gray-600">Valor Médio do TKM</th>
+                    <th className="text-center px-4 py-2 font-medium text-gray-600">Fretes</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {rptLista.map(([nome, valorFretes]) => {
+                    const tkmData = rptTkm.get(nome);
+                    const tkmMedio = tkmData && tkmData.count > 0 ? tkmData.somaValorTkm / tkmData.count : 0;
+                    const totalTkm = tkmData?.somaTkm || 0;
+                    return (
+                      <tr key={nome} className="hover:bg-gray-50">
+                        <td className="px-4 py-2 font-medium text-gray-700">{nome}</td>
+                        <td className="px-4 py-2 text-center text-gray-700">{totalTkm > 0 ? totalTkm.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '-'}</td>
+                        <td className="px-4 py-2 text-center text-orange-600">{tkmMedio > 0 ? formatCurrency(tkmMedio) : '-'}</td>
+                        <td className="px-4 py-2 text-center text-emt-verde">{formatCurrency(valorFretes)}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+                <tfoot className="border-t-2 border-gray-200">
+                  <tr className="font-semibold">
+                    <td className="px-4 py-2 text-gray-700">Total</td>
+                    <td className="px-4 py-2 text-center text-gray-700">{rptFretes.reduce((s, f) => s + f.kmRodados * f.pesoToneladas, 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                    <td className="px-4 py-2 text-center text-orange-600">{rptFretes.length > 0 ? formatCurrency(rptFretes.reduce((s, f) => s + f.valorTkm, 0) / rptFretes.length) : '-'}</td>
+                    <td className="px-4 py-2 text-center text-emt-verde">{formatCurrency(rptTotal)}</td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+          );
+        })()}
       </Card>
 
       {/* Pagamentos por Empresa e Método */}
@@ -615,193 +815,416 @@ export default function FreteDashboard({
 
       {/* Pedidos de Material por Fornecedor */}
       <Card>
-        <h3 className="text-sm font-semibold text-gray-700 mb-3">
-          Pedidos de Material por Fornecedor
-        </h3>
-        {pedidosFornecedorRows.length === 0 ? (
-          <p className="text-gray-400 text-sm">Sem dados</p>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm border-collapse">
-              <thead>
-                {/* Linha de grupo */}
-                <tr className="border-b border-gray-200">
-                  <th rowSpan={2} className="text-left px-3 py-2 font-semibold text-gray-700 bg-gray-50 border-b-2 border-gray-300">Material</th>
-                  <th colSpan={2} className="text-center px-3 py-1.5 font-semibold text-gray-600 bg-blue-50 border-b border-blue-200">Pedido</th>
-                  <th colSpan={2} className="text-center px-3 py-1.5 font-semibold text-gray-600 bg-emerald-50 border-b border-emerald-200">Transportado</th>
-                  <th colSpan={2} className="text-center px-3 py-1.5 font-semibold text-gray-600 bg-amber-50 border-b border-amber-200">Saldo na Pedreira</th>
-                  <th colSpan={3} className="text-center px-3 py-1.5 font-semibold text-gray-600 bg-purple-50 border-b border-purple-200">Custo R$/t</th>
-                </tr>
-                {/* Sub-colunas */}
-                <tr className="border-b-2 border-gray-300">
-                  <th className="text-right px-3 py-1.5 font-medium text-gray-500 bg-blue-50 text-xs">Qtd (t)</th>
-                  <th className="text-right px-3 py-1.5 font-medium text-gray-500 bg-blue-50 text-xs">Valor (R$)</th>
-                  <th className="text-right px-3 py-1.5 font-medium text-gray-500 bg-emerald-50 text-xs">Qtd (t)</th>
-                  <th className="text-right px-3 py-1.5 font-medium text-gray-500 bg-emerald-50 text-xs">Valor (R$)</th>
-                  <th className="text-right px-3 py-1.5 font-medium text-gray-500 bg-amber-50 text-xs">Qtd (t)</th>
-                  <th className="text-right px-3 py-1.5 font-medium text-gray-500 bg-amber-50 text-xs">Valor (R$)</th>
-                  <th className="text-right px-3 py-1.5 font-medium text-gray-500 bg-purple-50 text-xs">Material</th>
-                  <th className="text-right px-3 py-1.5 font-medium text-gray-500 bg-purple-50 text-xs">Frete</th>
-                  <th className="text-right px-3 py-1.5 font-medium text-gray-500 bg-purple-50 text-xs">Total</th>
-                </tr>
-              </thead>
-              <tbody>
-                {totaisPorFornecedor.map((forn) => {
-                  const rows = pedidosFornecedorRows.filter((r) => r.fornecedorId === forn.fornecedorId);
-                  const fornCustoMedioMat = forn.totalQtd > 0 ? forn.totalValor / forn.totalQtd : 0;
-                  const fornCustoMedioFrete = forn.totalQtdTransp > 0 ? forn.totalFreteValor / forn.totalQtdTransp : 0;
-                  return (
-                    <Fragment key={forn.fornecedorId}>
-                      {/* Sub-header do fornecedor */}
-                      <tr className="bg-gray-100 border-t-2 border-gray-300">
-                        <td className="px-3 py-2 font-bold text-gray-800">{forn.fornecedorNome}</td>
-                        <td className="px-3 py-2 text-right font-semibold text-gray-600">{forn.totalQtd.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>
-                        <td className="px-3 py-2 text-right font-semibold text-gray-600">{formatCurrency(forn.totalValor)}</td>
-                        <td className="px-3 py-2 text-right font-semibold text-emerald-700">{forn.totalQtdTransp.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>
-                        <td className="px-3 py-2 text-right font-semibold text-emerald-700">{formatCurrency(forn.totalValor - forn.totalSaldoValor)}</td>
-                        <td className={`px-3 py-2 text-right font-semibold ${(forn.totalQtd - forn.totalQtdTransp) < 0 ? 'text-red-600' : (forn.totalQtd - forn.totalQtdTransp) === 0 ? 'text-gray-400' : 'text-green-600'}`}>{(forn.totalQtd - forn.totalQtdTransp).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>
-                        <td className={`px-3 py-2 text-right font-semibold ${forn.totalSaldoValor < 0 ? 'text-red-600' : forn.totalSaldoValor === 0 ? 'text-gray-400' : 'text-green-600'}`}>{formatCurrency(forn.totalSaldoValor)}</td>
-                        <td className="px-3 py-2 text-right font-semibold text-purple-700">{formatCurrency(fornCustoMedioMat)}</td>
-                        <td className="px-3 py-2 text-right font-semibold text-purple-700">{fornCustoMedioFrete > 0 ? formatCurrency(fornCustoMedioFrete) : '-'}</td>
-                        <td className="px-3 py-2 text-right font-bold text-purple-800">{fornCustoMedioFrete > 0 ? formatCurrency(fornCustoMedioMat + fornCustoMedioFrete) : formatCurrency(fornCustoMedioMat)}</td>
-                      </tr>
-                      {/* Linhas de material */}
-                      {rows.map((r) => (
-                        <tr key={`${r.fornecedorId}-${r.insumoId}`} className="hover:bg-gray-50 border-b border-gray-100">
-                          <td className="px-3 py-1.5 pl-6 text-gray-600">{insumosMap.get(r.insumoId) || r.insumoId}</td>
-                          <td className="px-3 py-1.5 text-right text-gray-700">{r.qtd.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>
-                          <td className="px-3 py-1.5 text-right text-gray-700">{formatCurrency(r.valor)}</td>
-                          <td className="px-3 py-1.5 text-right text-emerald-600">{r.qtdTransportada.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>
-                          <td className="px-3 py-1.5 text-right text-emerald-600">{formatCurrency(r.qtdTransportada * r.vlrMedio)}</td>
-                          <td className={`px-3 py-1.5 text-right font-medium ${r.saldoQtd < 0 ? 'text-red-600' : r.saldoQtd === 0 ? 'text-gray-400' : 'text-green-600'}`}>{r.saldoQtd.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>
-                          <td className={`px-3 py-1.5 text-right font-medium ${r.saldoValor < 0 ? 'text-red-600' : r.saldoValor === 0 ? 'text-gray-400' : 'text-green-600'}`}>{formatCurrency(r.saldoValor)}</td>
-                          <td className="px-3 py-1.5 text-right text-purple-600">{formatCurrency(r.vlrMedio)}</td>
-                          <td className="px-3 py-1.5 text-right text-purple-600">{r.custoMedioFrete > 0 ? formatCurrency(r.custoMedioFrete) : '-'}</td>
-                          <td className="px-3 py-1.5 text-right font-medium text-purple-700">{r.custoMedioFrete > 0 ? formatCurrency(r.vlrMedio + r.custoMedioFrete) : formatCurrency(r.vlrMedio)}</td>
+        <div className="flex flex-wrap items-center gap-4 mb-3">
+          <h3 className="text-sm font-semibold text-gray-700">Pedidos de Material por Fornecedor</h3>
+          <FilterMultiSelect options={totaisPorFornecedor.map((f) => ({ id: f.fornecedorId, label: f.fornecedorNome }))} selected={pmfPedreiraFiltro} onChange={setPmfPedreiraFiltro} placeholder="Todos os fornecedores" />
+          <FilterMultiSelect options={Array.from(new Set(pedidosFornecedorRows.map((r) => r.insumoId))).sort((a, b) => (insumosMap.get(a) || a).localeCompare(insumosMap.get(b) || b)).map((id) => ({ id, label: insumosMap.get(id) || id }))} selected={pmfMaterialFiltro} onChange={setPmfMaterialFiltro} placeholder="Todos os materiais" />
+          <FilterMultiSelect options={opsDestinos} selected={pmfDestinoFiltro} onChange={setPmfDestinoFiltro} placeholder="Todos os locais" />
+          {(pmfPedreiraFiltro.length > 0 || pmfMaterialFiltro.length > 0 || pmfDestinoFiltro.length > 0) && (
+            <button onClick={() => { setPmfPedreiraFiltro([]); setPmfMaterialFiltro([]); setPmfDestinoFiltro([]); }} className="text-xs text-red-600 hover:text-red-800 font-medium">Limpar</button>
+          )}
+        </div>
+        {(() => {
+          const pmfFretesFiltr = fretesF.filter((f) => {
+            if (!matchFiltro(f.destino, pmfDestinoFiltro)) return false;
+            return true;
+          });
+          const pmfTranspMap = new Map<string, number>();
+          const pmfFreteValMap = new Map<string, number>();
+          pmfFretesFiltr.forEach((f) => {
+            if (!f.origem || !f.insumoId) return;
+            const fId = findFornecedorByOrigem(f.origem);
+            if (!fId) return;
+            const key = `${fId}|${f.insumoId}`;
+            pmfTranspMap.set(key, (pmfTranspMap.get(key) || 0) + f.pesoToneladas);
+            pmfFreteValMap.set(key, (pmfFreteValMap.get(key) || 0) + f.valorTotal);
+          });
+          // Rebuild rows with filters
+          const pmfRows: PedidoFornRow[] = [];
+          const pmfTotForn: typeof totaisPorFornecedor = [];
+          let pmfTotalQtd = 0, pmfTotalQtdTransp = 0, pmfTotalPedidos = 0, pmfTotalFreteValor = 0, pmfTotalSaldoValor = 0;
+          Array.from(pedidosPorFornecedor.entries())
+            .filter(([fId]) => pmfPedreiraFiltro.length === 0 || pmfPedreiraFiltro.includes(fId))
+            .sort((a, b) => (fornecedoresMap.get(a[0]) || '').localeCompare(fornecedoresMap.get(b[0]) || ''))
+            .forEach(([fornecedorId, materiaisMap]) => {
+              let fQtd = 0, fQtdT = 0, fVal = 0, fFrete = 0, fSaldo = 0;
+              const fornecedorNome = fornecedoresMap.get(fornecedorId) || fornecedorId;
+              Array.from(materiaisMap.entries())
+                .filter(([insumoId]) => pmfMaterialFiltro.length === 0 || pmfMaterialFiltro.includes(insumoId))
+                .sort((a, b) => b[1].valor - a[1].valor)
+                .forEach(([insumoId, dados]) => {
+                  const vlrMedio = dados.qtd > 0 ? dados.valor / dados.qtd : 0;
+                  const key = `${fornecedorId}|${insumoId}`;
+                  const qtdTransportada = pmfTranspMap.get(key) || 0;
+                  const freteValor = pmfFreteValMap.get(key) || 0;
+                  const custoMedioFrete = qtdTransportada > 0 ? freteValor / qtdTransportada : 0;
+                  const saldoQtd = dados.qtd - qtdTransportada;
+                  const saldoValor = saldoQtd * vlrMedio;
+                  pmfRows.push({ fornecedorId, fornecedorNome, insumoId, qtd: dados.qtd, qtdTransportada, saldoQtd, vlrMedio, custoMedioFrete, valor: dados.valor, saldoValor });
+                  fQtd += dados.qtd; fQtdT += qtdTransportada; fVal += dados.valor; fFrete += freteValor; fSaldo += saldoValor;
+                });
+              if (fQtd > 0 || fQtdT > 0) {
+                pmfTotForn.push({ fornecedorId, fornecedorNome, totalQtd: fQtd, totalQtdTransp: fQtdT, totalValor: fVal, totalFreteValor: fFrete, totalSaldoValor: fSaldo });
+                pmfTotalQtd += fQtd; pmfTotalQtdTransp += fQtdT; pmfTotalPedidos += fVal; pmfTotalFreteValor += fFrete; pmfTotalSaldoValor += fSaldo;
+              }
+            });
+          if (pmfRows.length === 0) return <p className="text-gray-400 text-sm">Sem dados</p>;
+          return (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm border-collapse">
+                <thead>
+                  <tr className="border-b border-gray-200">
+                    <th rowSpan={2} className="text-left px-3 py-2 font-semibold text-gray-700 bg-gray-50 border-b-2 border-gray-300">Material</th>
+                    <th colSpan={2} className="text-center px-3 py-1.5 font-semibold text-gray-600 bg-blue-50 border-b border-blue-200">Pedido</th>
+                    <th colSpan={2} className="text-center px-3 py-1.5 font-semibold text-gray-600 bg-emerald-50 border-b border-emerald-200">Transportado</th>
+                    <th colSpan={2} className="text-center px-3 py-1.5 font-semibold text-gray-600 bg-amber-50 border-b border-amber-200">Saldo na Pedreira</th>
+                    <th colSpan={3} className="text-center px-3 py-1.5 font-semibold text-gray-600 bg-purple-50 border-b border-purple-200">Custo R$/t</th>
+                  </tr>
+                  <tr className="border-b-2 border-gray-300">
+                    <th className="text-right px-3 py-1.5 font-medium text-gray-500 bg-blue-50 text-xs">Qtd (t)</th>
+                    <th className="text-right px-3 py-1.5 font-medium text-gray-500 bg-blue-50 text-xs">Valor (R$)</th>
+                    <th className="text-right px-3 py-1.5 font-medium text-gray-500 bg-emerald-50 text-xs">Qtd (t)</th>
+                    <th className="text-right px-3 py-1.5 font-medium text-gray-500 bg-emerald-50 text-xs">Valor (R$)</th>
+                    <th className="text-right px-3 py-1.5 font-medium text-gray-500 bg-amber-50 text-xs">Qtd (t)</th>
+                    <th className="text-right px-3 py-1.5 font-medium text-gray-500 bg-amber-50 text-xs">Valor (R$)</th>
+                    <th className="text-right px-3 py-1.5 font-medium text-gray-500 bg-purple-50 text-xs">Material</th>
+                    <th className="text-right px-3 py-1.5 font-medium text-gray-500 bg-purple-50 text-xs">Frete</th>
+                    <th className="text-right px-3 py-1.5 font-medium text-gray-500 bg-purple-50 text-xs">Total</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {pmfTotForn.map((forn) => {
+                    const rows = pmfRows.filter((r) => r.fornecedorId === forn.fornecedorId);
+                    const fornCMM = forn.totalQtd > 0 ? forn.totalValor / forn.totalQtd : 0;
+                    const fornCMF = forn.totalQtdTransp > 0 ? forn.totalFreteValor / forn.totalQtdTransp : 0;
+                    return (
+                      <Fragment key={forn.fornecedorId}>
+                        <tr className="bg-gray-100 border-t-2 border-gray-300">
+                          <td className="px-3 py-2 font-bold text-gray-800">{forn.fornecedorNome}</td>
+                          <td className="px-3 py-2 text-right font-semibold text-gray-600">{forn.totalQtd.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>
+                          <td className="px-3 py-2 text-right font-semibold text-gray-600">{formatCurrency(forn.totalValor)}</td>
+                          <td className="px-3 py-2 text-right font-semibold text-emerald-700">{forn.totalQtdTransp.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>
+                          <td className="px-3 py-2 text-right font-semibold text-emerald-700">{formatCurrency(forn.totalValor - forn.totalSaldoValor)}</td>
+                          <td className={`px-3 py-2 text-right font-semibold ${(forn.totalQtd - forn.totalQtdTransp) < 0 ? 'text-red-600' : (forn.totalQtd - forn.totalQtdTransp) === 0 ? 'text-gray-400' : 'text-green-600'}`}>{(forn.totalQtd - forn.totalQtdTransp).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>
+                          <td className={`px-3 py-2 text-right font-semibold ${forn.totalSaldoValor < 0 ? 'text-red-600' : forn.totalSaldoValor === 0 ? 'text-gray-400' : 'text-green-600'}`}>{formatCurrency(forn.totalSaldoValor)}</td>
+                          <td className="px-3 py-2 text-right font-semibold text-purple-700">{formatCurrency(fornCMM)}</td>
+                          <td className="px-3 py-2 text-right font-semibold text-purple-700">{fornCMF > 0 ? formatCurrency(fornCMF) : '-'}</td>
+                          <td className="px-3 py-2 text-right font-bold text-purple-800">{fornCMF > 0 ? formatCurrency(fornCMM + fornCMF) : formatCurrency(fornCMM)}</td>
                         </tr>
-                      ))}
-                    </Fragment>
-                  );
-                })}
-              </tbody>
-              <tfoot>
-                <tr className="border-t-2 border-gray-400 bg-gray-100 font-bold">
-                  <td className="px-3 py-2 text-gray-800">Total Geral</td>
-                  <td className="px-3 py-2 text-right text-gray-800">{totalGeralQtd.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>
-                  <td className="px-3 py-2 text-right text-gray-800">{formatCurrency(totalGeralPedidos)}</td>
-                  <td className="px-3 py-2 text-right text-emerald-700">{totalGeralQtdTransp.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>
-                  <td className="px-3 py-2 text-right text-emerald-700">{formatCurrency(totalGeralPedidos - totalGeralSaldoValor)}</td>
-                  <td className={`px-3 py-2 text-right ${(totalGeralQtd - totalGeralQtdTransp) < 0 ? 'text-red-600' : (totalGeralQtd - totalGeralQtdTransp) === 0 ? 'text-gray-400' : 'text-green-600'}`}>{(totalGeralQtd - totalGeralQtdTransp).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>
-                  <td className={`px-3 py-2 text-right ${totalGeralSaldoValor < 0 ? 'text-red-600' : totalGeralSaldoValor === 0 ? 'text-gray-400' : 'text-green-600'}`}>{formatCurrency(totalGeralSaldoValor)}</td>
-                  <td className="px-3 py-2 text-right text-purple-700">{totalGeralQtd > 0 ? formatCurrency(totalGeralPedidos / totalGeralQtd) : '-'}</td>
-                  <td className="px-3 py-2 text-right text-purple-700">{totalGeralQtdTransp > 0 ? formatCurrency(totalGeralFreteValor / totalGeralQtdTransp) : '-'}</td>
-                  <td className="px-3 py-2 text-right text-purple-800">{totalGeralQtd > 0 ? formatCurrency((totalGeralPedidos / totalGeralQtd) + (totalGeralQtdTransp > 0 ? totalGeralFreteValor / totalGeralQtdTransp : 0)) : '-'}</td>
-                </tr>
-              </tfoot>
-            </table>
-          </div>
-        )}
+                        {rows.map((r) => (
+                          <tr key={`${r.fornecedorId}-${r.insumoId}`} className="hover:bg-gray-50 border-b border-gray-100">
+                            <td className="px-3 py-1.5 pl-6 text-gray-600">{insumosMap.get(r.insumoId) || r.insumoId}</td>
+                            <td className="px-3 py-1.5 text-right text-gray-700">{r.qtd.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>
+                            <td className="px-3 py-1.5 text-right text-gray-700">{formatCurrency(r.valor)}</td>
+                            <td className="px-3 py-1.5 text-right text-emerald-600">{r.qtdTransportada.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>
+                            <td className="px-3 py-1.5 text-right text-emerald-600">{formatCurrency(r.qtdTransportada * r.vlrMedio)}</td>
+                            <td className={`px-3 py-1.5 text-right font-medium ${r.saldoQtd < 0 ? 'text-red-600' : r.saldoQtd === 0 ? 'text-gray-400' : 'text-green-600'}`}>{r.saldoQtd.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>
+                            <td className={`px-3 py-1.5 text-right font-medium ${r.saldoValor < 0 ? 'text-red-600' : r.saldoValor === 0 ? 'text-gray-400' : 'text-green-600'}`}>{formatCurrency(r.saldoValor)}</td>
+                            <td className="px-3 py-1.5 text-right text-purple-600">{formatCurrency(r.vlrMedio)}</td>
+                            <td className="px-3 py-1.5 text-right text-purple-600">{r.custoMedioFrete > 0 ? formatCurrency(r.custoMedioFrete) : '-'}</td>
+                            <td className="px-3 py-1.5 text-right font-medium text-purple-700">{r.custoMedioFrete > 0 ? formatCurrency(r.vlrMedio + r.custoMedioFrete) : formatCurrency(r.vlrMedio)}</td>
+                          </tr>
+                        ))}
+                      </Fragment>
+                    );
+                  })}
+                </tbody>
+                <tfoot>
+                  <tr className="border-t-2 border-gray-400 bg-gray-100 font-bold">
+                    <td className="px-3 py-2 text-gray-800">Total Geral</td>
+                    <td className="px-3 py-2 text-right text-gray-800">{pmfTotalQtd.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>
+                    <td className="px-3 py-2 text-right text-gray-800">{formatCurrency(pmfTotalPedidos)}</td>
+                    <td className="px-3 py-2 text-right text-emerald-700">{pmfTotalQtdTransp.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>
+                    <td className="px-3 py-2 text-right text-emerald-700">{formatCurrency(pmfTotalPedidos - pmfTotalSaldoValor)}</td>
+                    <td className={`px-3 py-2 text-right ${(pmfTotalQtd - pmfTotalQtdTransp) < 0 ? 'text-red-600' : (pmfTotalQtd - pmfTotalQtdTransp) === 0 ? 'text-gray-400' : 'text-green-600'}`}>{(pmfTotalQtd - pmfTotalQtdTransp).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>
+                    <td className={`px-3 py-2 text-right ${pmfTotalSaldoValor < 0 ? 'text-red-600' : pmfTotalSaldoValor === 0 ? 'text-gray-400' : 'text-green-600'}`}>{formatCurrency(pmfTotalSaldoValor)}</td>
+                    <td className="px-3 py-2 text-right text-purple-700">{pmfTotalQtd > 0 ? formatCurrency(pmfTotalPedidos / pmfTotalQtd) : '-'}</td>
+                    <td className="px-3 py-2 text-right text-purple-700">{pmfTotalQtdTransp > 0 ? formatCurrency(pmfTotalFreteValor / pmfTotalQtdTransp) : '-'}</td>
+                    <td className="px-3 py-2 text-right text-purple-800">{pmfTotalQtd > 0 ? formatCurrency((pmfTotalPedidos / pmfTotalQtd) + (pmfTotalQtdTransp > 0 ? pmfTotalFreteValor / pmfTotalQtdTransp : 0)) : '-'}</td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+          );
+        })()}
+      </Card>
+
+      {/* Custo Material + Frete por Pedreira e Local de Entrega */}
+      <Card>
+        <div className="flex flex-wrap items-center gap-4 mb-3">
+          <h3 className="text-sm font-semibold text-gray-700">
+            Custo Material + Frete por Pedreira e Local de Entrega
+          </h3>
+          <FilterMultiSelect options={Array.from(new Set(custoMatFreteRows.map((r) => r.origem))).sort((a, b) => a.localeCompare(b)).map((o) => ({ id: o, label: o }))} selected={cmfPedreiraFiltro} onChange={setCmfPedreiraFiltro} placeholder="Todas as pedreiras" />
+          <FilterMultiSelect options={Array.from(new Set(custoMatFreteRows.map((r) => r.insumoId))).sort((a, b) => (insumosMap.get(a) || a).localeCompare(insumosMap.get(b) || b)).map((id) => ({ id, label: insumosMap.get(id) || id }))} selected={cmfMaterialFiltro} onChange={setCmfMaterialFiltro} placeholder="Todos os materiais" />
+          <FilterMultiSelect options={Array.from(new Set(custoMatFreteRows.map((r) => r.destino))).sort((a, b) => a.localeCompare(b)).map((d) => ({ id: d, label: d }))} selected={cmfDestinoFiltro} onChange={setCmfDestinoFiltro} placeholder="Todos os locais" />
+          {(cmfPedreiraFiltro.length > 0 || cmfMaterialFiltro.length > 0 || cmfDestinoFiltro.length > 0) && (
+            <button onClick={() => { setCmfPedreiraFiltro([]); setCmfMaterialFiltro([]); setCmfDestinoFiltro([]); }} className="text-xs text-red-600 hover:text-red-800 font-medium">Limpar</button>
+          )}
+        </div>
+        {(() => {
+          const rowsFiltrados = custoMatFreteRows.filter((r) => {
+            if (cmfPedreiraFiltro.length > 0 && !cmfPedreiraFiltro.includes(r.origem)) return false;
+            if (cmfMaterialFiltro.length > 0 && !cmfMaterialFiltro.includes(r.insumoId)) return false;
+            if (cmfDestinoFiltro.length > 0 && !cmfDestinoFiltro.includes(r.destino)) return false;
+            return true;
+          });
+          // Reagrupar por pedreira → destino
+          const pedreirasMap = new Map<string, { destinos: Map<string, CustoMatFreteRow[]> }>();
+          rowsFiltrados.forEach((r) => {
+            let p = pedreirasMap.get(r.origem);
+            if (!p) { p = { destinos: new Map() }; pedreirasMap.set(r.origem, p); }
+            let d = p.destinos.get(r.destino);
+            if (!d) { d = []; p.destinos.set(r.destino, d); }
+            d.push(r);
+          });
+          const totalFiltrado = { qtdTon: 0, custoFrete: 0, custoMaterial: 0, custoTotal: 0 };
+          rowsFiltrados.forEach((r) => { totalFiltrado.qtdTon += r.qtdTon; totalFiltrado.custoFrete += r.custoFrete; totalFiltrado.custoMaterial += r.custoTotalMaterial; totalFiltrado.custoTotal += r.custoTotal; });
+          if (rowsFiltrados.length === 0) return <p className="text-gray-400 text-sm">Sem dados</p>;
+          return (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm border-collapse">
+                <thead>
+                  <tr className="border-b-2 border-gray-300 bg-gray-50">
+                    <th className="text-left px-3 py-2 font-semibold text-gray-700">Pedreira / Local / Material</th>
+                    <th className="text-right px-3 py-2 font-medium text-gray-600">Qtd (t)</th>
+                    <th className="text-right px-3 py-2 font-medium text-gray-600">Material R$/t</th>
+                    <th className="text-right px-3 py-2 font-medium text-gray-600">Frete R$/t</th>
+                    <th className="text-right px-3 py-2 font-medium text-gray-600">Total R$/t</th>
+                    <th className="text-right px-3 py-2 font-medium text-gray-600">Total Material (R$)</th>
+                    <th className="text-right px-3 py-2 font-medium text-gray-600">Total Frete (R$)</th>
+                    <th className="text-right px-3 py-2 font-medium text-gray-600">Total (R$)</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {Array.from(pedreirasMap.entries()).sort((a, b) => a[0].localeCompare(b[0])).map(([origem, pData]) => {
+                    const pedrRows = rowsFiltrados.filter((r) => r.origem === origem);
+                    const pedrTotais = { qtdTon: 0, custoFrete: 0, custoMaterial: 0, custoTotal: 0 };
+                    pedrRows.forEach((r) => { pedrTotais.qtdTon += r.qtdTon; pedrTotais.custoFrete += r.custoFrete; pedrTotais.custoMaterial += r.custoTotalMaterial; pedrTotais.custoTotal += r.custoTotal; });
+                    return (
+                      <Fragment key={origem}>
+                        <tr className="bg-gray-100 border-t-2 border-gray-300">
+                          <td className="px-3 py-2 font-bold text-gray-800">{origem}</td>
+                          <td className="px-3 py-2 text-right font-semibold text-gray-600">{pedrTotais.qtdTon.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>
+                          <td className="px-3 py-2 text-right font-semibold text-gray-600">-</td>
+                          <td className="px-3 py-2 text-right font-semibold text-gray-600">{pedrTotais.qtdTon > 0 ? formatCurrency(pedrTotais.custoFrete / pedrTotais.qtdTon) : '-'}</td>
+                          <td className="px-3 py-2 text-right font-bold text-green-700">{pedrTotais.qtdTon > 0 ? formatCurrency(pedrTotais.custoTotal / pedrTotais.qtdTon) : '-'}</td>
+                          <td className="px-3 py-2 text-right font-semibold text-blue-700">{formatCurrency(pedrTotais.custoMaterial)}</td>
+                          <td className="px-3 py-2 text-right font-semibold text-orange-700">{formatCurrency(pedrTotais.custoFrete)}</td>
+                          <td className="px-3 py-2 text-right font-bold text-purple-800">{formatCurrency(pedrTotais.custoTotal)}</td>
+                        </tr>
+                        {Array.from(pData.destinos.entries()).sort((a, b) => a[0].localeCompare(b[0])).map(([destino, dRows]) => {
+                          const destTotais = { qtdTon: 0, custoFrete: 0, custoMaterial: 0, custoTotal: 0 };
+                          dRows.forEach((r) => { destTotais.qtdTon += r.qtdTon; destTotais.custoFrete += r.custoFrete; destTotais.custoMaterial += r.custoTotalMaterial; destTotais.custoTotal += r.custoTotal; });
+                          return (
+                            <Fragment key={`${origem}-${destino}`}>
+                              <tr className="bg-emerald-50 border-t border-gray-200">
+                                <td className="px-3 py-1.5 pl-6 font-semibold text-gray-700">{destino}</td>
+                                <td className="px-3 py-1.5 text-right font-semibold text-gray-600">{destTotais.qtdTon.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>
+                                <td className="px-3 py-1.5 text-right font-semibold text-gray-500">-</td>
+                                <td className="px-3 py-1.5 text-right font-semibold text-orange-600">{destTotais.qtdTon > 0 ? formatCurrency(destTotais.custoFrete / destTotais.qtdTon) : '-'}</td>
+                                <td className="px-3 py-1.5 text-right font-bold text-green-600">{destTotais.qtdTon > 0 ? formatCurrency(destTotais.custoTotal / destTotais.qtdTon) : '-'}</td>
+                                <td className="px-3 py-1.5 text-right font-semibold text-blue-600">{formatCurrency(destTotais.custoMaterial)}</td>
+                                <td className="px-3 py-1.5 text-right font-semibold text-orange-600">{formatCurrency(destTotais.custoFrete)}</td>
+                                <td className="px-3 py-1.5 text-right font-bold text-purple-700">{formatCurrency(destTotais.custoTotal)}</td>
+                              </tr>
+                              {dRows.map((r) => (
+                                <tr key={`${r.origem}-${r.destino}-${r.insumoId}`} className="hover:bg-gray-50 border-b border-gray-100">
+                                  <td className="px-3 py-1.5 pl-10 text-gray-600">{insumosMap.get(r.insumoId) || r.insumoId}</td>
+                                  <td className="px-3 py-1.5 text-right text-gray-700">{r.qtdTon.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>
+                                  <td className="px-3 py-1.5 text-right text-blue-600">{r.custoUnitMaterial > 0 ? formatCurrency(r.custoUnitMaterial) : '-'}</td>
+                                  <td className="px-3 py-1.5 text-right text-orange-600">{formatCurrency(r.custoFretePorTon)}</td>
+                                  <td className="px-3 py-1.5 text-right font-medium text-green-700">{formatCurrency(r.custoUnitMaterial + r.custoFretePorTon)}</td>
+                                  <td className="px-3 py-1.5 text-right text-blue-600">{r.custoTotalMaterial > 0 ? formatCurrency(r.custoTotalMaterial) : '-'}</td>
+                                  <td className="px-3 py-1.5 text-right text-orange-600">{formatCurrency(r.custoFrete)}</td>
+                                  <td className="px-3 py-1.5 text-right font-medium text-purple-700">{formatCurrency(r.custoTotal)}</td>
+                                </tr>
+                              ))}
+                            </Fragment>
+                          );
+                        })}
+                      </Fragment>
+                    );
+                  })}
+                </tbody>
+                <tfoot>
+                  <tr className="border-t-2 border-gray-400 bg-gray-100 font-bold">
+                    <td className="px-3 py-2 text-gray-800">Total Geral</td>
+                    <td className="px-3 py-2 text-right text-gray-800">{totalFiltrado.qtdTon.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>
+                    <td className="px-3 py-2 text-right text-gray-800">-</td>
+                    <td className="px-3 py-2 text-right text-orange-700">{totalFiltrado.qtdTon > 0 ? formatCurrency(totalFiltrado.custoFrete / totalFiltrado.qtdTon) : '-'}</td>
+                    <td className="px-3 py-2 text-right text-green-700">{totalFiltrado.qtdTon > 0 ? formatCurrency(totalFiltrado.custoTotal / totalFiltrado.qtdTon) : '-'}</td>
+                    <td className="px-3 py-2 text-right text-blue-700">{formatCurrency(totalFiltrado.custoMaterial)}</td>
+                    <td className="px-3 py-2 text-right text-orange-700">{formatCurrency(totalFiltrado.custoFrete)}</td>
+                    <td className="px-3 py-2 text-right text-purple-800">{formatCurrency(totalFiltrado.custoTotal)}</td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+          );
+        })()}
       </Card>
 
       {/* Gasto com Transporte por Material e Pedreira */}
       <Card>
-        <h3 className="text-sm font-semibold text-gray-700 mb-3">
-          Gasto com Transporte por Material e Pedreira
-        </h3>
-        {transpMatRows.length === 0 ? (
-          <p className="text-gray-400 text-sm">Sem dados</p>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm border-collapse">
-              <thead>
-                <tr className="border-b-2 border-gray-300 bg-gray-50">
-                  <th className="text-left px-3 py-2 font-semibold text-gray-700">Pedreira / Material</th>
-                  <th className="text-right px-3 py-2 font-medium text-gray-600">Peso (t)</th>
-                  <th className="text-right px-3 py-2 font-medium text-gray-600">Custo Frete (R$)</th>
-                  <th className="text-right px-3 py-2 font-medium text-gray-600">Custo R$/t</th>
-                </tr>
-              </thead>
-              <tbody>
-                {totaisPorPedreira.map((pedr) => {
-                  const rows = transpMatRows.filter((r) => r.origem === pedr.origem);
-                  const custoMedioPedr = pedr.totalPeso > 0 ? pedr.totalValor / pedr.totalPeso : 0;
-                  return (
-                    <Fragment key={pedr.origem}>
-                      <tr className="bg-gray-100 border-t-2 border-gray-300">
-                        <td className="px-3 py-2 font-bold text-gray-800">{pedr.origem}</td>
-                        <td className="px-3 py-2 text-right font-semibold text-gray-600">{pedr.totalPeso.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>
-                        <td className="px-3 py-2 text-right font-semibold text-gray-700">{formatCurrency(pedr.totalValor)}</td>
-                        <td className="px-3 py-2 text-right font-semibold text-purple-700">{formatCurrency(custoMedioPedr)}</td>
-                      </tr>
-                      {rows.map((r) => (
-                        <tr key={`${r.origem}-${r.insumoId}`} className="hover:bg-gray-50 border-b border-gray-100">
-                          <td className="px-3 py-1.5 pl-6 text-gray-600">{insumosMap.get(r.insumoId) || r.insumoId}</td>
-                          <td className="px-3 py-1.5 text-right text-gray-700">{r.peso.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>
-                          <td className="px-3 py-1.5 text-right text-gray-700">{formatCurrency(r.valor)}</td>
-                          <td className="px-3 py-1.5 text-right text-purple-600">{formatCurrency(r.custoMedioTon)}</td>
+        <div className="flex flex-wrap items-center gap-4 mb-3">
+          <h3 className="text-sm font-semibold text-gray-700">Gasto com Transporte por Material e Pedreira</h3>
+          <FilterMultiSelect options={opsPedreiras} selected={gtmpPedreiraFiltro} onChange={setGtmpPedreiraFiltro} placeholder="Todas as pedreiras" />
+          <FilterMultiSelect options={opsMateriais} selected={gtmpMaterialFiltro} onChange={setGtmpMaterialFiltro} placeholder="Todos os materiais" />
+          <FilterMultiSelect options={opsDestinos} selected={gtmpDestinoFiltro} onChange={setGtmpDestinoFiltro} placeholder="Todos os locais" />
+          {(gtmpPedreiraFiltro.length > 0 || gtmpMaterialFiltro.length > 0 || gtmpDestinoFiltro.length > 0) && (
+            <button onClick={() => { setGtmpPedreiraFiltro([]); setGtmpMaterialFiltro([]); setGtmpDestinoFiltro([]); }} className="text-xs text-red-600 hover:text-red-800 font-medium">Limpar</button>
+          )}
+        </div>
+        {(() => {
+          const gtmpFretes = fretesF.filter((f) => {
+            if (!f.insumoId || !f.origem) return false;
+            if (!matchFiltro(f.origem, gtmpPedreiraFiltro)) return false;
+            if (!matchFiltro(f.insumoId, gtmpMaterialFiltro)) return false;
+            if (!matchFiltro(f.destino, gtmpDestinoFiltro)) return false;
+            return true;
+          });
+          const gtmpAgg = new Map<string, Map<string, { valor: number; peso: number }>>();
+          gtmpFretes.forEach((f) => {
+            const origem = f.origem.trim();
+            let matMap = gtmpAgg.get(origem);
+            if (!matMap) { matMap = new Map(); gtmpAgg.set(origem, matMap); }
+            const prev = matMap.get(f.insumoId) || { valor: 0, peso: 0 };
+            matMap.set(f.insumoId, { valor: prev.valor + f.valorTotal, peso: prev.peso + f.pesoToneladas });
+          });
+          const gtmpRows: TranspMatRow[] = [];
+          const gtmpPedrTotais: { origem: string; totalValor: number; totalPeso: number }[] = [];
+          let gtmpTotalPeso = 0, gtmpTotalValor = 0;
+          Array.from(gtmpAgg.entries()).sort((a, b) => a[0].localeCompare(b[0])).forEach(([origem, matMap]) => {
+            let pV = 0, pP = 0;
+            Array.from(matMap.entries()).sort((a, b) => b[1].valor - a[1].valor).forEach(([insumoId, d]) => {
+              const custoMedioTon = d.peso > 0 ? d.valor / d.peso : 0;
+              gtmpRows.push({ origem, insumoId, valor: d.valor, peso: d.peso, custoMedioTon });
+              pV += d.valor; pP += d.peso;
+            });
+            gtmpPedrTotais.push({ origem, totalValor: pV, totalPeso: pP });
+            gtmpTotalPeso += pP; gtmpTotalValor += pV;
+          });
+          if (gtmpRows.length === 0) return <p className="text-gray-400 text-sm">Sem dados</p>;
+          return (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm border-collapse">
+                <thead>
+                  <tr className="border-b-2 border-gray-300 bg-gray-50">
+                    <th className="text-left px-3 py-2 font-semibold text-gray-700">Pedreira / Material</th>
+                    <th className="text-right px-3 py-2 font-medium text-gray-600">Peso (t)</th>
+                    <th className="text-right px-3 py-2 font-medium text-gray-600">Custo Frete (R$)</th>
+                    <th className="text-right px-3 py-2 font-medium text-gray-600">Custo R$/t</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {gtmpPedrTotais.map((pedr) => {
+                    const rows = gtmpRows.filter((r) => r.origem === pedr.origem);
+                    const custoMedioPedr = pedr.totalPeso > 0 ? pedr.totalValor / pedr.totalPeso : 0;
+                    return (
+                      <Fragment key={pedr.origem}>
+                        <tr className="bg-gray-100 border-t-2 border-gray-300">
+                          <td className="px-3 py-2 font-bold text-gray-800">{pedr.origem}</td>
+                          <td className="px-3 py-2 text-right font-semibold text-gray-600">{pedr.totalPeso.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>
+                          <td className="px-3 py-2 text-right font-semibold text-gray-700">{formatCurrency(pedr.totalValor)}</td>
+                          <td className="px-3 py-2 text-right font-semibold text-purple-700">{formatCurrency(custoMedioPedr)}</td>
                         </tr>
-                      ))}
-                    </Fragment>
-                  );
-                })}
-              </tbody>
-              <tfoot>
-                <tr className="border-t-2 border-gray-400 bg-gray-100 font-bold">
-                  <td className="px-3 py-2 text-gray-800">Total Geral</td>
-                  <td className="px-3 py-2 text-right text-gray-800">{totalGeralTranspPeso.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>
-                  <td className="px-3 py-2 text-right text-gray-800">{formatCurrency(totalGeralTranspMat)}</td>
-                  <td className="px-3 py-2 text-right text-purple-700">{totalGeralTranspPeso > 0 ? formatCurrency(totalGeralTranspMat / totalGeralTranspPeso) : '-'}</td>
-                </tr>
-              </tfoot>
-            </table>
-          </div>
-        )}
+                        {rows.map((r) => (
+                          <tr key={`${r.origem}-${r.insumoId}`} className="hover:bg-gray-50 border-b border-gray-100">
+                            <td className="px-3 py-1.5 pl-6 text-gray-600">{insumosMap.get(r.insumoId) || r.insumoId}</td>
+                            <td className="px-3 py-1.5 text-right text-gray-700">{r.peso.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>
+                            <td className="px-3 py-1.5 text-right text-gray-700">{formatCurrency(r.valor)}</td>
+                            <td className="px-3 py-1.5 text-right text-purple-600">{formatCurrency(r.custoMedioTon)}</td>
+                          </tr>
+                        ))}
+                      </Fragment>
+                    );
+                  })}
+                </tbody>
+                <tfoot>
+                  <tr className="border-t-2 border-gray-400 bg-gray-100 font-bold">
+                    <td className="px-3 py-2 text-gray-800">Total Geral</td>
+                    <td className="px-3 py-2 text-right text-gray-800">{gtmpTotalPeso.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>
+                    <td className="px-3 py-2 text-right text-gray-800">{formatCurrency(gtmpTotalValor)}</td>
+                    <td className="px-3 py-2 text-right text-purple-700">{gtmpTotalPeso > 0 ? formatCurrency(gtmpTotalValor / gtmpTotalPeso) : '-'}</td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+          );
+        })()}
       </Card>
 
       {/* Material transportado / em transito */}
-      {listaMaterialTransporte.length > 0 && (
-        <Card>
-          <h3 className="text-sm font-semibold text-gray-700 mb-3">
-            Material Transportado
-          </h3>
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead className="bg-gray-50 border-b">
-                <tr>
-                  <th className="text-left px-4 py-2 font-medium text-gray-600">Material</th>
-                  <th className="text-right px-4 py-2 font-medium text-gray-600">Viagens Entregues</th>
-                  <th className="text-right px-4 py-2 font-medium text-gray-600">Peso Entregue (t)</th>
-                  <th className="text-right px-4 py-2 font-medium text-gray-600">Em Transito</th>
-                  <th className="text-right px-4 py-2 font-medium text-gray-600">Peso em Transito (t)</th>
-                  <th className="text-right px-4 py-2 font-medium text-gray-600">Total (t)</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100">
-                {listaMaterialTransporte.map(([insumoId, dados]) => (
-                  <tr key={insumoId} className="hover:bg-gray-50">
-                    <td className="px-4 py-2 font-medium text-gray-700">{insumosMap.get(insumoId) || insumoId}</td>
-                    <td className="px-4 py-2 text-right text-green-600">{dados.entregue}</td>
-                    <td className="px-4 py-2 text-right text-green-600">{dados.pesoEntregue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>
-                    <td className="px-4 py-2 text-right text-amber-600 font-semibold">{dados.transito || '-'}</td>
-                    <td className="px-4 py-2 text-right text-amber-600 font-semibold">{dados.transito > 0 ? dados.pesoTransito.toLocaleString('pt-BR', { minimumFractionDigits: 2 }) : '-'}</td>
-                    <td className="px-4 py-2 text-right font-semibold text-gray-800">{(dados.pesoEntregue + dados.pesoTransito).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>
+      <Card>
+        <div className="flex flex-wrap items-center gap-4 mb-3">
+          <h3 className="text-sm font-semibold text-gray-700">Material Transportado</h3>
+          <FilterMultiSelect options={opsPedreiras} selected={mtPedreiraFiltro} onChange={setMtPedreiraFiltro} placeholder="Todas as pedreiras" />
+          <FilterMultiSelect options={opsMateriais} selected={mtMaterialFiltro} onChange={setMtMaterialFiltro} placeholder="Todos os materiais" />
+          <FilterMultiSelect options={opsDestinos} selected={mtDestinoFiltro} onChange={setMtDestinoFiltro} placeholder="Todos os locais" />
+          {(mtPedreiraFiltro.length > 0 || mtMaterialFiltro.length > 0 || mtDestinoFiltro.length > 0) && (
+            <button onClick={() => { setMtPedreiraFiltro([]); setMtMaterialFiltro([]); setMtDestinoFiltro([]); }} className="text-xs text-red-600 hover:text-red-800 font-medium">Limpar</button>
+          )}
+        </div>
+        {(() => {
+          const mtFretes = fretesF.filter((f) => {
+            if (!f.insumoId) return false;
+            if (!matchFiltro(f.origem, mtPedreiraFiltro)) return false;
+            if (!matchFiltro(f.insumoId, mtMaterialFiltro)) return false;
+            if (!matchFiltro(f.destino, mtDestinoFiltro)) return false;
+            return true;
+          });
+          const mtAgg = new Map<string, { entregue: number; transito: number; pesoEntregue: number; pesoTransito: number }>();
+          mtFretes.forEach((f) => {
+            const prev = mtAgg.get(f.insumoId) || { entregue: 0, transito: 0, pesoEntregue: 0, pesoTransito: 0 };
+            if (f.dataChegada) {
+              mtAgg.set(f.insumoId, { ...prev, entregue: prev.entregue + 1, pesoEntregue: prev.pesoEntregue + f.pesoToneladas });
+            } else {
+              mtAgg.set(f.insumoId, { ...prev, transito: prev.transito + 1, pesoTransito: prev.pesoTransito + f.pesoToneladas });
+            }
+          });
+          const mtLista = Array.from(mtAgg.entries()).sort((a, b) => (b[1].pesoEntregue + b[1].pesoTransito) - (a[1].pesoEntregue + a[1].pesoTransito));
+          if (mtLista.length === 0) return <p className="text-gray-400 text-sm">Sem dados</p>;
+          return (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="bg-gray-50 border-b">
+                  <tr>
+                    <th className="text-left px-4 py-2 font-medium text-gray-600">Material</th>
+                    <th className="text-right px-4 py-2 font-medium text-gray-600">Viagens Entregues</th>
+                    <th className="text-right px-4 py-2 font-medium text-gray-600">Peso Entregue (t)</th>
+                    <th className="text-right px-4 py-2 font-medium text-gray-600">Em Transito</th>
+                    <th className="text-right px-4 py-2 font-medium text-gray-600">Peso em Transito (t)</th>
+                    <th className="text-right px-4 py-2 font-medium text-gray-600">Total (t)</th>
                   </tr>
-                ))}
-              </tbody>
-              <tfoot className="border-t-2 border-gray-200">
-                <tr className="font-semibold">
-                  <td className="px-4 py-2 text-gray-700">Total</td>
-                  <td className="px-4 py-2 text-right text-green-600">{listaMaterialTransporte.reduce((s, [, d]) => s + d.entregue, 0)}</td>
-                  <td className="px-4 py-2 text-right text-green-600">{listaMaterialTransporte.reduce((s, [, d]) => s + d.pesoEntregue, 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>
-                  <td className="px-4 py-2 text-right text-amber-600">{listaMaterialTransporte.reduce((s, [, d]) => s + d.transito, 0) || '-'}</td>
-                  <td className="px-4 py-2 text-right text-amber-600">{listaMaterialTransporte.reduce((s, [, d]) => s + d.pesoTransito, 0) > 0 ? listaMaterialTransporte.reduce((s, [, d]) => s + d.pesoTransito, 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 }) : '-'}</td>
-                  <td className="px-4 py-2 text-right text-gray-800">{listaMaterialTransporte.reduce((s, [, d]) => s + d.pesoEntregue + d.pesoTransito, 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>
-                </tr>
-              </tfoot>
-            </table>
-          </div>
-        </Card>
-      )}
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {mtLista.map(([insumoId, dados]) => (
+                    <tr key={insumoId} className="hover:bg-gray-50">
+                      <td className="px-4 py-2 font-medium text-gray-700">{insumosMap.get(insumoId) || insumoId}</td>
+                      <td className="px-4 py-2 text-right text-green-600">{dados.entregue}</td>
+                      <td className="px-4 py-2 text-right text-green-600">{dados.pesoEntregue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>
+                      <td className="px-4 py-2 text-right text-amber-600 font-semibold">{dados.transito || '-'}</td>
+                      <td className="px-4 py-2 text-right text-amber-600 font-semibold">{dados.transito > 0 ? dados.pesoTransito.toLocaleString('pt-BR', { minimumFractionDigits: 2 }) : '-'}</td>
+                      <td className="px-4 py-2 text-right font-semibold text-gray-800">{(dados.pesoEntregue + dados.pesoTransito).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>
+                    </tr>
+                  ))}
+                </tbody>
+                <tfoot className="border-t-2 border-gray-200">
+                  <tr className="font-semibold">
+                    <td className="px-4 py-2 text-gray-700">Total</td>
+                    <td className="px-4 py-2 text-right text-green-600">{mtLista.reduce((s, [, d]) => s + d.entregue, 0)}</td>
+                    <td className="px-4 py-2 text-right text-green-600">{mtLista.reduce((s, [, d]) => s + d.pesoEntregue, 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>
+                    <td className="px-4 py-2 text-right text-amber-600">{mtLista.reduce((s, [, d]) => s + d.transito, 0) || '-'}</td>
+                    <td className="px-4 py-2 text-right text-amber-600">{mtLista.reduce((s, [, d]) => s + d.pesoTransito, 0) > 0 ? mtLista.reduce((s, [, d]) => s + d.pesoTransito, 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 }) : '-'}</td>
+                    <td className="px-4 py-2 text-right text-gray-800">{mtLista.reduce((s, [, d]) => s + d.pesoEntregue + d.pesoTransito, 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+          );
+        })()}
+      </Card>
 
       {/* Pagamentos por pessoa */}
       {listaPagPorPessoa.length > 0 && (

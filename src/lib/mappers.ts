@@ -31,6 +31,8 @@ import type {
   Empresa,
   Colaborador,
   Apontamento,
+  SequenciaDiaria,
+  RegistroHorasDiarista,
 } from '../types';
 
 // ── Obras ──
@@ -1033,8 +1035,8 @@ export function apontamentoToDb(a: Apontamento) {
     data: a.data,
     hora_inicio: a.horaInicio,
     hora_fim: a.horaFim,
-    obra_id: a.obraId,
-    etapa_obra_id: a.etapaObraId,
+    obra_id: a.obraId || null,
+    etapa_obra_id: a.etapaObraId || null,
     equipamento_id: a.equipamentoId || null,
     colaborador_id: a.colaboradorId || null,
     tipo: a.tipo,
@@ -1042,5 +1044,71 @@ export function apontamentoToDb(a: Apontamento) {
     observacoes: a.observacoes,
     status: a.status,
     criado_por: a.criadoPor,
+  };
+}
+
+// ── Sequencias Diarias ──
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function dbToSequenciaDiaria(row: any): SequenciaDiaria {
+  return {
+    id: row.id,
+    obraId: row.obra_id ?? '',
+    nomeDiarista: row.nome_diarista ?? '',
+    telefone: row.telefone ?? '',
+    valorDiaria: Number(row.valor_diaria) || 0,
+    detalhesServico: row.detalhes_servico ?? '',
+    observacoes: row.observacoes ?? '',
+    status: row.status ?? 'aberta',
+    dataAbertura: row.data_abertura ?? '',
+    dataFechamento: row.data_fechamento ?? '',
+    pago: row.pago ?? false,
+    dataPagamento: row.data_pagamento ?? '',
+    createdAt: row.created_at ?? '',
+  };
+}
+
+export function sequenciaDiariaToDb(s: SequenciaDiaria) {
+  return {
+    id: s.id,
+    obra_id: s.obraId || null,
+    nome_diarista: s.nomeDiarista,
+    telefone: s.telefone,
+    valor_diaria: s.valorDiaria,
+    detalhes_servico: s.detalhesServico,
+    observacoes: s.observacoes,
+    status: s.status,
+    data_abertura: s.dataAbertura,
+    data_fechamento: s.dataFechamento || null,
+    pago: s.pago,
+    data_pagamento: s.dataPagamento || null,
+  };
+}
+
+// ── Registros Horas Diaristas ──
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function dbToRegistroHorasDiarista(row: any): RegistroHorasDiarista {
+  return {
+    id: row.id,
+    sequenciaId: row.sequencia_id ?? '',
+    obraId: row.obra_id ?? '',
+    etapaId: row.etapa_id ?? '',
+    data: row.data ?? '',
+    horas: Number(row.horas) || 0,
+    descricao: row.descricao ?? '',
+    createdAt: row.created_at ?? '',
+  };
+}
+
+export function registroHorasDiaristaToDb(r: RegistroHorasDiarista) {
+  return {
+    id: r.id,
+    sequencia_id: r.sequenciaId,
+    obra_id: r.obraId,
+    etapa_id: r.etapaId,
+    data: r.data,
+    horas: r.horas,
+    descricao: r.descricao,
   };
 }

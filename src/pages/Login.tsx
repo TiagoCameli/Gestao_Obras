@@ -70,22 +70,22 @@ export default function Login() {
   const isBloqueado = bloqueadoAte > 0 && Date.now() < bloqueadoAte;
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-emt-verde to-emt-verde-escuro px-4">
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-8">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-emt-verde to-emt-verde-escuro dark:from-slate-900 dark:to-slate-800 px-4">
+      <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-xl w-full max-w-md p-8">
         <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-emt-verde-escuro mb-1">EMT Construtora</h1>
-          <p className="text-gray-500 text-sm">Sistema de Controle de Obras</p>
+          <h1 className="text-3xl font-bold text-emt-verde-escuro dark:text-emerald-400 mb-1">EMT Construtora</h1>
+          <p className="text-gray-500 dark:text-slate-400 text-sm">Sistema de Controle de Obras</p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-5">
           <div>
-            <label htmlFor="loginEmail" className="block text-sm font-medium text-gray-700 mb-1">
+            <label htmlFor="loginEmail" className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">
               E-mail
             </label>
             <input
               id="loginEmail"
               type="email"
-              className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emt-verde"
+              className="w-full border border-gray-300 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emt-verde"
               value={email}
               onChange={(e) => { setEmail(e.target.value); setErro(''); }}
               placeholder="seu@email.com"
@@ -95,14 +95,14 @@ export default function Login() {
           </div>
 
           <div>
-            <label htmlFor="loginSenha" className="block text-sm font-medium text-gray-700 mb-1">
+            <label htmlFor="loginSenha" className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">
               Senha
             </label>
             <div className="relative">
               <input
                 id="loginSenha"
                 type={mostrarSenha ? 'text' : 'password'}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2.5 pr-10 text-sm focus:outline-none focus:ring-2 focus:ring-emt-verde"
+                className="w-full border border-gray-300 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-200 rounded-lg px-3 py-2.5 pr-10 text-sm focus:outline-none focus:ring-2 focus:ring-emt-verde"
                 value={senha}
                 onChange={(e) => { setSenha(e.target.value); setErro(''); }}
                 placeholder="Sua senha"
@@ -136,7 +136,7 @@ export default function Login() {
               checked={lembrarMe}
               onChange={(e) => setLembrarMe(e.target.checked)}
             />
-            <label htmlFor="lembrarMe" className="ml-2 text-sm text-gray-600">
+            <label htmlFor="lembrarMe" className="ml-2 text-sm text-gray-600 dark:text-slate-400">
               Lembrar-me
             </label>
           </div>

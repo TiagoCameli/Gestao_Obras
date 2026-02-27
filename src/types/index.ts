@@ -509,7 +509,7 @@ export interface OrdemCompra {
 // === Apontamentos ===
 
 export type TipoApontamento = 'equipamento' | 'colaborador';
-export type StatusApontamento = 'aberto' | 'encerrado';
+export type StatusApontamento = 'aberto' | 'encerrado' | 'falta' | 'licenca_medica' | 'ferias' | 'manutencao' | 'ocioso';
 
 export interface Apontamento {
   id: string;
@@ -525,4 +525,35 @@ export interface Apontamento {
   observacoes: string;
   status: StatusApontamento;
   criadoPor: string;
+}
+
+// === Diaristas ===
+
+export type StatusSequenciaDiaria = 'aberta' | 'fechada';
+
+export interface SequenciaDiaria {
+  id: string;
+  obraId: string;
+  nomeDiarista: string;
+  telefone: string;
+  valorDiaria: number;
+  detalhesServico: string;
+  observacoes: string;
+  status: StatusSequenciaDiaria;
+  dataAbertura: string;
+  dataFechamento: string;
+  pago: boolean;
+  dataPagamento: string;
+  createdAt: string;
+}
+
+export interface RegistroHorasDiarista {
+  id: string;
+  sequenciaId: string;
+  obraId: string;
+  etapaId: string;
+  data: string;
+  horas: number;
+  descricao: string;
+  createdAt: string;
 }
