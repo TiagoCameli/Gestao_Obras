@@ -1771,10 +1771,10 @@ export default function Obras() {
   const { data: todosEquipamentos = [], isLoading: loadingEquipamentos } = useEquipamentos();
   const { data: todosInsumos = [], isLoading: loadingInsumos } = useInsumos();
   const { data: todosFornecedores = [], isLoading: loadingFornecedores } = useFornecedores();
-  const { data: todasUnidades = [], isLoading: loadingUnidades } = useUnidades();
+  const { data: todasUnidades = [] } = useUnidades();
   useDepositosMaterial();
-  const { data: todasCategorias = [], isLoading: loadingCategorias } = useCategoriasMaterial();
-  const { data: todosTiposInsumo = [], isLoading: loadingTiposInsumo } = useTiposInsumo();
+  const { data: todasCategorias = [] } = useCategoriasMaterial();
+  const { data: todosTiposInsumo = [] } = useTiposInsumo();
   const { data: todosColaboradores = [], isLoading: loadingColaboradores } = useColaboradores();
 
   const unidadesMap = useMemo(() => new Map(todasUnidades.map((u) => [u.sigla, u.nome])), [todasUnidades]);
@@ -1838,7 +1838,7 @@ export default function Obras() {
   const [equipamentosVisiveis, setEquipamentosVisiveis] = useState(true);
   const [insumosVisiveis, setInsumosVisiveis] = useState(true);
   const [fornecedoresVisiveis, setFornecedoresVisiveis] = useState(true);
-  const [unidadesVisiveis, setUnidadesVisiveis] = useState(true);
+
 
   // Tanque state
   const [modalTanqueOpen, setModalTanqueOpen] = useState(false);
@@ -1999,7 +1999,7 @@ export default function Obras() {
   }, [excluirUnidadeMutation]);
 
   // Categoria de Material state
-  const [categoriasVisiveis, setCategoriasVisiveis] = useState(true);
+
   const [modalCategoriaOpen, setModalCategoriaOpen] = useState(false);
   const [editandoCategoria, setEditandoCategoria] = useState<CategoriaMaterial | null>(null);
   const [deleteCategoriaId, setDeleteCategoriaId] = useState<string | null>(null);
@@ -2023,7 +2023,7 @@ export default function Obras() {
   }, [excluirCategoriaMutation]);
 
   // Tipo de Insumo state
-  const [tiposInsumoVisiveis, setTiposInsumoVisiveis] = useState(true);
+
   const [modalTipoInsumoOpen, setModalTipoInsumoOpen] = useState(false);
   const [editandoTipoInsumo, setEditandoTipoInsumo] = useState<TipoInsumoEntity | null>(null);
   const [deleteTipoInsumoId, setDeleteTipoInsumoId] = useState<string | null>(null);
@@ -2060,14 +2060,6 @@ export default function Obras() {
         <h1 className="text-3xl font-bold text-gray-800">Cadastros</h1>
         <div className="flex gap-3">
           {canCreate && <>
-            <Button
-              onClick={() => {
-                setEditandoUnidade(null);
-                setModalUnidadeOpen(true);
-              }}
-            >
-              Nova Unidade
-            </Button>
             <Button
               onClick={() => {
                 setEditandoFornecedor(null);
@@ -2533,243 +2525,6 @@ export default function Obras() {
                     variant="ghost"
                     className="text-xs px-2 py-1 text-red-600 hover:bg-red-50"
                     onClick={() => pedirSenha(() => setDeleteColaboradorId(colab.id))}
-                  >
-                    Excluir
-                  </Button>
-                </div>
-              </Card>
-            ))}
-          </div>
-        ) : null}
-      </div>
-
-      {/* Secao Tipos de Insumo */}
-      <div className="mt-10">
-        <div className="flex items-center gap-3 mb-4">
-          <h2 className="text-xl font-bold text-gray-800">Tipos de Insumo</h2>
-          {loadingTiposInsumo && <span className="text-sm text-gray-400 animate-pulse">Carregando...</span>}
-          {!loadingTiposInsumo && todosTiposInsumo.length > 0 && (
-            <button
-              className="text-sm text-gray-500 hover:text-gray-700 transition-colors"
-              onClick={() => setTiposInsumoVisiveis((v) => !v)}
-            >
-              {tiposInsumoVisiveis ? 'Ocultar' : 'Mostrar'}
-            </button>
-          )}
-        </div>
-        {!loadingTiposInsumo && todosTiposInsumo.length === 0 ? (
-          <Card>
-            <div className="text-center py-6">
-              <p className="text-gray-500 mb-4">Nenhum tipo de insumo cadastrado ainda.</p>
-              <Button
-                onClick={() => {
-                  setEditandoTipoInsumo(null);
-                  setModalTipoInsumoOpen(true);
-                }}
-              >
-                Cadastrar Primeiro Tipo
-              </Button>
-            </div>
-          </Card>
-        ) : tiposInsumoVisiveis ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {todosTiposInsumo.map((tipo) => (
-              <Card key={tipo.id} className={tipo.ativo === false ? 'opacity-60' : ''}>
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-sm font-semibold text-gray-800">
-                    {tipo.nome}
-                  </span>
-                  <span
-                    className={`px-2 py-0.5 rounded-full text-xs font-medium ${
-                      tipo.ativo !== false
-                        ? 'bg-green-100 text-green-800'
-                        : 'bg-red-100 text-red-800'
-                    }`}
-                  >
-                    {tipo.ativo !== false ? 'Ativo' : 'Inativo'}
-                  </span>
-                </div>
-                <div className="space-y-1 text-xs text-gray-500 mb-3">
-                  <div className="flex justify-between">
-                    <span>Valor (slug)</span>
-                    <span className="text-gray-700 font-medium">{tipo.valor}</span>
-                  </div>
-                </div>
-                <div className="flex gap-2 pt-2 border-t border-gray-100">
-                  <Button
-                    variant="ghost"
-                    className="text-xs px-2 py-1"
-                    onClick={() => {
-                      pedirSenha(() => {
-                        setEditandoTipoInsumo(tipo);
-                        setModalTipoInsumoOpen(true);
-                      });
-                    }}
-                  >
-                    Editar
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    className="text-xs px-2 py-1 text-red-600 hover:bg-red-50"
-                    onClick={() => pedirSenha(() => setDeleteTipoInsumoId(tipo.id))}
-                  >
-                    Excluir
-                  </Button>
-                </div>
-              </Card>
-            ))}
-          </div>
-        ) : null}
-      </div>
-
-      {/* Secao Categorias de Material */}
-      <div className="mt-10">
-        <div className="flex items-center gap-3 mb-4">
-          <h2 className="text-xl font-bold text-gray-800">Categorias de Material</h2>
-          {loadingCategorias && <span className="text-sm text-gray-400 animate-pulse">Carregando...</span>}
-          {!loadingCategorias && todasCategorias.length > 0 && (
-            <button
-              className="text-sm text-gray-500 hover:text-gray-700 transition-colors"
-              onClick={() => setCategoriasVisiveis((v) => !v)}
-            >
-              {categoriasVisiveis ? 'Ocultar' : 'Mostrar'}
-            </button>
-          )}
-        </div>
-        {!loadingCategorias && todasCategorias.length === 0 ? (
-          <Card>
-            <div className="text-center py-6">
-              <p className="text-gray-500 mb-4">Nenhuma categoria cadastrada ainda.</p>
-              <Button
-                onClick={() => {
-                  setEditandoCategoria(null);
-                  setModalCategoriaOpen(true);
-                }}
-              >
-                Cadastrar Primeira Categoria
-              </Button>
-            </div>
-          </Card>
-        ) : categoriasVisiveis ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {todasCategorias.map((cat) => (
-              <Card key={cat.id} className={cat.ativo === false ? 'opacity-60' : ''}>
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-sm font-semibold text-gray-800">
-                    {cat.nome}
-                  </span>
-                  <span
-                    className={`px-2 py-0.5 rounded-full text-xs font-medium ${
-                      cat.ativo !== false
-                        ? 'bg-green-100 text-green-800'
-                        : 'bg-red-100 text-red-800'
-                    }`}
-                  >
-                    {cat.ativo !== false ? 'Ativo' : 'Inativo'}
-                  </span>
-                </div>
-                <div className="space-y-1 text-xs text-gray-500 mb-3">
-                  <div className="flex justify-between">
-                    <span>Valor (slug)</span>
-                    <span className="text-gray-700 font-medium">{cat.valor}</span>
-                  </div>
-                </div>
-                <div className="flex gap-2 pt-2 border-t border-gray-100">
-                  <Button
-                    variant="ghost"
-                    className="text-xs px-2 py-1"
-                    onClick={() => {
-                      pedirSenha(() => {
-                        setEditandoCategoria(cat);
-                        setModalCategoriaOpen(true);
-                      });
-                    }}
-                  >
-                    Editar
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    className="text-xs px-2 py-1 text-red-600 hover:bg-red-50"
-                    onClick={() => pedirSenha(() => setDeleteCategoriaId(cat.id))}
-                  >
-                    Excluir
-                  </Button>
-                </div>
-              </Card>
-            ))}
-          </div>
-        ) : null}
-      </div>
-
-      {/* Secao Unidades de Medida */}
-      <div className="mt-10">
-        <div className="flex items-center gap-3 mb-4">
-          <h2 className="text-xl font-bold text-gray-800">Unidades de Medida</h2>
-          {loadingUnidades && <span className="text-sm text-gray-400 animate-pulse">Carregando...</span>}
-          {!loadingUnidades && todasUnidades.length > 0 && (
-            <button
-              className="text-sm text-gray-500 hover:text-gray-700 transition-colors"
-              onClick={() => setUnidadesVisiveis((v) => !v)}
-            >
-              {unidadesVisiveis ? 'Ocultar' : 'Mostrar'}
-            </button>
-          )}
-        </div>
-        {!loadingUnidades && todasUnidades.length === 0 ? (
-          <Card>
-            <div className="text-center py-6">
-              <p className="text-gray-500 mb-4">Nenhuma unidade cadastrada ainda.</p>
-              <Button
-                onClick={() => {
-                  setEditandoUnidade(null);
-                  setModalUnidadeOpen(true);
-                }}
-              >
-                Cadastrar Primeira Unidade
-              </Button>
-            </div>
-          </Card>
-        ) : unidadesVisiveis ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {todasUnidades.map((unidade) => (
-              <Card key={unidade.id} className={unidade.ativo === false ? 'opacity-60' : ''}>
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-sm font-semibold text-gray-800">
-                    {unidade.nome}
-                  </span>
-                  <span
-                    className={`px-2 py-0.5 rounded-full text-xs font-medium ${
-                      unidade.ativo !== false
-                        ? 'bg-green-100 text-green-800'
-                        : 'bg-red-100 text-red-800'
-                    }`}
-                  >
-                    {unidade.ativo !== false ? 'Ativo' : 'Inativo'}
-                  </span>
-                </div>
-                <div className="space-y-1 text-xs text-gray-500 mb-3">
-                  <div className="flex justify-between">
-                    <span>Sigla</span>
-                    <span className="text-gray-700 font-medium">{unidade.sigla}</span>
-                  </div>
-                </div>
-                <div className="flex gap-2 pt-2 border-t border-gray-100">
-                  <Button
-                    variant="ghost"
-                    className="text-xs px-2 py-1"
-                    onClick={() => {
-                      pedirSenha(() => {
-                        setEditandoUnidade(unidade);
-                        setModalUnidadeOpen(true);
-                      });
-                    }}
-                  >
-                    Editar
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    className="text-xs px-2 py-1 text-red-600 hover:bg-red-50"
-                    onClick={() => pedirSenha(() => setDeleteUnidadeId(unidade.id))}
                   >
                     Excluir
                   </Button>
