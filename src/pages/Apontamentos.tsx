@@ -931,24 +931,49 @@ export default function Apontamentos() {
   const obrasMap = useMemo(() => new Map(obras.map((o) => [o.id, o.nome])), [obras]);
   const etapasMap = useMemo(() => new Map(etapas.map((e) => [e.id, e.nome])), [etapas]);
 
-  // Painel state
-  const [dataInicio, setDataInicio] = useState(inicioMes(hoje));
-  const [dataFim, setDataFim] = useState(fimMes(hoje));
-  const [filtroEquipId, setFiltroEquipId] = useState('');
-  const [filtroColabId, setFiltroColabId] = useState('');
-  const [filtroObraIds, setFiltroObraIds] = useState<string[]>([]);
-  const [filtroEtapaIds, setFiltroEtapaIds] = useState<string[]>([]);
+  // Painel state — filtros independentes por seção
+  // Equipamentos
+  const [eqDataInicio, setEqDataInicio] = useState(inicioMes(hoje));
+  const [eqDataFim, setEqDataFim] = useState(fimMes(hoje));
+  const [eqObraIds, setEqObraIds] = useState<string[]>([]);
+  const [eqEtapaIds, setEqEtapaIds] = useState<string[]>([]);
+  const [eqEquipId, setEqEquipId] = useState('');
+  // Colaboradores
+  const [coDataInicio, setCoDataInicio] = useState(inicioMes(hoje));
+  const [coDataFim, setCoDataFim] = useState(fimMes(hoje));
+  const [coObraIds, setCoObraIds] = useState<string[]>([]);
+  const [coEtapaIds, setCoEtapaIds] = useState<string[]>([]);
+  const [coColabId, setCoColabId] = useState('');
+  // Diárias
+  const [diDataInicio, setDiDataInicio] = useState(inicioMes(hoje));
+  const [diDataFim, setDiDataFim] = useState(fimMes(hoje));
+  const [diObraIds, setDiObraIds] = useState<string[]>([]);
+  const [diEtapaIds, setDiEtapaIds] = useState<string[]>([]);
+  const [diDiaristaFilter, setDiDiaristaFilter] = useState('');
 
-  const apontamentosPeriodo = useMemo(
-    () => apontamentos.filter((a) => a.data >= dataInicio && a.data <= dataFim),
-    [apontamentos, dataInicio, dataFim]
+  // Apontamentos por período — independentes
+  const eqApontamentosPeriodo = useMemo(
+    () => apontamentos.filter((a) => a.data >= eqDataInicio && a.data <= eqDataFim),
+    [apontamentos, eqDataInicio, eqDataFim]
+  );
+  const coApontamentosPeriodo = useMemo(
+    () => apontamentos.filter((a) => a.data >= coDataInicio && a.data <= coDataFim),
+    [apontamentos, coDataInicio, coDataFim]
   );
 
-  // Etapas disponíveis com base nas obras selecionadas
-  const etapasFiltroOpcoes = useMemo(() => {
-    if (filtroObraIds.length === 0) return etapas;
-    return etapas.filter((e) => filtroObraIds.includes(e.obraId));
-  }, [etapas, filtroObraIds]);
+  // Etapas por seção
+  const eqEtapasFiltro = useMemo(() => {
+    if (eqObraIds.length === 0) return etapas;
+    return etapas.filter((e) => eqObraIds.includes(e.obraId));
+  }, [etapas, eqObraIds]);
+  const coEtapasFiltro = useMemo(() => {
+    if (coObraIds.length === 0) return etapas;
+    return etapas.filter((e) => coObraIds.includes(e.obraId));
+  }, [etapas, coObraIds]);
+  const diEtapasFiltro = useMemo(() => {
+    if (diObraIds.length === 0) return etapas;
+    return etapas.filter((e) => diObraIds.includes(e.obraId));
+  }, [etapas, diObraIds]);
 
   // Dashboard stats (always based on today)
   const apontamentosHoje = useMemo(() => apontamentos.filter((a) => a.data === hoje), [apontamentos, hoje]);
@@ -961,19 +986,18 @@ export default function Apontamentos() {
   const equipNomeMap = useMemo(() => new Map(todosEquipamentos.map((e) => [e.id, e.nome])), [todosEquipamentos]);
   const colabNomeMap = useMemo(() => new Map(todosColaboradores.map((c) => [c.id, c.nome])), [todosColaboradores]);
 
-  // Registros filtrados por obra/etapa
-  const apontamentosFiltrados = useMemo(() => {
-    let registros = apontamentosPeriodo.filter((a) => a.status === 'encerrado');
-    if (filtroObraIds.length > 0) registros = registros.filter((a) => filtroObraIds.includes(a.obraId));
-    if (filtroEtapaIds.length > 0) registros = registros.filter((a) => filtroEtapaIds.includes(a.etapaObraId));
+  // Registros filtrados — Equipamentos
+  const eqFiltrados = useMemo(() => {
+    let registros = eqApontamentosPeriodo.filter((a) => a.status === 'encerrado' && a.tipo === 'equipamento');
+    if (eqObraIds.length > 0) registros = registros.filter((a) => eqObraIds.includes(a.obraId));
+    if (eqEtapaIds.length > 0) registros = registros.filter((a) => eqEtapaIds.includes(a.etapaObraId));
+    if (eqEquipId) registros = registros.filter((a) => a.equipamentoId === eqEquipId);
     return registros;
-  }, [apontamentosPeriodo, filtroObraIds, filtroEtapaIds]);
+  }, [eqApontamentosPeriodo, eqObraIds, eqEtapaIds, eqEquipId]);
 
   const relatorioEquip = useMemo(() => {
-    let registros = apontamentosFiltrados.filter((a) => a.tipo === 'equipamento');
-    if (filtroEquipId) registros = registros.filter((a) => a.equipamentoId === filtroEquipId);
     const grouped = new Map<string, { nome: string; horas: number; registros: number; dias: Set<string> }>();
-    for (const a of registros) {
+    for (const a of eqFiltrados) {
       const entry = grouped.get(a.equipamentoId) || { nome: equipNomeMap.get(a.equipamentoId) || 'Equipamento', horas: 0, registros: 0, dias: new Set<string>() };
       entry.horas += a.horasTrabalhadas;
       entry.registros += 1;
@@ -981,13 +1005,20 @@ export default function Apontamentos() {
       grouped.set(a.equipamentoId, entry);
     }
     return [...grouped.entries()].map(([id, v]) => ({ id, ...v, diasTrabalhados: v.dias.size })).sort((a, b) => b.horas - a.horas);
-  }, [apontamentosFiltrados, filtroEquipId, equipNomeMap]);
+  }, [eqFiltrados, equipNomeMap]);
+
+  // Registros filtrados — Colaboradores
+  const coFiltrados = useMemo(() => {
+    let registros = coApontamentosPeriodo.filter((a) => a.status === 'encerrado' && a.tipo === 'colaborador');
+    if (coObraIds.length > 0) registros = registros.filter((a) => coObraIds.includes(a.obraId));
+    if (coEtapaIds.length > 0) registros = registros.filter((a) => coEtapaIds.includes(a.etapaObraId));
+    if (coColabId) registros = registros.filter((a) => a.colaboradorId === coColabId);
+    return registros;
+  }, [coApontamentosPeriodo, coObraIds, coEtapaIds, coColabId]);
 
   const relatorioColab = useMemo(() => {
-    let registros = apontamentosFiltrados.filter((a) => a.tipo === 'colaborador');
-    if (filtroColabId) registros = registros.filter((a) => a.colaboradorId === filtroColabId);
     const grouped = new Map<string, { nome: string; horas: number; registros: number; dias: Set<string> }>();
-    for (const a of registros) {
+    for (const a of coFiltrados) {
       const entry = grouped.get(a.colaboradorId) || { nome: colabNomeMap.get(a.colaboradorId) || 'Colaborador', horas: 0, registros: 0, dias: new Set<string>() };
       entry.horas += a.horasTrabalhadas;
       entry.registros += 1;
@@ -995,7 +1026,7 @@ export default function Apontamentos() {
       grouped.set(a.colaboradorId, entry);
     }
     return [...grouped.entries()].map(([id, v]) => ({ id, ...v, diasTrabalhados: v.dias.size })).sort((a, b) => b.horas - a.horas);
-  }, [apontamentosFiltrados, filtroColabId, colabNomeMap]);
+  }, [coFiltrados, colabNomeMap]);
 
   const totalHorasEquip = useMemo(() => relatorioEquip.reduce((s, r) => s + r.horas, 0), [relatorioEquip]);
   const totalHorasColab = useMemo(() => relatorioColab.reduce((s, r) => s + r.horas, 0), [relatorioColab]);
@@ -1030,18 +1061,18 @@ export default function Apontamentos() {
   }
 
   const relatorioObraEtapaEquip = useMemo(
-    () => buildObraEtapaReport(apontamentosFiltrados.filter((a) => a.tipo === 'equipamento')),
-    [apontamentosFiltrados, obrasMap, etapasMap]
+    () => buildObraEtapaReport(eqFiltrados),
+    [eqFiltrados, obrasMap, etapasMap]
   );
 
   const relatorioObraEtapaColab = useMemo(
-    () => buildObraEtapaReport(apontamentosFiltrados.filter((a) => a.tipo === 'colaborador')),
-    [apontamentosFiltrados, obrasMap, etapasMap]
+    () => buildObraEtapaReport(coFiltrados),
+    [coFiltrados, obrasMap, etapasMap]
   );
 
   // Relatório de ausências — colaboradores (falta, licença médica, férias)
   const relatorioAusenciasColab = useMemo(() => {
-    const ausencias = apontamentosPeriodo.filter((a) => a.tipo === 'colaborador' && ['falta', 'licenca_medica', 'ferias'].includes(a.status));
+    const ausencias = coApontamentosPeriodo.filter((a) => a.tipo === 'colaborador' && ['falta', 'licenca_medica', 'ferias'].includes(a.status));
     const grouped = new Map<string, { nome: string; faltas: Set<string>; licencas: Set<string>; ferias: Set<string> }>();
     for (const a of ausencias) {
       const entry = grouped.get(a.colaboradorId) || { nome: colabNomeMap.get(a.colaboradorId) || 'Colaborador', faltas: new Set(), licencas: new Set(), ferias: new Set() };
@@ -1054,11 +1085,11 @@ export default function Apontamentos() {
       id, nome: v.nome, faltas: v.faltas.size, licencas: v.licencas.size, ferias: v.ferias.size,
       total: v.faltas.size + v.licencas.size + v.ferias.size,
     })).sort((a, b) => b.total - a.total);
-  }, [apontamentosPeriodo, colabNomeMap]);
+  }, [coApontamentosPeriodo, colabNomeMap]);
 
   // Relatório de status — equipamentos (manutenção, ocioso)
   const relatorioStatusEquip = useMemo(() => {
-    const registros = apontamentosPeriodo.filter((a) => a.tipo === 'equipamento' && ['manutencao', 'ocioso'].includes(a.status));
+    const registros = eqApontamentosPeriodo.filter((a) => a.tipo === 'equipamento' && ['manutencao', 'ocioso'].includes(a.status));
     const grouped = new Map<string, { nome: string; manutencao: Set<string>; ocioso: Set<string> }>();
     for (const a of registros) {
       const entry = grouped.get(a.equipamentoId) || { nome: equipNomeMap.get(a.equipamentoId) || 'Equipamento', manutencao: new Set(), ocioso: new Set() };
@@ -1070,33 +1101,41 @@ export default function Apontamentos() {
       id, nome: v.nome, manutencao: v.manutencao.size, ocioso: v.ocioso.size,
       total: v.manutencao.size + v.ocioso.size,
     })).sort((a, b) => b.total - a.total);
-  }, [apontamentosPeriodo, equipNomeMap]);
+  }, [eqApontamentosPeriodo, equipNomeMap]);
 
-  // Relatório dias sem registro
-  const diasUteis = useMemo(() => diasUteisPeriodo(dataInicio, dataFim), [dataInicio, dataFim]);
-
+  // Relatório dias sem registro — Equipamentos
+  const eqDiasUteis = useMemo(() => diasUteisPeriodo(eqDataInicio, eqDataFim), [eqDataInicio, eqDataFim]);
   const relatorioDiasSemRegistroEquip = useMemo(() => {
     return equipamentosAtivos.map((e) => {
-      const diasComRegistro = new Set(apontamentosPeriodo.filter((a) => a.tipo === 'equipamento' && a.equipamentoId === e.id).map((a) => a.data));
-      const semRegistro = diasUteis.filter((d) => !diasComRegistro.has(d)).length;
-      return { id: e.id, nome: e.nome, diasUteis: diasUteis.length, diasComRegistro: diasComRegistro.size, semRegistro };
+      const diasComRegistro = new Set(eqApontamentosPeriodo.filter((a) => a.tipo === 'equipamento' && a.equipamentoId === e.id).map((a) => a.data));
+      const semRegistro = eqDiasUteis.filter((d) => !diasComRegistro.has(d)).length;
+      return { id: e.id, nome: e.nome, diasUteis: eqDiasUteis.length, diasComRegistro: diasComRegistro.size, semRegistro };
     }).filter((r) => r.semRegistro > 0).sort((a, b) => b.semRegistro - a.semRegistro);
-  }, [equipamentosAtivos, apontamentosPeriodo, diasUteis]);
+  }, [equipamentosAtivos, eqApontamentosPeriodo, eqDiasUteis]);
 
+  // Relatório dias sem registro — Colaboradores
+  const coDiasUteis = useMemo(() => diasUteisPeriodo(coDataInicio, coDataFim), [coDataInicio, coDataFim]);
   const relatorioDiasSemRegistroColab = useMemo(() => {
     return colaboradoresAtivos.map((c) => {
-      const diasComRegistro = new Set(apontamentosPeriodo.filter((a) => a.tipo === 'colaborador' && a.colaboradorId === c.id).map((a) => a.data));
-      const semRegistro = diasUteis.filter((d) => !diasComRegistro.has(d)).length;
-      return { id: c.id, nome: c.nome, diasUteis: diasUteis.length, diasComRegistro: diasComRegistro.size, semRegistro };
+      const diasComRegistro = new Set(coApontamentosPeriodo.filter((a) => a.tipo === 'colaborador' && a.colaboradorId === c.id).map((a) => a.data));
+      const semRegistro = coDiasUteis.filter((d) => !diasComRegistro.has(d)).length;
+      return { id: c.id, nome: c.nome, diasUteis: coDiasUteis.length, diasComRegistro: diasComRegistro.size, semRegistro };
     }).filter((r) => r.semRegistro > 0).sort((a, b) => b.semRegistro - a.semRegistro);
-  }, [colaboradoresAtivos, apontamentosPeriodo, diasUteis]);
+  }, [colaboradoresAtivos, coApontamentosPeriodo, coDiasUteis]);
 
   // Relatório Diaristas
   const fmtBRL = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 
+  // Nomes únicos de diaristas para filtro
+  const diaristaNames = useMemo(() => {
+    const names = new Set(sequenciasDiarias.map(s => s.nomeDiarista));
+    return [...names].sort();
+  }, [sequenciasDiarias]);
+
   const relatorioDiaristas = useMemo(() => {
-    let registros = registrosHorasDiaristas.filter(r => r.data >= dataInicio && r.data <= dataFim);
-    if (filtroObraIds.length > 0) registros = registros.filter(r => filtroObraIds.includes(r.obraId));
+    let registros = registrosHorasDiaristas.filter(r => r.data >= diDataInicio && r.data <= diDataFim);
+    if (diObraIds.length > 0) registros = registros.filter(r => diObraIds.includes(r.obraId));
+    if (diEtapaIds.length > 0) registros = registros.filter(r => diEtapaIds.includes(r.etapaId));
 
     const registrosPorSeq = new Map<string, number>();
     for (const r of registros) {
@@ -1104,7 +1143,8 @@ export default function Apontamentos() {
     }
 
     const seqIds = new Set(registrosPorSeq.keys());
-    const seqsNoPeriodo = sequenciasDiarias.filter(s => seqIds.has(s.id));
+    let seqsNoPeriodo = sequenciasDiarias.filter(s => seqIds.has(s.id));
+    if (diDiaristaFilter) seqsNoPeriodo = seqsNoPeriodo.filter(s => s.nomeDiarista === diDiaristaFilter);
 
     let totalAPagar = 0;
     let totalPago = 0;
@@ -1144,7 +1184,7 @@ export default function Apontamentos() {
         .map(([obraId, v]) => ({ obraId, ...v }))
         .sort((a, b) => b.valor - a.valor),
     };
-  }, [sequenciasDiarias, registrosHorasDiaristas, dataInicio, dataFim, filtroObraIds, obrasMap]);
+  }, [sequenciasDiarias, registrosHorasDiaristas, diDataInicio, diDataFim, diObraIds, diEtapaIds, diDiaristaFilter, obrasMap]);
 
   // Handlers
   const handleClockIn = useCallback(
@@ -1317,80 +1357,52 @@ export default function Apontamentos() {
 
           {/* ── Relatórios ── */}
           <div className="border-t pt-6">
-            <h2 className="text-lg font-semibold text-gray-800 mb-4">Relatórios</h2>
-
-            {/* Filtros de período */}
-            <div className="flex flex-wrap gap-3 mb-4 items-end">
-              <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1">Data Inicial</label>
-                <input
-                  type="date"
-                  className="h-[44px] border border-gray-300 rounded-lg px-3 py-2 text-sm"
-                  value={dataInicio}
-                  onChange={(e) => setDataInicio(e.target.value)}
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1">Data Final</label>
-                <input
-                  type="date"
-                  className="h-[44px] border border-gray-300 rounded-lg px-3 py-2 text-sm"
-                  value={dataFim}
-                  onChange={(e) => setDataFim(e.target.value)}
-                />
-              </div>
-              <div className="w-full sm:w-56">
-                <label className="block text-xs font-medium text-gray-600 mb-1">Obras</label>
-                <MultiSearchableSelect
-                  options={obras.map((o) => ({ id: o.id, label: o.nome }))}
-                  value={filtroObraIds}
-                  onChange={(ids) => { setFiltroObraIds(ids); setFiltroEtapaIds([]); }}
-                  placeholder="Todas as obras"
-                />
-              </div>
-              <div className="w-full sm:w-56">
-                <label className="block text-xs font-medium text-gray-600 mb-1">Etapas</label>
-                <MultiSearchableSelect
-                  options={etapasFiltroOpcoes.map((e) => ({ id: e.id, label: e.nome }))}
-                  value={filtroEtapaIds}
-                  onChange={setFiltroEtapaIds}
-                  placeholder="Todas as etapas"
-                />
-              </div>
-            </div>
-
-            {/* Período label */}
-            <p className="text-xs text-gray-500 mb-6">
-              Período: {formatDateBR(dataInicio)} a {formatDateBR(dataFim)}
-            </p>
+            <h2 className="text-lg font-semibold text-gray-800 mb-6">Relatórios</h2>
 
             {/* ═══ EQUIPAMENTOS ═══ */}
             <div className="mb-8">
-              <div className="flex items-center gap-2 mb-4">
+              <div className="flex items-center gap-2 mb-3">
                 <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z" /></svg>
                 <h3 className="text-base font-semibold text-gray-800">Equipamentos</h3>
               </div>
 
+              {/* Filtros Equipamentos */}
+              <div className="flex flex-wrap gap-3 mb-3 items-end">
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">Data Inicial</label>
+                  <input type="date" className="h-[38px] border border-gray-300 rounded-lg px-3 py-1.5 text-sm" value={eqDataInicio} onChange={(e) => setEqDataInicio(e.target.value)} />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">Data Final</label>
+                  <input type="date" className="h-[38px] border border-gray-300 rounded-lg px-3 py-1.5 text-sm" value={eqDataFim} onChange={(e) => setEqDataFim(e.target.value)} />
+                </div>
+                <div className="w-full sm:w-48">
+                  <label className="block text-xs font-medium text-gray-600 mb-1">Obras</label>
+                  <MultiSearchableSelect options={obras.map((o) => ({ id: o.id, label: o.nome }))} value={eqObraIds} onChange={(ids) => { setEqObraIds(ids); setEqEtapaIds([]); }} placeholder="Todas" />
+                </div>
+                <div className="w-full sm:w-48">
+                  <label className="block text-xs font-medium text-gray-600 mb-1">Etapas</label>
+                  <MultiSearchableSelect options={eqEtapasFiltro.map((e) => ({ id: e.id, label: e.nome }))} value={eqEtapaIds} onChange={setEqEtapaIds} placeholder="Todas" />
+                </div>
+                <div className="w-full sm:w-48">
+                  <label className="block text-xs font-medium text-gray-600 mb-1">Equipamento</label>
+                  <select className="h-[38px] border border-gray-300 rounded-lg px-3 py-1.5 text-sm bg-white w-full" value={eqEquipId} onChange={(e) => setEqEquipId(e.target.value)}>
+                    <option value="">Todos</option>
+                    {equipamentosAtivos.map((e) => <option key={e.id} value={e.id}>{e.nome}</option>)}
+                  </select>
+                </div>
+              </div>
+              <p className="text-xs text-gray-400 mb-4">Período: {formatDateBR(eqDataInicio)} a {formatDateBR(eqDataFim)}</p>
+
               {/* Cards Equip */}
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 mb-4">
+              <div className="grid grid-cols-2 gap-4 mb-4">
                 <div className="bg-white rounded-lg p-4 border shadow-sm">
                   <p className="text-xs text-gray-500 uppercase">Horas Totais</p>
                   <p className="text-2xl font-bold text-emt-verde">{formatHoras(totalHorasEquip)}</p>
                 </div>
                 <div className="bg-white rounded-lg p-4 border shadow-sm">
-                  <p className="text-xs text-gray-500 uppercase">No Período</p>
+                  <p className="text-xs text-gray-500 uppercase">Equipamentos no Período</p>
                   <p className="text-2xl font-bold text-gray-700">{relatorioEquip.length}</p>
-                </div>
-                <div className="bg-white rounded-lg p-4 border shadow-sm">
-                  <p className="text-xs text-gray-500 uppercase">Filtro</p>
-                  <select
-                    className="mt-1 w-full border border-gray-300 rounded-md px-2 py-1 text-sm bg-white"
-                    value={filtroEquipId}
-                    onChange={(e) => setFiltroEquipId(e.target.value)}
-                  >
-                    <option value="">Todos</option>
-                    {equipamentosAtivos.map((e) => <option key={e.id} value={e.id}>{e.nome}</option>)}
-                  </select>
                 </div>
               </div>
 
@@ -1512,7 +1524,7 @@ export default function Apontamentos() {
               <div className="mt-4 bg-white rounded-lg border shadow-sm overflow-hidden">
                 <div className="bg-blue-50 px-4 py-3 border-b">
                   <h3 className="text-sm font-semibold text-blue-800">Dias sem Registro</h3>
-                  <p className="text-xs text-gray-400 mt-0.5">{diasUteis.length} dias úteis no período</p>
+                  <p className="text-xs text-gray-400 mt-0.5">{eqDiasUteis.length} dias úteis no período</p>
                 </div>
                 {relatorioDiasSemRegistroEquip.length === 0 ? (
                   <p className="text-sm text-gray-400 italic p-4">Todos os equipamentos têm registro em todos os dias úteis.</p>
@@ -1545,31 +1557,48 @@ export default function Apontamentos() {
 
             {/* ═══ COLABORADORES ═══ */}
             <div className="mb-8">
-              <div className="flex items-center gap-2 mb-4">
+              <div className="flex items-center gap-2 mb-3">
                 <svg className="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
                 <h3 className="text-base font-semibold text-gray-800">Colaboradores</h3>
               </div>
 
+              {/* Filtros Colaboradores */}
+              <div className="flex flex-wrap gap-3 mb-3 items-end">
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">Data Inicial</label>
+                  <input type="date" className="h-[38px] border border-gray-300 rounded-lg px-3 py-1.5 text-sm" value={coDataInicio} onChange={(e) => setCoDataInicio(e.target.value)} />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">Data Final</label>
+                  <input type="date" className="h-[38px] border border-gray-300 rounded-lg px-3 py-1.5 text-sm" value={coDataFim} onChange={(e) => setCoDataFim(e.target.value)} />
+                </div>
+                <div className="w-full sm:w-48">
+                  <label className="block text-xs font-medium text-gray-600 mb-1">Obras</label>
+                  <MultiSearchableSelect options={obras.map((o) => ({ id: o.id, label: o.nome }))} value={coObraIds} onChange={(ids) => { setCoObraIds(ids); setCoEtapaIds([]); }} placeholder="Todas" />
+                </div>
+                <div className="w-full sm:w-48">
+                  <label className="block text-xs font-medium text-gray-600 mb-1">Etapas</label>
+                  <MultiSearchableSelect options={coEtapasFiltro.map((e) => ({ id: e.id, label: e.nome }))} value={coEtapaIds} onChange={setCoEtapaIds} placeholder="Todas" />
+                </div>
+                <div className="w-full sm:w-48">
+                  <label className="block text-xs font-medium text-gray-600 mb-1">Colaborador</label>
+                  <select className="h-[38px] border border-gray-300 rounded-lg px-3 py-1.5 text-sm bg-white w-full" value={coColabId} onChange={(e) => setCoColabId(e.target.value)}>
+                    <option value="">Todos</option>
+                    {colaboradoresAtivos.map((c) => <option key={c.id} value={c.id}>{c.nome}</option>)}
+                  </select>
+                </div>
+              </div>
+              <p className="text-xs text-gray-400 mb-4">Período: {formatDateBR(coDataInicio)} a {formatDateBR(coDataFim)}</p>
+
               {/* Cards Colab */}
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 mb-4">
+              <div className="grid grid-cols-2 gap-4 mb-4">
                 <div className="bg-white rounded-lg p-4 border shadow-sm">
                   <p className="text-xs text-gray-500 uppercase">Horas Totais</p>
                   <p className="text-2xl font-bold text-emt-verde">{formatHoras(totalHorasColab)}</p>
                 </div>
                 <div className="bg-white rounded-lg p-4 border shadow-sm">
-                  <p className="text-xs text-gray-500 uppercase">No Período</p>
+                  <p className="text-xs text-gray-500 uppercase">Colaboradores no Período</p>
                   <p className="text-2xl font-bold text-gray-700">{relatorioColab.length}</p>
-                </div>
-                <div className="bg-white rounded-lg p-4 border shadow-sm">
-                  <p className="text-xs text-gray-500 uppercase">Filtro</p>
-                  <select
-                    className="mt-1 w-full border border-gray-300 rounded-md px-2 py-1 text-sm bg-white"
-                    value={filtroColabId}
-                    onChange={(e) => setFiltroColabId(e.target.value)}
-                  >
-                    <option value="">Todos</option>
-                    {colaboradoresAtivos.map((c) => <option key={c.id} value={c.id}>{c.nome}</option>)}
-                  </select>
                 </div>
               </div>
 
@@ -1694,7 +1723,7 @@ export default function Apontamentos() {
               <div className="mt-4 bg-white rounded-lg border shadow-sm overflow-hidden">
                 <div className="bg-green-50 px-4 py-3 border-b">
                   <h3 className="text-sm font-semibold text-green-800">Dias sem Registro</h3>
-                  <p className="text-xs text-gray-400 mt-0.5">{diasUteis.length} dias úteis no período</p>
+                  <p className="text-xs text-gray-400 mt-0.5">{coDiasUteis.length} dias úteis no período</p>
                 </div>
                 {relatorioDiasSemRegistroColab.length === 0 ? (
                   <p className="text-sm text-gray-400 italic p-4">Todos os colaboradores têm registro em todos os dias úteis.</p>
@@ -1727,10 +1756,38 @@ export default function Apontamentos() {
 
             {/* ═══ DIARISTAS ═══ */}
             <div className="mb-8">
-              <div className="flex items-center gap-2 mb-4">
+              <div className="flex items-center gap-2 mb-3">
                 <svg className="w-5 h-5 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
                 <h3 className="text-base font-semibold text-gray-800">Diárias</h3>
               </div>
+
+              {/* Filtros Diárias */}
+              <div className="flex flex-wrap gap-3 mb-3 items-end">
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">Data Inicial</label>
+                  <input type="date" className="h-[38px] border border-gray-300 rounded-lg px-3 py-1.5 text-sm" value={diDataInicio} onChange={(e) => setDiDataInicio(e.target.value)} />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">Data Final</label>
+                  <input type="date" className="h-[38px] border border-gray-300 rounded-lg px-3 py-1.5 text-sm" value={diDataFim} onChange={(e) => setDiDataFim(e.target.value)} />
+                </div>
+                <div className="w-full sm:w-48">
+                  <label className="block text-xs font-medium text-gray-600 mb-1">Obras</label>
+                  <MultiSearchableSelect options={obras.map((o) => ({ id: o.id, label: o.nome }))} value={diObraIds} onChange={(ids) => { setDiObraIds(ids); setDiEtapaIds([]); }} placeholder="Todas" />
+                </div>
+                <div className="w-full sm:w-48">
+                  <label className="block text-xs font-medium text-gray-600 mb-1">Etapas</label>
+                  <MultiSearchableSelect options={diEtapasFiltro.map((e) => ({ id: e.id, label: e.nome }))} value={diEtapaIds} onChange={setDiEtapaIds} placeholder="Todas" />
+                </div>
+                <div className="w-full sm:w-48">
+                  <label className="block text-xs font-medium text-gray-600 mb-1">Diarista</label>
+                  <select className="h-[38px] border border-gray-300 rounded-lg px-3 py-1.5 text-sm bg-white w-full" value={diDiaristaFilter} onChange={(e) => setDiDiaristaFilter(e.target.value)}>
+                    <option value="">Todos</option>
+                    {diaristaNames.map((name) => <option key={name} value={name}>{name}</option>)}
+                  </select>
+                </div>
+              </div>
+              <p className="text-xs text-gray-400 mb-4">Período: {formatDateBR(diDataInicio)} a {formatDateBR(diDataFim)}</p>
 
               {relatorioDiaristas.totalSequencias === 0 ? (
                 <p className="text-sm text-gray-400 italic">Nenhuma diária registrada no período.</p>
