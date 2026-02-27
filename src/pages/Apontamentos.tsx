@@ -40,6 +40,39 @@ function formatHoras(h: number): string {
   return `${hrs}h${mins > 0 ? ` ${mins}min` : ''}`;
 }
 
+function inicioSemana(dateStr: string): string {
+  const d = new Date(dateStr + 'T00:00:00');
+  const day = d.getDay();
+  const diff = d.getDate() - day + (day === 0 ? -6 : 1);
+  d.setDate(diff);
+  return d.toISOString().split('T')[0];
+}
+
+function fimSemana(dateStr: string): string {
+  const inicio = inicioSemana(dateStr);
+  const d = new Date(inicio + 'T00:00:00');
+  d.setDate(d.getDate() + 6);
+  return d.toISOString().split('T')[0];
+}
+
+function inicioMes(dateStr: string): string {
+  return dateStr.substring(0, 7) + '-01';
+}
+
+function fimMes(dateStr: string): string {
+  const [y, m] = dateStr.substring(0, 7).split('-').map(Number);
+  const last = new Date(y, m, 0).getDate();
+  return `${dateStr.substring(0, 7)}-${String(last).padStart(2, '0')}`;
+}
+
+function formatDateBR(d: string): string {
+  if (!d) return '';
+  const [y, m, day] = d.split('-');
+  return `${day}/${m}/${y}`;
+}
+
+type PeriodoRelatorio = 'diario' | 'semanal' | 'mensal';
+
 type Tab = 'painel' | 'equipamentos' | 'colaboradores';
 const tabs: { key: Tab; label: string }[] = [
   { key: 'painel', label: 'Painel' },
@@ -457,12 +490,70 @@ export default function Apontamentos() {
   const obrasMap = useMemo(() => new Map(obras.map((o) => [o.id, o.nome])), [obras]);
   const etapasMap = useMemo(() => new Map(etapas.map((e) => [e.id, e.nome])), [etapas]);
 
-  // Dashboard stats
+  // Painel state
+  const [periodo, setPeriodo] = useState<PeriodoRelatorio>('diario');
+  const [dataRef, setDataRef] = useState(hoje);
+  const [filtroEquipId, setFiltroEquipId] = useState('');
+  const [filtroColabId, setFiltroColabId] = useState('');
+
+  const rangeInicio = useMemo(() => {
+    if (periodo === 'diario') return dataRef;
+    if (periodo === 'semanal') return inicioSemana(dataRef);
+    return inicioMes(dataRef);
+  }, [periodo, dataRef]);
+
+  const rangeFim = useMemo(() => {
+    if (periodo === 'diario') return dataRef;
+    if (periodo === 'semanal') return fimSemana(dataRef);
+    return fimMes(dataRef);
+  }, [periodo, dataRef]);
+
+  const apontamentosPeriodo = useMemo(
+    () => apontamentos.filter((a) => a.data >= rangeInicio && a.data <= rangeFim),
+    [apontamentos, rangeInicio, rangeFim]
+  );
+
+  // Dashboard stats (always based on today)
   const apontamentosHoje = useMemo(() => apontamentos.filter((a) => a.data === hoje), [apontamentos, hoje]);
   const equipAbertosHoje = useMemo(() => apontamentosHoje.filter((a) => a.tipo === 'equipamento' && a.status === 'aberto'), [apontamentosHoje]);
   const colabAbertosHoje = useMemo(() => apontamentosHoje.filter((a) => a.tipo === 'colaborador' && a.status === 'aberto'), [apontamentosHoje]);
   const equipPendentes = useMemo(() => equipamentosAtivos.filter((e) => getStatusEntidade(apontamentos, 'equipamento', e.id, hoje) === 'pendente').length, [equipamentosAtivos, apontamentos, hoje]);
   const colabPendentes = useMemo(() => colaboradoresAtivos.filter((c) => getStatusEntidade(apontamentos, 'colaborador', c.id, hoje) === 'pendente').length, [colaboradoresAtivos, apontamentos, hoje]);
+
+  // Relatórios por período
+  const equipNomeMap = useMemo(() => new Map(todosEquipamentos.map((e) => [e.id, e.nome])), [todosEquipamentos]);
+  const colabNomeMap = useMemo(() => new Map(todosColaboradores.map((c) => [c.id, c.nome])), [todosColaboradores]);
+
+  const relatorioEquip = useMemo(() => {
+    let registros = apontamentosPeriodo.filter((a) => a.tipo === 'equipamento' && a.status === 'encerrado');
+    if (filtroEquipId) registros = registros.filter((a) => a.equipamentoId === filtroEquipId);
+    const grouped = new Map<string, { nome: string; horas: number; registros: number; dias: Set<string> }>();
+    for (const a of registros) {
+      const entry = grouped.get(a.equipamentoId) || { nome: equipNomeMap.get(a.equipamentoId) || 'Equipamento', horas: 0, registros: 0, dias: new Set<string>() };
+      entry.horas += a.horasTrabalhadas;
+      entry.registros += 1;
+      entry.dias.add(a.data);
+      grouped.set(a.equipamentoId, entry);
+    }
+    return [...grouped.entries()].map(([id, v]) => ({ id, ...v, diasTrabalhados: v.dias.size })).sort((a, b) => b.horas - a.horas);
+  }, [apontamentosPeriodo, filtroEquipId, equipNomeMap]);
+
+  const relatorioColab = useMemo(() => {
+    let registros = apontamentosPeriodo.filter((a) => a.tipo === 'colaborador' && a.status === 'encerrado');
+    if (filtroColabId) registros = registros.filter((a) => a.colaboradorId === filtroColabId);
+    const grouped = new Map<string, { nome: string; horas: number; registros: number; dias: Set<string> }>();
+    for (const a of registros) {
+      const entry = grouped.get(a.colaboradorId) || { nome: colabNomeMap.get(a.colaboradorId) || 'Colaborador', horas: 0, registros: 0, dias: new Set<string>() };
+      entry.horas += a.horasTrabalhadas;
+      entry.registros += 1;
+      entry.dias.add(a.data);
+      grouped.set(a.colaboradorId, entry);
+    }
+    return [...grouped.entries()].map(([id, v]) => ({ id, ...v, diasTrabalhados: v.dias.size })).sort((a, b) => b.horas - a.horas);
+  }, [apontamentosPeriodo, filtroColabId, colabNomeMap]);
+
+  const totalHorasEquip = useMemo(() => relatorioEquip.reduce((s, r) => s + r.horas, 0), [relatorioEquip]);
+  const totalHorasColab = useMemo(() => relatorioColab.reduce((s, r) => s + r.horas, 0), [relatorioColab]);
 
   // Handlers
   const handleClockIn = useCallback(
@@ -545,7 +636,7 @@ export default function Apontamentos() {
       {/* ── Painel Tab ── */}
       {tab === 'painel' && (
         <div className="space-y-6">
-          {/* Summary cards */}
+          {/* Status do dia (sempre hoje) */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
             <div className="bg-white rounded-lg p-4 border shadow-sm">
               <p className="text-xs text-gray-500 uppercase">Equip. Ativos</p>
@@ -565,53 +656,213 @@ export default function Apontamentos() {
             </div>
           </div>
 
-          {/* Equipamentos ativos agora */}
-          {equipAbertosHoje.length > 0 && (
-            <div>
-              <h2 className="text-lg font-semibold text-gray-800 mb-3">Equipamentos Ativos Agora</h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                {equipAbertosHoje.map((a) => {
-                  const equip = todosEquipamentos.find((e) => e.id === a.equipamentoId);
-                  return (
-                    <div key={a.id} className="bg-green-50 border border-green-200 rounded-lg p-3 flex items-center justify-between">
-                      <div>
-                        <p className="text-sm font-medium text-gray-800">{equip?.nome || 'Equipamento'}</p>
-                        <p className="text-xs text-gray-500">{obrasMap.get(a.obraId)} › {etapasMap.get(a.etapaObraId)}</p>
-                        <p className="text-xs text-gray-400">Desde {a.horaInicio}</p>
-                      </div>
-                      <StatusBadge status="ativo" />
-                    </div>
-                  );
-                })}
-              </div>
+          {/* Ativos agora */}
+          {(equipAbertosHoje.length > 0 || colabAbertosHoje.length > 0) && (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {equipAbertosHoje.length > 0 && (
+                <div>
+                  <h2 className="text-lg font-semibold text-gray-800 mb-3">Equipamentos Ativos Agora</h2>
+                  <div className="space-y-2">
+                    {equipAbertosHoje.map((a) => {
+                      const equip = todosEquipamentos.find((e) => e.id === a.equipamentoId);
+                      return (
+                        <div key={a.id} className="bg-green-50 border border-green-200 rounded-lg p-3 flex items-center justify-between">
+                          <div>
+                            <p className="text-sm font-medium text-gray-800">{equip?.nome || 'Equipamento'}</p>
+                            <p className="text-xs text-gray-500">{obrasMap.get(a.obraId)} › {etapasMap.get(a.etapaObraId)}</p>
+                            <p className="text-xs text-gray-400">Desde {a.horaInicio}</p>
+                          </div>
+                          <StatusBadge status="ativo" />
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+              {colabAbertosHoje.length > 0 && (
+                <div>
+                  <h2 className="text-lg font-semibold text-gray-800 mb-3">Colaboradores Ativos Agora</h2>
+                  <div className="space-y-2">
+                    {colabAbertosHoje.map((a) => {
+                      const colab = todosColaboradores.find((c) => c.id === a.colaboradorId);
+                      return (
+                        <div key={a.id} className="bg-green-50 border border-green-200 rounded-lg p-3 flex items-center justify-between">
+                          <div>
+                            <p className="text-sm font-medium text-gray-800">{colab?.nome || 'Colaborador'}</p>
+                            <p className="text-xs text-gray-500">{obrasMap.get(a.obraId)} › {etapasMap.get(a.etapaObraId)}</p>
+                            <p className="text-xs text-gray-400">Desde {a.horaInicio}</p>
+                          </div>
+                          <StatusBadge status="ativo" />
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
-          {/* Colaboradores ativos agora */}
-          {colabAbertosHoje.length > 0 && (
-            <div>
-              <h2 className="text-lg font-semibold text-gray-800 mb-3">Colaboradores Ativos Agora</h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                {colabAbertosHoje.map((a) => {
-                  const colab = todosColaboradores.find((c) => c.id === a.colaboradorId);
-                  return (
-                    <div key={a.id} className="bg-green-50 border border-green-200 rounded-lg p-3 flex items-center justify-between">
-                      <div>
-                        <p className="text-sm font-medium text-gray-800">{colab?.nome || 'Colaborador'}</p>
-                        <p className="text-xs text-gray-500">{obrasMap.get(a.obraId)} › {etapasMap.get(a.etapaObraId)}</p>
-                        <p className="text-xs text-gray-400">Desde {a.horaInicio}</p>
-                      </div>
-                      <StatusBadge status="ativo" />
-                    </div>
-                  );
-                })}
+          {/* ── Relatórios ── */}
+          <div className="border-t pt-6">
+            <h2 className="text-lg font-semibold text-gray-800 mb-4">Relatórios</h2>
+
+            {/* Filtros de período */}
+            <div className="flex flex-wrap gap-3 mb-4 items-end">
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1">Período</label>
+                <select
+                  className="h-[44px] border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white"
+                  value={periodo}
+                  onChange={(e) => setPeriodo(e.target.value as PeriodoRelatorio)}
+                >
+                  <option value="diario">Diário</option>
+                  <option value="semanal">Semanal</option>
+                  <option value="mensal">Mensal</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1">
+                  {periodo === 'mensal' ? 'Mês' : 'Data'}
+                </label>
+                <input
+                  type={periodo === 'mensal' ? 'month' : 'date'}
+                  className="h-[44px] border border-gray-300 rounded-lg px-3 py-2 text-sm"
+                  value={periodo === 'mensal' ? dataRef.substring(0, 7) : dataRef}
+                  onChange={(e) => setDataRef(periodo === 'mensal' ? e.target.value + '-01' : e.target.value)}
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1">Equipamento</label>
+                <select
+                  className="h-[44px] border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white w-full sm:w-48"
+                  value={filtroEquipId}
+                  onChange={(e) => setFiltroEquipId(e.target.value)}
+                >
+                  <option value="">Todos</option>
+                  {equipamentosAtivos.map((e) => <option key={e.id} value={e.id}>{e.nome}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1">Colaborador</label>
+                <select
+                  className="h-[44px] border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white w-full sm:w-48"
+                  value={filtroColabId}
+                  onChange={(e) => setFiltroColabId(e.target.value)}
+                >
+                  <option value="">Todos</option>
+                  {colaboradoresAtivos.map((c) => <option key={c.id} value={c.id}>{c.nome}</option>)}
+                </select>
               </div>
             </div>
-          )}
 
-          {equipAbertosHoje.length === 0 && colabAbertosHoje.length === 0 && (
-            <p className="text-gray-400 text-sm italic">Nenhum equipamento ou colaborador ativo no momento.</p>
-          )}
+            {/* Período label */}
+            <p className="text-xs text-gray-500 mb-4">
+              {periodo === 'diario' && `Dia: ${formatDateBR(dataRef)}`}
+              {periodo === 'semanal' && `Semana: ${formatDateBR(rangeInicio)} a ${formatDateBR(rangeFim)}`}
+              {periodo === 'mensal' && `Mês: ${formatDateBR(rangeInicio)} a ${formatDateBR(rangeFim)}`}
+            </p>
+
+            {/* Totais */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
+              <div className="bg-white rounded-lg p-4 border shadow-sm">
+                <p className="text-xs text-gray-500 uppercase">Horas Equip.</p>
+                <p className="text-2xl font-bold text-emt-verde">{formatHoras(totalHorasEquip)}</p>
+              </div>
+              <div className="bg-white rounded-lg p-4 border shadow-sm">
+                <p className="text-xs text-gray-500 uppercase">Horas Colab.</p>
+                <p className="text-2xl font-bold text-emt-verde">{formatHoras(totalHorasColab)}</p>
+              </div>
+              <div className="bg-white rounded-lg p-4 border shadow-sm">
+                <p className="text-xs text-gray-500 uppercase">Equip. no Período</p>
+                <p className="text-2xl font-bold text-gray-700">{relatorioEquip.length}</p>
+              </div>
+              <div className="bg-white rounded-lg p-4 border shadow-sm">
+                <p className="text-xs text-gray-500 uppercase">Colab. no Período</p>
+                <p className="text-2xl font-bold text-gray-700">{relatorioColab.length}</p>
+              </div>
+            </div>
+
+            {/* Tabelas de relatório */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {/* Equipamentos */}
+              <div className="bg-white rounded-lg border shadow-sm overflow-hidden">
+                <div className="bg-gray-50 px-4 py-3 border-b">
+                  <h3 className="text-sm font-semibold text-gray-700">Equipamentos</h3>
+                </div>
+                {relatorioEquip.length === 0 ? (
+                  <p className="text-sm text-gray-400 italic p-4">Nenhum registro no período.</p>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="border-b bg-gray-50 text-gray-600 text-xs uppercase">
+                          <th className="text-left px-4 py-2">Equipamento</th>
+                          <th className="text-right px-4 py-2">Dias</th>
+                          <th className="text-right px-4 py-2">Registros</th>
+                          <th className="text-right px-4 py-2">Horas</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {relatorioEquip.map((r) => (
+                          <tr key={r.id} className="border-b last:border-0 hover:bg-gray-50">
+                            <td className="px-4 py-2 font-medium text-gray-800">{r.nome}</td>
+                            <td className="px-4 py-2 text-right text-gray-600">{r.diasTrabalhados}</td>
+                            <td className="px-4 py-2 text-right text-gray-600">{r.registros}</td>
+                            <td className="px-4 py-2 text-right font-semibold text-emt-verde">{formatHoras(r.horas)}</td>
+                          </tr>
+                        ))}
+                        <tr className="bg-gray-50 font-semibold">
+                          <td className="px-4 py-2 text-gray-700">Total</td>
+                          <td className="px-4 py-2 text-right text-gray-600">-</td>
+                          <td className="px-4 py-2 text-right text-gray-600">{relatorioEquip.reduce((s, r) => s + r.registros, 0)}</td>
+                          <td className="px-4 py-2 text-right text-emt-verde">{formatHoras(totalHorasEquip)}</td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+
+              {/* Colaboradores */}
+              <div className="bg-white rounded-lg border shadow-sm overflow-hidden">
+                <div className="bg-gray-50 px-4 py-3 border-b">
+                  <h3 className="text-sm font-semibold text-gray-700">Colaboradores</h3>
+                </div>
+                {relatorioColab.length === 0 ? (
+                  <p className="text-sm text-gray-400 italic p-4">Nenhum registro no período.</p>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="border-b bg-gray-50 text-gray-600 text-xs uppercase">
+                          <th className="text-left px-4 py-2">Colaborador</th>
+                          <th className="text-right px-4 py-2">Dias</th>
+                          <th className="text-right px-4 py-2">Registros</th>
+                          <th className="text-right px-4 py-2">Horas</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {relatorioColab.map((r) => (
+                          <tr key={r.id} className="border-b last:border-0 hover:bg-gray-50">
+                            <td className="px-4 py-2 font-medium text-gray-800">{r.nome}</td>
+                            <td className="px-4 py-2 text-right text-gray-600">{r.diasTrabalhados}</td>
+                            <td className="px-4 py-2 text-right text-gray-600">{r.registros}</td>
+                            <td className="px-4 py-2 text-right font-semibold text-emt-verde">{formatHoras(r.horas)}</td>
+                          </tr>
+                        ))}
+                        <tr className="bg-gray-50 font-semibold">
+                          <td className="px-4 py-2 text-gray-700">Total</td>
+                          <td className="px-4 py-2 text-right text-gray-600">-</td>
+                          <td className="px-4 py-2 text-right text-gray-600">{relatorioColab.reduce((s, r) => s + r.registros, 0)}</td>
+                          <td className="px-4 py-2 text-right text-emt-verde">{formatHoras(totalHorasColab)}</td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
         </div>
       )}
 
