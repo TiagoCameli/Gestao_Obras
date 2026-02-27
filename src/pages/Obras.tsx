@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useState, type FormEvent } from 'react';
-import type { CategoriaMaterial, CategoriaMaterialCompra, Colaborador, Deposito, DepositoMaterial, Equipamento, Fornecedor, Insumo, Obra, TipoInsumo, TipoInsumoEntity, TipoMedicao, UnidadeMedida } from '../types';
+import type { CategoriaMaterial, CategoriaMaterialCompra, Colaborador, Deposito, DepositoMaterial, Empresa, Equipamento, Fornecedor, Insumo, Obra, TipoInsumo, TipoInsumoEntity, TipoMedicao, UnidadeMedida } from '../types';
 import { useObras } from '../hooks/useObras';
 import { useDepositos, useAdicionarDeposito, useAtualizarDeposito, useExcluirDeposito } from '../hooks/useDepositos';
 import { useEquipamentos, useAdicionarEquipamento, useAtualizarEquipamento, useExcluirEquipamento } from '../hooks/useEquipamentos';
@@ -10,6 +10,7 @@ import { useCategoriasMaterial, useAdicionarCategoriaMaterial, useAtualizarCateg
 import { useTiposInsumo, useAdicionarTipoInsumo, useAtualizarTipoInsumo, useExcluirTipoInsumo } from '../hooks/useTiposInsumo';
 import { useDepositosMaterial, useAdicionarDepositoMaterial, useAtualizarDepositoMaterial, useExcluirDepositoMaterial } from '../hooks/useDepositosMaterial';
 import { useColaboradores, useAdicionarColaborador, useAtualizarColaborador, useExcluirColaborador } from '../hooks/useColaboradores';
+import { useEmpresas, useAdicionarEmpresa, useAtualizarEmpresa, useExcluirEmpresa } from '../hooks/useEmpresas';
 import Input from '../components/ui/Input';
 import Select from '../components/ui/Select';
 import { formatDate, formatCPF, formatTelefone } from '../utils/formatters';
@@ -1519,21 +1520,90 @@ function FornecedorForm({
   );
 }
 
+function EmpresaForm({
+  initial,
+  onSubmit,
+  onCancel,
+}: {
+  initial: Empresa | null;
+  onSubmit: (empresa: Empresa) => void;
+  onCancel: () => void;
+}) {
+  const [nome, setNome] = useState(initial?.nome || '');
+  const [cnpj, setCnpj] = useState(initial?.cnpj || '');
+  const [endereco, setEndereco] = useState(initial?.endereco || '');
+  const [areaAtuacao, setAreaAtuacao] = useState(initial?.areaAtuacao || '');
+  const [ativo, setAtivo] = useState(initial?.ativo !== false);
+
+  const isValid = nome.trim();
+
+  function handleSubmit(e: FormEvent) {
+    e.preventDefault();
+    onSubmit({
+      id: initial?.id || gerarId(),
+      nome: nome.trim(),
+      cnpj,
+      endereco,
+      areaAtuacao,
+      ativo,
+      criadoPor: initial?.criadoPor || '',
+    });
+  }
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <Input label="Nome da Empresa" id="empresaNome" value={nome} onChange={(e) => setNome(e.target.value)} required />
+        <Input label="CNPJ" id="empresaCnpj" value={cnpj} onChange={(e) => setCnpj(e.target.value)} placeholder="00.000.000/0000-00" />
+        <Input label="Endereço" id="empresaEndereco" value={endereco} onChange={(e) => setEndereco(e.target.value)} />
+        <Input label="Área de Atuação" id="empresaArea" value={areaAtuacao} onChange={(e) => setAreaAtuacao(e.target.value)} placeholder="Ex: Construção Civil" />
+      </div>
+
+      {initial && (
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">Status</label>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${ativo ? 'bg-green-600 text-white' : 'bg-gray-200 text-gray-600 hover:bg-gray-300'}`}
+              onClick={() => setAtivo(true)}
+            >
+              Ativo
+            </button>
+            <button
+              type="button"
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${!ativo ? 'bg-red-600 text-white' : 'bg-gray-200 text-gray-600 hover:bg-gray-300'}`}
+              onClick={() => setAtivo(false)}
+            >
+              Inativo
+            </button>
+          </div>
+        </div>
+      )}
+
+      <div className="flex justify-end gap-3 pt-2">
+        <Button variant="secondary" type="button" onClick={onCancel}>Cancelar</Button>
+        <Button type="submit" disabled={!isValid}>{initial ? 'Salvar Alterações' : 'Cadastrar Empresa'}</Button>
+      </div>
+    </form>
+  );
+}
+
 function ColaboradorForm({
   initial,
-  fornecedores,
+  empresas,
   onSubmit,
   onCancel,
   onImportBatch,
 }: {
   initial: Colaborador | null;
-  fornecedores: Fornecedor[];
+  empresas: Empresa[];
   onSubmit: (colab: Colaborador) => void;
   onCancel: () => void;
   onImportBatch?: (items: Colaborador[]) => void;
 }) {
   const [nome, setNome] = useState(initial?.nome || '');
-  const [fornecedorId, setFornecedorId] = useState(initial?.fornecedorId || '');
+  const [empresaId, setEmpresaId] = useState(initial?.empresaId || '');
   const [dataNascimento, setDataNascimento] = useState(initial?.dataNascimento || '');
   const [dataIngresso, setDataIngresso] = useState(initial?.dataIngresso || '');
   const [telefone, setTelefone] = useState(initial?.telefone || '');
@@ -1551,14 +1621,14 @@ function ColaboradorForm({
   const [importModalOpen, setImportModalOpen] = useState(false);
   const [toastMsg, setToastMsg] = useState('');
 
-  const isValid = nome.trim() && fornecedorId;
+  const isValid = nome.trim() && empresaId;
 
   function handleSubmit(e: FormEvent) {
     e.preventDefault();
     onSubmit({
       id: initial?.id || gerarId(),
       nome: nome.trim(),
-      fornecedorId,
+      empresaId,
       dataNascimento,
       dataIngresso,
       telefone,
@@ -1576,7 +1646,7 @@ function ColaboradorForm({
     });
   }
 
-  const fornecedoresAtivos = fornecedores.filter(f => f.ativo !== false);
+  const empresasAtivas = empresas.filter(f => f.ativo !== false);
 
   const parseColabRow = useCallback((row: unknown[]): ParsedRow => {
     const erros: string[] = [];
@@ -1594,28 +1664,28 @@ function ColaboradorForm({
     const obsVal = parseStr(row[11]);
 
     if (!nomeVal) erros.push('Nome obrigatorio');
-    let fornMatch: Fornecedor | undefined;
+    let empresaMatch: Empresa | undefined;
     if (!empresaName) {
       erros.push('Empresa obrigatoria');
     } else {
-      fornMatch = fornecedores.find(f => f.nome.toLowerCase() === empresaName.toLowerCase());
-      if (!fornMatch) erros.push(`Empresa "${empresaName}" nao encontrada nos fornecedores`);
+      empresaMatch = empresas.find(e => e.nome.toLowerCase() === empresaName.toLowerCase());
+      if (!empresaMatch) erros.push(`Empresa "${empresaName}" nao encontrada no cadastro de empresas`);
     }
 
     return {
       valido: erros.length === 0,
       erros,
       resumo: `${nomeVal || '(sem nome)'} | ${empresaName || '(sem empresa)'}`,
-      dados: { nome: nomeVal, fornecedorId: fornMatch?.id || '', cpf: cpfVal, rg: rgVal, telefone: telVal, email: emailVal, altura: altVal, tamanhoCamisa: camisaVal, tamanhoCalca: calcaVal, tamanhoSapato: sapatoVal, endereco: endVal, observacoes: obsVal },
+      dados: { nome: nomeVal, empresaId: empresaMatch?.id || '', cpf: cpfVal, rg: rgVal, telefone: telVal, email: emailVal, altura: altVal, tamanhoCamisa: camisaVal, tamanhoCalca: calcaVal, tamanhoSapato: sapatoVal, endereco: endVal, observacoes: obsVal },
     };
-  }, [fornecedores]);
+  }, [empresas]);
 
   const colabToEntity = useCallback((row: ParsedRow): Record<string, unknown> => {
     const d = row.dados;
     return {
       id: gerarId(),
       nome: (d.nome as string).trim(),
-      fornecedorId: d.fornecedorId || '',
+      empresaId: d.empresaId || '',
       dataNascimento: '',
       dataIngresso: '',
       telefone: d.telefone || '',
@@ -1650,9 +1720,9 @@ function ColaboradorForm({
           <Select
             label="Empresa"
             id="colabEmpresa"
-            value={fornecedorId}
-            onChange={(e) => setFornecedorId(e.target.value)}
-            options={fornecedoresAtivos.map((f) => ({ value: f.id, label: f.nome }))}
+            value={empresaId}
+            onChange={(e) => setEmpresaId(e.target.value)}
+            options={empresasAtivas.map((e) => ({ value: e.id, label: e.nome }))}
             placeholder="Selecione a empresa"
             required
           />
@@ -1776,6 +1846,7 @@ export default function Obras() {
   const { data: todasCategorias = [] } = useCategoriasMaterial();
   const { data: todosTiposInsumo = [] } = useTiposInsumo();
   const { data: todosColaboradores = [], isLoading: loadingColaboradores } = useColaboradores();
+  const { data: todasEmpresas = [], isLoading: loadingEmpresas } = useEmpresas();
 
   const unidadesMap = useMemo(() => new Map(todasUnidades.map((u) => [u.sigla, u.nome])), [todasUnidades]);
   const categoriasOptions = useMemo(() => todasCategorias.filter((c) => c.ativo).map((c) => ({ value: c.valor, label: c.nome })), [todasCategorias]);
@@ -1810,6 +1881,9 @@ export default function Obras() {
   const adicionarColaboradorMutation = useAdicionarColaborador();
   const atualizarColaboradorMutation = useAtualizarColaborador();
   const excluirColaboradorMutation = useExcluirColaborador();
+  const adicionarEmpresaMutation = useAdicionarEmpresa();
+  const atualizarEmpresaMutation = useAtualizarEmpresa();
+  const excluirEmpresaMutation = useExcluirEmpresa();
 
   // ---- Loading state (minimal — only block if obras not ready, used by many sections) ----
   const isLoading = loadingObras;
@@ -1926,13 +2000,37 @@ export default function Obras() {
     setDeleteFornecedorId(null);
   }, [excluirFornecedorMutation]);
 
+  // Empresa state
+  const [empresasVisiveis, setEmpresasVisiveis] = useState(true);
+  const [modalEmpresaOpen, setModalEmpresaOpen] = useState(false);
+  const [editandoEmpresa, setEditandoEmpresa] = useState<Empresa | null>(null);
+  const [deleteEmpresaId, setDeleteEmpresaId] = useState<string | null>(null);
+
+  const empresasMap = useMemo(() => new Map(todasEmpresas.map((e) => [e.id, e.nome])), [todasEmpresas]);
+
+  const handleSubmitEmpresa = useCallback(
+    async (empresa: Empresa) => {
+      if (editandoEmpresa) {
+        await atualizarEmpresaMutation.mutateAsync(empresa);
+      } else {
+        await adicionarEmpresaMutation.mutateAsync({ ...empresa, criadoPor: usuario?.nome || '' });
+      }
+      setModalEmpresaOpen(false);
+      setEditandoEmpresa(null);
+    },
+    [editandoEmpresa, atualizarEmpresaMutation, adicionarEmpresaMutation, usuario]
+  );
+
+  const handleDeleteEmpresa = useCallback(async (id: string) => {
+    await excluirEmpresaMutation.mutateAsync(id);
+    setDeleteEmpresaId(null);
+  }, [excluirEmpresaMutation]);
+
   // Colaborador state
   const [colaboradoresVisiveis, setColaboradoresVisiveis] = useState(true);
   const [modalColaboradorOpen, setModalColaboradorOpen] = useState(false);
   const [editandoColaborador, setEditandoColaborador] = useState<Colaborador | null>(null);
   const [deleteColaboradorId, setDeleteColaboradorId] = useState<string | null>(null);
-
-  const fornecedoresMap = useMemo(() => new Map(todosFornecedores.map((f) => [f.id, f.nome])), [todosFornecedores]);
 
   const handleSubmitColaborador = useCallback(
     async (colab: Colaborador) => {
@@ -2060,6 +2158,14 @@ export default function Obras() {
         <h1 className="text-3xl font-bold text-gray-800">Cadastros</h1>
         <div className="flex gap-3">
           {canCreate && <>
+            <Button
+              onClick={() => {
+                setEditandoEmpresa(null);
+                setModalEmpresaOpen(true);
+              }}
+            >
+              Nova Empresa
+            </Button>
             <Button
               onClick={() => {
                 setEditandoFornecedor(null);
@@ -2342,6 +2448,99 @@ export default function Obras() {
         ) : null}
       </div>
 
+      {/* Secao Empresas */}
+      <div className="mt-10">
+        <div className="flex items-center gap-3 mb-4">
+          <h2 className="text-xl font-bold text-gray-800">Empresas</h2>
+          {loadingEmpresas && <span className="text-sm text-gray-400 animate-pulse">Carregando...</span>}
+          {!loadingEmpresas && todasEmpresas.length > 0 && (
+            <button
+              className="text-sm text-gray-500 hover:text-gray-700 transition-colors"
+              onClick={() => setEmpresasVisiveis((v) => !v)}
+            >
+              {empresasVisiveis ? 'Ocultar' : 'Mostrar'}
+            </button>
+          )}
+        </div>
+        {!loadingEmpresas && todasEmpresas.length === 0 ? (
+          <Card>
+            <div className="text-center py-6">
+              <p className="text-gray-500 mb-4">Nenhuma empresa cadastrada ainda.</p>
+              <Button
+                onClick={() => {
+                  setEditandoEmpresa(null);
+                  setModalEmpresaOpen(true);
+                }}
+              >
+                Cadastrar Primeira Empresa
+              </Button>
+            </div>
+          </Card>
+        ) : empresasVisiveis ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {todasEmpresas.map((empresa) => (
+              <Card key={empresa.id} className={empresa.ativo === false ? 'opacity-60' : ''}>
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-sm font-semibold text-gray-800">
+                    {empresa.nome}
+                  </span>
+                  <span
+                    className={`px-2 py-0.5 rounded-full text-xs font-medium ${
+                      empresa.ativo !== false
+                        ? 'bg-green-100 text-green-800'
+                        : 'bg-red-100 text-red-800'
+                    }`}
+                  >
+                    {empresa.ativo !== false ? 'Ativo' : 'Inativo'}
+                  </span>
+                </div>
+                <div className="space-y-1 text-xs text-gray-500 mb-3">
+                  {empresa.cnpj && (
+                    <div className="flex justify-between">
+                      <span>CNPJ</span>
+                      <span className="text-gray-700 font-medium">{empresa.cnpj}</span>
+                    </div>
+                  )}
+                  {empresa.areaAtuacao && (
+                    <div className="flex justify-between">
+                      <span>Área de Atuação</span>
+                      <span className="text-gray-700 font-medium">{empresa.areaAtuacao}</span>
+                    </div>
+                  )}
+                  {empresa.endereco && (
+                    <div className="flex justify-between">
+                      <span>Endereço</span>
+                      <span className="text-gray-700 font-medium">{empresa.endereco}</span>
+                    </div>
+                  )}
+                </div>
+                <div className="flex gap-2 pt-2 border-t border-gray-100">
+                  <Button
+                    variant="ghost"
+                    className="text-xs px-2 py-1"
+                    onClick={() => {
+                      pedirSenha(() => {
+                        setEditandoEmpresa(empresa);
+                        setModalEmpresaOpen(true);
+                      });
+                    }}
+                  >
+                    Editar
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    className="text-xs px-2 py-1 text-red-600 hover:bg-red-50"
+                    onClick={() => pedirSenha(() => setDeleteEmpresaId(empresa.id))}
+                  >
+                    Excluir
+                  </Button>
+                </div>
+              </Card>
+            ))}
+          </div>
+        ) : null}
+      </div>
+
       {/* Secao Fornecedores */}
       <div className="mt-10">
         <div className="flex items-center gap-3 mb-4">
@@ -2487,7 +2686,7 @@ export default function Obras() {
                 <div className="space-y-1 text-xs text-gray-500 mb-3">
                   <div className="flex justify-between">
                     <span>Empresa</span>
-                    <span className="text-gray-700 font-medium">{fornecedoresMap.get(colab.fornecedorId) || '-'}</span>
+                    <span className="text-gray-700 font-medium">{empresasMap.get(colab.empresaId) || '-'}</span>
                   </div>
                   {colab.cpf && (
                     <div className="flex justify-between">
@@ -2662,6 +2861,25 @@ export default function Obras() {
         />
       </Modal>
 
+      {/* Modal Empresa */}
+      <Modal
+        open={modalEmpresaOpen}
+        onClose={() => {
+          setModalEmpresaOpen(false);
+          setEditandoEmpresa(null);
+        }}
+        title={editandoEmpresa ? 'Editar Empresa' : 'Nova Empresa'}
+      >
+        <EmpresaForm
+          initial={editandoEmpresa}
+          onSubmit={handleSubmitEmpresa}
+          onCancel={() => {
+            setModalEmpresaOpen(false);
+            setEditandoEmpresa(null);
+          }}
+        />
+      </Modal>
+
       {/* Modal Colaborador */}
       <Modal
         open={modalColaboradorOpen}
@@ -2673,7 +2891,7 @@ export default function Obras() {
       >
         <ColaboradorForm
           initial={editandoColaborador}
-          fornecedores={todosFornecedores}
+          empresas={todasEmpresas}
           onSubmit={handleSubmitColaborador}
           onCancel={() => {
             setModalColaboradorOpen(false);
@@ -2855,6 +3073,16 @@ export default function Obras() {
         }}
         title="Excluir Colaborador"
         message="Tem certeza que deseja excluir este colaborador? Esta ação não pode ser desfeita."
+      />
+
+      <ConfirmDialog
+        open={deleteEmpresaId !== null}
+        onClose={() => setDeleteEmpresaId(null)}
+        onConfirm={() => {
+          if (deleteEmpresaId) handleDeleteEmpresa(deleteEmpresaId);
+        }}
+        title="Excluir Empresa"
+        message="Tem certeza que deseja excluir esta empresa? Esta ação não pode ser desfeita."
       />
     </div>
   );

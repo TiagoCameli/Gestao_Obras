@@ -28,6 +28,7 @@ import type {
   PedidoCompra,
   Cotacao,
   OrdemCompra,
+  Empresa,
   Colaborador,
 } from '../types';
 
@@ -912,6 +913,33 @@ export function ordemCompraToDb(o: OrdemCompra) {
   };
 }
 
+// ── Empresas ──
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function dbToEmpresa(row: any): Empresa {
+  return {
+    id: row.id,
+    nome: row.nome,
+    cnpj: row.cnpj ?? '',
+    endereco: row.endereco ?? '',
+    areaAtuacao: row.area_atuacao ?? '',
+    ativo: row.ativo,
+    criadoPor: row.criado_por ?? '',
+  };
+}
+
+export function empresaToDb(e: Empresa) {
+  return {
+    id: e.id,
+    nome: e.nome,
+    cnpj: e.cnpj,
+    endereco: e.endereco,
+    area_atuacao: e.areaAtuacao,
+    ativo: e.ativo,
+    criado_por: e.criadoPor,
+  };
+}
+
 // ── Colaboradores ──
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -919,7 +947,7 @@ export function dbToColaborador(row: any): Colaborador {
   return {
     id: row.id,
     nome: row.nome,
-    fornecedorId: row.fornecedor_id,
+    empresaId: row.empresa_id,
     dataNascimento: row.data_nascimento ?? '',
     dataIngresso: row.data_ingresso ?? '',
     telefone: row.telefone ?? '',
@@ -941,7 +969,7 @@ export function colaboradorToDb(c: Colaborador) {
   return {
     id: c.id,
     nome: c.nome,
-    fornecedor_id: c.fornecedorId,
+    empresa_id: c.empresaId,
     data_nascimento: c.dataNascimento,
     data_ingresso: c.dataIngresso,
     telefone: c.telefone,

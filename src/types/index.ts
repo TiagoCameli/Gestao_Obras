@@ -351,12 +351,24 @@ export interface AuditLogEntry {
   dataHora: string;
 }
 
+// === Empresas ===
+
+export interface Empresa {
+  id: string;
+  nome: string;
+  cnpj: string;
+  endereco: string;
+  areaAtuacao: string;
+  ativo: boolean;
+  criadoPor: string;
+}
+
 // === Colaboradores ===
 
 export interface Colaborador {
   id: string;
   nome: string;
-  fornecedorId: string;
+  empresaId: string;
   dataNascimento: string;
   dataIngresso: string;
   telefone: string;
