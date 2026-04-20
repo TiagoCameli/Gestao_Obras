@@ -407,21 +407,21 @@ export default function Frete() {
               placeholder="Todas as pedreiras"
             />
             <input
-              className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emt-verde"
+              className="rounded-lg px-3 h-[38px] text-sm bg-[var(--color-surface-1)] text-[var(--color-fg)] border border-[var(--color-border)] focus:outline-none focus:border-[var(--color-accent)] focus:ring-2 focus:ring-[var(--color-ring)]"
               type="date"
               value={filtros.dataInicio}
               onChange={(e) => setFiltros((f) => ({ ...f, dataInicio: e.target.value }))}
               title="Data inicio"
             />
             <input
-              className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emt-verde"
+              className="rounded-lg px-3 h-[38px] text-sm bg-[var(--color-surface-1)] text-[var(--color-fg)] border border-[var(--color-border)] focus:outline-none focus:border-[var(--color-accent)] focus:ring-2 focus:ring-[var(--color-ring)]"
               type="date"
               value={filtros.dataFim}
               onChange={(e) => setFiltros((f) => ({ ...f, dataFim: e.target.value }))}
               title="Data fim"
             />
             <input
-              className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emt-verde w-48"
+              className="rounded-lg px-3 h-[38px] text-sm w-48 bg-[var(--color-surface-1)] text-[var(--color-fg)] border border-[var(--color-border)] placeholder:text-[var(--color-fg-subtle)] focus:outline-none focus:border-[var(--color-accent)] focus:ring-2 focus:ring-[var(--color-ring)]"
               type="text"
               placeholder="Filtrar nota fiscal"
               value={filtros.notaFiscal}
@@ -429,7 +429,7 @@ export default function Frete() {
             />
             {(filtros.obraId || filtros.transportadora || filtros.motorista || filtros.insumoId || filtros.origem || filtros.dataInicio || filtros.dataFim || filtros.notaFiscal) && (
               <button
-                className="text-sm text-emt-verde hover:text-emt-verde-escuro font-medium"
+                className="text-sm text-[var(--color-accent)] hover:text-[var(--color-accent-hover)] font-medium"
                 onClick={() => setFiltros({ obraId: '', transportadora: '', motorista: '', insumoId: '', origem: '', dataInicio: '', dataFim: '', notaFiscal: '' })}
               >
                 Limpar filtros
@@ -516,14 +516,14 @@ export default function Frete() {
               placeholder="Todos - Pago Por"
             />
             <input
-              className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emt-verde"
+              className="rounded-lg px-3 h-[38px] text-sm bg-[var(--color-surface-1)] text-[var(--color-fg)] border border-[var(--color-border)] focus:outline-none focus:border-[var(--color-accent)] focus:ring-2 focus:ring-[var(--color-ring)]"
               type="date"
               value={pagFiltroDataInicio}
               onChange={(e) => setPagFiltroDataInicio(e.target.value)}
               title="Data início"
             />
             <input
-              className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emt-verde"
+              className="rounded-lg px-3 h-[38px] text-sm bg-[var(--color-surface-1)] text-[var(--color-fg)] border border-[var(--color-border)] focus:outline-none focus:border-[var(--color-accent)] focus:ring-2 focus:ring-[var(--color-ring)]"
               type="date"
               value={pagFiltroDataFim}
               onChange={(e) => setPagFiltroDataFim(e.target.value)}
@@ -531,7 +531,7 @@ export default function Frete() {
             />
             {(pagFiltroTransportadora || pagFiltroMes || pagFiltroMetodo || pagFiltroPagoPor || pagFiltroDataInicio || pagFiltroDataFim) && (
               <button
-                className="text-sm text-emt-verde hover:text-emt-verde-escuro font-medium"
+                className="text-sm text-[var(--color-accent)] hover:text-[var(--color-accent-hover)] font-medium"
                 onClick={() => { setPagFiltroTransportadora(''); setPagFiltroMes(''); setPagFiltroMetodo(''); setPagFiltroPagoPor(''); setPagFiltroDataInicio(''); setPagFiltroDataFim(''); }}
               >
                 Limpar filtros
@@ -592,14 +592,14 @@ export default function Frete() {
               placeholder="Todos os meses"
             />
             <input
-              className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emt-verde"
+              className="rounded-lg px-3 h-[38px] text-sm bg-[var(--color-surface-1)] text-[var(--color-fg)] border border-[var(--color-border)] focus:outline-none focus:border-[var(--color-accent)] focus:ring-2 focus:ring-[var(--color-ring)]"
               type="date"
               value={abastFiltroDataInicio}
               onChange={(e) => setAbastFiltroDataInicio(e.target.value)}
               title="Data início"
             />
             <input
-              className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emt-verde"
+              className="rounded-lg px-3 h-[38px] text-sm bg-[var(--color-surface-1)] text-[var(--color-fg)] border border-[var(--color-border)] focus:outline-none focus:border-[var(--color-accent)] focus:ring-2 focus:ring-[var(--color-ring)]"
               type="date"
               value={abastFiltroDataFim}
               onChange={(e) => setAbastFiltroDataFim(e.target.value)}
@@ -607,7 +607,7 @@ export default function Frete() {
             />
             {(abastFiltroTransportadora || abastFiltroPlaca || abastFiltroCombustivel || abastFiltroMes || abastFiltroDataInicio || abastFiltroDataFim) && (
               <button
-                className="text-sm text-emt-verde hover:text-emt-verde-escuro font-medium"
+                className="text-sm text-[var(--color-accent)] hover:text-[var(--color-accent-hover)] font-medium"
                 onClick={() => { setAbastFiltroTransportadora(''); setAbastFiltroPlaca(''); setAbastFiltroCombustivel(''); setAbastFiltroMes(''); setAbastFiltroDataInicio(''); setAbastFiltroDataFim(''); }}
               >
                 Limpar filtros
@@ -651,14 +651,14 @@ export default function Frete() {
               placeholder="Todos os materiais"
             />
             <input
-              className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emt-verde"
+              className="rounded-lg px-3 h-[38px] text-sm bg-[var(--color-surface-1)] text-[var(--color-fg)] border border-[var(--color-border)] focus:outline-none focus:border-[var(--color-accent)] focus:ring-2 focus:ring-[var(--color-ring)]"
               type="date"
               value={pedidoFiltroDataInicio}
               onChange={(e) => setPedidoFiltroDataInicio(e.target.value)}
               title="Data início"
             />
             <input
-              className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emt-verde"
+              className="rounded-lg px-3 h-[38px] text-sm bg-[var(--color-surface-1)] text-[var(--color-fg)] border border-[var(--color-border)] focus:outline-none focus:border-[var(--color-accent)] focus:ring-2 focus:ring-[var(--color-ring)]"
               type="date"
               value={pedidoFiltroDataFim}
               onChange={(e) => setPedidoFiltroDataFim(e.target.value)}
@@ -666,7 +666,7 @@ export default function Frete() {
             />
             {(pedidoFiltroFornecedor || pedidoFiltroMaterial || pedidoFiltroDataInicio || pedidoFiltroDataFim) && (
               <button
-                className="text-sm text-emt-verde hover:text-emt-verde-escuro font-medium"
+                className="text-sm text-[var(--color-accent)] hover:text-[var(--color-accent-hover)] font-medium"
                 onClick={() => { setPedidoFiltroFornecedor(''); setPedidoFiltroMaterial(''); setPedidoFiltroDataInicio(''); setPedidoFiltroDataFim(''); }}
               >
                 Limpar filtros

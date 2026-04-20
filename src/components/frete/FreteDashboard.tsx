@@ -43,39 +43,44 @@ function FilterMultiSelect({
     <div ref={ref} className="relative">
       <button
         type="button"
-        className={`border rounded-md px-2 py-1 text-xs text-left flex items-center gap-1 min-w-[130px] ${selected.length > 0 ? 'bg-blue-50 border-blue-300 text-blue-800' : 'bg-white dark:bg-slate-800 border-gray-300 dark:border-slate-600 text-gray-600 dark:text-slate-300'}`}
+        className={
+          'rounded-md px-2.5 py-1 text-xs text-left flex items-center gap-1 min-w-[130px] h-[30px] border transition-colors ' +
+          (selected.length > 0
+            ? 'bg-[var(--color-accent-soft)] border-[var(--color-accent)]/40 text-[var(--color-accent-fg)]'
+            : 'bg-[var(--color-surface-1)] border-[var(--color-border)] text-[var(--color-fg-muted)] hover:border-[var(--color-border-strong)]')
+        }
         onClick={() => { setOpen(!open); setSearch(''); }}
       >
         <span className="truncate flex-1">{label}</span>
-        <svg className="w-3 h-3 shrink-0 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+        <svg className="w-3 h-3 shrink-0 text-[var(--color-fg-subtle)]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
       </button>
       {open && (
-        <div className="absolute z-50 mt-1 min-w-[200px] bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-600 rounded-lg shadow-lg max-h-64 overflow-hidden">
-          <div className="p-1.5 border-b dark:border-slate-600">
+        <div className="absolute z-50 mt-1 min-w-[220px] bg-[var(--color-surface-1)] border border-[var(--color-border)] rounded-lg shadow-[var(--shadow-lg)] max-h-64 overflow-hidden">
+          <div className="p-1.5 border-b border-[var(--color-border)]">
             <input
               type="text"
-              className="w-full border border-gray-300 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-200 rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-blue-500"
+              className="w-full rounded-md px-2 py-1 text-xs bg-[var(--color-surface-2)] text-[var(--color-fg)] border border-[var(--color-border)] focus:outline-none focus:border-[var(--color-accent)] focus:ring-2 focus:ring-[var(--color-ring)]"
               placeholder="Buscar..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               autoFocus
             />
           </div>
-          <div className="overflow-y-auto max-h-48">
+          <div className="overflow-y-auto max-h-48 py-1">
             {filtered.length === 0 ? (
-              <p className="text-xs text-gray-400 p-2">Nenhum resultado</p>
+              <p className="text-xs text-[var(--color-fg-subtle)] p-2">Nenhum resultado</p>
             ) : (
               filtered.map((o) => (
-                <label key={o.id} className="flex items-center gap-2 px-2 py-1 hover:bg-gray-50 dark:hover:bg-slate-700 cursor-pointer text-xs dark:text-slate-200">
-                  <input type="checkbox" checked={selected.includes(o.id)} onChange={() => toggle(o.id)} className="rounded border-gray-300 dark:border-slate-600 text-blue-600 focus:ring-blue-500" />
+                <label key={o.id} className="flex items-center gap-2 px-2 py-1 hover:bg-[var(--color-surface-2)] cursor-pointer text-xs text-[var(--color-fg)] mx-1 rounded">
+                  <input type="checkbox" checked={selected.includes(o.id)} onChange={() => toggle(o.id)} className="rounded accent-[var(--color-accent)]" />
                   <span className="truncate">{o.label}</span>
                 </label>
               ))
             )}
           </div>
           {selected.length > 0 && (
-            <div className="border-t dark:border-slate-600 p-1.5">
-              <button onClick={() => onChange([])} className="text-xs text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-300 font-medium w-full text-left">Limpar seleção</button>
+            <div className="border-t border-[var(--color-border)] p-1.5">
+              <button onClick={() => onChange([])} className="text-xs text-[var(--color-danger)] hover:text-[var(--color-danger-fg)] font-medium w-full text-left px-1">Limpar seleção</button>
             </div>
           )}
         </div>
@@ -579,13 +584,13 @@ export default function FreteDashboard({
   return (
     <div className="space-y-8">
       {/* Filtros */}
-      <div className="flex flex-wrap items-end gap-4">
+      <div className="flex flex-wrap items-end gap-3 card-premium p-4">
         <div>
-          <label className="block text-xs font-medium text-gray-500 mb-1">Obra</label>
+          <label className="block text-[11px] font-medium text-[var(--color-fg-muted)] mb-1 uppercase tracking-wider">Obra</label>
           <select
             value={obraIdFiltro}
             onChange={(e) => setObraIdFiltro(e.target.value)}
-            className="border border-gray-300 rounded-md px-3 py-1.5 text-sm bg-white h-[34px] focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="rounded-md px-3 text-sm h-[34px] bg-[var(--color-surface-1)] text-[var(--color-fg)] border border-[var(--color-border)] focus:outline-none focus:border-[var(--color-accent)] focus:ring-2 focus:ring-[var(--color-ring)]"
           >
             <option value="">Todas as obras</option>
             {obras.map((o) => (
@@ -594,27 +599,27 @@ export default function FreteDashboard({
           </select>
         </div>
         <div>
-          <label className="block text-xs font-medium text-gray-500 mb-1">Data Inicio</label>
+          <label className="block text-[11px] font-medium text-[var(--color-fg-muted)] mb-1 uppercase tracking-wider">Data Início</label>
           <input
             type="date"
             value={dataInicio}
             onChange={(e) => setDataInicio(e.target.value)}
-            className="border border-gray-300 rounded-md px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="rounded-md px-3 text-sm h-[34px] bg-[var(--color-surface-1)] text-[var(--color-fg)] border border-[var(--color-border)] focus:outline-none focus:border-[var(--color-accent)] focus:ring-2 focus:ring-[var(--color-ring)]"
           />
         </div>
         <div>
-          <label className="block text-xs font-medium text-gray-500 mb-1">Data Fim</label>
+          <label className="block text-[11px] font-medium text-[var(--color-fg-muted)] mb-1 uppercase tracking-wider">Data Fim</label>
           <input
             type="date"
             value={dataFim}
             onChange={(e) => setDataFim(e.target.value)}
-            className="border border-gray-300 rounded-md px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="rounded-md px-3 text-sm h-[34px] bg-[var(--color-surface-1)] text-[var(--color-fg)] border border-[var(--color-border)] focus:outline-none focus:border-[var(--color-accent)] focus:ring-2 focus:ring-[var(--color-ring)]"
           />
         </div>
         {(dataInicio || dataFim || obraIdFiltro) && (
           <button
             onClick={() => { setDataInicio(''); setDataFim(''); setObraIdFiltro(''); }}
-            className="text-sm text-red-600 hover:text-red-800 font-medium pb-1"
+            className="text-sm text-[var(--color-danger)] hover:text-[var(--color-danger-fg)] font-medium pb-1"
           >
             Limpar filtros
           </button>
