@@ -11,9 +11,9 @@ import {
 } from 'recharts';
 
 const CORES_BARRAS = [
-  '#2D7F4F', '#FDB933', '#1E5A38', '#3E3E3E', '#059669',
-  '#d97706', '#0891b2', '#7c3aed', '#dc2626', '#be185d',
-  '#4f46e5', '#ca8a04', '#9333ea', '#e11d48', '#0d9488',
+  '#3AA368', '#F7B155', '#6AA2FF', '#A78BFA', '#5EEAD4',
+  '#FB923C', '#67E8F9', '#F472B6', '#F97066', '#C084FC',
+  '#34D399', '#FCD34D', '#7DD3FC', '#FDBA74', '#2DD4BF',
 ];
 import { formatCurrency } from '../utils/formatters';
 import type { Abastecimento, SaidaMaterial } from '../types';
@@ -132,7 +132,7 @@ export default function Dashboard() {
   if (loadingObras) {
     return (
       <div className="flex items-center justify-center h-64">
-        <p className="text-gray-500">Carregando...</p>
+        <p className="text-[var(--color-fg-subtle)]">Carregando...</p>
       </div>
     );
   }
@@ -154,13 +154,16 @@ export default function Dashboard() {
 
   return (
     <div>
-      <h1 className="text-3xl font-bold text-gray-800 mb-6">Dashboard</h1>
+      <div className="mb-6">
+        <h1 className="text-2xl sm:text-[28px] font-semibold text-[var(--color-fg)] tracking-tight">Dashboard</h1>
+        <p className="text-sm text-[var(--color-fg-muted)] mt-1">Visão consolidada de obras e gastos.</p>
+      </div>
 
       {/* Filtros */}
       {canFilter && (
-        <div className="bg-white rounded-lg shadow p-4 mb-6">
+        <div className="card-premium p-4 mb-6">
           <div className="flex items-center justify-between mb-3">
-            <h3 className="text-sm font-semibold text-gray-700">Filtros</h3>
+            <h3 className="text-xs font-semibold text-[var(--color-fg-muted)] uppercase tracking-wider">Filtros</h3>
             {temFiltro && (
               <Button variant="ghost" onClick={limparFiltros} className="text-xs">
                 Limpar filtros
@@ -182,42 +185,42 @@ export default function Dashboard() {
             />
             {filtroObraId && (
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-xs font-medium text-[var(--color-fg-muted)] mb-1.5 tracking-wide">
                   Etapas
                 </label>
                 <div className="relative">
                   <button
                     type="button"
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm text-left bg-white focus:outline-none focus:ring-2 focus:ring-emt-verde flex items-center justify-between"
+                    className="w-full h-[42px] rounded-lg px-3 text-sm text-left bg-[var(--color-surface-1)] text-[var(--color-fg)] border border-[var(--color-border)] focus:outline-none focus:border-[var(--color-accent)] focus:ring-2 focus:ring-[var(--color-ring)] flex items-center justify-between"
                     onClick={() => setEtapasDropdownOpen(!etapasDropdownOpen)}
                   >
-                    <span className={filtroEtapaIds.length === 0 ? 'text-gray-500' : 'text-gray-800'}>
+                    <span className={filtroEtapaIds.length === 0 ? 'text-[var(--color-fg-subtle)]' : 'text-[var(--color-fg)]'}>
                       {filtroEtapaIds.length === 0
                         ? 'Todas'
                         : `${filtroEtapaIds.length} etapa${filtroEtapaIds.length > 1 ? 's' : ''} selecionada${filtroEtapaIds.length > 1 ? 's' : ''}`}
                     </span>
-                    <svg className={`w-4 h-4 text-gray-400 transition-transform ${etapasDropdownOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg className={`w-4 h-4 text-[var(--color-fg-subtle)] transition-transform ${etapasDropdownOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                     </svg>
                   </button>
                   {etapasDropdownOpen && (
-                    <div className="absolute z-10 mt-1 w-full bg-white border border-gray-300 rounded-lg shadow-lg max-h-48 overflow-y-auto">
+                    <div className="absolute z-10 mt-1 w-full bg-[var(--color-surface-1)] border border-[var(--color-border)] rounded-lg shadow-[var(--shadow-lg)] max-h-48 overflow-y-auto py-1">
                       {etapasDaObra.map((e) => (
                         <label
                           key={e.id}
-                          className="flex items-center gap-3 px-3 py-2 hover:bg-gray-50 cursor-pointer"
+                          className="flex items-center gap-3 px-3 py-2 hover:bg-[var(--color-surface-2)] cursor-pointer"
                         >
                           <input
                             type="checkbox"
                             checked={filtroEtapaIds.includes(e.id)}
                             onChange={() => toggleEtapa(e.id)}
-                            className="h-4 w-4 rounded border-gray-300 text-emt-verde focus:ring-emt-verde"
+                            className="h-4 w-4 rounded accent-[var(--color-accent)]"
                           />
-                          <span className="text-sm text-gray-700">{e.nome}</span>
+                          <span className="text-sm text-[var(--color-fg)]">{e.nome}</span>
                         </label>
                       ))}
                       {etapasDaObra.length === 0 && (
-                        <p className="px-3 py-2 text-sm text-gray-400">Nenhuma etapa nesta obra</p>
+                        <p className="px-3 py-2 text-sm text-[var(--color-fg-subtle)]">Nenhuma etapa nesta obra</p>
                       )}
                     </div>
                   )}
@@ -227,15 +230,15 @@ export default function Dashboard() {
                     {filtroEtapaIds.map((id) => (
                       <span
                         key={id}
-                        className="inline-flex items-center gap-1 bg-emt-verde-claro text-emt-verde-escuro text-xs px-2 py-0.5 rounded-full"
+                        className="inline-flex items-center gap-1 bg-[var(--color-accent-soft)] text-[var(--color-accent-fg)] text-xs px-2 py-0.5 rounded-full"
                       >
                         {etapasMap.get(id) || id}
                         <button
                           type="button"
                           onClick={() => toggleEtapa(id)}
-                          className="hover:text-emt-verde"
+                          className="hover:text-[var(--color-accent)]"
                         >
-                          x
+                          ×
                         </button>
                       </span>
                     ))}
@@ -247,53 +250,64 @@ export default function Dashboard() {
         </div>
       )}
 
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        <div className="bg-white rounded-lg shadow p-6">
-          <h2 className="text-sm font-medium text-gray-500">Total de Obras</h2>
-          <p className="text-3xl font-bold text-emt-verde-escuro mt-2">{obras.length}</p>
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+        <div className="card-premium p-5">
+          <h2 className="text-xs font-medium text-[var(--color-fg-muted)] uppercase tracking-wider">Total de Obras</h2>
+          <p className="text-3xl font-semibold text-[var(--color-fg)] mt-2 tracking-tight tabular-nums">{obras.length}</p>
         </div>
-        <div className="bg-white rounded-lg shadow p-6">
-          <h2 className="text-sm font-medium text-gray-500">Em Andamento</h2>
-          <p className="text-3xl font-bold text-emt-amarelo mt-2">{emAndamento}</p>
+        <div className="card-premium p-5">
+          <h2 className="text-xs font-medium text-[var(--color-fg-muted)] uppercase tracking-wider">Em Andamento</h2>
+          <p className="text-3xl font-semibold text-[var(--color-warning-fg)] mt-2 tracking-tight tabular-nums">{emAndamento}</p>
         </div>
-        <div className="bg-white rounded-lg shadow p-6">
-          <h2 className="text-sm font-medium text-gray-500">Concluidas</h2>
-          <p className="text-3xl font-bold text-green-600 mt-2">{concluidas}</p>
+        <div className="card-premium p-5">
+          <h2 className="text-xs font-medium text-[var(--color-fg-muted)] uppercase tracking-wider">Concluídas</h2>
+          <p className="text-3xl font-semibold text-[var(--color-accent)] mt-2 tracking-tight tabular-nums">{concluidas}</p>
         </div>
-        <div className="bg-white rounded-lg shadow p-6">
-          <h2 className="text-sm font-medium text-gray-500">
+        <div className="card-premium p-5">
+          <h2 className="text-xs font-medium text-[var(--color-fg-muted)] uppercase tracking-wider">
             Gasto Total
           </h2>
-          <p className="text-3xl font-bold text-emt-cinza mt-2">
+          <p className="text-3xl font-semibold text-[var(--color-fg)] mt-2 tracking-tight tabular-nums">
             {formatCurrency(gastoTotal)}
           </p>
-          <p className="text-xs text-gray-400 mt-1">
-            Combustivel + Insumos
+          <p className="text-xs text-[var(--color-fg-subtle)] mt-1">
+            Combustível + Insumos
           </p>
         </div>
       </div>
 
       {/* Grafico de gastos por tipo */}
       {chartData.length > 0 && (
-        <div className="bg-white rounded-lg shadow p-6 mt-6">
-          <h3 className="text-sm font-semibold text-gray-700 mb-4">
-            Gastos por Tipo de Insumo e Combustivel (R$)
+        <div className="card-premium p-6 mt-6">
+          <h3 className="text-sm font-semibold text-[var(--color-fg)] mb-4">
+            Gastos por Tipo de Insumo e Combustível (R$)
           </h3>
           <div style={{ height: Math.max(200, chartData.length * 40 + 40) }}>
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={chartData} layout="vertical">
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis type="number" fontSize={12} />
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
+                <XAxis type="number" fontSize={11} tick={{ fill: 'var(--color-fg-muted)' }} axisLine={{ stroke: 'var(--color-border)' }} tickLine={false} />
                 <YAxis
                   dataKey="nome"
                   type="category"
-                  fontSize={12}
+                  fontSize={11}
                   width={140}
-                  tick={{ fill: '#374151' }}
+                  tick={{ fill: 'var(--color-fg-muted)' }}
+                  axisLine={{ stroke: 'var(--color-border)' }}
+                  tickLine={false}
                 />
                 <Tooltip
                   formatter={(value) => formatCurrency(Number(value))}
-                  labelStyle={{ fontWeight: 'bold' }}
+                  cursor={{ fill: 'color-mix(in srgb, var(--color-fg) 8%, transparent)' }}
+                  contentStyle={{
+                    background: 'var(--color-surface-1)',
+                    border: '1px solid var(--color-border)',
+                    borderRadius: 'var(--radius-md)',
+                    color: 'var(--color-fg)',
+                    boxShadow: 'var(--shadow-lg)',
+                  }}
+                  labelStyle={{ color: 'var(--color-fg)', fontWeight: 600 }}
+                  itemStyle={{ color: 'var(--color-fg-muted)' }}
                 />
                 <Bar dataKey="valor" radius={[0, 4, 4, 0]}>
                   {chartData.map((_, i) => (

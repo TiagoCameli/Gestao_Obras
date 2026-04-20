@@ -75,7 +75,7 @@ export default function Funcionarios() {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <p className="text-gray-500">Carregando...</p>
+        <p className="text-[var(--color-fg-subtle)]">Carregando...</p>
       </div>
     );
   }
@@ -83,7 +83,7 @@ export default function Funcionarios() {
   return (
     <div>
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
-        <h1 className="text-2xl sm:text-3xl font-bold text-gray-800">Usuários</h1>
+        <h1 className="text-2xl sm:text-[28px] font-semibold tracking-tight text-[var(--color-fg)]">Usuários</h1>
         {canCreate && (
           <Button onClick={() => { setEditando(null); setModalOpen(true); }}>
             Novo Usuário

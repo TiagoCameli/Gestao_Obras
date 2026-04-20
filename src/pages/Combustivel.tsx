@@ -199,7 +199,7 @@ export default function Combustivel() {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <p className="text-gray-500">Carregando...</p>
+        <p className="text-[var(--color-fg-subtle)]">Carregando...</p>
       </div>
     );
   }
@@ -214,7 +214,7 @@ export default function Combustivel() {
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
-        <h1 className="text-3xl font-bold text-gray-800">Combustível</h1>
+        <h1 className="text-2xl sm:text-[28px] font-semibold tracking-tight text-[var(--color-fg)]">Combustível</h1>
         <div className="flex gap-3">
           {canCreateEntrada && (
             <Button
@@ -260,14 +260,14 @@ export default function Combustivel() {
       />
 
       {/* Tabs */}
-      <div className="flex gap-1 mb-6 bg-gray-200 rounded-lg p-1 w-fit">
+      <div className="flex gap-1 mb-6 bg-[var(--color-surface-2)] border border-[var(--color-border)] rounded-lg p-1 w-fit">
         {tabs.map((t) => (
           <button
             key={t.key}
-            className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+            className={`px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${
               tab === t.key
-                ? 'bg-white text-gray-800 shadow-sm'
-                : 'text-gray-600 hover:text-gray-800'
+                ? 'bg-[var(--color-surface-1)] text-[var(--color-fg)] shadow-[var(--shadow-xs)]'
+                : 'text-[var(--color-fg-muted)] hover:text-[var(--color-fg)]'
             }`}
             onClick={() => setTab(t.key)}
           >

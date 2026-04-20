@@ -11,8 +11,8 @@ export default function ProtectedRoute({ children, modulo }: ProtectedRouteProps
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-100">
-        <div className="text-gray-500">Carregando...</div>
+      <div className="min-h-screen flex items-center justify-center bg-app">
+        <div className="text-[var(--color-fg-subtle)] text-sm">Carregando...</div>
       </div>
     );
   }

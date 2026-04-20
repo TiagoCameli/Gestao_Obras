@@ -419,12 +419,12 @@ export default function Apontamentos() {
   return (
     <div>
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
-        <h1 className="text-2xl sm:text-3xl font-bold text-gray-800">Apontamentos</h1>
+        <h1 className="text-2xl sm:text-[28px] font-semibold tracking-tight text-[var(--color-fg)]">Apontamentos</h1>
       </div>
 
       {/* Tabs */}
       <div
-        className="flex gap-1 mb-6 bg-gray-200 dark:bg-slate-700 rounded-lg p-1 w-full sm:w-fit overflow-x-auto"
+        className="flex gap-1 mb-6 bg-[var(--color-surface-2)] border border-[var(--color-border)] rounded-lg p-1 w-full sm:w-fit overflow-x-auto"
         role="tablist"
         aria-label="Seções de apontamentos"
         style={{ scrollbarWidth: 'none' }}
@@ -436,10 +436,10 @@ export default function Apontamentos() {
             aria-selected={tab === t.key}
             aria-controls={`tabpanel-${t.key}`}
             id={`tab-${t.key}`}
-            className={`px-4 py-2 rounded-md text-sm font-medium transition-colors whitespace-nowrap focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emt-verde ${
+            className={`px-4 py-1.5 rounded-md text-sm font-medium transition-colors whitespace-nowrap ${
               tab === t.key
-                ? 'bg-white dark:bg-slate-800 text-gray-800 dark:text-slate-200 shadow-sm'
-                : 'text-gray-600 dark:text-slate-400 hover:text-gray-800 dark:hover:text-slate-200'
+                ? 'bg-[var(--color-surface-1)] text-[var(--color-fg)] shadow-[var(--shadow-xs)]'
+                : 'text-[var(--color-fg-muted)] hover:text-[var(--color-fg)]'
             }`}
             onClick={() => setTab(t.key)}
           >
@@ -453,7 +453,7 @@ export default function Apontamentos() {
         <div className="space-y-6" role="tabpanel" id="tabpanel-painel" aria-labelledby="tab-painel">
 
           {/* Sub-abas do painel */}
-          <div className="flex gap-1 bg-gray-200 dark:bg-slate-700 rounded-lg p-1 w-full sm:w-fit overflow-x-auto scrollbar-hide" style={{ scrollbarWidth: 'none' }}>
+          <div className="flex gap-1 bg-[var(--color-surface-2)] border border-[var(--color-border)] rounded-lg p-1 w-full sm:w-fit overflow-x-auto scrollbar-hide" style={{ scrollbarWidth: 'none' }}>
             {([
               { key: 'equipamentos' as SubPainel, label: 'Equipamentos' },
               { key: 'colaboradores' as SubPainel, label: 'Colaboradores' },
@@ -462,10 +462,10 @@ export default function Apontamentos() {
               <button
                 key={s.key}
                 type="button"
-                className={`px-4 py-2 rounded-md text-sm font-medium whitespace-nowrap transition-colors ${
+                className={`px-4 py-1.5 rounded-md text-sm font-medium whitespace-nowrap transition-colors ${
                   subPainel === s.key
-                    ? 'bg-white dark:bg-slate-800 text-gray-800 dark:text-slate-200 shadow-sm'
-                    : 'text-gray-600 dark:text-slate-400 hover:text-gray-800 dark:hover:text-slate-200'
+                    ? 'bg-[var(--color-surface-1)] text-[var(--color-fg)] shadow-[var(--shadow-xs)]'
+                    : 'text-[var(--color-fg-muted)] hover:text-[var(--color-fg)]'
                 }`}
                 onClick={() => setSubPainel(s.key)}
               >

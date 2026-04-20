@@ -137,7 +137,7 @@ export default function ObrasPage() {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-20">
-        <div className="text-gray-500 text-lg">Carregando obras...</div>
+        <div className="text-[var(--color-fg-subtle)] text-sm">Carregando obras...</div>
       </div>
     );
   }
@@ -145,7 +145,7 @@ export default function ObrasPage() {
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
-        <h1 className="text-3xl font-bold text-gray-800">Obras</h1>
+        <h1 className="text-2xl sm:text-[28px] font-semibold tracking-tight text-[var(--color-fg)]">Obras</h1>
         <div className="flex items-center gap-2 flex-wrap">
           <Button
             variant="secondary"

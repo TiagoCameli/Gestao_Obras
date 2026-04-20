@@ -120,7 +120,7 @@ export default function Frota() {
     <div className="space-y-6">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <h1 className="text-2xl font-bold text-gray-800 dark:text-slate-200">Frota</h1>
+        <h1 className="text-2xl sm:text-[28px] font-semibold tracking-tight text-[var(--color-fg)]">Frota</h1>
         {mainTab === 'equipamentos' && (
           <div className="flex items-center gap-2 flex-wrap">
             {canCreate && (

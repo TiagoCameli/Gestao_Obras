@@ -32,12 +32,12 @@ export default function MigrarDados() {
 
   return (
     <div>
-      <h1 className="text-3xl font-bold text-gray-800 mb-6">
+      <h1 className="text-2xl sm:text-[28px] font-semibold tracking-tight text-[var(--color-fg)] mb-6">
         Migrar Dados para Supabase
       </h1>
 
-      <div className="bg-white rounded-lg shadow p-6 max-w-2xl">
-        <p className="text-sm text-gray-600 mb-4">
+      <div className="card-premium p-6 max-w-2xl">
+        <p className="text-sm text-[var(--color-fg-muted)] mb-4">
           Esta ferramenta migra todos os dados do localStorage para o Supabase.
           IDs existentes serao preservados. Registros ja existentes no Supabase
           serao atualizados (upsert).

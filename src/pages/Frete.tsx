@@ -296,7 +296,7 @@ export default function Frete() {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <p className="text-gray-500">Carregando...</p>
+        <p className="text-[var(--color-fg-subtle)]">Carregando...</p>
       </div>
     );
   }
@@ -312,7 +312,10 @@ export default function Frete() {
   return (
     <div>
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
-        <h1 className="text-2xl sm:text-3xl font-bold text-gray-800">Frete</h1>
+        <div>
+          <h1 className="text-2xl sm:text-[28px] font-semibold tracking-tight text-[var(--color-fg)]">Frete</h1>
+          <p className="text-sm text-[var(--color-fg-muted)] mt-1">Fretes, pagamentos, abastecimentos e pedidos de material.</p>
+        </div>
         {canCreate && (
           <div className="flex flex-wrap gap-2">
             <Button variant="secondary" onClick={() => setLocalidadeModalOpen(true)}>
@@ -335,14 +338,14 @@ export default function Frete() {
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-1 mb-6 bg-gray-200 rounded-lg p-1 w-full sm:w-fit overflow-x-auto">
+      <div className="flex gap-1 mb-6 bg-[var(--color-surface-2)] border border-[var(--color-border)] rounded-lg p-1 w-full sm:w-fit overflow-x-auto">
         {tabs.map((t) => (
           <button
             key={t.key}
-            className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+            className={`px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${
               tab === t.key
-                ? 'bg-white text-gray-800 shadow-sm'
-                : 'text-gray-600 hover:text-gray-800'
+                ? 'bg-[var(--color-surface-1)] text-[var(--color-fg)] shadow-[var(--shadow-xs)]'
+                : 'text-[var(--color-fg-muted)] hover:text-[var(--color-fg)]'
             }`}
             onClick={() => setTab(t.key)}
           >
