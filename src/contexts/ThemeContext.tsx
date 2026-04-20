@@ -15,7 +15,8 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   const [dark, setDark] = useState(() => {
     const saved = localStorage.getItem('theme');
     if (saved) return saved === 'dark';
-    return window.matchMedia('(prefers-color-scheme: dark)').matches;
+    // Default to dark: premium app direction.
+    return true;
   });
 
   useEffect(() => {
