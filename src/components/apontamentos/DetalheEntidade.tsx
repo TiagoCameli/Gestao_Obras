@@ -14,26 +14,39 @@ function ClockInForm({
 }: {
   obras: Obra[];
   etapas: EtapaObra[];
-  onSubmit: (obraId: string, etapaId: string, horaInicio: string) => void;
+  onSubmit: (obraId: string, etapaId: string, horaInicio: string, data: string) => void;
   onCancel: () => void;
 }) {
+  const hoje = hojeStr();
   const [obraId, setObraId] = useState('');
   const [etapaId, setEtapaId] = useState('');
   const [horaInicio, setHoraInicio] = useState(agoraStr());
+  const [data, setData] = useState(hoje);
 
   const etapasFiltradas = useMemo(() => etapas.filter((e) => e.obraId === obraId), [etapas, obraId]);
 
   function handleSubmit(e: FormEvent) {
     e.preventDefault();
-    if (obraId && etapaId && horaInicio) {
-      onSubmit(obraId, etapaId, horaInicio);
+    if (obraId && etapaId && horaInicio && data) {
+      onSubmit(obraId, etapaId, horaInicio, data);
     }
   }
 
   return (
     <form onSubmit={handleSubmit} className="space-y-3 mt-3 p-3 bg-gray-50 rounded-lg border">
       <h4 className="text-sm font-semibold text-gray-700">Novo Clock-in</h4>
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+        <div>
+          <label className="block text-xs font-medium text-gray-600 mb-1">Data *</label>
+          <input
+            type="date"
+            className="w-full h-[44px] border border-gray-300 rounded-lg px-3 py-2 text-sm"
+            value={data}
+            onChange={(e) => setData(e.target.value)}
+            max={hoje}
+            required
+          />
+        </div>
         <div>
           <label className="block text-xs font-medium text-gray-600 mb-1">Obra *</label>
           <SearchableSelect
@@ -66,7 +79,7 @@ function ClockInForm({
       </div>
       <div className="flex gap-2 justify-end">
         <Button type="button" variant="ghost" onClick={onCancel}>Cancelar</Button>
-        <Button type="submit" disabled={!obraId || !etapaId || !horaInicio}>Registrar</Button>
+        <Button type="submit" disabled={!obraId || !etapaId || !horaInicio || !data}>Registrar</Button>
       </div>
     </form>
   );
@@ -177,7 +190,7 @@ export default function DetalheEntidade({
   canCreate: boolean;
   canEdit: boolean;
   canDelete: boolean;
-  onClockIn: (obraId: string, etapaId: string, horaInicio: string) => void;
+  onClockIn: (obraId: string, etapaId: string, horaInicio: string, data: string) => void;
   onClockOut: (a: Apontamento) => void;
   onUpdate: (a: Apontamento) => void;
   onDelete: (id: string) => void;
@@ -400,8 +413,8 @@ export default function DetalheEntidade({
         <ClockInForm
           obras={obras}
           etapas={etapas}
-          onSubmit={(obraId, etapaId, horaInicio) => {
-            onClockIn(obraId, etapaId, horaInicio);
+          onSubmit={(obraId, etapaId, horaInicio, data) => {
+            onClockIn(obraId, etapaId, horaInicio, data);
             setShowClockIn(false);
           }}
           onCancel={() => setShowClockIn(false)}

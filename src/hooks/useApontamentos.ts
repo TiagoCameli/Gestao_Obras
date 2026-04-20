@@ -36,6 +36,18 @@ export function useAtualizarApontamento() {
   });
 }
 
+export function useAdicionarApontamentosLote() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (apontamentos: Apontamento[]) => {
+      const rows = apontamentos.map(apontamentoToDb);
+      const { error } = await supabase.from('apontamentos').insert(rows);
+      if (error) throw error;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['apontamentos'] }),
+  });
+}
+
 export function useExcluirApontamento() {
   const qc = useQueryClient();
   return useMutation({

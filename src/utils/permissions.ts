@@ -4,6 +4,7 @@ export const MODULOS: { valor: ModuloPermissao; label: string }[] = [
   { valor: 'dashboard', label: 'Dashboard' },
   { valor: 'cadastros', label: 'Cadastros' },
   { valor: 'frete', label: 'Frete' },
+  { valor: 'frota', label: 'Frota' },
   { valor: 'funcionarios', label: 'Usuários' },
   { valor: 'apontamentos', label: 'Apontamentos' },
 ];
@@ -42,6 +43,7 @@ export const PERFIL_ADMINISTRADOR: PermissoesFuncionario = {
   dashboard: TODAS,
   cadastros: TODAS,
   frete: TODAS,
+  frota: TODAS,
   funcionarios: TODAS,
   apontamentos: TODAS,
 };
@@ -50,6 +52,7 @@ export const PERFIL_GERENTE: PermissoesFuncionario = {
   dashboard: VF,
   cadastros: VCE,
   frete: VCEEX,
+  frota: V,
   funcionarios: VCE,
   apontamentos: VCEEX,
 };
@@ -58,6 +61,7 @@ export const PERFIL_SUPERVISOR: PermissoesFuncionario = {
   dashboard: VF,
   cadastros: VCE,
   frete: VCE,
+  frota: V,
   funcionarios: V,
   apontamentos: VCE,
 };
@@ -66,6 +70,7 @@ export const PERFIL_OPERADOR: PermissoesFuncionario = {
   dashboard: V,
   cadastros: V,
   frete: VCE,
+  frota: V,
   funcionarios: NENHUMA,
   apontamentos: V,
 };
@@ -74,6 +79,7 @@ export const PERFIL_FINANCEIRO: PermissoesFuncionario = {
   dashboard: VF,
   cadastros: V,
   frete: VE,
+  frota: V,
   funcionarios: V,
   apontamentos: V,
 };
@@ -82,6 +88,7 @@ export const PERFIL_APONTADOR: PermissoesFuncionario = {
   dashboard: V,
   cadastros: V,
   frete: VCE,
+  frota: V,
   funcionarios: NENHUMA,
   apontamentos: VCEEX,
 };
@@ -90,6 +97,7 @@ export const PERFIL_GERENTE_FINANCEIRO: PermissoesFuncionario = {
   dashboard: VF,
   cadastros: VCE,
   frete: VCEEX,
+  frota: V,
   funcionarios: V,
   apontamentos: V,
 };
@@ -98,6 +106,7 @@ export const PERFIL_GERENTE_COMPRAS: PermissoesFuncionario = {
   dashboard: VF,
   cadastros: VCEEX,
   frete: VCEEX,
+  frota: V,
   funcionarios: V,
   apontamentos: V,
 };
@@ -106,6 +115,7 @@ export const PERFIL_ENGENHEIRO_CIVIL_SENIOR: PermissoesFuncionario = {
   dashboard: VF,
   cadastros: VCE,
   frete: VCE,
+  frota: V,
   funcionarios: V,
   apontamentos: VCE,
 };
@@ -114,6 +124,7 @@ export const PERFIL_ENGENHEIRO_CIVIL: PermissoesFuncionario = {
   dashboard: VF,
   cadastros: VCE,
   frete: VCE,
+  frota: V,
   funcionarios: NENHUMA,
   apontamentos: VCE,
 };
@@ -167,6 +178,13 @@ export const ACOES_PLATAFORMA: AcaoPlataforma[] = [
   { chave: 'criar_funcionarios', label: 'Cadastrar usuários', grupo: 'Usuários' },
   { chave: 'editar_funcionarios', label: 'Editar usuários', grupo: 'Usuários' },
   { chave: 'excluir_funcionarios', label: 'Excluir usuários', grupo: 'Usuários' },
+  // Frota
+  { chave: 'ver_frota', label: 'Visualizar frota', grupo: 'Frota' },
+  // Manutenção
+  { chave: 'ver_manutencao', label: 'Visualizar manutenção', grupo: 'Manutenção' },
+  { chave: 'criar_os', label: 'Criar Ordem de Serviço', grupo: 'Manutenção' },
+  { chave: 'editar_os', label: 'Editar Ordem de Serviço', grupo: 'Manutenção' },
+  { chave: 'ver_custos', label: 'Visualizar custos de manutenção', grupo: 'Manutenção' },
   // Apontamentos
   { chave: 'ver_apontamentos', label: 'Visualizar apontamentos', grupo: 'Apontamentos' },
   { chave: 'criar_apontamentos', label: 'Criar apontamentos', grupo: 'Apontamentos' },
@@ -183,6 +201,7 @@ export function permissoesVazias(): PermissoesFuncionario {
     dashboard: [],
     cadastros: [],
     frete: [],
+    frota: [],
     funcionarios: [],
     apontamentos: [],
   };

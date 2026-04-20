@@ -94,6 +94,8 @@ CREATE POLICY "Authenticated full access" ON fornecedores FOR ALL TO authenticat
 CREATE TABLE IF NOT EXISTS equipamentos (
   id text PRIMARY KEY,
   nome text NOT NULL,
+  tipo text NOT NULL DEFAULT '',
+  empresa_id text NOT NULL DEFAULT '',
   codigo_patrimonio text NOT NULL DEFAULT '',
   numero_serie text NOT NULL DEFAULT '',
   ano text NOT NULL DEFAULT '',

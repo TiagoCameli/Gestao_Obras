@@ -46,7 +46,13 @@ export default function FreteForm({
   const [pesoToneladas, setPesoToneladas] = useState(initial?.pesoToneladas?.toString() || '');
   const [kmRodados, setKmRodados] = useState(initial?.kmRodados?.toString() || '');
   const [valorTkm, setValorTkm] = useState(initial?.valorTkm?.toString() || '');
+  const [valorUnitarioMaterial, setValorUnitarioMaterial] = useState(
+    initial?.valorMaterial && initial?.pesoToneladas
+      ? (initial.valorMaterial / initial.pesoToneladas).toString()
+      : ''
+  );
   const [notaFiscal, setNotaFiscal] = useState(initial?.notaFiscal || '');
+  const [notaFiscal2, setNotaFiscal2] = useState(initial?.notaFiscal2 || '');
   const [placaCarreta, setPlacaCarreta] = useState(initial?.placaCarreta || '');
   const [motorista, setMotorista] = useState(initial?.motorista || '');
   const [observacoes, setObservacoes] = useState(initial?.observacoes || '');
@@ -140,7 +146,9 @@ export default function FreteForm({
       kmRodados: km,
       valorTkm: tkm,
       valorTotal: peso * km * tkm,
+      valorMaterial: 0,
       notaFiscal: d.notaFiscal,
+      notaFiscal2: '',
       placaCarreta: d.placaCarreta,
       motorista: d.motorista,
       observacoes: d.observacoes,
@@ -170,6 +178,8 @@ export default function FreteForm({
   const km = parseFloat(kmRodados) || 0;
   const tkm = parseFloat(valorTkm) || 0;
   const valorTotal = km * peso * tkm;
+  const valorUnitMat = parseFloat(valorUnitarioMaterial) || 0;
+  const valorMaterial = valorUnitMat * peso;
 
   // Reset form when initial changes (edit mode)
   useEffect(() => {
@@ -184,7 +194,13 @@ export default function FreteForm({
       setPesoToneladas(initial.pesoToneladas?.toString() || '');
       setKmRodados(initial.kmRodados?.toString() || '');
       setValorTkm(initial.valorTkm?.toString() || '');
+      setValorUnitarioMaterial(
+        initial.valorMaterial && initial.pesoToneladas
+          ? (initial.valorMaterial / initial.pesoToneladas).toString()
+          : ''
+      );
       setNotaFiscal(initial.notaFiscal);
+      setNotaFiscal2(initial.notaFiscal2 || '');
       setPlacaCarreta(initial.placaCarreta || '');
       setMotorista(initial.motorista || '');
       setObservacoes(initial.observacoes);
@@ -206,7 +222,9 @@ export default function FreteForm({
       kmRodados: km,
       valorTkm: tkm,
       valorTotal,
+      valorMaterial,
       notaFiscal,
+      notaFiscal2,
       placaCarreta,
       motorista,
       observacoes,
@@ -446,12 +464,39 @@ export default function FreteForm({
           <p className="text-xs text-gray-400 mt-1">KM × Peso × R$/TKM</p>
         </div>
         <Input
+          label="Valor Unitário do Material (R$)"
+          id="freteValorUnitMaterial"
+          type="number"
+          step="0.0001"
+          min="0"
+          value={valorUnitarioMaterial}
+          onChange={(e) => setValorUnitarioMaterial(e.target.value)}
+          placeholder="Ex: 45.0000"
+        />
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Preço do Material (R$)
+          </label>
+          <div className="w-full border border-gray-200 bg-gray-50 rounded-lg px-3 py-2 text-sm font-semibold text-emt-verde">
+            {valorMaterial.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+          </div>
+          <p className="text-xs text-gray-400 mt-1">Valor Unitário × Peso</p>
+        </div>
+        <Input
           label="Nota Fiscal (opcional)"
           id="freteNF"
           type="text"
           value={notaFiscal}
           onChange={(e) => setNotaFiscal(e.target.value)}
           placeholder="Ex: NF-e 12345"
+        />
+        <Input
+          label="Nota Fiscal 2 (opcional)"
+          id="freteNF2"
+          type="text"
+          value={notaFiscal2}
+          onChange={(e) => setNotaFiscal2(e.target.value)}
+          placeholder="Ex: NF-e 67890"
         />
         <Input
           label="Placa da Carreta (opcional)"

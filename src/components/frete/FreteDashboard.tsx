@@ -201,8 +201,15 @@ export default function FreteDashboard({
   const pagosParaEtam = pagamentosF.filter((p) => p.transportadora === ETAM).reduce((s, p) => s + p.valor, 0);
   const saldoEtam = fretesEtam + pagosPelaEtam - pagosParaEtam;
 
+  // ── Saldo Andrade Transporte ──
+  const ANDRADE = 'Andrade Transporte';
+  const fretesAndrade = fretesF.filter((f) => f.transportadora === ANDRADE).reduce((s, f) => s + f.valorTotal, 0);
+  const pagosParaAndrade = pagamentosF.filter((p) => p.transportadora === ANDRADE).reduce((s, p) => s + p.valor, 0);
+  const abastAndrade = abastCarretaF.filter((a) => a.transportadora === ANDRADE).reduce((s, a) => s + a.valorTotal, 0);
+  const saldoAndrade = fretesAndrade - pagosParaAndrade - abastAndrade;
+
   // ── A Pagar EMT ──
-  const aPagarEmt = saldoAreacre + saldoAmazonia + saldoTriunfo + saldoEtam;
+  const aPagarEmt = saldoAreacre + saldoAmazonia + saldoTriunfo + saldoEtam + saldoAndrade;
 
   // ── Gasto por transportadora ──
   const gastoPorTransportadora = new Map<string, number>();
@@ -368,9 +375,10 @@ export default function FreteDashboard({
     const partial = fornecedorList.find((f) => f.nomeLower.includes(o) || o.includes(f.nomeLower));
     return partial?.id;
   }
-  // Mapas de transporte: "fornecedorId|insumoId" -> qtdTransportada / custoFrete
+  // Mapas de transporte: "fornecedorId|insumoId" -> qtdTransportada / custoFrete / valorMaterial
   const transporteMap = new Map<string, number>();
   const freteValorMap = new Map<string, number>();
+  const materialValorMap = new Map<string, number>();
   fretesF.forEach((f) => {
     if (!f.origem || !f.insumoId) return;
     const fornecedorId = findFornecedorByOrigem(f.origem);
@@ -378,6 +386,7 @@ export default function FreteDashboard({
     const key = `${fornecedorId}|${f.insumoId}`;
     transporteMap.set(key, (transporteMap.get(key) || 0) + f.pesoToneladas);
     freteValorMap.set(key, (freteValorMap.get(key) || 0) + f.valorTotal);
+    materialValorMap.set(key, (materialValorMap.get(key) || 0) + (f.valorMaterial || 0));
   });
   // Agregar: fornecedorId -> material (insumoId) -> { qtd, valor }
   const pedidosPorFornecedor = new Map<string, Map<string, { qtd: number; valor: number }>>();
@@ -397,14 +406,14 @@ export default function FreteDashboard({
     });
   });
   // Flatten para lista de linhas agrupadas por fornecedor
-  interface PedidoFornRow { fornecedorId: string; fornecedorNome: string; insumoId: string; qtd: number; qtdTransportada: number; saldoQtd: number; vlrMedio: number; custoMedioFrete: number; valor: number; saldoValor: number }
+  interface PedidoFornRow { fornecedorId: string; fornecedorNome: string; insumoId: string; qtd: number; qtdTransportada: number; saldoQtd: number; vlrMedio: number; custoMedioFrete: number; valor: number; valorMaterialTransp: number; saldoValor: number }
   const pedidosFornecedorRows: PedidoFornRow[] = [];
   let totalGeralQtd = 0;
   let totalGeralQtdTransp = 0;
   let totalGeralPedidos = 0;
   let totalGeralFreteValor = 0;
   let totalGeralSaldoValor = 0;
-  const totaisPorFornecedor: { fornecedorId: string; fornecedorNome: string; totalQtd: number; totalQtdTransp: number; totalValor: number; totalFreteValor: number; totalSaldoValor: number }[] = [];
+  const totaisPorFornecedor: { fornecedorId: string; fornecedorNome: string; totalQtd: number; totalQtdTransp: number; totalValor: number; totalFreteValor: number; totalSaldoValor: number; totalValorMaterialTransp: number }[] = [];
   Array.from(pedidosPorFornecedor.entries())
     .sort((a, b) => {
       const nomeA = fornecedoresMap.get(a[0]) || '';
@@ -417,6 +426,7 @@ export default function FreteDashboard({
       let fornValor = 0;
       let fornFreteValor = 0;
       let fornSaldoValor = 0;
+      let fornValorMaterialTransp = 0;
       const fornecedorNome = fornecedoresMap.get(fornecedorId) || fornecedorId;
       Array.from(materiaisMap.entries())
         .sort((a, b) => b[1].valor - a[1].valor)
@@ -425,17 +435,21 @@ export default function FreteDashboard({
           const key = `${fornecedorId}|${insumoId}`;
           const qtdTransportada = transporteMap.get(key) || 0;
           const freteValor = freteValorMap.get(key) || 0;
+          const valorMaterialTransp = materialValorMap.get(key) || 0;
           const custoMedioFrete = qtdTransportada > 0 ? freteValor / qtdTransportada : 0;
-          const saldoQtd = dados.qtd - qtdTransportada;
-          const saldoValor = saldoQtd * vlrMedio;
-          pedidosFornecedorRows.push({ fornecedorId, fornecedorNome, insumoId, qtd: dados.qtd, qtdTransportada, saldoQtd, vlrMedio, custoMedioFrete, valor: dados.valor, saldoValor });
+          const saldoQtdRaw = dados.qtd - qtdTransportada;
+          const saldoQtd = Math.abs(saldoQtdRaw) < 0.1 ? 0 : saldoQtdRaw;
+          const saldoValorRaw = dados.valor - valorMaterialTransp;
+          const saldoValor = Math.abs(saldoValorRaw) < 0.01 ? 0 : saldoValorRaw;
+          pedidosFornecedorRows.push({ fornecedorId, fornecedorNome, insumoId, qtd: dados.qtd, qtdTransportada, saldoQtd, vlrMedio, custoMedioFrete, valor: dados.valor, valorMaterialTransp, saldoValor });
           fornQtd += dados.qtd;
           fornQtdTransp += qtdTransportada;
           fornValor += dados.valor;
           fornFreteValor += freteValor;
           fornSaldoValor += saldoValor;
+          fornValorMaterialTransp += valorMaterialTransp;
         });
-      totaisPorFornecedor.push({ fornecedorId, fornecedorNome, totalQtd: fornQtd, totalQtdTransp: fornQtdTransp, totalValor: fornValor, totalFreteValor: fornFreteValor, totalSaldoValor: fornSaldoValor });
+      totaisPorFornecedor.push({ fornecedorId, fornecedorNome, totalQtd: fornQtd, totalQtdTransp: fornQtdTransp, totalValor: fornValor, totalFreteValor: fornFreteValor, totalSaldoValor: fornSaldoValor, totalValorMaterialTransp: fornValorMaterialTransp });
       totalGeralQtd += fornQtd;
       totalGeralQtdTransp += fornQtdTransp;
       totalGeralPedidos += fornValor;
@@ -515,6 +529,53 @@ export default function FreteDashboard({
       custoMatFreteTotalGeral.custoTotal += pedreira.custoTotal;
     });
 
+  // ── Último preço por material (de pedidos de material) ──
+  const ultimoPrecoPorMaterial = new Map<string, { valorUnitario: number; data: string; fornecedorId: string }>();
+  // Ordenar pedidos por data crescente para que o último sobrescreva
+  [...pedidosF]
+    .sort((a, b) => a.data.localeCompare(b.data))
+    .forEach((p) => {
+      (p.itens || []).forEach((item) => {
+        if (item.valorUnitario > 0) {
+          ultimoPrecoPorMaterial.set(item.insumoId, {
+            valorUnitario: item.valorUnitario,
+            data: p.data,
+            fornecedorId: p.fornecedorId,
+          });
+        }
+      });
+    });
+
+  // ── Último preço de frete por material ──
+  const ultimoFretePorMaterial = new Map<string, { custoPorTon: number; data: string; transportadora: string; origem: string }>();
+  [...fretesF]
+    .sort((a, b) => a.data.localeCompare(b.data))
+    .forEach((f) => {
+      if (!f.insumoId || f.pesoToneladas <= 0) return;
+      ultimoFretePorMaterial.set(f.insumoId, {
+        custoPorTon: f.valorTotal / f.pesoToneladas,
+        data: f.data,
+        transportadora: f.transportadora,
+        origem: f.origem,
+      });
+    });
+
+  const listaUltimoPreco = Array.from(ultimoPrecoPorMaterial.entries())
+    .map(([insumoId, info]) => {
+      const frete = ultimoFretePorMaterial.get(insumoId);
+      return {
+        insumoId,
+        material: insumosMap.get(insumoId) || insumoId,
+        fornecedor: fornecedoresMap.get(info.fornecedorId) || info.fornecedorId,
+        valorUnitario: info.valorUnitario,
+        data: info.data,
+        fretePorTon: frete?.custoPorTon ?? 0,
+        freteData: frete?.data ?? '',
+        freteTransportadora: frete?.transportadora ?? '',
+      };
+    })
+    .sort((a, b) => a.material.localeCompare(b.material));
+
   return (
     <div className="space-y-8">
       {/* Filtros */}
@@ -589,13 +650,14 @@ export default function FreteDashboard({
             <p>Areacre: {formatCurrency(saldoAreacre)}</p>
             <p>Amazonia: {formatCurrency(saldoAmazonia)}</p>
             <p>Triunfo: {formatCurrency(saldoTriunfo)}</p>
+            <p>Andrade: {formatCurrency(saldoAndrade)}</p>
             <p>ETAM: {formatCurrency(saldoEtam)}</p>
           </div>
         </Card>
       </div>
 
       {/* Cards resumo - fileira 2 */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
         <Card>
           <p className="text-sm text-gray-500">Saldo Areacre</p>
           <p className={`text-2xl font-bold mt-1 ${saldoAreacre > 0 ? 'text-red-600' : saldoAreacre < 0 ? 'text-green-600' : 'text-gray-500'}`}>
@@ -628,6 +690,17 @@ export default function FreteDashboard({
             <p>Fretes: {formatCurrency(fretesTriunfo)}</p>
             <p>Pago p/ Triunfo: −{formatCurrency(pagosParaTriunfo)}</p>
             <p>Abastecimentos: −{formatCurrency(abastTriunfo)}</p>
+          </div>
+        </Card>
+        <Card>
+          <p className="text-sm text-gray-500">Saldo Andrade Transporte</p>
+          <p className={`text-2xl font-bold mt-1 ${saldoAndrade > 0 ? 'text-red-600' : saldoAndrade < 0 ? 'text-green-600' : 'text-gray-500'}`}>
+            {formatCurrency(saldoAndrade)}
+          </p>
+          <div className="text-xs text-gray-400 mt-1 space-y-0.5">
+            <p>Fretes: {formatCurrency(fretesAndrade)}</p>
+            <p>Pago p/ Andrade: −{formatCurrency(pagosParaAndrade)}</p>
+            <p>Abastecimentos: −{formatCurrency(abastAndrade)}</p>
           </div>
         </Card>
         <Card>
@@ -831,6 +904,7 @@ export default function FreteDashboard({
           });
           const pmfTranspMap = new Map<string, number>();
           const pmfFreteValMap = new Map<string, number>();
+          const pmfMatValMap = new Map<string, number>();
           pmfFretesFiltr.forEach((f) => {
             if (!f.origem || !f.insumoId) return;
             const fId = findFornecedorByOrigem(f.origem);
@@ -838,16 +912,17 @@ export default function FreteDashboard({
             const key = `${fId}|${f.insumoId}`;
             pmfTranspMap.set(key, (pmfTranspMap.get(key) || 0) + f.pesoToneladas);
             pmfFreteValMap.set(key, (pmfFreteValMap.get(key) || 0) + f.valorTotal);
+            pmfMatValMap.set(key, (pmfMatValMap.get(key) || 0) + (f.valorMaterial || 0));
           });
           // Rebuild rows with filters
           const pmfRows: PedidoFornRow[] = [];
           const pmfTotForn: typeof totaisPorFornecedor = [];
-          let pmfTotalQtd = 0, pmfTotalQtdTransp = 0, pmfTotalPedidos = 0, pmfTotalFreteValor = 0, pmfTotalSaldoValor = 0;
+          let pmfTotalQtd = 0, pmfTotalQtdTransp = 0, pmfTotalPedidos = 0, pmfTotalFreteValor = 0, pmfTotalSaldoValor = 0, pmfTotalMatTransp = 0;
           Array.from(pedidosPorFornecedor.entries())
             .filter(([fId]) => pmfPedreiraFiltro.length === 0 || pmfPedreiraFiltro.includes(fId))
             .sort((a, b) => (fornecedoresMap.get(a[0]) || '').localeCompare(fornecedoresMap.get(b[0]) || ''))
             .forEach(([fornecedorId, materiaisMap]) => {
-              let fQtd = 0, fQtdT = 0, fVal = 0, fFrete = 0, fSaldo = 0;
+              let fQtd = 0, fQtdT = 0, fVal = 0, fFrete = 0, fSaldo = 0, fMatTransp = 0;
               const fornecedorNome = fornecedoresMap.get(fornecedorId) || fornecedorId;
               Array.from(materiaisMap.entries())
                 .filter(([insumoId]) => pmfMaterialFiltro.length === 0 || pmfMaterialFiltro.includes(insumoId))
@@ -857,15 +932,18 @@ export default function FreteDashboard({
                   const key = `${fornecedorId}|${insumoId}`;
                   const qtdTransportada = pmfTranspMap.get(key) || 0;
                   const freteValor = pmfFreteValMap.get(key) || 0;
+                  const valorMaterialTransp = pmfMatValMap.get(key) || 0;
                   const custoMedioFrete = qtdTransportada > 0 ? freteValor / qtdTransportada : 0;
-                  const saldoQtd = dados.qtd - qtdTransportada;
-                  const saldoValor = saldoQtd * vlrMedio;
-                  pmfRows.push({ fornecedorId, fornecedorNome, insumoId, qtd: dados.qtd, qtdTransportada, saldoQtd, vlrMedio, custoMedioFrete, valor: dados.valor, saldoValor });
-                  fQtd += dados.qtd; fQtdT += qtdTransportada; fVal += dados.valor; fFrete += freteValor; fSaldo += saldoValor;
+                  const saldoQtdRaw = dados.qtd - qtdTransportada;
+                  const saldoQtd = Math.abs(saldoQtdRaw) < 0.1 ? 0 : saldoQtdRaw;
+                  const saldoValorRaw = dados.valor - valorMaterialTransp;
+                  const saldoValor = Math.abs(saldoValorRaw) < 0.01 ? 0 : saldoValorRaw;
+                  pmfRows.push({ fornecedorId, fornecedorNome, insumoId, qtd: dados.qtd, qtdTransportada, saldoQtd, vlrMedio, custoMedioFrete, valor: dados.valor, valorMaterialTransp, saldoValor });
+                  fQtd += dados.qtd; fQtdT += qtdTransportada; fVal += dados.valor; fFrete += freteValor; fSaldo += saldoValor; fMatTransp += valorMaterialTransp;
                 });
               if (fQtd > 0 || fQtdT > 0) {
-                pmfTotForn.push({ fornecedorId, fornecedorNome, totalQtd: fQtd, totalQtdTransp: fQtdT, totalValor: fVal, totalFreteValor: fFrete, totalSaldoValor: fSaldo });
-                pmfTotalQtd += fQtd; pmfTotalQtdTransp += fQtdT; pmfTotalPedidos += fVal; pmfTotalFreteValor += fFrete; pmfTotalSaldoValor += fSaldo;
+                pmfTotForn.push({ fornecedorId, fornecedorNome, totalQtd: fQtd, totalQtdTransp: fQtdT, totalValor: fVal, totalFreteValor: fFrete, totalSaldoValor: fSaldo, totalValorMaterialTransp: fMatTransp });
+                pmfTotalQtd += fQtd; pmfTotalQtdTransp += fQtdT; pmfTotalPedidos += fVal; pmfTotalFreteValor += fFrete; pmfTotalSaldoValor += fSaldo; pmfTotalMatTransp += fMatTransp;
               }
             });
           if (pmfRows.length === 0) return <p className="text-gray-400 text-sm">Sem dados</p>;
@@ -904,8 +982,8 @@ export default function FreteDashboard({
                           <td className="px-3 py-2 text-right font-semibold text-gray-600">{forn.totalQtd.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>
                           <td className="px-3 py-2 text-right font-semibold text-gray-600">{formatCurrency(forn.totalValor)}</td>
                           <td className="px-3 py-2 text-right font-semibold text-emerald-700">{forn.totalQtdTransp.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>
-                          <td className="px-3 py-2 text-right font-semibold text-emerald-700">{formatCurrency(forn.totalValor - forn.totalSaldoValor)}</td>
-                          <td className={`px-3 py-2 text-right font-semibold ${(forn.totalQtd - forn.totalQtdTransp) < 0 ? 'text-red-600' : (forn.totalQtd - forn.totalQtdTransp) === 0 ? 'text-gray-400' : 'text-green-600'}`}>{(forn.totalQtd - forn.totalQtdTransp).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>
+                          <td className="px-3 py-2 text-right font-semibold text-emerald-700">{formatCurrency(forn.totalValorMaterialTransp)}</td>
+                          <td className={`px-3 py-2 text-right font-semibold ${(() => { const v = forn.totalQtd - forn.totalQtdTransp; const s = Math.abs(v) < 0.1 ? 0 : v; return s < 0 ? 'text-red-600' : s === 0 ? 'text-gray-400' : 'text-green-600'; })()}`}>{(() => { const v = forn.totalQtd - forn.totalQtdTransp; return (Math.abs(v) < 0.1 ? 0 : v).toLocaleString('pt-BR', { minimumFractionDigits: 2 }); })()}</td>
                           <td className={`px-3 py-2 text-right font-semibold ${forn.totalSaldoValor < 0 ? 'text-red-600' : forn.totalSaldoValor === 0 ? 'text-gray-400' : 'text-green-600'}`}>{formatCurrency(forn.totalSaldoValor)}</td>
                           <td className="px-3 py-2 text-right font-semibold text-purple-700">{formatCurrency(fornCMM)}</td>
                           <td className="px-3 py-2 text-right font-semibold text-purple-700">{fornCMF > 0 ? formatCurrency(fornCMF) : '-'}</td>
@@ -917,7 +995,7 @@ export default function FreteDashboard({
                             <td className="px-3 py-1.5 text-right text-gray-700">{r.qtd.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>
                             <td className="px-3 py-1.5 text-right text-gray-700">{formatCurrency(r.valor)}</td>
                             <td className="px-3 py-1.5 text-right text-emerald-600">{r.qtdTransportada.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>
-                            <td className="px-3 py-1.5 text-right text-emerald-600">{formatCurrency(r.qtdTransportada * r.vlrMedio)}</td>
+                            <td className="px-3 py-1.5 text-right text-emerald-600">{formatCurrency(r.valorMaterialTransp)}</td>
                             <td className={`px-3 py-1.5 text-right font-medium ${r.saldoQtd < 0 ? 'text-red-600' : r.saldoQtd === 0 ? 'text-gray-400' : 'text-green-600'}`}>{r.saldoQtd.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>
                             <td className={`px-3 py-1.5 text-right font-medium ${r.saldoValor < 0 ? 'text-red-600' : r.saldoValor === 0 ? 'text-gray-400' : 'text-green-600'}`}>{formatCurrency(r.saldoValor)}</td>
                             <td className="px-3 py-1.5 text-right text-purple-600">{formatCurrency(r.vlrMedio)}</td>
@@ -935,8 +1013,8 @@ export default function FreteDashboard({
                     <td className="px-3 py-2 text-right text-gray-800">{pmfTotalQtd.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>
                     <td className="px-3 py-2 text-right text-gray-800">{formatCurrency(pmfTotalPedidos)}</td>
                     <td className="px-3 py-2 text-right text-emerald-700">{pmfTotalQtdTransp.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>
-                    <td className="px-3 py-2 text-right text-emerald-700">{formatCurrency(pmfTotalPedidos - pmfTotalSaldoValor)}</td>
-                    <td className={`px-3 py-2 text-right ${(pmfTotalQtd - pmfTotalQtdTransp) < 0 ? 'text-red-600' : (pmfTotalQtd - pmfTotalQtdTransp) === 0 ? 'text-gray-400' : 'text-green-600'}`}>{(pmfTotalQtd - pmfTotalQtdTransp).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>
+                    <td className="px-3 py-2 text-right text-emerald-700">{formatCurrency(pmfTotalMatTransp)}</td>
+                    <td className={`px-3 py-2 text-right ${(() => { const v = pmfTotalQtd - pmfTotalQtdTransp; const s = Math.abs(v) < 0.1 ? 0 : v; return s < 0 ? 'text-red-600' : s === 0 ? 'text-gray-400' : 'text-green-600'; })()}`}>{(() => { const v = pmfTotalQtd - pmfTotalQtdTransp; return (Math.abs(v) < 0.1 ? 0 : v).toLocaleString('pt-BR', { minimumFractionDigits: 2 }); })()}</td>
                     <td className={`px-3 py-2 text-right ${pmfTotalSaldoValor < 0 ? 'text-red-600' : pmfTotalSaldoValor === 0 ? 'text-gray-400' : 'text-green-600'}`}>{formatCurrency(pmfTotalSaldoValor)}</td>
                     <td className="px-3 py-2 text-right text-purple-700">{pmfTotalQtd > 0 ? formatCurrency(pmfTotalPedidos / pmfTotalQtd) : '-'}</td>
                     <td className="px-3 py-2 text-right text-purple-700">{pmfTotalQtdTransp > 0 ? formatCurrency(pmfTotalFreteValor / pmfTotalQtdTransp) : '-'}</td>
@@ -1286,6 +1364,53 @@ export default function FreteDashboard({
                   </span>
                 </div>
               ))}
+          </div>
+        )}
+      </Card>
+
+      {/* Último Preço por Material */}
+      <Card>
+        <h3 className="text-sm font-semibold text-gray-700 dark:text-slate-300 mb-3">
+          Último Preço por Material
+        </h3>
+        {listaUltimoPreco.length === 0 ? (
+          <p className="text-gray-400 text-sm">Sem dados de pedidos</p>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-gray-200 dark:border-slate-600 text-left">
+                  <th className="py-2 pr-4 font-semibold text-gray-600 dark:text-slate-400">Material</th>
+                  <th className="py-2 pr-4 font-semibold text-gray-600 dark:text-slate-400">Fornecedor</th>
+                  <th className="py-2 pr-4 font-semibold text-gray-600 dark:text-slate-400 text-right">Preço Material (R$/ton)</th>
+                  <th className="py-2 pr-4 font-semibold text-gray-600 dark:text-slate-400 text-right">Data Pedido</th>
+                  <th className="py-2 pr-4 font-semibold text-gray-600 dark:text-slate-400 text-right">Preço Frete (R$/ton)</th>
+                  <th className="py-2 pr-4 font-semibold text-gray-600 dark:text-slate-400">Transportadora</th>
+                  <th className="py-2 font-semibold text-gray-600 dark:text-slate-400 text-right">Data Frete</th>
+                </tr>
+              </thead>
+              <tbody>
+                {listaUltimoPreco.map((row) => (
+                  <tr key={row.insumoId} className="border-b border-gray-100 dark:border-slate-700 last:border-0">
+                    <td className="py-2 pr-4 text-gray-700 dark:text-slate-300">{row.material}</td>
+                    <td className="py-2 pr-4 text-gray-600 dark:text-slate-400">{row.fornecedor}</td>
+                    <td className="py-2 pr-4 text-right font-medium text-gray-800 dark:text-slate-200">{formatCurrency(row.valorUnitario)}</td>
+                    <td className="py-2 pr-4 text-right text-gray-500 dark:text-slate-400">
+                      {row.data ? new Date(row.data + 'T12:00:00').toLocaleDateString('pt-BR') : '—'}
+                    </td>
+                    <td className="py-2 pr-4 text-right font-medium text-gray-800 dark:text-slate-200">
+                      {row.fretePorTon > 0 ? formatCurrency(row.fretePorTon) : '—'}
+                    </td>
+                    <td className="py-2 pr-4 text-gray-600 dark:text-slate-400">
+                      {row.freteTransportadora || '—'}
+                    </td>
+                    <td className="py-2 text-right text-gray-500 dark:text-slate-400">
+                      {row.freteData ? new Date(row.freteData + 'T12:00:00').toLocaleDateString('pt-BR') : '—'}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         )}
       </Card>

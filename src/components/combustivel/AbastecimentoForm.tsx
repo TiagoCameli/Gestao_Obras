@@ -1,12 +1,14 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
-import type { Abastecimento, AlocacaoEtapa, Deposito, EtapaObra, Obra } from '../../types';
+import type { Abastecimento, AlocacaoEtapa, Deposito, EtapaObra, Obra, OrigemCombustivel } from '../../types';
 import { useEquipamentos } from '../../hooks/useEquipamentos';
 import { useInsumos } from '../../hooks/useInsumos';
 import { useEntradasCombustivel } from '../../hooks/useEntradasCombustivel';
+import { useFornecedores } from '../../hooks/useFornecedores';
 import { calcularEstoqueCombustivelNaData } from '../../hooks/useEstoque';
 import Input from '../ui/Input';
 import Select from '../ui/Select';
 import Button from '../ui/Button';
+import SearchableSelect from '../apontamentos/SearchableSelect';
 import ImportExcelModal, { parseStr, parseNumero, type ParsedRow } from '../ui/ImportExcelModal';
 
 interface AbastecimentoFormProps {
@@ -24,8 +26,10 @@ function gerarId(): string {
 }
 
 const ABAST_TEMPLATE = [
-  ['Data', 'Combustível', 'Obra', 'Depósito', 'Litros', 'Valor', 'Veículo', 'Observações'],
-  ['2024-01-15 08:00', 'Diesel S10', 'Obra ABC', 'Tanque Diesel 01', '200', '1300', 'Escavadeira CAT', ''],
+  ['Data', 'Hora', 'Combustível', 'Obra', 'Etapa', 'Depósito', 'Litros', 'Veículo', 'Observações', 'Origem', 'Fornecedor'],
+  ['2024-01-15', '08:00', 'Diesel S10', 'Obra ABC', 'Terraplanagem', 'Tanque Diesel 01', '200', 'Escavadeira CAT', '', 'tanque', ''],
+  ['2024-01-16', '10:00', 'Diesel S10', 'Obra ABC', 'Terraplanagem', '', '150', 'Escavadeira CAT', '', 'dinheiro', 'Posto Shell'],
+  ['2024-01-17', '14:00', 'Diesel S10', 'Obra ABC', 'Terraplanagem', '', '300', 'Escavadeira CAT', '', 'requisicao', 'Distribuidora XYZ'],
 ];
 
 function getInitialAlocacoes(initial?: Abastecimento | null): AlocacaoEtapa[] {
@@ -53,12 +57,21 @@ export default function AbastecimentoForm({
   const insumosCombustivel = (insumosData ?? []).filter((i) => i.tipo === 'combustivel' && i.ativo !== false);
   const { data: entradasData } = useEntradasCombustivel();
   const allEntradas = entradasData ?? [];
+  const { data: fornecedoresData } = useFornecedores();
+  const fornecedorOptions = (fornecedoresData ?? [])
+    .filter((f) => f.ativo !== false)
+    .map((f) => ({ id: f.nome, label: f.nome }));
 
   // Import Excel
   const [importModalOpen, setImportModalOpen] = useState(false);
   const [toastMsg, setToastMsg] = useState('');
 
-  const [dataHora, setDataHora] = useState(initial?.dataHora || '');
+  // Separar data e hora do valor combinado
+  const initialDate = initial?.dataHora ? initial.dataHora.slice(0, 10) : '';
+  const initialTime = initial?.dataHora && initial.dataHora.length > 10 ? initial.dataHora.slice(11, 16) : '';
+  const [data, setData] = useState(initialDate);
+  const [hora, setHora] = useState(initialTime);
+  const dataHora = data ? (hora ? `${data}T${hora}` : `${data}T00:00`) : '';
   const [tipoCombustivel, setTipoCombustivel] = useState(
     initial?.tipoCombustivel || ''
   );
@@ -75,6 +88,9 @@ export default function AbastecimentoForm({
   const [depositoId, setDepositoId] = useState(initial?.depositoId || '');
   const [veiculo, setVeiculo] = useState(initial?.veiculo || '');
   const [observacoes, setObservacoes] = useState(initial?.observacoes || '');
+  const [origemCombustivel, setOrigemCombustivel] = useState<OrigemCombustivel>(initial?.origemCombustivel || 'tanque');
+  const [fornecedor, setFornecedor] = useState(initial?.fornecedor || '');
+  const isTanque = origemCombustivel === 'tanque';
 
   // Filter etapas and depositos by obraId from props
   const etapas = obraId ? allEtapas.filter((e) => e.obraId === obraId) : [];
@@ -116,7 +132,7 @@ export default function AbastecimentoForm({
     : depositoSelecionado
       ? depositoSelecionado.nivelAtualLitros + (initial ? initial.quantidadeLitros : 0)
       : 0;
-  const semEstoque = depositoId && qtdLitros > estoqueDisponivel;
+  const semEstoque = isTanque && depositoId && qtdLitros > estoqueDisponivel;
 
   // Preco medio do tanque selecionado
   const entradasTanque = depositoId
@@ -126,12 +142,12 @@ export default function AbastecimentoForm({
   const totalValorEntradas = entradasTanque.reduce((s, e) => s + e.valorTotal, 0);
   const precoMedio = totalLitrosEntradas > 0 ? totalValorEntradas / totalLitrosEntradas : 0;
 
-  // Auto-calcular valor total quando quantidade ou tanque mudam
+  // Auto-calcular valor total quando quantidade ou tanque mudam (apenas para tanque)
   useEffect(() => {
-    if (!initial && precoMedio > 0 && qtdLitros > 0) {
+    if (isTanque && precoMedio > 0 && qtdLitros > 0) {
       setValorTotal((qtdLitros * precoMedio).toFixed(4));
     }
-  }, [quantidadeLitros, depositoId, precoMedio, initial, qtdLitros]);
+  }, [quantidadeLitros, depositoId, precoMedio, qtdLitros, isTanque]);
 
   // Alocacoes
   const totalPercentual = alocacoes.reduce((sum, a) => sum + a.percentual, 0);
@@ -170,16 +186,27 @@ export default function AbastecimentoForm({
   const parseRow = useCallback(
     (row: unknown[], _index: number): ParsedRow => {
       const erros: string[] = [];
-      const data = parseStr(row[0]);
-      const combustivelNome = parseStr(row[1]);
-      const obraNome = parseStr(row[2]);
-      const depositoNome = parseStr(row[3]);
-      const litros = parseNumero(row[4]);
-      const valor = parseNumero(row[5]);
-      const veiculoNome = parseStr(row[6]);
-      const obs = parseStr(row[7]);
+      const dataVal = parseStr(row[0]);
+      const horaVal = parseStr(row[1]);
+      const combustivelNome = parseStr(row[2]);
+      const obraNome = parseStr(row[3]);
+      const etapaNome = parseStr(row[4]);
+      const depositoNome = parseStr(row[5]);
+      const litros = parseNumero(row[6]);
+      const veiculoNome = parseStr(row[7]);
+      const obs = parseStr(row[8]);
+      const origemRaw = (parseStr(row[9]) || 'tanque').toLowerCase().trim();
+      const fornecedorNome = parseStr(row[10]);
 
-      if (!data) erros.push('Falta data');
+      const origensValidas = ['tanque', 'dinheiro', 'requisicao'];
+      const origem = origensValidas.includes(origemRaw) ? origemRaw : 'tanque';
+      if (!origensValidas.includes(origemRaw) && parseStr(row[9])) {
+        erros.push(`Origem "${parseStr(row[9])}" inválida (usar: tanque, dinheiro, requisicao)`);
+      }
+      const isTanqueRow = origem === 'tanque';
+
+      if (!dataVal) erros.push('Falta data');
+      const dataHoraStr = dataVal ? (horaVal ? `${dataVal}T${horaVal}` : `${dataVal}T00:00`) : '';
 
       let combustivelId = '';
       if (!combustivelNome) {
@@ -199,51 +226,85 @@ export default function AbastecimentoForm({
         else erros.push(`Obra "${obraNome}" não encontrada`);
       }
 
+      let foundEtapaId = '';
+      if (etapaNome && foundObraId) {
+        const etapasObra = allEtapas.filter((e) => e.obraId === foundObraId);
+        const found = etapasObra.find((e) => e.nome.toLowerCase() === etapaNome.toLowerCase());
+        if (found) foundEtapaId = found.id;
+        else erros.push(`Etapa "${etapaNome}" não encontrada na obra`);
+      }
+
       let foundDepositoId = '';
-      if (!depositoNome) {
-        erros.push('Falta depósito');
-      } else {
-        const depositosObra = foundObraId
-          ? allDepositos.filter((d) => d.obraId === foundObraId && d.ativo !== false)
-          : allDepositos.filter((d) => d.ativo !== false);
-        const found = depositosObra.find((d) => d.nome.toLowerCase() === depositoNome.toLowerCase());
-        if (found) foundDepositoId = found.id;
-        else erros.push(`Depósito "${depositoNome}" não encontrado`);
+      if (isTanqueRow) {
+        if (!depositoNome) {
+          erros.push('Falta depósito (obrigatório para origem tanque)');
+        } else {
+          const depositosObra = foundObraId
+            ? allDepositos.filter((d) => d.obraId === foundObraId && d.ativo !== false)
+            : allDepositos.filter((d) => d.ativo !== false);
+          const found = depositosObra.find((d) => d.nome.toLowerCase() === depositoNome.toLowerCase());
+          if (found) foundDepositoId = found.id;
+          else erros.push(`Depósito "${depositoNome}" não encontrado`);
+        }
+      }
+
+      if (!isTanqueRow && !fornecedorNome) {
+        erros.push('Falta fornecedor (obrigatório para dinheiro/requisicao)');
       }
 
       if (litros === null) erros.push('Falta litros');
-      if (valor === null) erros.push('Falta valor');
       if (!veiculoNome) erros.push('Falta veículo');
 
-      const resumo = `${data || '?'} | ${combustivelNome || '?'} | ${obraNome || '?'} | ${veiculoNome || '?'} | ${litros ?? '?'} L`;
+      const resumo = `${dataVal || '?'} ${horaVal || ''} | ${origem} | ${combustivelNome || '?'} | ${obraNome || '?'} | ${veiculoNome || '?'} | ${litros ?? '?'} L${!isTanqueRow ? ` | ${fornecedorNome || '?'}` : ''}`;
 
       return {
         valido: erros.length === 0,
         erros,
         resumo,
-        dados: { data, tipoCombustivel: combustivelId, obraId: foundObraId, depositoId: foundDepositoId, quantidadeLitros: litros ?? 0, valorTotal: valor ?? 0, veiculo: veiculoNome, observacoes: obs },
+        dados: { dataHora: dataHoraStr, tipoCombustivel: combustivelId, obraId: foundObraId, etapaId: foundEtapaId, depositoId: foundDepositoId, quantidadeLitros: litros ?? 0, veiculo: veiculoNome, observacoes: obs, origemCombustivel: origem, fornecedor: fornecedorNome },
       };
     },
-    [insumosCombustivel, obras, allDepositos]
+    [insumosCombustivel, obras, allDepositos, allEtapas]
   );
 
   const toEntity = useCallback((row: ParsedRow): Record<string, unknown> => {
     const d = row.dados;
+    const etapaId = d.etapaId as string;
+    const depId = d.depositoId as string;
+    const qtd = d.quantidadeLitros as number;
+    const origem = (d.origemCombustivel as string) || 'tanque';
+    const isTanqueRow = origem === 'tanque';
+
+    // Calcular valor automaticamente pelo preço médio do tanque (só para tanque)
+    let valorCalc = 0;
+    if (isTanqueRow && depId) {
+      const entradasDep = allEntradas.filter((e) => e.depositoId === depId);
+      const totalLitros = entradasDep.reduce((s, e) => s + e.quantidadeLitros, 0);
+      const totalValor = entradasDep.reduce((s, e) => s + e.valorTotal, 0);
+      const pm = totalLitros > 0 ? totalValor / totalLitros : 0;
+      valorCalc = qtd * pm;
+    }
+
     return {
       id: gerarId(),
-      dataHora: d.data,
+      dataHora: d.dataHora,
       tipoCombustivel: d.tipoCombustivel,
-      quantidadeLitros: d.quantidadeLitros,
-      valorTotal: d.valorTotal,
+      quantidadeLitros: qtd,
+      valorTotal: parseFloat(valorCalc.toFixed(4)),
       obraId: d.obraId,
-      etapaId: '',
-      alocacoes: [],
-      depositoId: d.depositoId,
+      etapaId,
+      alocacoes: etapaId ? [{ etapaId, percentual: 100 }] : [],
+      depositoId: isTanqueRow ? depId : '',
       veiculo: d.veiculo,
       observacoes: d.observacoes,
       criadoPor: '',
+      origemCombustivel: origem,
+      fornecedor: (d.fornecedor as string) || '',
+      pago: false,
+      dataPagamento: '',
+      pagoPor: '',
     };
-  }, []);
+  }, [allEntradas]);
 
   const handleImportBatch = useCallback(
     (items: Record<string, unknown>[]) => {
@@ -267,22 +328,27 @@ export default function AbastecimentoForm({
       obraId,
       etapaId: alocacoes[0]?.etapaId || '',
       alocacoes,
-      depositoId,
+      depositoId: isTanque ? depositoId : '',
       veiculo,
       observacoes,
       criadoPor: initial?.criadoPor || '',
+      origemCombustivel,
+      fornecedor: isTanque ? '' : fornecedor,
+      pago: initial?.pago ?? false,
+      dataPagamento: initial?.dataPagamento ?? '',
+      pagoPor: initial?.pagoPor ?? '',
     });
   }
 
   const isValid =
-    dataHora &&
+    data &&
     quantidadeLitros &&
     valorTotal &&
     obraId &&
-    depositoId &&
     veiculo &&
     !semEstoque &&
-    alocacoesValidas;
+    alocacoesValidas &&
+    (isTanque ? !!depositoId : !!fornecedor);
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
@@ -293,14 +359,47 @@ export default function AbastecimentoForm({
           </Button>
         </div>
       )}
+      {/* Origem do combustível */}
+      <div>
+        <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
+          Origem do Combustível<span className="text-red-500 ml-0.5">*</span>
+        </label>
+        <div className="flex gap-3">
+          {([['tanque', 'Tanque'], ['dinheiro', 'Dinheiro'], ['requisicao', 'Requisição']] as const).map(([val, label]) => (
+            <label key={val} className={`flex items-center gap-2 px-4 py-2.5 rounded-lg border cursor-pointer transition-colors ${
+              origemCombustivel === val
+                ? 'border-emt-verde bg-emt-verde-claro text-emt-verde-escuro font-medium'
+                : 'border-gray-300 hover:border-gray-400 text-gray-600'
+            }`}>
+              <input
+                type="radio"
+                name="origemCombustivel"
+                value={val}
+                checked={origemCombustivel === val}
+                onChange={() => setOrigemCombustivel(val)}
+                className="sr-only"
+              />
+              {label}
+            </label>
+          ))}
+        </div>
+      </div>
+
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <Input
-          label="Data e Hora"
-          id="dataHora"
-          type="datetime-local"
-          value={dataHora}
-          onChange={(e) => setDataHora(e.target.value)}
+          label="Data"
+          id="dataAbastecimento"
+          type="date"
+          value={data}
+          onChange={(e) => setData(e.target.value)}
           required
+        />
+        <Input
+          label="Hora (opcional)"
+          id="horaAbastecimento"
+          type="time"
+          value={hora}
+          onChange={(e) => setHora(e.target.value)}
         />
         <Select
           label="Tipo de Combustível"
@@ -320,48 +419,62 @@ export default function AbastecimentoForm({
           placeholder="Selecione a obra"
           required
         />
-        <div>
-          <Select
-            label="Tanque de Origem"
-            id="depositoId"
-            value={depositoId}
-            onChange={(e) => setDepositoId(e.target.value)}
-            options={depositos.map((d) => ({
-              value: d.id,
-              label: `${d.nome} (${d.nivelAtualLitros.toFixed(0)}/${d.capacidadeLitros.toFixed(0)} L)`,
-            }))}
-            placeholder={
-              !obraId
-                ? 'Selecione a obra primeiro'
-                : depositos.length === 0
-                  ? 'Nenhum tanque para este combustível'
-                  : 'Selecione o tanque'
-            }
-            disabled={!obraId || depositos.length === 0}
-            required
-          />
-          {depositoSelecionado && (
-            <div className="mt-1.5 flex items-center gap-2">
-              <div className="flex-1 bg-gray-200 rounded-full h-1.5">
-                <div
-                  className={`h-1.5 rounded-full ${
-                    (estoqueDisponivel / depositoSelecionado.capacidadeLitros) * 100 > 50
-                      ? 'bg-green-500'
-                      : (estoqueDisponivel / depositoSelecionado.capacidadeLitros) * 100 > 20
-                        ? 'bg-yellow-500'
-                        : 'bg-red-500'
-                  }`}
-                  style={{
-                    width: `${Math.min(Math.max((estoqueDisponivel / depositoSelecionado.capacidadeLitros) * 100, 0), 100)}%`,
-                  }}
-                />
+        {isTanque ? (
+          <div>
+            <Select
+              label="Tanque de Origem"
+              id="depositoId"
+              value={depositoId}
+              onChange={(e) => setDepositoId(e.target.value)}
+              options={depositos.map((d) => ({
+                value: d.id,
+                label: `${d.nome} (${d.nivelAtualLitros.toFixed(0)}/${d.capacidadeLitros.toFixed(0)} L)`,
+              }))}
+              placeholder={
+                !obraId
+                  ? 'Selecione a obra primeiro'
+                  : depositos.length === 0
+                    ? 'Nenhum tanque para este combustível'
+                    : 'Selecione o tanque'
+              }
+              disabled={!obraId || depositos.length === 0}
+              required
+            />
+            {depositoSelecionado && (
+              <div className="mt-1.5 flex items-center gap-2">
+                <div className="flex-1 bg-gray-200 rounded-full h-1.5">
+                  <div
+                    className={`h-1.5 rounded-full ${
+                      (estoqueDisponivel / depositoSelecionado.capacidadeLitros) * 100 > 50
+                        ? 'bg-green-500'
+                        : (estoqueDisponivel / depositoSelecionado.capacidadeLitros) * 100 > 20
+                          ? 'bg-yellow-500'
+                          : 'bg-red-500'
+                    }`}
+                    style={{
+                      width: `${Math.min(Math.max((estoqueDisponivel / depositoSelecionado.capacidadeLitros) * 100, 0), 100)}%`,
+                    }}
+                  />
+                </div>
+                <span className="text-xs text-gray-500">
+                  {estoqueDisponivel.toFixed(0)} L disponíveis{dataHora ? ' na data' : ''}
+                </span>
               </div>
-              <span className="text-xs text-gray-500">
-                {estoqueDisponivel.toFixed(0)} L disponíveis{dataHora ? ' na data' : ''}
-              </span>
-            </div>
-          )}
-        </div>
+            )}
+          </div>
+        ) : (
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">
+              Fornecedor <span className="text-red-500">*</span>
+            </label>
+            <SearchableSelect
+              options={fornecedorOptions}
+              value={fornecedor}
+              onChange={setFornecedor}
+              placeholder="Selecione o fornecedor..."
+            />
+          </div>
+        )}
         <Input
           label="Quantidade (litros)"
           id="quantidadeLitros"
@@ -375,37 +488,40 @@ export default function AbastecimentoForm({
         />
         <div>
           <Input
-            label="Valor Total (R$)"
+            label={isTanque && precoMedio > 0 ? 'Valor Total (R$) — calculado' : 'Valor Total (R$)'}
             id="valorTotal"
             type="number"
             step="0.0001"
             min="0"
             value={valorTotal}
             onChange={(e) => setValorTotal(e.target.value)}
+            readOnly={isTanque && precoMedio > 0}
             required
           />
-          {precoMedio > 0 && (
+          {isTanque && precoMedio > 0 && (
             <p className="text-xs text-gray-500 mt-1">
               Preço médio do tanque: R$ {precoMedio.toFixed(4)}/L
             </p>
           )}
         </div>
-        <Select
-          label="Veículo / Equipamento"
-          id="veiculo"
-          value={veiculo}
-          onChange={(e) => setVeiculo(e.target.value)}
-          options={equipamentosAtivos.map((eq) => ({
-            value: eq.id,
-            label: `${eq.nome}${eq.marca ? ` - ${eq.marca}` : ''}`,
-          }))}
-          placeholder={
-            equipamentosAtivos.length === 0
-              ? 'Nenhum equipamento ativo'
-              : 'Selecione o equipamento'
-          }
-          required
-        />
+        <div>
+          <label htmlFor="veiculo" className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">
+            Veículo / Equipamento<span className="text-red-500 ml-0.5">*</span>
+          </label>
+          <SearchableSelect
+            options={equipamentosAtivos.map((eq) => ({
+              id: eq.id,
+              label: `${eq.nome}${eq.marca ? ` - ${eq.marca}` : ''}`,
+            }))}
+            value={veiculo}
+            onChange={setVeiculo}
+            placeholder={
+              equipamentosAtivos.length === 0
+                ? 'Nenhum equipamento ativo'
+                : 'Buscar equipamento...'
+            }
+          />
+        </div>
       </div>
 
       {/* Alocacao por Etapa */}
@@ -527,9 +643,9 @@ export default function AbastecimentoForm({
         templateData={ABAST_TEMPLATE}
         templateFileName="template_abastecimentos.xlsx"
         sheetName="Abastecimentos"
-        templateColWidths={[18, 15, 15, 20, 10, 12, 20, 15]}
-        formatHintHeaders={['Data', 'Combustível', 'Obra', 'Depósito', 'Litros', 'Valor', 'Veículo', 'Obs']}
-        formatHintExample={['2024-01-15 08:00', 'Diesel S10', 'Obra ABC', 'Tanque 01', '200', '1300', 'CAT 320', '']}
+        templateColWidths={[14, 8, 15, 15, 18, 20, 10, 20, 15]}
+        formatHintHeaders={['Data', 'Hora', 'Combustível', 'Obra', 'Etapa', 'Depósito', 'Litros', 'Veículo', 'Obs']}
+        formatHintExample={['2024-01-15', '08:00', 'Diesel S10', 'Obra ABC', 'Terraplanagem', 'Tanque 01', '200', 'CAT 320', '']}
         parseRow={parseRow}
         toEntity={toEntity}
       />

@@ -1,7 +1,7 @@
 import { useCallback, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import type { Apontamento, TipoApontamento, StatusApontamento } from '../types';
-import { useApontamentos, useAdicionarApontamento, useAtualizarApontamento, useExcluirApontamento } from '../hooks/useApontamentos';
+import { useApontamentos, useAdicionarApontamento, useAdicionarApontamentosLote, useAtualizarApontamento, useExcluirApontamento } from '../hooks/useApontamentos';
 import { useObras } from '../hooks/useObras';
 import { useEtapas } from '../hooks/useEtapas';
 import { useEquipamentos } from '../hooks/useEquipamentos';
@@ -25,6 +25,7 @@ import ProgressBarGroup from '../components/apontamentos/ProgressBarGroup';
 import { WrenchIcon, UsersIcon, AlertTriangleIcon, ClockIcon, DownloadIcon, CurrencyIcon } from '../components/apontamentos/icons';
 import { exportarRelatorioEquipPDF, exportarRelatorioEquipExcel, exportarRelatorioColabPDF, exportarRelatorioColabExcel, exportarRelatorioDiaristasPDF, exportarRelatorioDiaristasExcel } from '../utils/apontamentosExport';
 import DetalheEntidade from '../components/apontamentos/DetalheEntidade';
+import ImportApontamentosModal from '../components/apontamentos/ImportApontamentosModal';
 
 // ══════════════════════════════════════════
 // MAIN PAGE
@@ -42,6 +43,9 @@ export default function Apontamentos() {
   const tab: Tab = tabParam && validTabs.includes(tabParam) ? tabParam : 'painel';
   const setTab = useCallback((t: Tab) => setSearchParams({ tab: t }, { replace: true }), [setSearchParams]);
 
+  type SubPainel = 'equipamentos' | 'colaboradores' | 'diaristas';
+  const [subPainel, setSubPainel] = useState<SubPainel>('equipamentos');
+
   // Data
   const { data: apontamentos = [], isLoading } = useApontamentos();
   const { data: obras = [] } = useObras();
@@ -54,11 +58,13 @@ export default function Apontamentos() {
 
   // Mutations
   const adicionarMutation = useAdicionarApontamento();
+  const adicionarLoteMutation = useAdicionarApontamentosLote();
   const atualizarMutation = useAtualizarApontamento();
   const excluirMutation = useExcluirApontamento();
 
   // State
   const [detalheModal, setDetalheModal] = useState<{ tipo: TipoApontamento; id: string; nome: string } | null>(null);
+  const [importModalOpen, setImportModalOpen] = useState(false);
 
   const hoje = hojeStr();
 
@@ -335,10 +341,10 @@ export default function Apontamentos() {
 
   // Handlers
   const handleClockIn = useCallback(
-    async (tipo: TipoApontamento, entidadeId: string, obraId: string, etapaId: string, horaInicio: string) => {
+    async (tipo: TipoApontamento, entidadeId: string, obraId: string, etapaId: string, horaInicio: string, data?: string) => {
       const novo: Apontamento = {
         id: gerarId(),
-        data: hoje,
+        data: data || hoje,
         horaInicio,
         horaFim: '',
         obraId,
@@ -445,48 +451,78 @@ export default function Apontamentos() {
       {/* ── Painel Tab ── */}
       {tab === 'painel' && (
         <div className="space-y-6" role="tabpanel" id="tabpanel-painel" aria-labelledby="tab-painel">
-          {/* Status do dia (sempre hoje) */}
-          <SummaryCards items={[
-            {
-              label: 'Equip. Ativos',
-              value: equipAbertosHoje.length,
-              color: 'green',
-              icon: <WrenchIcon className="w-4 h-4" />,
-              trend: { value: equipAtivosHojeCount - equipAtivosOntem, label: 'vs ontem' },
-              tooltip: 'Equipamentos com apontamento aberto agora',
-            },
-            {
-              label: 'Colab. Ativos',
-              value: colabAbertosHoje.length,
-              color: 'green',
-              icon: <UsersIcon className="w-4 h-4" />,
-              trend: { value: colabAtivosHojeCount - colabAtivosOntem, label: 'vs ontem' },
-              tooltip: 'Colaboradores com apontamento aberto agora',
-            },
-            {
-              label: 'Equip. Pendentes',
-              value: equipPendentes,
-              color: 'amber',
-              icon: <AlertTriangleIcon className="w-4 h-4" />,
-              tooltip: 'Equipamentos sem apontamento hoje',
-            },
-            {
-              label: 'Colab. Pendentes',
-              value: colabPendentes,
-              color: 'amber',
-              icon: <ClockIcon className="w-4 h-4" />,
-              tooltip: 'Colaboradores sem apontamento hoje',
-            },
-          ]} />
+
+          {/* Sub-abas do painel */}
+          <div className="flex gap-1 bg-gray-200 dark:bg-slate-700 rounded-lg p-1 w-full sm:w-fit overflow-x-auto scrollbar-hide" style={{ scrollbarWidth: 'none' }}>
+            {([
+              { key: 'equipamentos' as SubPainel, label: 'Equipamentos' },
+              { key: 'colaboradores' as SubPainel, label: 'Colaboradores' },
+              { key: 'diaristas' as SubPainel, label: 'Diaristas' },
+            ]).map((s) => (
+              <button
+                key={s.key}
+                type="button"
+                className={`px-4 py-2 rounded-md text-sm font-medium whitespace-nowrap transition-colors ${
+                  subPainel === s.key
+                    ? 'bg-white dark:bg-slate-800 text-gray-800 dark:text-slate-200 shadow-sm'
+                    : 'text-gray-600 dark:text-slate-400 hover:text-gray-800 dark:hover:text-slate-200'
+                }`}
+                onClick={() => setSubPainel(s.key)}
+              >
+                {s.label}
+              </button>
+            ))}
+          </div>
+
+          {/* Status do dia */}
+          {subPainel === 'equipamentos' && (
+            <SummaryCards items={[
+              {
+                label: 'Equip. Ativos',
+                value: equipAbertosHoje.length,
+                color: 'green',
+                icon: <WrenchIcon className="w-4 h-4" />,
+                trend: { value: equipAtivosHojeCount - equipAtivosOntem, label: 'vs ontem' },
+                tooltip: 'Equipamentos com apontamento aberto agora',
+              },
+              {
+                label: 'Equip. Ociosos',
+                value: equipPendentes,
+                color: 'amber',
+                icon: <AlertTriangleIcon className="w-4 h-4" />,
+                tooltip: 'Equipamentos sem apontamento hoje',
+              },
+            ]} />
+          )}
+
+          {subPainel === 'colaboradores' && (
+            <SummaryCards items={[
+              {
+                label: 'Colab. Ativos',
+                value: colabAbertosHoje.length,
+                color: 'green',
+                icon: <UsersIcon className="w-4 h-4" />,
+                trend: { value: colabAtivosHojeCount - colabAtivosOntem, label: 'vs ontem' },
+                tooltip: 'Colaboradores com apontamento aberto agora',
+              },
+              {
+                label: 'Colab. Pendentes',
+                value: colabPendentes,
+                color: 'amber',
+                icon: <ClockIcon className="w-4 h-4" />,
+                tooltip: 'Colaboradores sem apontamento hoje',
+              },
+            ]} />
+          )}
 
           {/* Ativos agora */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {subPainel === 'equipamentos' && (
             <div>
               <h2 className="text-lg font-semibold text-gray-800 mb-3">Equipamentos Ativos Agora</h2>
               {equipAbertosHoje.length === 0 ? (
                 <EmptyState type="equipamentos" message="Nenhum equipamento ativo no momento" />
               ) : (
-                <div className="space-y-2">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                   {equipAbertosHoje.map((a) => {
                     const equip = todosEquipamentos.find((e) => e.id === a.equipamentoId);
                     return (
@@ -503,12 +539,15 @@ export default function Apontamentos() {
                 </div>
               )}
             </div>
+          )}
+
+          {subPainel === 'colaboradores' && (
             <div>
               <h2 className="text-lg font-semibold text-gray-800 mb-3">Colaboradores Ativos Agora</h2>
               {colabAbertosHoje.length === 0 ? (
                 <EmptyState type="colaboradores" message="Nenhum colaborador ativo no momento" />
               ) : (
-                <div className="space-y-2">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                   {colabAbertosHoje.map((a) => {
                     const colab = todosColaboradores.find((c) => c.id === a.colaboradorId);
                     return (
@@ -525,13 +564,12 @@ export default function Apontamentos() {
                 </div>
               )}
             </div>
-          </div>
+          )}
 
           {/* ── Relatórios ── */}
-          <div className="border-t pt-6">
-            <h2 className="text-lg font-semibold text-gray-800 mb-6">Relatórios</h2>
 
             {/* ═══ EQUIPAMENTOS ═══ */}
+            {subPainel === 'equipamentos' && (
             <div className="mb-8">
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-2">
@@ -634,8 +672,10 @@ export default function Apontamentos() {
                 />
               </div>
             </div>
+            )}
 
             {/* ═══ COLABORADORES ═══ */}
+            {subPainel === 'colaboradores' && (
             <div className="mb-8">
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-2">
@@ -745,8 +785,10 @@ export default function Apontamentos() {
                 />
               </div>
             </div>
+            )}
 
             {/* ═══ DIARISTAS ═══ */}
+            {subPainel === 'diaristas' && (
             <div className="mb-8">
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-2">
@@ -816,7 +858,8 @@ export default function Apontamentos() {
                 </>
               )}
             </div>
-          </div>
+            )}
+
         </div>
       )}
 
@@ -847,7 +890,22 @@ export default function Apontamentos() {
 
       {/* ── Colaboradores Tab ── */}
       {tab === 'colaboradores' && (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4" role="tabpanel" id="tabpanel-colaboradores" aria-labelledby="tab-colaboradores">
+        <div role="tabpanel" id="tabpanel-colaboradores" aria-labelledby="tab-colaboradores">
+          {canCreate && (
+            <div className="flex justify-end mb-4">
+              <button
+                type="button"
+                onClick={() => setImportModalOpen(true)}
+                className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-emt-verde hover:bg-emt-verde-escuro rounded-lg transition-colors"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M9 19l3-3m0 0l3 3m-3-3v12" />
+                </svg>
+                Importar Planilha
+              </button>
+            </div>
+          )}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {colaboradoresAtivos.length === 0 && (
             <div className="col-span-full"><EmptyState type="colaboradores" message="Nenhum colaborador cadastrado" /></div>
           )}
@@ -867,6 +925,7 @@ export default function Apontamentos() {
               </div>
             );
           })}
+          </div>
         </div>
       )}
 
@@ -898,7 +957,7 @@ export default function Apontamentos() {
             canCreate={canCreate}
             canEdit={canEdit}
             canDelete={canDelete}
-            onClockIn={(obraId, etapaId, horaInicio) => handleClockIn(detalheModal.tipo, detalheModal.id, obraId, etapaId, horaInicio)}
+            onClockIn={(obraId, etapaId, horaInicio, data) => handleClockIn(detalheModal.tipo, detalheModal.id, obraId, etapaId, horaInicio, data)}
             onClockOut={handleClockOut}
             onUpdate={handleUpdate}
             onDelete={handleDelete}
@@ -906,6 +965,16 @@ export default function Apontamentos() {
           />
         )}
       </Modal>
+
+      <ImportApontamentosModal
+        open={importModalOpen}
+        onClose={() => setImportModalOpen(false)}
+        onImport={(items) => adicionarLoteMutation.mutate(items)}
+        colaboradores={todosColaboradores}
+        obras={obras}
+        etapas={etapas}
+        criadoPor={usuario?.nome || ''}
+      />
     </div>
   );
 }

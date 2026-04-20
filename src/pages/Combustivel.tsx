@@ -1,7 +1,7 @@
 import { useCallback, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import type { Abastecimento, EntradaCombustivel, TransferenciaCombustivel, FiltrosAbastecimento } from '../types';
-import { useAbastecimentos, useAdicionarAbastecimento, useAtualizarAbastecimento, useExcluirAbastecimento } from '../hooks/useAbastecimentos';
+import { useAbastecimentos, useAdicionarAbastecimento, useAtualizarAbastecimento, useExcluirAbastecimento, useMarcarAbastecimentoPago, useDesmarcarAbastecimentoPago } from '../hooks/useAbastecimentos';
 import { useEntradasCombustivel, useAdicionarEntradaCombustivel, useAtualizarEntradaCombustivel, useExcluirEntradaCombustivel } from '../hooks/useEntradasCombustivel';
 import { useTransferenciasCombustivel, useAdicionarTransferenciaCombustivel, useExcluirTransferenciaCombustivel } from '../hooks/useTransferenciasCombustivel';
 import { useObras } from '../hooks/useObras';
@@ -12,6 +12,7 @@ import Modal from '../components/ui/Modal';
 import AbastecimentoForm from '../components/combustivel/AbastecimentoForm';
 import AbastecimentoFilters from '../components/combustivel/AbastecimentoFilters';
 import AbastecimentoList from '../components/combustivel/AbastecimentoList';
+import AbastecimentoExternoList from '../components/combustivel/AbastecimentoExternoList';
 import EntradaForm from '../components/combustivel/EntradaForm';
 import EntradaList from '../components/combustivel/EntradaList';
 import TransferenciaForm from '../components/combustivel/TransferenciaForm';
@@ -55,6 +56,8 @@ export default function Combustivel() {
   const adicionarAbastecimentoMut = useAdicionarAbastecimento();
   const atualizarAbastecimentoMut = useAtualizarAbastecimento();
   const excluirAbastecimentoMut = useExcluirAbastecimento();
+  const marcarPagoMut = useMarcarAbastecimentoPago();
+  const desmarcarPagoMut = useDesmarcarAbastecimentoPago();
   const adicionarEntradaMut = useAdicionarEntradaCombustivel();
   const atualizarEntradaMut = useAtualizarEntradaCombustivel();
   const excluirEntradaMut = useExcluirEntradaCombustivel();
@@ -72,6 +75,10 @@ export default function Combustivel() {
 
   // Transferencia state
   const [modalTransferenciaOpen, setModalTransferenciaOpen] = useState(false);
+
+  // Sub-tab para saidas
+  type SubTabSaida = 'tanque' | 'dinheiro' | 'requisicao';
+  const [subTabSaida, setSubTabSaida] = useState<SubTabSaida>('tanque');
 
   // Exportar PDF state
   const [modalExportarOpen, setModalExportarOpen] = useState(false);
@@ -92,6 +99,10 @@ export default function Combustivel() {
       return true;
     });
   }, [todosAbastecimentos, filtros]);
+
+  const saidasTanque = useMemo(() => abastecimentosFiltrados.filter((a) => !a.origemCombustivel || a.origemCombustivel === 'tanque'), [abastecimentosFiltrados]);
+  const saidasDinheiro = useMemo(() => abastecimentosFiltrados.filter((a) => a.origemCombustivel === 'dinheiro'), [abastecimentosFiltrados]);
+  const saidasRequisicao = useMemo(() => abastecimentosFiltrados.filter((a) => a.origemCombustivel === 'requisicao'), [abastecimentosFiltrados]);
 
   const entradasFiltradas = useMemo(() => {
     return todasEntradas.filter((e) => {
@@ -271,6 +282,7 @@ export default function Combustivel() {
           entradas={entradasFiltradas}
           todasEntradas={todasEntradas}
           todosAbastecimentos={todosAbastecimentos}
+          transferencias={todasTransferencias}
           obras={obras}
           etapas={etapas}
           depositos={depositos}
@@ -278,14 +290,67 @@ export default function Combustivel() {
       )}
 
       {tab === 'saidas' && (
-        <AbastecimentoList
-          abastecimentos={abastecimentosFiltrados}
-          obras={obras}
-          onEdit={handleEditSaida}
-          onDelete={(id) => pedirSenha(() => handleDeleteSaida(id))}
-          canEdit={canEdit}
-          canDelete={canDelete}
-        />
+        <div>
+          {/* Sub-tabs */}
+          <div className="flex gap-1 mb-4 bg-gray-100 rounded-lg p-1 w-fit">
+            {([
+              { key: 'tanque' as SubTabSaida, label: 'Tanque' },
+              { key: 'dinheiro' as SubTabSaida, label: 'Dinheiro' },
+              { key: 'requisicao' as SubTabSaida, label: 'Requisição' },
+            ]).map((st) => (
+              <button
+                key={st.key}
+                className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+                  subTabSaida === st.key
+                    ? 'bg-white text-gray-800 shadow-sm'
+                    : 'text-gray-500 hover:text-gray-700'
+                }`}
+                onClick={() => setSubTabSaida(st.key)}
+              >
+                {st.label}
+                <span className="ml-1.5 text-xs text-gray-400">
+                  ({st.key === 'tanque' ? saidasTanque.length : st.key === 'dinheiro' ? saidasDinheiro.length : saidasRequisicao.length})
+                </span>
+              </button>
+            ))}
+          </div>
+
+          {subTabSaida === 'tanque' && (
+            <AbastecimentoList
+              abastecimentos={saidasTanque}
+              obras={obras}
+              onEdit={handleEditSaida}
+              onDelete={(id) => pedirSenha(() => handleDeleteSaida(id))}
+              canEdit={canEdit}
+              canDelete={canDelete}
+            />
+          )}
+
+          {subTabSaida === 'dinheiro' && (
+            <AbastecimentoExternoList
+              abastecimentos={saidasDinheiro}
+              obras={obras}
+              onEdit={handleEditSaida}
+              onDelete={(id) => pedirSenha(() => handleDeleteSaida(id))}
+              canEdit={canEdit}
+              canDelete={canDelete}
+            />
+          )}
+
+          {subTabSaida === 'requisicao' && (
+            <AbastecimentoExternoList
+              abastecimentos={saidasRequisicao}
+              obras={obras}
+              onEdit={handleEditSaida}
+              onDelete={(id) => pedirSenha(() => handleDeleteSaida(id))}
+              onMarcarPago={(id) => marcarPagoMut.mutate({ id, pagoPor: usuario?.nome || '' })}
+              onDesmarcarPago={(id) => desmarcarPagoMut.mutate(id)}
+              canEdit={canEdit}
+              canDelete={canDelete}
+              mostrarPagamento
+            />
+          )}
+        </div>
       )}
 
       {tab === 'entradas' && (

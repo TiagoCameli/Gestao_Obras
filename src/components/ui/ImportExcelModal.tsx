@@ -24,6 +24,7 @@ export interface ImportExcelModalProps {
   formatHintExample: string[];
   parseRow: (row: unknown[], index: number) => ParsedRow;
   toEntity: (row: ParsedRow) => Record<string, unknown>;
+  onDownloadTemplate?: () => void;
 }
 
 export function parseNumero(raw: unknown): number | null {
@@ -71,6 +72,7 @@ export default function ImportExcelModal({
   formatHintExample,
   parseRow,
   toEntity,
+  onDownloadTemplate,
 }: ImportExcelModalProps) {
   const [parseados, setParseados] = useState<ParsedRow[] | null>(null);
   const [dragAtivo, setDragAtivo] = useState(false);
@@ -91,12 +93,16 @@ export default function ImportExcelModal({
   }, [onClose, resetar]);
 
   const baixarTemplate = useCallback(() => {
+    if (onDownloadTemplate) {
+      onDownloadTemplate();
+      return;
+    }
     const wb = XLSX.utils.book_new();
     const ws = XLSX.utils.aoa_to_sheet(templateData);
     ws['!cols'] = templateColWidths.map((wch) => ({ wch }));
     XLSX.utils.book_append_sheet(wb, ws, sheetName);
     XLSX.writeFile(wb, templateFileName);
-  }, [templateData, templateColWidths, sheetName, templateFileName]);
+  }, [templateData, templateColWidths, sheetName, templateFileName, onDownloadTemplate]);
 
   const processarArquivo = useCallback(
     async (file: File) => {

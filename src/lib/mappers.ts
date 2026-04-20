@@ -12,6 +12,7 @@ import type {
   UnidadeMedida,
   CategoriaMaterial,
   TipoInsumoEntity,
+  TipoEquipamentoEntity,
   EntradaMaterial,
   SaidaMaterial,
   TransferenciaMaterial,
@@ -33,6 +34,12 @@ import type {
   Apontamento,
   SequenciaDiaria,
   RegistroHorasDiarista,
+  OrdemServico,
+  ItemOS,
+  PlanoManutencao,
+  HistoricoMedicao,
+  ChecklistEquipamento,
+  HistoricoInspecao,
 } from '../types';
 
 // ── Obras ──
@@ -133,10 +140,15 @@ export function dbToAbastecimento(row: any): Abastecimento {
     obraId: row.obra_id,
     etapaId: row.etapa_id,
     alocacoes: row.alocacoes ?? [],
-    depositoId: row.deposito_id,
+    depositoId: row.deposito_id ?? '',
     veiculo: row.veiculo,
     observacoes: row.observacoes,
     criadoPor: row.criado_por ?? '',
+    origemCombustivel: row.origem_combustivel ?? 'tanque',
+    fornecedor: row.fornecedor ?? '',
+    pago: row.pago ?? false,
+    dataPagamento: row.data_pagamento ?? '',
+    pagoPor: row.pago_por ?? '',
   };
 }
 
@@ -150,10 +162,15 @@ export function abastecimentoToDb(a: Abastecimento) {
     obra_id: a.obraId,
     etapa_id: a.etapaId,
     alocacoes: a.alocacoes ?? [],
-    deposito_id: a.depositoId,
+    deposito_id: a.depositoId || null,
     veiculo: a.veiculo,
     observacoes: a.observacoes,
     criado_por: a.criadoPor,
+    origem_combustivel: a.origemCombustivel ?? 'tanque',
+    fornecedor: a.fornecedor ?? '',
+    pago: a.pago ?? false,
+    data_pagamento: a.dataPagamento ?? '',
+    pago_por: a.pagoPor ?? '',
   };
 }
 
@@ -199,6 +216,8 @@ export function dbToEquipamento(row: any): Equipamento {
   return {
     id: row.id,
     nome: row.nome,
+    tipo: row.tipo ?? '',
+    empresaId: row.empresa_id ?? '',
     codigoPatrimonio: row.codigo_patrimonio,
     numeroSerie: row.numero_serie,
     ano: row.ano,
@@ -216,6 +235,8 @@ export function equipamentoToDb(e: Equipamento) {
   return {
     id: e.id,
     nome: e.nome,
+    tipo: e.tipo,
+    empresa_id: e.empresaId,
     codigo_patrimonio: e.codigoPatrimonio,
     numero_serie: e.numeroSerie,
     ano: e.ano,
@@ -552,8 +573,10 @@ export function dbToFrete(row: any): Frete {
     valorTkm: Number(row.valor_tkm),
     valorTotal: Number(row.valor_total),
     notaFiscal: row.nota_fiscal,
+    notaFiscal2: row.nota_fiscal2 ?? '',
     placaCarreta: row.placa_carreta ?? '',
     motorista: row.motorista ?? '',
+    valorMaterial: Number(row.valor_material ?? 0),
     observacoes: row.observacoes,
     criadoPor: row.criado_por ?? '',
   };
@@ -574,8 +597,10 @@ export function freteToDb(f: Frete) {
     valor_tkm: f.valorTkm,
     valor_total: f.valorTotal,
     nota_fiscal: f.notaFiscal,
+    nota_fiscal2: f.notaFiscal2,
     placa_carreta: f.placaCarreta,
     motorista: f.motorista,
+    valor_material: f.valorMaterial,
     observacoes: f.observacoes,
     criado_por: f.criadoPor,
   };
@@ -1110,5 +1135,225 @@ export function registroHorasDiaristaToDb(r: RegistroHorasDiarista) {
     data: r.data,
     horas: r.horas,
     descricao: r.descricao,
+  };
+}
+
+// ── Ordens de Serviço ──
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function dbToOrdemServico(row: any): OrdemServico {
+  return {
+    id: row.id,
+    numero: row.numero ?? '',
+    equipamentoId: row.equipamento_id ?? '',
+    tipo: row.tipo ?? 'corretiva',
+    prioridade: row.prioridade ?? 'normal',
+    status: row.status ?? 'aberta',
+    descricao: row.descricao ?? '',
+    dataAbertura: row.data_abertura ?? '',
+    dataPrevista: row.data_prevista ?? '',
+    dataConclusao: row.data_conclusao ?? '',
+    medicaoAbertura: Number(row.medicao_abertura) || 0,
+    medicaoConclusao: row.medicao_conclusao != null ? Number(row.medicao_conclusao) : null,
+    responsavel: row.responsavel ?? '',
+    observacoes: row.observacoes ?? '',
+    criadoPor: row.criado_por ?? '',
+  };
+}
+
+export function ordemServicoToDb(os: OrdemServico) {
+  return {
+    id: os.id,
+    numero: os.numero,
+    equipamento_id: os.equipamentoId,
+    tipo: os.tipo,
+    prioridade: os.prioridade,
+    status: os.status,
+    descricao: os.descricao,
+    data_abertura: os.dataAbertura,
+    data_prevista: os.dataPrevista || null,
+    data_conclusao: os.dataConclusao || null,
+    medicao_abertura: os.medicaoAbertura,
+    medicao_conclusao: os.medicaoConclusao,
+    responsavel: os.responsavel,
+    observacoes: os.observacoes,
+    criado_por: os.criadoPor,
+  };
+}
+
+// ── Itens OS ──
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function dbToItemOS(row: any): ItemOS {
+  return {
+    id: row.id,
+    ordemServicoId: row.ordem_servico_id ?? '',
+    descricao: row.descricao ?? '',
+    tipo: row.tipo ?? 'peca',
+    quantidade: Number(row.quantidade) || 1,
+    valorUnitario: Number(row.valor_unitario) || 0,
+    criadoPor: row.criado_por ?? '',
+  };
+}
+
+export function itemOSToDb(item: ItemOS) {
+  return {
+    id: item.id,
+    ordem_servico_id: item.ordemServicoId,
+    descricao: item.descricao,
+    tipo: item.tipo,
+    quantidade: item.quantidade,
+    valor_unitario: item.valorUnitario,
+    criado_por: item.criadoPor,
+  };
+}
+
+// ── Planos de Manutenção ──
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function dbToPlanoManutencao(row: any): PlanoManutencao {
+  return {
+    id: row.id,
+    equipamentoId: row.equipamento_id ?? '',
+    nome: row.nome ?? '',
+    descricao: row.descricao ?? '',
+    intervaloHoras: row.intervalo_horas != null ? Number(row.intervalo_horas) : null,
+    intervaloKm: row.intervalo_km != null ? Number(row.intervalo_km) : null,
+    intervaloDias: row.intervalo_dias != null ? Number(row.intervalo_dias) : null,
+    ultimaExecucaoMedicao: Number(row.ultima_execucao_medicao) || 0,
+    ultimaExecucaoData: row.ultima_execucao_data ?? '',
+    ativo: row.ativo ?? true,
+    criadoPor: row.criado_por ?? '',
+    createdAt: row.created_at ?? '',
+  };
+}
+
+export function planoManutencaoToDb(p: PlanoManutencao) {
+  return {
+    id: p.id,
+    equipamento_id: p.equipamentoId,
+    nome: p.nome,
+    descricao: p.descricao,
+    intervalo_horas: p.intervaloHoras,
+    intervalo_km: p.intervaloKm,
+    intervalo_dias: p.intervaloDias,
+    ultima_execucao_medicao: p.ultimaExecucaoMedicao,
+    ultima_execucao_data: p.ultimaExecucaoData || null,
+    ativo: p.ativo,
+    criado_por: p.criadoPor,
+  };
+}
+
+// ── Histórico de Medições ──
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function dbToHistoricoMedicao(row: any): HistoricoMedicao {
+  return {
+    id: row.id,
+    equipamentoId: row.equipamento_id ?? '',
+    tipoMedicao: row.tipo_medicao ?? '',
+    valor: Number(row.valor) || 0,
+    dataRegistro: row.data_registro ?? '',
+    observacoes: row.observacoes ?? '',
+    criadoPor: row.criado_por ?? '',
+  };
+}
+
+export function historicoMedicaoToDb(m: HistoricoMedicao) {
+  return {
+    id: m.id,
+    equipamento_id: m.equipamentoId,
+    tipo_medicao: m.tipoMedicao,
+    valor: m.valor,
+    data_registro: m.dataRegistro,
+    observacoes: m.observacoes,
+    criado_por: m.criadoPor,
+  };
+}
+
+// ── Tipos Equipamento ──
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function dbToTipoEquipamento(row: any): TipoEquipamentoEntity {
+  return {
+    id: row.id,
+    nome: row.nome,
+    codigo: row.codigo,
+    ativo: row.ativo,
+    criadoPor: row.criado_por ?? '',
+  };
+}
+
+export function tipoEquipamentoToDb(t: TipoEquipamentoEntity) {
+  return {
+    id: t.id,
+    nome: t.nome,
+    codigo: t.codigo,
+    ativo: t.ativo,
+    criado_por: t.criadoPor,
+  };
+}
+
+// ── Checklist de Equipamentos ──
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function dbToChecklistEquipamento(row: any): ChecklistEquipamento {
+  return {
+    id: row.id,
+    equipamentoId: row.equipamento_id ?? '',
+    data: row.data ?? '',
+    unidade: row.unidade ?? '',
+    areaInspecao: row.area_inspecao ?? '',
+    turnos: row.turnos ?? [],
+    respostas: row.respostas ?? {},
+    observacoes: row.observacoes ?? '',
+    criadoPor: row.criado_por ?? '',
+    createdAt: row.created_at ?? '',
+  };
+}
+
+export function checklistEquipamentoToDb(c: ChecklistEquipamento) {
+  return {
+    id: c.id,
+    equipamento_id: c.equipamentoId,
+    data: c.data,
+    unidade: c.unidade,
+    area_inspecao: c.areaInspecao,
+    turnos: c.turnos,
+    respostas: c.respostas,
+    observacoes: c.observacoes,
+    criado_por: c.criadoPor,
+  };
+}
+
+// ── Histórico de Inspeção ──
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function dbToHistoricoInspecao(row: any): HistoricoInspecao {
+  return {
+    id: row.id,
+    equipamentoId: row.equipamento_id ?? '',
+    data: row.data ?? '',
+    horario: row.horario ?? '',
+    descricao: row.descricao ?? '',
+    providencia: row.providencia ?? '',
+    operador: row.operador ?? '',
+    encarregado: row.encarregado ?? '',
+    criadoPor: row.criado_por ?? '',
+    createdAt: row.created_at ?? '',
+  };
+}
+
+export function historicoInspecaoToDb(h: HistoricoInspecao) {
+  return {
+    id: h.id,
+    equipamento_id: h.equipamentoId,
+    data: h.data,
+    horario: h.horario,
+    descricao: h.descricao,
+    providencia: h.providencia,
+    operador: h.operador,
+    encarregado: h.encarregado,
+    criado_por: h.criadoPor,
   };
 }

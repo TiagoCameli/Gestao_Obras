@@ -15,7 +15,7 @@ export default function Input({ label, error, id, ...props }: InputProps) {
         id={id}
         className={`w-full h-[44px] border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emt-verde dark:bg-slate-700 dark:text-slate-200 dark:border-slate-600 ${
           error ? 'border-red-500' : 'border-gray-300'
-        }`}
+        } ${props.readOnly ? 'bg-gray-100 dark:bg-slate-600 cursor-not-allowed' : ''}`}
         {...props}
       />
       {error && <p className="text-red-500 text-xs mt-1">{error}</p>}

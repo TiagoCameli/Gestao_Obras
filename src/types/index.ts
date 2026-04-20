@@ -30,6 +30,8 @@ export interface Deposito {
   criadoPor: string;
 }
 
+export type OrigemCombustivel = 'tanque' | 'dinheiro' | 'requisicao';
+
 export interface Abastecimento {
   id: string;
   dataHora: string;
@@ -43,6 +45,11 @@ export interface Abastecimento {
   veiculo: string;
   observacoes: string;
   criadoPor: string;
+  origemCombustivel: OrigemCombustivel;
+  fornecedor: string;
+  pago: boolean;
+  dataPagamento: string;
+  pagoPor: string;
 }
 
 export interface EntradaCombustivel {
@@ -61,9 +68,21 @@ export interface EntradaCombustivel {
 
 export type TipoMedicao = 'horimetro' | 'odometro' | 'km';
 
+export type TipoEquipamento = string;
+
+export interface TipoEquipamentoEntity {
+  id: string;
+  nome: string;
+  codigo: string;
+  ativo: boolean;
+  criadoPor: string;
+}
+
 export interface Equipamento {
   id: string;
   nome: string;
+  tipo: TipoEquipamento | '';
+  empresaId: string;
   codigoPatrimonio: string;
   numeroSerie: string;
   ano: string;
@@ -199,7 +218,7 @@ export interface FiltrosInsumos {
 
 export type CargoFuncionario = 'Administrador' | 'Gerente' | 'Gerente Financeiro' | 'Gerente de Compras' | 'Supervisor' | 'Operador' | 'Financeiro' | 'Apontador' | 'Engenheiro Civil Sênior' | 'Engenheiro Civil';
 
-export type ModuloPermissao = 'dashboard' | 'cadastros' | 'frete' | 'funcionarios' | 'apontamentos';
+export type ModuloPermissao = 'dashboard' | 'cadastros' | 'frete' | 'frota' | 'funcionarios' | 'apontamentos';
 
 export type AcaoPermissao = 'visualizar' | 'criar' | 'editar' | 'excluir' | 'exportar' | 'ajustar_filtros';
 
@@ -280,8 +299,10 @@ export interface Frete {
   valorTkm: number;
   valorTotal: number;
   notaFiscal: string;
+  notaFiscal2: string;
   placaCarreta: string;
   motorista: string;
+  valorMaterial: number;
   observacoes: string;
   criadoPor: string;
 }
@@ -294,6 +315,7 @@ export interface FiltrosFrete {
   origem: string;
   dataInicio: string;
   dataFim: string;
+  notaFiscal: string;
 }
 
 export type MetodoPagamentoFrete = 'pix' | 'boleto' | 'cheque' | 'dinheiro' | 'transferencia' | 'combustivel';
@@ -555,5 +577,109 @@ export interface RegistroHorasDiarista {
   data: string;
   horas: number;
   descricao: string;
+  createdAt: string;
+}
+
+// === Manutenção ===
+
+export type StatusOS = 'aberta' | 'em_andamento' | 'aguardando_peca' | 'concluida' | 'cancelada';
+export type TipoOS = 'preventiva' | 'corretiva';
+export type PrioridadeOS = 'baixa' | 'normal' | 'alta' | 'critica';
+export type TipoCustoOS = 'peca' | 'mao_de_obra' | 'servico_externo';
+
+export interface OrdemServico {
+  id: string;
+  numero: string;
+  equipamentoId: string;
+  tipo: TipoOS;
+  prioridade: PrioridadeOS;
+  status: StatusOS;
+  descricao: string;
+  dataAbertura: string;
+  dataPrevista: string;
+  dataConclusao: string;
+  medicaoAbertura: number;
+  medicaoConclusao: number | null;
+  responsavel: string;
+  observacoes: string;
+  criadoPor: string;
+}
+
+export interface ItemOS {
+  id: string;
+  ordemServicoId: string;
+  descricao: string;
+  tipo: TipoCustoOS;
+  quantidade: number;
+  valorUnitario: number;
+  criadoPor: string;
+}
+
+export interface PlanoManutencao {
+  id: string;
+  equipamentoId: string;
+  nome: string;
+  descricao: string;
+  intervaloHoras: number | null;
+  intervaloKm: number | null;
+  intervaloDias: number | null;
+  ultimaExecucaoMedicao: number;
+  ultimaExecucaoData: string;
+  ativo: boolean;
+  criadoPor: string;
+  createdAt: string;
+}
+
+export interface HistoricoMedicao {
+  id: string;
+  equipamentoId: string;
+  tipoMedicao: string;
+  valor: number;
+  dataRegistro: string;
+  observacoes: string;
+  criadoPor: string;
+}
+
+// === Checklist de Equipamentos ===
+
+export type RespostaChecklist = 'sim' | 'nao' | 'na' | '';
+
+export interface TurnoChecklist {
+  turno: 1 | 2 | 3;
+  horimetroInicial: string;
+  horimetroFinal: string;
+  tipoManutencao: 'preventiva' | 'corretiva';
+  parouManutencao: boolean;
+  horaParada: string;
+  horaRetorno: string;
+  nomeOperador: string;
+  cs: string;
+}
+
+export interface ChecklistEquipamento {
+  id: string;
+  equipamentoId: string;
+  data: string;
+  unidade: string;
+  areaInspecao: string;
+  turnos: TurnoChecklist[];
+  respostas: Record<string, { turno1: RespostaChecklist; turno2: RespostaChecklist; turno3: RespostaChecklist }>;
+  observacoes: string;
+  criadoPor: string;
+  createdAt: string;
+}
+
+// === Histórico de Inspeção ===
+
+export interface HistoricoInspecao {
+  id: string;
+  equipamentoId: string;
+  data: string;
+  horario: string;
+  descricao: string;
+  providencia: string;
+  operador: string;
+  encarregado: string;
+  criadoPor: string;
   createdAt: string;
 }

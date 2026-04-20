@@ -15,6 +15,7 @@ import ObraForm from '../components/obras/ObraForm';
 import Input from '../components/ui/Input';
 import Select from '../components/ui/Select';
 import { useAuth } from '../contexts/AuthContext';
+import { exportarOrcamentoPDF, exportarOrcamentoExcel } from '../utils/obrasExport';
 
 const STATUS_LABELS: Record<Obra['status'], string> = {
   planejamento: 'Planejamento',
@@ -145,11 +146,27 @@ export default function ObrasPage() {
     <div>
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-3xl font-bold text-gray-800">Obras</h1>
-        {canCreate && (
-          <Button onClick={() => { setEditando(null); setModalOpen(true); }}>
-            Nova Obra
+        <div className="flex items-center gap-2 flex-wrap">
+          <Button
+            variant="secondary"
+            className="text-sm"
+            onClick={() => exportarOrcamentoPDF(obrasFiltradas, todasEtapas)}
+          >
+            Exportar PDF
           </Button>
-        )}
+          <Button
+            variant="secondary"
+            className="text-sm"
+            onClick={() => exportarOrcamentoExcel(obrasFiltradas, todasEtapas)}
+          >
+            Exportar Excel
+          </Button>
+          {canCreate && (
+            <Button onClick={() => { setEditando(null); setModalOpen(true); }}>
+              Nova Obra
+            </Button>
+          )}
+        </div>
       </div>
 
       {/* Busca e filtros */}

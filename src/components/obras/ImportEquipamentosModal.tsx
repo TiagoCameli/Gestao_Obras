@@ -7,6 +7,7 @@ interface ImportEquipamentosModalProps {
   onClose: () => void;
   onImport: (equipamentos: Equipamento[]) => void;
   equipamentosExistentes: Equipamento[];
+  empresasMap?: Map<string, string>; // nome lowercase -> id
 }
 
 function gerarId(): string {
@@ -14,10 +15,10 @@ function gerarId(): string {
 }
 
 const TEMPLATE_DATA = [
-  ['Nome', 'Codigo Patrimonio', 'Numero de Serie', 'Marca', 'Ano', 'Tipo Medicao', 'Medicao Inicial', 'Data Aquisicao'],
-  ['Escavadeira CAT 320', 'PAT-001', 'CAT320-2024-001', 'Caterpillar', '2024', 'horimetro', 0, '2024-01-15'],
-  ['Retroescavadeira JCB 3CX', 'PAT-002', 'JCB3CX-2023-045', 'JCB', '2023', 'horimetro', 150, '2023-06-20'],
-  ['Caminhao Basculante', 'PAT-003', 'VW-2022-123', 'Volkswagen', '2022', 'odometro', 45000, '2022-03-10'],
+  ['Nome', 'Tipo', 'Empresa', 'Codigo Patrimonio', 'Numero de Serie', 'Marca', 'Ano', 'Tipo Medicao', 'Medicao Inicial', 'Data Aquisicao'],
+  ['Escavadeira CAT 320', 'Escavadeira Hidráulica', 'Empresa X', 'EH-001', 'CAT320-2024-001', 'Caterpillar', '2024', 'horimetro', 0, '2024-01-15'],
+  ['Retroescavadeira JCB 3CX', 'Retroescavadeira', 'Empresa Y', 'RT-001', 'JCB3CX-2023-045', 'JCB', '2023', 'horimetro', 150, '2023-06-20'],
+  ['Caminhão Basculante VW', 'Caminhão Basculante', 'Empresa X', 'CB-001', 'VW-2022-123', 'Volkswagen', '2022', 'odometro', 45000, '2022-03-10'],
 ];
 
 export default function ImportEquipamentosModal({
@@ -25,20 +26,25 @@ export default function ImportEquipamentosModal({
   onClose,
   onImport,
   equipamentosExistentes,
+  empresasMap,
 }: ImportEquipamentosModalProps) {
   const parseRow = useCallback(
     (row: unknown[]): ParsedRow => {
       const erros: string[] = [];
       const nome = parseStr(row[0]);
-      const codigoPatrimonio = parseStr(row[1]);
-      const numeroSerie = parseStr(row[2]);
-      const marca = parseStr(row[3]);
-      const ano = parseStr(row[4]);
-      const tipoMedicaoRaw = parseStr(row[5]).toLowerCase();
-      const medicaoRaw = row[6];
-      const dataRaw = row[7];
+      const tipo = parseStr(row[1]);
+      const empresa = parseStr(row[2]);
+      const codigoPatrimonio = parseStr(row[3]);
+      const numeroSerie = parseStr(row[4]);
+      const marca = parseStr(row[5]);
+      const ano = parseStr(row[6]);
+      const tipoMedicaoRaw = parseStr(row[7]).toLowerCase();
+      const medicaoRaw = row[8];
+      const dataRaw = row[9];
 
       if (!nome) erros.push('Nome vazio');
+
+      const empresaId = empresa && empresasMap ? (empresasMap.get(empresa.toLowerCase()) || '') : '';
 
       let tipoMedicao = 'horimetro';
       if (tipoMedicaoRaw) {
@@ -62,19 +68,18 @@ export default function ImportEquipamentosModal({
       if (count > 0) nomeFinal = `${nome} ${count + 1}`;
 
       const resumoParts = [nomeFinal || '(sem nome)'];
+      if (tipo) resumoParts.push(tipo);
       if (marca) resumoParts.push(marca);
-      if (tipoMedicao) resumoParts.push(tipoMedicao);
-      if (medicaoInicial) resumoParts.push(`${medicaoInicial} ${tipoMedicao === 'horimetro' ? 'h' : 'km'}`);
-      if (dataAquisicao) resumoParts.push(dataAquisicao);
+      if (codigoPatrimonio) resumoParts.push(codigoPatrimonio);
 
       return {
         valido: erros.length === 0,
         erros,
         resumo: resumoParts.join(' | '),
-        dados: { nome: nomeFinal, codigoPatrimonio, numeroSerie, marca, ano, tipoMedicao, medicaoInicial: medicaoInicial ?? 0, dataAquisicao },
+        dados: { nome: nomeFinal, tipo, empresaId, codigoPatrimonio, numeroSerie, marca, ano, tipoMedicao, medicaoInicial: medicaoInicial ?? 0, dataAquisicao },
       };
     },
-    [equipamentosExistentes]
+    [equipamentosExistentes, empresasMap]
   );
 
   const toEntity = useCallback((row: ParsedRow): Record<string, unknown> => {
@@ -82,6 +87,8 @@ export default function ImportEquipamentosModal({
     return {
       id: gerarId(),
       nome: d.nome,
+      tipo: d.tipo || '',
+      empresaId: d.empresaId || '',
       codigoPatrimonio: d.codigoPatrimonio,
       numeroSerie: d.numeroSerie,
       marca: d.marca,
@@ -105,9 +112,9 @@ export default function ImportEquipamentosModal({
       templateData={TEMPLATE_DATA}
       templateFileName="template_equipamentos.xlsx"
       sheetName="Equipamentos"
-      templateColWidths={[28, 18, 22, 16, 6, 14, 15, 14]}
-      formatHintHeaders={['Nome', 'Patrimonio', 'N. Serie', 'Marca', 'Ano', 'Tipo Med.', 'Med. Ini.', 'Dt. Aquis.']}
-      formatHintExample={['Escavadeira', 'PAT-001', 'CAT-001', 'CAT', '2024', 'horimetro', '0', '2024-01-15']}
+      templateColWidths={[28, 22, 18, 12, 22, 16, 6, 14, 15, 14]}
+      formatHintHeaders={['Nome', 'Tipo', 'Empresa', 'Patrimônio', 'N. Série', 'Marca', 'Ano', 'Tipo Med.', 'Med. Ini.', 'Dt. Aquis.']}
+      formatHintExample={['Escavadeira CAT 320', 'Escavadeira Hidráulica', 'Empresa X', 'EH-001', 'CAT-001', 'CAT', '2024', 'horimetro', '0', '2024-01-15']}
       parseRow={parseRow}
       toEntity={toEntity}
     />

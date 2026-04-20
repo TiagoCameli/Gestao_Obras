@@ -13,6 +13,9 @@
   --font-sans: 'Inter', sans-serif;
 }
 
+/* ===== Scrollbar Hide ===== */
+.scrollbar-hide::-webkit-scrollbar { display: none; }
+
 /* ===== Dark Mode ===== */
 .dark {
   --color-emt-verde-claro: #1a3a28;

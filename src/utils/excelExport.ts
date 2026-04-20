@@ -221,3 +221,137 @@ export function exportarTransferenciasExcel(
 
   salvarExcel(wb, 'relatorio-transferencias-combustivel.xlsx');
 }
+
+export function exportarRelatorioCompletoCombustivelExcel(
+  abastecimentos: Abastecimento[],
+  entradas: EntradaCombustivel[],
+  transferencias: TransferenciaCombustivel[],
+  obras: Obra[],
+  depositos: Deposito[],
+  lookups: { insumos: Insumo[]; equipamentos: Equipamento[]; etapas: EtapaObra[]; fornecedores: Fornecedor[] },
+  filtroObraIds?: string[],
+  filtroDepositoIds?: string[],
+  dataInicio?: string,
+  dataFim?: string
+) {
+  let saidasDados = [...abastecimentos];
+  let entradasDados = [...entradas];
+  let transferenciasDados = [...transferencias];
+
+  if (filtroObraIds && filtroObraIds.length > 0) {
+    const set = new Set(filtroObraIds);
+    saidasDados = saidasDados.filter((a) => set.has(a.obraId));
+    entradasDados = entradasDados.filter((e) => set.has(e.obraId));
+    const depositosDasObras = new Set(
+      depositos.filter((d) => filtroObraIds.includes(d.obraId)).map((d) => d.id)
+    );
+    transferenciasDados = transferenciasDados.filter((t) => depositosDasObras.has(t.depositoOrigemId) || depositosDasObras.has(t.depositoDestinoId));
+  }
+  if (filtroDepositoIds && filtroDepositoIds.length > 0) {
+    const set = new Set(filtroDepositoIds);
+    saidasDados = saidasDados.filter((a) => set.has(a.depositoId));
+    entradasDados = entradasDados.filter((e) => set.has(e.depositoId));
+    transferenciasDados = transferenciasDados.filter((t) => set.has(t.depositoOrigemId) || set.has(t.depositoDestinoId));
+  }
+
+  const insumosMap = new Map(lookups.insumos.map((i) => [i.id, i.nome]));
+  const obrasMap = new Map(obras.map((o) => [o.id, o.nome]));
+  const depositosMap = new Map(depositos.map((d) => [d.id, d.nome]));
+  const equipMap = new Map(lookups.equipamentos.map((e) => [e.id, e.nome]));
+  const etapasMap = new Map(lookups.etapas.map((e) => [e.id, e.nome]));
+  const fornecedoresMap = new Map(lookups.fornecedores.map((f) => [f.id, f.nome]));
+
+  const subtitulo = formatarSubtituloFiltro(filtroObraIds || [], filtroDepositoIds || [], obrasMap, depositosMap);
+  const periodo = formatarPeriodo(dataInicio, dataFim);
+
+  const totalLitrosEntradas = entradasDados.reduce((s, e) => s + e.quantidadeLitros, 0);
+  const totalValorEntradas = entradasDados.reduce((s, e) => s + e.valorTotal, 0);
+  const totalLitrosSaidas = saidasDados.reduce((s, a) => s + a.quantidadeLitros, 0);
+  const totalValorSaidas = saidasDados.reduce((s, a) => s + a.valorTotal, 0);
+  const totalLitrosTransf = transferenciasDados.reduce((s, t) => s + t.quantidadeLitros, 0);
+  const totalValorTransf = transferenciasDados.reduce((s, t) => s + t.valorTotal, 0);
+
+  const wb = XLSX.utils.book_new();
+
+  // Resumo geral
+  const resumo = [
+    ['Relatório Completo de Combustível'],
+    [subtitulo],
+    ...(periodo ? [[periodo]] : []),
+    [`Gerado em: ${new Date().toLocaleDateString('pt-BR')}`],
+    [],
+    ['', 'Registros', 'Litros', 'Valor (R$)'],
+    ['Entradas', entradasDados.length, totalLitrosEntradas, totalValorEntradas],
+    ['Saídas', saidasDados.length, totalLitrosSaidas, totalValorSaidas],
+    ['Transferências', transferenciasDados.length, totalLitrosTransf, totalValorTransf],
+    [],
+    ['Total Geral', entradasDados.length + saidasDados.length + transferenciasDados.length, totalLitrosEntradas + totalLitrosSaidas + totalLitrosTransf, totalValorEntradas + totalValorSaidas + totalValorTransf],
+  ];
+  const wsResumo = XLSX.utils.aoa_to_sheet(resumo);
+  wsResumo['!cols'] = [{ wch: 25 }, { wch: 15 }, { wch: 15 }, { wch: 18 }];
+  XLSX.utils.book_append_sheet(wb, wsResumo, 'Resumo');
+
+  // Aba Entradas
+  const entradasRows = entradasDados
+    .sort((a, b) => new Date(b.dataHora).getTime() - new Date(a.dataHora).getTime())
+    .map((e) => ({
+      'Data/Hora': formatDateTime(e.dataHora),
+      'Obra': obrasMap.get(e.obraId) || '-',
+      'Tanque': depositosMap.get(e.depositoId) || '-',
+      'Combustível': insumosMap.get(e.tipoCombustivel) || e.tipoCombustivel,
+      'Fornecedor': fornecedoresMap.get(e.fornecedor) || e.fornecedor || '-',
+      'Nota Fiscal': e.notaFiscal || '-',
+      'Litros': e.quantidadeLitros,
+      'Valor (R$)': e.valorTotal,
+      'Observações': e.observacoes || '-',
+    }));
+  const wsEntradas = XLSX.utils.json_to_sheet(entradasRows);
+  wsEntradas['!cols'] = [{ wch: 18 }, { wch: 20 }, { wch: 20 }, { wch: 16 }, { wch: 20 }, { wch: 16 }, { wch: 12 }, { wch: 14 }, { wch: 30 }];
+  XLSX.utils.book_append_sheet(wb, wsEntradas, 'Entradas');
+
+  // Aba Saídas
+  function formatarAlocacoes(alocacoes?: AlocacaoEtapa[], etapaId?: string): string {
+    const alocs = alocacoes && alocacoes.length > 0
+      ? alocacoes
+      : etapaId ? [{ etapaId, percentual: 100 }] : [];
+    return alocs
+      .map((a) => `${etapasMap.get(a.etapaId) || '?'}: ${a.percentual}%`)
+      .join(' | ') || '-';
+  }
+
+  const saidasRows = saidasDados
+    .sort((a, b) => new Date(b.dataHora).getTime() - new Date(a.dataHora).getTime())
+    .map((a) => ({
+      'Data/Hora': formatDateTime(a.dataHora),
+      'Obra': obrasMap.get(a.obraId) || '-',
+      'Etapas': formatarAlocacoes(a.alocacoes, a.etapaId),
+      'Tanque': depositosMap.get(a.depositoId) || '-',
+      'Equipamento': equipMap.get(a.veiculo) || a.veiculo || '-',
+      'Combustível': insumosMap.get(a.tipoCombustivel) || a.tipoCombustivel,
+      'Origem': a.origemCombustivel === 'dinheiro' ? 'Dinheiro' : a.origemCombustivel === 'requisicao' ? 'Requisição' : 'Tanque',
+      'Litros': a.quantidadeLitros,
+      'Valor (R$)': a.valorTotal,
+      'Fornecedor': a.fornecedor || '-',
+      'Observações': a.observacoes || '-',
+    }));
+  const wsSaidas = XLSX.utils.json_to_sheet(saidasRows);
+  wsSaidas['!cols'] = [{ wch: 18 }, { wch: 20 }, { wch: 20 }, { wch: 20 }, { wch: 22 }, { wch: 16 }, { wch: 14 }, { wch: 12 }, { wch: 14 }, { wch: 20 }, { wch: 30 }];
+  XLSX.utils.book_append_sheet(wb, wsSaidas, 'Saídas');
+
+  // Aba Transferências
+  const transferenciasRows = transferenciasDados
+    .sort((a, b) => new Date(b.dataHora).getTime() - new Date(a.dataHora).getTime())
+    .map((t) => ({
+      'Data/Hora': formatDateTime(t.dataHora),
+      'Origem': depositosMap.get(t.depositoOrigemId) || '-',
+      'Destino': depositosMap.get(t.depositoDestinoId) || '-',
+      'Litros': t.quantidadeLitros,
+      'Valor (R$)': t.valorTotal,
+      'Observações': t.observacoes || '-',
+    }));
+  const wsTransferencias = XLSX.utils.json_to_sheet(transferenciasRows);
+  wsTransferencias['!cols'] = [{ wch: 18 }, { wch: 22 }, { wch: 22 }, { wch: 12 }, { wch: 14 }, { wch: 30 }];
+  XLSX.utils.book_append_sheet(wb, wsTransferencias, 'Transferências');
+
+  salvarExcel(wb, 'relatorio-completo-combustivel.xlsx');
+}

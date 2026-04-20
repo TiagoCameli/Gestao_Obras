@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import type { Abastecimento, Deposito, EntradaCombustivel, Obra, TransferenciaCombustivel } from '../../types';
 import { exportarSaidasPDF, exportarEntradasPDF, exportarTransferenciasPDF } from '../../utils/pdfExport';
-import { exportarSaidasExcel, exportarEntradasExcel, exportarTransferenciasExcel } from '../../utils/excelExport';
+import { exportarSaidasExcel, exportarEntradasExcel, exportarTransferenciasExcel, exportarRelatorioCompletoCombustivelExcel } from '../../utils/excelExport';
 import { useInsumos } from '../../hooks/useInsumos';
 import { useEquipamentos } from '../../hooks/useEquipamentos';
 import { useFornecedores } from '../../hooks/useFornecedores';
@@ -9,7 +9,7 @@ import { useEtapas } from '../../hooks/useEtapas';
 import Modal from '../ui/Modal';
 import Button from '../ui/Button';
 
-type TipoRelatorio = '' | 'saidas' | 'entradas' | 'transferencias';
+type TipoRelatorio = '' | 'completo' | 'saidas' | 'entradas' | 'transferencias';
 type FiltroTipo = '' | 'todos' | 'obra' | 'tanque';
 type Formato = '' | 'pdf' | 'excel';
 
@@ -81,7 +81,17 @@ export default function ExportarPDFModal({
     const tanqueFiltro = filtro === 'tanque' && depositoIds.length > 0 ? depositoIds : undefined;
     const args = [obraFiltro, tanqueFiltro, dataInicio || undefined, dataFim || undefined] as const;
 
-    if (formato === 'pdf') {
+    if (tipo === 'completo') {
+      exportarRelatorioCompletoCombustivelExcel(
+        filtrarPorData(abastecimentos),
+        filtrarPorData(entradas),
+        filtrarPorData(transferencias),
+        obras,
+        depositos,
+        { insumos, equipamentos, etapas, fornecedores },
+        ...args
+      );
+    } else if (formato === 'pdf') {
       if (tipo === 'saidas') {
         exportarSaidasPDF(filtrarPorData(abastecimentos), obras, depositos, { insumos, equipamentos, etapas }, ...args);
       } else if (tipo === 'entradas') {
@@ -105,7 +115,7 @@ export default function ExportarPDFModal({
     (filtro === 'obra' && obraIds.length === 0) ||
     (filtro === 'tanque' && depositoIds.length === 0);
 
-  const podeExportar = !!tipo && !!formato && !filtroIncompleto;
+  const podeExportar = !!tipo && (tipo === 'completo' || !!formato) && !filtroIncompleto;
 
   const nomesSelecionados = (() => {
     if (filtro === 'obra' && obraIds.length > 0) {
@@ -127,6 +137,7 @@ export default function ExportarPDFModal({
           </label>
           <div className="flex gap-2">
             {([
+              { key: 'completo', label: 'Completo' },
               { key: 'saidas', label: 'Saídas' },
               { key: 'entradas', label: 'Entradas' },
               { key: 'transferencias', label: 'Transferências' },
@@ -152,8 +163,8 @@ export default function ExportarPDFModal({
           </div>
         </div>
 
-        {/* Passo 2: Formato */}
-        {tipo && (
+        {/* Passo 2: Formato (oculto para completo, que é sempre Excel) */}
+        {tipo && tipo !== 'completo' && (
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Formato
@@ -181,7 +192,7 @@ export default function ExportarPDFModal({
         )}
 
         {/* Passo 3: Filtro por obra/tanque */}
-        {tipo && formato && (
+        {tipo && (tipo === 'completo' || formato) && (
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Filtrar por <span className="text-gray-400 font-normal">(opcional)</span>
@@ -214,7 +225,7 @@ export default function ExportarPDFModal({
         )}
 
         {/* Selecionar obras (checkboxes) */}
-        {tipo && formato && filtro === 'obra' && (
+        {tipo && (tipo === 'completo' || formato) && filtro === 'obra' && (
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Selecione as obras
@@ -247,7 +258,7 @@ export default function ExportarPDFModal({
         )}
 
         {/* Selecionar tanques (checkboxes) */}
-        {tipo && formato && filtro === 'tanque' && (
+        {tipo && (tipo === 'completo' || formato) && filtro === 'tanque' && (
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Selecione os tanques
@@ -280,7 +291,7 @@ export default function ExportarPDFModal({
         )}
 
         {/* Período (opcional) */}
-        {tipo && formato && (
+        {tipo && (tipo === 'completo' || formato) && (
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Período <span className="text-gray-400 font-normal">(opcional)</span>
@@ -321,10 +332,11 @@ export default function ExportarPDFModal({
             : '';
 
           const tipoLabel =
+            tipo === 'completo' ? 'Completo (Entradas + Saídas + Transferências)' :
             tipo === 'saidas' ? 'Saídas' :
             tipo === 'entradas' ? 'Entradas' : 'Transferências';
 
-          const formatoLabel = formato === 'pdf' ? 'PDF' : 'Excel';
+          const formatoLabel = tipo === 'completo' ? 'Excel' : formato === 'pdf' ? 'PDF' : 'Excel';
 
           let filtroTexto = ' de todos os tanques e obras';
           if (nomesSelecionados.length > 0) {
@@ -346,7 +358,7 @@ export default function ExportarPDFModal({
             Cancelar
           </Button>
           <Button disabled={!podeExportar} onClick={handleExportar}>
-            Exportar {formato === 'excel' ? 'Excel' : formato === 'pdf' ? 'PDF' : ''}
+            Exportar {tipo === 'completo' ? 'Excel' : formato === 'excel' ? 'Excel' : formato === 'pdf' ? 'PDF' : ''}
           </Button>
         </div>
       </div>

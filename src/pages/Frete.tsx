@@ -26,6 +26,9 @@ import AbastecimentoCarretaList from '../components/frete/AbastecimentoCarretaLi
 import FreteDashboard from '../components/frete/FreteDashboard';
 import PedidoMaterialForm from '../components/frete/PedidoMaterialForm';
 import PedidoMaterialList from '../components/frete/PedidoMaterialList';
+import { exportarFretesPDF, exportarFretesExcel } from '../utils/freteExport';
+import ImportAtualizacaoFretesModal from '../components/frete/ImportAtualizacaoFretesModal';
+import { exportarPedidosMaterialExcel } from '../utils/pedidosMaterialExport';
 
 type Tab = 'dashboard' | 'fretes' | 'pagamentos' | 'abastecimentos' | 'pedidos';
 
@@ -109,6 +112,9 @@ export default function Frete() {
   // Frete delete state
   const [deleteId, setDeleteId] = useState<string | null>(null);
 
+  // Import atualização modal
+  const [importAtualizacaoOpen, setImportAtualizacaoOpen] = useState(false);
+
   // Frete filters
   const [filtros, setFiltros] = useState<FiltrosFrete>({
     obraId: '',
@@ -118,6 +124,7 @@ export default function Frete() {
     origem: '',
     dataInicio: '',
     dataFim: '',
+    notaFiscal: '',
   });
 
   // Extract unique motoristas from fretes
@@ -410,13 +417,46 @@ export default function Frete() {
               onChange={(e) => setFiltros((f) => ({ ...f, dataFim: e.target.value }))}
               title="Data fim"
             />
-            {(filtros.obraId || filtros.transportadora || filtros.motorista || filtros.insumoId || filtros.origem || filtros.dataInicio || filtros.dataFim) && (
+            <input
+              className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emt-verde w-48"
+              type="text"
+              placeholder="Filtrar nota fiscal"
+              value={filtros.notaFiscal}
+              onChange={(e) => setFiltros((f) => ({ ...f, notaFiscal: e.target.value }))}
+            />
+            {(filtros.obraId || filtros.transportadora || filtros.motorista || filtros.insumoId || filtros.origem || filtros.dataInicio || filtros.dataFim || filtros.notaFiscal) && (
               <button
                 className="text-sm text-emt-verde hover:text-emt-verde-escuro font-medium"
-                onClick={() => setFiltros({ obraId: '', transportadora: '', motorista: '', insumoId: '', origem: '', dataInicio: '', dataFim: '' })}
+                onClick={() => setFiltros({ obraId: '', transportadora: '', motorista: '', insumoId: '', origem: '', dataInicio: '', dataFim: '', notaFiscal: '' })}
               >
                 Limpar filtros
               </button>
+            )}
+          </div>
+
+          <div className="flex gap-2 mb-4">
+            <Button
+              variant="secondary"
+              className="text-xs"
+              onClick={() => exportarFretesExcel(fretes, insumosAtivos, filtros)}
+            >
+              Exportar Excel
+            </Button>
+            <Button
+              variant="secondary"
+              className="text-xs"
+              onClick={() => exportarFretesPDF(fretes, insumosAtivos, filtros)}
+            >
+              Exportar PDF
+            </Button>
+            {canEdit && (
+              <Button
+                variant="secondary"
+                className="text-xs"
+                onClick={() => setImportAtualizacaoOpen(true)}
+              >
+                Atualizar via Planilha
+              </Button>
             )}
           </div>
 
@@ -629,6 +669,21 @@ export default function Frete() {
                 Limpar filtros
               </button>
             )}
+          </div>
+
+          <div className="flex gap-2 mb-4">
+            <Button
+              variant="secondary"
+              className="text-xs"
+              onClick={() => exportarPedidosMaterialExcel(
+                pedidosMaterial,
+                fornecedores,
+                insumosAtivos,
+                { fornecedorId: pedidoFiltroFornecedor, materialId: pedidoFiltroMaterial, dataInicio: pedidoFiltroDataInicio, dataFim: pedidoFiltroDataFim }
+              )}
+            >
+              Exportar Excel
+            </Button>
           </div>
 
           <PedidoMaterialList
@@ -884,6 +939,18 @@ export default function Frete() {
         onConfirm={() => { if (pedidoDeleteId) handlePedidoDelete(pedidoDeleteId); }}
         title="Excluir Pedido"
         message="Tem certeza que deseja excluir este pedido de material? Esta ação não pode ser desfeita."
+      />
+
+      <ImportAtualizacaoFretesModal
+        open={importAtualizacaoOpen}
+        onClose={() => setImportAtualizacaoOpen(false)}
+        fretes={fretes}
+        insumos={insumosAtivos}
+        onUpdate={async (updates) => {
+          for (const frete of updates) {
+            await atualizarMutation.mutateAsync(frete as FreteType);
+          }
+        }}
       />
     </div>
   );

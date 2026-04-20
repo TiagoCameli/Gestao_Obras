@@ -10,6 +10,7 @@ import Obras from './pages/Obras';
 import Frete from './pages/Frete';
 import Funcionarios from './pages/Funcionarios';
 import Apontamentos from './pages/Apontamentos';
+import Frota from './pages/Frota';
 import Login from './pages/Login';
 import AcessoNegado from './pages/AcessoNegado';
 import NotFound from './pages/NotFound';
@@ -25,6 +26,7 @@ const PAGINAS_FALLBACK: { acao: string; rota: string }[] = [
   { acao: 'ver_obras', rota: '/obras' },
   { acao: 'ver_cadastros', rota: '/cadastros' },
   { acao: 'ver_frete', rota: '/frete' },
+  { acao: 'ver_frota', rota: '/frota' },
   { acao: 'ver_funcionarios', rota: '/funcionarios' },
   { acao: 'ver_apontamentos', rota: '/apontamentos' },
 ];
@@ -64,6 +66,7 @@ export default function App() {
               <Route path="/obras" element={<ProtectedRoute modulo="obras"><ObrasPage /></ProtectedRoute>} />
               <Route path="/cadastros" element={<ProtectedRoute modulo="cadastros"><Obras /></ProtectedRoute>} />
               <Route path="/frete" element={<ProtectedRoute modulo="frete"><Frete /></ProtectedRoute>} />
+              <Route path="/frota" element={<ProtectedRoute modulo="frota"><Frota /></ProtectedRoute>} />
               <Route path="/funcionarios" element={<ProtectedRoute modulo="funcionarios"><Funcionarios /></ProtectedRoute>} />
               <Route path="/apontamentos" element={<ProtectedRoute modulo="apontamentos"><Apontamentos /></ProtectedRoute>} />
               <Route path="/migrar-dados" element={<MigrarDados />} />

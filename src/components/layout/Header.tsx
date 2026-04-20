@@ -9,6 +9,7 @@ const links: { to: string; label: string; acao?: string }[] = [
   { to: '/obras', label: 'Obras', acao: 'ver_obras' },
   { to: '/cadastros', label: 'Cadastros', acao: 'ver_cadastros' },
   { to: '/frete', label: 'Frete', acao: 'ver_frete' },
+  { to: '/frota', label: 'Frota', acao: 'ver_frota' },
   { to: '/apontamentos', label: 'Apontamentos', acao: 'ver_apontamentos' },
   { to: '/funcionarios', label: 'Usuários', acao: 'ver_funcionarios' },
 ];

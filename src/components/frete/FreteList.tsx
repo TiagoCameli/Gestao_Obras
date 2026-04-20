@@ -61,7 +61,7 @@ interface FreteListProps {
   fretes: Frete[];
   obras: Obra[];
   insumos: Insumo[];
-  filtros: { obraId: string; transportadora: string; motorista: string; insumoId: string; origem: string; dataInicio: string; dataFim: string };
+  filtros: { obraId: string; transportadora: string; motorista: string; insumoId: string; origem: string; dataInicio: string; dataFim: string; notaFiscal: string };
   onEdit: (frete: Frete) => void;
   onDelete: (id: string) => void;
   onUpdateDataChegada?: (frete: Frete, dataChegada: string) => void;
@@ -71,7 +71,7 @@ interface FreteListProps {
 
 export default function FreteList({
   fretes,
-  obras,
+  obras: _obras,
   insumos,
   filtros,
   onEdit,
@@ -83,7 +83,6 @@ export default function FreteList({
   const [pagina, setPagina] = useState(0);
   const porPagina = 15;
 
-  const obrasMap = useMemo(() => new Map(obras.map((o) => [o.id, o.nome])), [obras]);
   const insumosMap = useMemo(() => new Map(insumos.map((i) => [i.id, i.nome])), [insumos]);
 
   const filtrados = useMemo(() => {
@@ -99,6 +98,10 @@ export default function FreteList({
         if (filtros.origem && f.origem?.trim() !== filtros.origem) return false;
         if (filtros.dataInicio && f.data < filtros.dataInicio) return false;
         if (filtros.dataFim && f.data > filtros.dataFim) return false;
+        if (filtros.notaFiscal) {
+          const q = filtros.notaFiscal.toLowerCase();
+          if (!f.notaFiscal?.toLowerCase().includes(q)) return false;
+        }
         return true;
       })
       .sort((a, b) => b.data.localeCompare(a.data));
@@ -111,6 +114,7 @@ export default function FreteList({
   const paginados = filtrados.slice(pagina * porPagina, (pagina + 1) * porPagina);
 
   const totalGeral = filtrados.reduce((sum, f) => sum + f.valorTotal, 0);
+  const totalMaterial = filtrados.reduce((sum, f) => sum + (f.valorMaterial || 0), 0);
 
   if (filtrados.length === 0) {
     return (
@@ -124,7 +128,7 @@ export default function FreteList({
     <>
       <div className="bg-white rounded-lg shadow overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="w-full text-sm min-w-[1400px]">
+          <table className="w-full text-sm min-w-[1550px]">
             <thead className="bg-emt-verde text-white">
               <tr>
                 <th className="text-left px-4 py-3 text-white font-medium uppercase text-xs">Data de Saída</th>
@@ -138,7 +142,9 @@ export default function FreteList({
                 <th className="text-right px-4 py-3 text-white font-medium uppercase text-xs">KM</th>
                 <th className="text-right px-4 py-3 text-white font-medium uppercase text-xs">R$/TKM</th>
                 <th className="text-right px-4 py-3 text-white font-medium uppercase text-xs">Total</th>
-                <th className="text-left px-4 py-3 text-white font-medium uppercase text-xs">Obra</th>
+                <th className="text-right px-4 py-3 text-white font-medium uppercase text-xs">Preço Material</th>
+                <th className="text-left px-4 py-3 text-white font-medium uppercase text-xs">Nota Fiscal</th>
+                <th className="text-left px-4 py-3 text-white font-medium uppercase text-xs">NF 2</th>
                 <th className="text-center px-4 py-3 text-white font-medium uppercase text-xs">Ações</th>
               </tr>
             </thead>
@@ -170,7 +176,11 @@ export default function FreteList({
                   <td className="px-4 py-3 text-right font-semibold text-emt-verde whitespace-nowrap">
                     {frete.valorTotal.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
                   </td>
-                  <td className="px-4 py-3 text-gray-600">{obrasMap.get(frete.obraId) || '-'}</td>
+                  <td className="px-4 py-3 text-right text-gray-800 whitespace-nowrap">
+                    {frete.valorMaterial ? frete.valorMaterial.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) : '-'}
+                  </td>
+                  <td className="px-4 py-3 text-gray-600">{frete.notaFiscal || '-'}</td>
+                  <td className="px-4 py-3 text-gray-600">{frete.notaFiscal2 || '-'}</td>
                   <td className="px-4 py-3 text-center">
                     <div className="flex justify-center gap-2">
                       {canEdit && (
@@ -200,7 +210,10 @@ export default function FreteList({
                 <td className="px-4 py-3 text-right text-emt-verde whitespace-nowrap">
                   {totalGeral.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
                 </td>
-                <td colSpan={2} />
+                <td className="px-4 py-3 text-right text-emt-verde whitespace-nowrap">
+                  {totalMaterial.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                </td>
+                <td colSpan={3} />
               </tr>
             </tfoot>
           </table>

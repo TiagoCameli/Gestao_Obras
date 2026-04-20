@@ -1,5 +1,6 @@
 import { useCallback, useMemo, useState, type FormEvent } from 'react';
 import type { CategoriaMaterial, CategoriaMaterialCompra, Colaborador, Deposito, DepositoMaterial, Empresa, Equipamento, Fornecedor, Insumo, Obra, TipoInsumo, TipoInsumoEntity, TipoMedicao, UnidadeMedida } from '../types';
+import { useTiposEquipamento } from '../hooks/useTiposEquipamento';
 import { useObras } from '../hooks/useObras';
 import { useDepositos, useAdicionarDeposito, useAtualizarDeposito, useExcluirDeposito } from '../hooks/useDepositos';
 import { useEquipamentos, useAdicionarEquipamento, useAtualizarEquipamento, useExcluirEquipamento } from '../hooks/useEquipamentos';
@@ -20,6 +21,7 @@ import Card from '../components/ui/Card';
 import ConfirmDialog from '../components/ui/ConfirmDialog';
 import PasswordDialog from '../components/ui/PasswordDialog';
 import ImportEquipamentosModal from '../components/obras/ImportEquipamentosModal';
+import SearchableSelect from '../components/apontamentos/SearchableSelect';
 import ImportExcelModal, { parseStr, parseNumero, type ParsedRow } from '../components/ui/ImportExcelModal';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -219,14 +221,21 @@ function EquipamentoForm({
   onCancel,
   onImportBatch,
   existentes,
+  empresas,
 }: {
   initial: Equipamento | null;
   onSubmit: (eq: Equipamento) => void;
   onCancel: () => void;
   onImportBatch?: (eqs: Equipamento[]) => void;
   existentes?: Equipamento[];
+  empresas: Empresa[];
 }) {
   const [nome, setNome] = useState(initial?.nome || '');
+  const { data: tiposEquipamento = [] } = useTiposEquipamento();
+  const tiposAtivos = tiposEquipamento.filter(t => t.ativo).sort((a, b) => a.nome.localeCompare(b.nome));
+
+  const [tipo, setTipo] = useState(initial?.tipo || '');
+  const [empresaId, setEmpresaId] = useState(initial?.empresaId || '');
   const [codigoPatrimonio, setCodigoPatrimonio] = useState(initial?.codigoPatrimonio || '');
   const [numeroSerie, setNumeroSerie] = useState(initial?.numeroSerie || '');
   const [ano, setAno] = useState(initial?.ano || '');
@@ -244,11 +253,15 @@ function EquipamentoForm({
   const [importModalOpen, setImportModalOpen] = useState(false);
   const [toastMsg, setToastMsg] = useState('');
 
+  const empresasAtivas = empresas.filter(e => e.ativo !== false);
+
   function handleSubmit(e: FormEvent) {
     e.preventDefault();
     onSubmit({
       id: initial?.id || gerarId(),
       nome,
+      tipo,
+      empresaId,
       codigoPatrimonio,
       numeroSerie,
       ano,
@@ -286,6 +299,23 @@ function EquipamentoForm({
           onChange={(e) => setNome(e.target.value)}
           placeholder="Ex: Escavadeira CAT 320"
           required
+        />
+        <div>
+          <label htmlFor="eqTipo" className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Tipo de Equipamento</label>
+          <SearchableSelect
+            options={tiposAtivos.map(t => ({ id: t.nome, label: t.nome }))}
+            value={tipo}
+            onChange={(id) => setTipo(id)}
+            placeholder="Selecione o tipo..."
+          />
+        </div>
+        <Select
+          label="Empresa"
+          id="eqEmpresa"
+          value={empresaId}
+          onChange={(e) => setEmpresaId(e.target.value)}
+          options={empresasAtivas.map(e => ({ value: e.id, label: e.nome }))}
+          placeholder="Selecione a empresa..."
         />
         <Input
           label="Código de Patrimônio"
@@ -1908,10 +1938,9 @@ export default function Obras() {
     setDeleteDepId(null);
   }, [excluirDepositoMutation]);
 
-  // Visibilidade das secoes
-  const [equipamentosVisiveis, setEquipamentosVisiveis] = useState(true);
-  const [insumosVisiveis, setInsumosVisiveis] = useState(true);
-  const [fornecedoresVisiveis, setFornecedoresVisiveis] = useState(true);
+  // Aba ativa
+  type AbaCadastro = 'equipamentos' | 'insumos' | 'empresas' | 'fornecedores' | 'colaboradores';
+  const [abaCadastro, setAbaCadastro] = useState<AbaCadastro>('equipamentos');
 
 
   // Tanque state
@@ -2001,7 +2030,6 @@ export default function Obras() {
   }, [excluirFornecedorMutation]);
 
   // Empresa state
-  const [empresasVisiveis, setEmpresasVisiveis] = useState(true);
   const [modalEmpresaOpen, setModalEmpresaOpen] = useState(false);
   const [editandoEmpresa, setEditandoEmpresa] = useState<Empresa | null>(null);
   const [deleteEmpresaId, setDeleteEmpresaId] = useState<string | null>(null);
@@ -2027,7 +2055,6 @@ export default function Obras() {
   }, [excluirEmpresaMutation]);
 
   // Colaborador state
-  const [colaboradoresVisiveis, setColaboradoresVisiveis] = useState(true);
   const [modalColaboradorOpen, setModalColaboradorOpen] = useState(false);
   const [editandoColaborador, setEditandoColaborador] = useState<Colaborador | null>(null);
   const [deleteColaboradorId, setDeleteColaboradorId] = useState<string | null>(null);
@@ -2152,54 +2179,57 @@ export default function Obras() {
     );
   }
 
+  const ABAS: { key: AbaCadastro; label: string }[] = [
+    { key: 'equipamentos', label: 'Equipamentos' },
+    { key: 'insumos', label: 'Insumos' },
+    { key: 'empresas', label: 'Empresas' },
+    { key: 'fornecedores', label: 'Fornecedores' },
+    { key: 'colaboradores', label: 'Colaboradores' },
+  ];
+
+  const novoButtonMap: Record<AbaCadastro, { label: string; action: () => void }> = {
+    equipamentos: { label: 'Novo Equipamento', action: () => { setEditandoEquip(null); setModalEquipOpen(true); } },
+    insumos: { label: 'Novo Insumo', action: () => { setEditandoInsumo(null); setModalInsumoOpen(true); } },
+    empresas: { label: 'Nova Empresa', action: () => { setEditandoEmpresa(null); setModalEmpresaOpen(true); } },
+    fornecedores: { label: 'Novo Fornecedor', action: () => { setEditandoFornecedor(null); setModalFornecedorOpen(true); } },
+    colaboradores: { label: 'Novo Colaborador', action: () => { setEditandoColaborador(null); setModalColaboradorOpen(true); } },
+  };
+
   return (
     <div>
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
         <h1 className="text-2xl sm:text-3xl font-bold text-gray-800">Cadastros</h1>
-        <div className="flex flex-wrap gap-2">
-          {canCreate && <>
-            <Button
-              onClick={() => {
-                setEditandoEmpresa(null);
-                setModalEmpresaOpen(true);
-              }}
-            >
-              Nova Empresa
-            </Button>
-            <Button
-              onClick={() => {
-                setEditandoFornecedor(null);
-                setModalFornecedorOpen(true);
-              }}
-            >
-              Novo Fornecedor
-            </Button>
-            <Button
-              onClick={() => {
-                setEditandoColaborador(null);
-                setModalColaboradorOpen(true);
-              }}
-            >
-              Novo Colaborador
-            </Button>
-            <Button
-              onClick={() => {
-                setEditandoInsumo(null);
-                setModalInsumoOpen(true);
-              }}
-            >
-              Novo Insumo
-            </Button>
-            <Button
-              onClick={() => {
-                setEditandoEquip(null);
-                setModalEquipOpen(true);
-              }}
-            >
-              Novo Equipamento
-            </Button>
-          </>}
-        </div>
+        {canCreate && (
+          <div className="flex flex-wrap gap-2">
+            {ABAS.map((aba) => (
+              <Button
+                key={aba.key}
+                variant={abaCadastro === aba.key ? 'primary' : 'secondary'}
+                onClick={novoButtonMap[aba.key].action}
+              >
+                {novoButtonMap[aba.key].label}
+              </Button>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Abas */}
+      <div className="flex gap-1 mb-6 bg-gray-200 dark:bg-slate-700 rounded-lg p-1 w-full sm:w-fit overflow-x-auto scrollbar-hide" style={{ scrollbarWidth: 'none' }}>
+        {ABAS.map((aba) => (
+          <button
+            key={aba.key}
+            type="button"
+            className={`px-4 py-2 rounded-md text-sm font-medium whitespace-nowrap transition-colors ${
+              abaCadastro === aba.key
+                ? 'bg-white dark:bg-slate-800 text-gray-800 dark:text-slate-200 shadow-sm'
+                : 'text-gray-600 dark:text-slate-400 hover:text-gray-800 dark:hover:text-slate-200'
+            }`}
+            onClick={() => setAbaCadastro(aba.key)}
+          >
+            {aba.label}
+          </button>
+        ))}
       </div>
 
       {/* Modal Deposito de Material */}
@@ -2240,20 +2270,11 @@ export default function Obras() {
       />
 
       {/* Secao Equipamentos */}
-      <div className="mt-10">
-        <div className="flex items-center gap-3 mb-4">
-          <h2 className="text-xl font-bold text-gray-800">Equipamentos</h2>
-          {loadingEquipamentos && <span className="text-sm text-gray-400 animate-pulse">Carregando...</span>}
-          {!loadingEquipamentos && todosEquipamentos.length > 0 && (
-            <button
-              className="text-sm text-gray-500 hover:text-gray-700 transition-colors"
-              onClick={() => setEquipamentosVisiveis((v) => !v)}
-            >
-              {equipamentosVisiveis ? 'Ocultar' : 'Mostrar'}
-            </button>
-          )}
-        </div>
-        {!loadingEquipamentos && todosEquipamentos.length === 0 ? (
+      {abaCadastro === 'equipamentos' && (
+      <div>
+        {loadingEquipamentos ? (
+          <span className="text-sm text-gray-400 animate-pulse">Carregando...</span>
+        ) : todosEquipamentos.length === 0 ? (
           <Card>
             <div className="text-center py-6">
               <p className="text-gray-500 mb-4">Nenhum equipamento cadastrado ainda.</p>
@@ -2267,7 +2288,7 @@ export default function Obras() {
               </Button>
             </div>
           </Card>
-        ) : equipamentosVisiveis ? (
+        ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {todosEquipamentos.map((eq) => (
               <Card key={eq.id} className={eq.ativo === false ? 'opacity-60' : ''}>
@@ -2349,24 +2370,16 @@ export default function Obras() {
               </Card>
             ))}
           </div>
-        ) : null}
+        )}
       </div>
+      )}
 
       {/* Secao Insumos */}
-      <div className="mt-10">
-        <div className="flex items-center gap-3 mb-4">
-          <h2 className="text-xl font-bold text-gray-800">Insumos</h2>
-          {loadingInsumos && <span className="text-sm text-gray-400 animate-pulse">Carregando...</span>}
-          {!loadingInsumos && todosInsumos.length > 0 && (
-            <button
-              className="text-sm text-gray-500 hover:text-gray-700 transition-colors"
-              onClick={() => setInsumosVisiveis((v) => !v)}
-            >
-              {insumosVisiveis ? 'Ocultar' : 'Mostrar'}
-            </button>
-          )}
-        </div>
-        {!loadingInsumos && todosInsumos.length === 0 ? (
+      {abaCadastro === 'insumos' && (
+      <div>
+        {loadingInsumos ? (
+          <span className="text-sm text-gray-400 animate-pulse">Carregando...</span>
+        ) : todosInsumos.length === 0 ? (
           <Card>
             <div className="text-center py-6">
               <p className="text-gray-500 mb-4">Nenhum insumo cadastrado ainda.</p>
@@ -2380,7 +2393,7 @@ export default function Obras() {
               </Button>
             </div>
           </Card>
-        ) : insumosVisiveis ? (
+        ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {todosInsumos.map((insumo) => {
               const unidadeLabel = unidadesMap.get(insumo.unidade) || insumo.unidade;
@@ -2445,24 +2458,16 @@ export default function Obras() {
               );
             })}
           </div>
-        ) : null}
+        )}
       </div>
+      )}
 
       {/* Secao Empresas */}
-      <div className="mt-10">
-        <div className="flex items-center gap-3 mb-4">
-          <h2 className="text-xl font-bold text-gray-800">Empresas</h2>
-          {loadingEmpresas && <span className="text-sm text-gray-400 animate-pulse">Carregando...</span>}
-          {!loadingEmpresas && todasEmpresas.length > 0 && (
-            <button
-              className="text-sm text-gray-500 hover:text-gray-700 transition-colors"
-              onClick={() => setEmpresasVisiveis((v) => !v)}
-            >
-              {empresasVisiveis ? 'Ocultar' : 'Mostrar'}
-            </button>
-          )}
-        </div>
-        {!loadingEmpresas && todasEmpresas.length === 0 ? (
+      {abaCadastro === 'empresas' && (
+      <div>
+        {loadingEmpresas ? (
+          <span className="text-sm text-gray-400 animate-pulse">Carregando...</span>
+        ) : todasEmpresas.length === 0 ? (
           <Card>
             <div className="text-center py-6">
               <p className="text-gray-500 mb-4">Nenhuma empresa cadastrada ainda.</p>
@@ -2476,7 +2481,7 @@ export default function Obras() {
               </Button>
             </div>
           </Card>
-        ) : empresasVisiveis ? (
+        ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {todasEmpresas.map((empresa) => (
               <Card key={empresa.id} className={empresa.ativo === false ? 'opacity-60' : ''}>
@@ -2538,24 +2543,16 @@ export default function Obras() {
               </Card>
             ))}
           </div>
-        ) : null}
+        )}
       </div>
+      )}
 
       {/* Secao Fornecedores */}
-      <div className="mt-10">
-        <div className="flex items-center gap-3 mb-4">
-          <h2 className="text-xl font-bold text-gray-800">Fornecedores</h2>
-          {loadingFornecedores && <span className="text-sm text-gray-400 animate-pulse">Carregando...</span>}
-          {!loadingFornecedores && todosFornecedores.length > 0 && (
-            <button
-              className="text-sm text-gray-500 hover:text-gray-700 transition-colors"
-              onClick={() => setFornecedoresVisiveis((v) => !v)}
-            >
-              {fornecedoresVisiveis ? 'Ocultar' : 'Mostrar'}
-            </button>
-          )}
-        </div>
-        {!loadingFornecedores && todosFornecedores.length === 0 ? (
+      {abaCadastro === 'fornecedores' && (
+      <div>
+        {loadingFornecedores ? (
+          <span className="text-sm text-gray-400 animate-pulse">Carregando...</span>
+        ) : todosFornecedores.length === 0 ? (
           <Card>
             <div className="text-center py-6">
               <p className="text-gray-500 mb-4">Nenhum fornecedor cadastrado ainda.</p>
@@ -2569,7 +2566,7 @@ export default function Obras() {
               </Button>
             </div>
           </Card>
-        ) : fornecedoresVisiveis ? (
+        ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {todosFornecedores.map((forn) => (
               <Card key={forn.id} className={forn.ativo === false ? 'opacity-60' : ''}>
@@ -2634,24 +2631,16 @@ export default function Obras() {
               </Card>
             ))}
           </div>
-        ) : null}
+        )}
       </div>
+      )}
 
       {/* Secao Colaboradores */}
-      <div className="mt-10">
-        <div className="flex items-center gap-3 mb-4">
-          <h2 className="text-xl font-bold text-gray-800">Colaboradores</h2>
-          {loadingColaboradores && <span className="text-sm text-gray-400 animate-pulse">Carregando...</span>}
-          {!loadingColaboradores && todosColaboradores.length > 0 && (
-            <button
-              className="text-sm text-gray-500 hover:text-gray-700 transition-colors"
-              onClick={() => setColaboradoresVisiveis((v) => !v)}
-            >
-              {colaboradoresVisiveis ? 'Ocultar' : 'Mostrar'}
-            </button>
-          )}
-        </div>
-        {!loadingColaboradores && todosColaboradores.length === 0 ? (
+      {abaCadastro === 'colaboradores' && (
+      <div>
+        {loadingColaboradores ? (
+          <span className="text-sm text-gray-400 animate-pulse">Carregando...</span>
+        ) : todosColaboradores.length === 0 ? (
           <Card>
             <div className="text-center py-6">
               <p className="text-gray-500 mb-4">Nenhum colaborador cadastrado ainda.</p>
@@ -2665,7 +2654,7 @@ export default function Obras() {
               </Button>
             </div>
           </Card>
-        ) : colaboradoresVisiveis ? (
+        ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {todosColaboradores.map((colab) => (
               <Card key={colab.id} className={colab.ativo === false ? 'opacity-60' : ''}>
@@ -2731,8 +2720,9 @@ export default function Obras() {
               </Card>
             ))}
           </div>
-        ) : null}
+        )}
       </div>
+      )}
 
       {/* Modal Unidade de Medida */}
       <Modal
@@ -2982,6 +2972,7 @@ export default function Obras() {
             setEditandoEquip(null);
           }}
           existentes={todosEquipamentos}
+          empresas={todasEmpresas}
         />
       </Modal>
 

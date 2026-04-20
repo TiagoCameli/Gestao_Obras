@@ -59,3 +59,36 @@ export function useExcluirAbastecimento() {
     },
   });
 }
+
+export function useMarcarAbastecimentoPago() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, pagoPor }: { id: string; pagoPor: string }) => {
+      const now = new Date().toISOString().slice(0, 10);
+      const { error } = await supabase
+        .from('abastecimentos')
+        .update({ pago: true, data_pagamento: now, pago_por: pagoPor })
+        .eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['abastecimentos'] });
+    },
+  });
+}
+
+export function useDesmarcarAbastecimentoPago() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase
+        .from('abastecimentos')
+        .update({ pago: false, data_pagamento: '', pago_por: '' })
+        .eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['abastecimentos'] });
+    },
+  });
+}
