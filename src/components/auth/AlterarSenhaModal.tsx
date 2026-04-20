@@ -77,18 +77,18 @@ export default function AlterarSenhaModal({ open, onClose }: AlterarSenhaModalPr
     <Modal open={open} onClose={onClose} title="Alterar Senha">
       {sucesso ? (
         <div className="text-center py-4">
-          <div className="text-green-600 font-medium mb-2">Senha alterada com sucesso!</div>
+          <div className="text-[var(--color-success-fg)] font-medium mb-2">Senha alterada com sucesso!</div>
         </div>
       ) : (
         <div className="space-y-4">
           <div>
-            <label htmlFor="senhaAtual" className="block text-sm font-medium text-gray-700 mb-1">
+            <label htmlFor="senhaAtual" className="block text-xs font-medium text-[var(--color-fg-muted)] mb-1.5 tracking-wide">
               Senha Atual
             </label>
             <input
               id="senhaAtual"
               type="password"
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emt-verde"
+              className="w-full h-[42px] rounded-lg px-3 text-sm bg-[var(--color-surface-1)] text-[var(--color-fg)] border border-[var(--color-border)] placeholder:text-[var(--color-fg-subtle)] focus:outline-none focus:border-[var(--color-accent)] focus:ring-2 focus:ring-[var(--color-ring)]"
               value={senhaAtual}
               onChange={(e) => { setSenhaAtual(e.target.value); setErro(''); }}
               autoFocus
@@ -96,13 +96,13 @@ export default function AlterarSenhaModal({ open, onClose }: AlterarSenhaModalPr
             />
           </div>
           <div>
-            <label htmlFor="novaSenha" className="block text-sm font-medium text-gray-700 mb-1">
+            <label htmlFor="novaSenha" className="block text-xs font-medium text-[var(--color-fg-muted)] mb-1.5 tracking-wide">
               Nova Senha
             </label>
             <input
               id="novaSenha"
               type="password"
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emt-verde"
+              className="w-full h-[42px] rounded-lg px-3 text-sm bg-[var(--color-surface-1)] text-[var(--color-fg)] border border-[var(--color-border)] placeholder:text-[var(--color-fg-subtle)] focus:outline-none focus:border-[var(--color-accent)] focus:ring-2 focus:ring-[var(--color-ring)]"
               value={novaSenha}
               onChange={(e) => { setNovaSenha(e.target.value); setErro(''); }}
               placeholder="Mínimo 6 caracteres"
@@ -110,19 +110,19 @@ export default function AlterarSenhaModal({ open, onClose }: AlterarSenhaModalPr
             />
           </div>
           <div>
-            <label htmlFor="confirmarSenha" className="block text-sm font-medium text-gray-700 mb-1">
+            <label htmlFor="confirmarSenha" className="block text-xs font-medium text-[var(--color-fg-muted)] mb-1.5 tracking-wide">
               Confirmar Nova Senha
             </label>
             <input
               id="confirmarSenha"
               type="password"
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emt-verde"
+              className="w-full h-[42px] rounded-lg px-3 text-sm bg-[var(--color-surface-1)] text-[var(--color-fg)] border border-[var(--color-border)] placeholder:text-[var(--color-fg-subtle)] focus:outline-none focus:border-[var(--color-accent)] focus:ring-2 focus:ring-[var(--color-ring)]"
               value={confirmarSenha}
               onChange={(e) => { setConfirmarSenha(e.target.value); setErro(''); }}
               disabled={loading}
             />
           </div>
-          {erro && <p className="text-red-500 text-sm">{erro}</p>}
+          {erro && <p className="text-[var(--color-danger)] text-sm">{erro}</p>}
           <div className="flex justify-end gap-3 pt-2">
             <Button variant="secondary" onClick={onClose} disabled={loading}>Cancelar</Button>
             <Button onClick={handleSubmit} disabled={loading}>
