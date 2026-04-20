@@ -30,15 +30,41 @@ export default function Modal({ open, onClose, title, children, size = 'default'
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
-      <div className="fixed inset-0 bg-black/50 dark:bg-black/70" onClick={onClose} />
-      <div className={`relative bg-white dark:bg-slate-800 sm:rounded-xl shadow-xl w-full ${sizeClasses[size]} max-h-[100dvh] sm:max-h-[90vh] overflow-y-auto sm:mx-4`}>
-        <div className="flex items-center justify-between p-4 sm:p-6 border-b dark:border-slate-600 sticky top-0 bg-white dark:bg-slate-800 z-10">
-          <h2 className="text-lg font-semibold text-gray-800 dark:text-slate-200">{title}</h2>
+      <div
+        className="fixed inset-0 bg-black/40 backdrop-blur-[2px] dark:bg-black/70"
+        onClick={onClose}
+      />
+      <div
+        className={
+          'relative bg-[var(--color-surface-1)] text-[var(--color-fg)] ' +
+          'sm:rounded-2xl shadow-[var(--shadow-xl)] ' +
+          'border border-[var(--color-border)] ' +
+          `w-full ${sizeClasses[size]} max-h-[100dvh] sm:max-h-[90vh] ` +
+          'overflow-y-auto sm:mx-4 elevate-top'
+        }
+      >
+        <div
+          className={
+            'flex items-center justify-between p-4 sm:p-5 ' +
+            'border-b border-[var(--color-border)] ' +
+            'sticky top-0 bg-[var(--color-surface-1)]/95 backdrop-blur-sm z-10'
+          }
+        >
+          <h2 className="text-base sm:text-lg font-semibold text-[var(--color-fg)] tracking-tight">
+            {title}
+          </h2>
           <button
             onClick={onClose}
-            className="text-gray-400 hover:text-gray-600 dark:text-slate-400 dark:hover:text-slate-200 text-2xl leading-none p-2 -m-2"
+            aria-label="Fechar"
+            className={
+              'w-9 h-9 inline-flex items-center justify-center rounded-lg ' +
+              'text-[var(--color-fg-subtle)] hover:text-[var(--color-fg)] ' +
+              'hover:bg-[var(--color-surface-2)] transition-colors'
+            }
           >
-            &times;
+            <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M18 6L6 18M6 6l12 12" />
+            </svg>
           </button>
         </div>
         <div className="p-4 sm:p-6">{children}</div>

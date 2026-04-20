@@ -27,77 +27,94 @@ export default function Header() {
   );
 
   return (
-    <header className="bg-emt-verde text-white shadow-md border-b-2 border-emt-amarelo">
-      <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
-        <Link to="/" className="text-2xl font-bold tracking-tight">
+    <header className="sticky top-0 z-40 bg-[var(--color-surface-1)]/85 backdrop-blur-md border-b border-[var(--color-border)]">
+      <div className="max-w-[1920px] mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-4">
+        <Link
+          to="/"
+          className="flex items-center gap-2.5 text-[var(--color-fg)] font-semibold tracking-tight text-[15px]"
+        >
+          <span className="inline-flex items-center justify-center w-7 h-7 rounded-lg bg-[var(--color-accent)] text-[var(--color-fg-on-accent)] shadow-[inset_0_1px_0_rgba(255,255,255,0.15),var(--shadow-xs)]">
+            <svg viewBox="0 0 24 24" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M3 21V7l9-4 9 4v14" />
+              <path d="M9 21v-8h6v8" />
+            </svg>
+          </span>
           EMT Construtora
         </Link>
-        <div className="flex items-center gap-4">
-          {/* Desktop nav */}
-          <nav className="hidden md:flex gap-6">
-            {visibleLinks.map((link) => (
+
+        <nav className="hidden md:flex items-center gap-1">
+          {visibleLinks.map((link) => {
+            const active = pathname === link.to;
+            return (
               <Link
                 key={link.to}
                 to={link.to}
-                className={`transition-colors ${
-                  pathname === link.to
-                    ? 'text-white font-semibold'
-                    : 'text-white/70 hover:text-white'
-                }`}
+                className={
+                  'px-3 py-1.5 rounded-md text-sm font-medium transition-colors ' +
+                  (active
+                    ? 'bg-[var(--color-surface-2)] text-[var(--color-fg)]'
+                    : 'text-[var(--color-fg-muted)] hover:text-[var(--color-fg)] hover:bg-[var(--color-surface-2)]')
+                }
               >
                 {link.label}
               </Link>
-            ))}
-          </nav>
+            );
+          })}
+        </nav>
+
+        <div className="flex items-center gap-1">
           <button
             onClick={toggleTheme}
-            className="p-1.5 rounded-lg hover:bg-white/10 transition-colors"
+            className="w-9 h-9 inline-flex items-center justify-center rounded-lg text-[var(--color-fg-muted)] hover:text-[var(--color-fg)] hover:bg-[var(--color-surface-2)] transition-colors"
             aria-label={dark ? 'Modo claro' : 'Modo escuro'}
           >
             {dark ? (
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+              <svg className="w-[18px] h-[18px]" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.8}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
               </svg>
             ) : (
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+              <svg className="w-[18px] h-[18px]" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.8}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
               </svg>
             )}
           </button>
           <UserMenu />
-          {/* Hamburger button */}
           <button
-            className="md:hidden p-2 text-white"
+            className="md:hidden w-9 h-9 inline-flex items-center justify-center rounded-lg text-[var(--color-fg-muted)] hover:text-[var(--color-fg)] hover:bg-[var(--color-surface-2)]"
             onClick={() => setMenuOpen((v) => !v)}
             aria-label="Menu"
           >
-            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.8}>
               {menuOpen ? (
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
               ) : (
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                <path strokeLinecap="round" strokeLinejoin="round" d="M4 7h16M4 12h16M4 17h16" />
               )}
             </svg>
           </button>
         </div>
       </div>
-      {/* Mobile nav dropdown */}
+
       {menuOpen && (
-        <nav className="md:hidden border-t border-white/20 px-4 py-2 space-y-1">
-          {visibleLinks.map((link) => (
-            <Link
-              key={link.to}
-              to={link.to}
-              onClick={() => setMenuOpen(false)}
-              className={`block py-3 px-2 rounded transition-colors text-base ${
-                pathname === link.to
-                  ? 'text-white font-semibold bg-white/10'
-                  : 'text-white/70 hover:text-white hover:bg-white/5'
-              }`}
-            >
-              {link.label}
-            </Link>
-          ))}
+        <nav className="md:hidden border-t border-[var(--color-border)] px-3 py-2 space-y-0.5 bg-[var(--color-surface-1)]">
+          {visibleLinks.map((link) => {
+            const active = pathname === link.to;
+            return (
+              <Link
+                key={link.to}
+                to={link.to}
+                onClick={() => setMenuOpen(false)}
+                className={
+                  'block py-2.5 px-3 rounded-md transition-colors text-sm ' +
+                  (active
+                    ? 'bg-[var(--color-surface-2)] text-[var(--color-fg)] font-medium'
+                    : 'text-[var(--color-fg-muted)] hover:text-[var(--color-fg)] hover:bg-[var(--color-surface-2)]')
+                }
+              >
+                {link.label}
+              </Link>
+            );
+          })}
         </nav>
       )}
     </header>

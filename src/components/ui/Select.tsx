@@ -22,14 +22,23 @@ export default function Select({
 }: SelectProps) {
   return (
     <div>
-      <label htmlFor={id} className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">
-        {label}{props.required && <span className="text-red-500 ml-0.5">*</span>}
+      <label
+        htmlFor={id}
+        className="block text-xs font-medium text-[var(--color-fg-muted)] mb-1.5 tracking-wide"
+      >
+        {label}
+        {props.required && <span className="text-[var(--color-danger)] ml-0.5">*</span>}
       </label>
       <select
         id={id}
-        className={`w-full h-[44px] border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emt-verde bg-white dark:bg-slate-700 dark:text-slate-200 dark:border-slate-600 ${
-          error ? 'border-red-500' : 'border-gray-300'
-        }`}
+        className={
+          'w-full h-[42px] rounded-lg px-3 py-2 text-sm ' +
+          'bg-[var(--color-surface-1)] text-[var(--color-fg)] ' +
+          'border border-[var(--color-border)] ' +
+          'transition-[border-color,box-shadow] duration-150 ' +
+          'focus:outline-none focus:border-[var(--color-accent)] focus:ring-2 focus:ring-[var(--color-ring)] ' +
+          (error ? 'border-[var(--color-danger)]' : '')
+        }
         {...props}
       >
         <option value="">{placeholder}</option>
@@ -39,7 +48,7 @@ export default function Select({
           </option>
         ))}
       </select>
-      {error && <p className="text-red-500 text-xs mt-1">{error}</p>}
+      {error && <p className="text-[var(--color-danger)] text-xs mt-1">{error}</p>}
     </div>
   );
 }

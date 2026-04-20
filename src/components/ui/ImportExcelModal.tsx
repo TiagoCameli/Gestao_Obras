@@ -184,30 +184,33 @@ export default function ImportExcelModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
-      <div className="fixed inset-0 bg-black/50" onClick={fechar} />
-      <div className="relative bg-white rounded-xl shadow-xl w-full max-w-2xl max-h-[90vh] flex flex-col mx-4">
+      <div className="fixed inset-0 bg-black/40 backdrop-blur-[2px] dark:bg-black/70" onClick={fechar} />
+      <div className="relative bg-[var(--color-surface-1)] text-[var(--color-fg)] border border-[var(--color-border)] rounded-2xl shadow-[var(--shadow-xl)] w-full max-w-2xl max-h-[90vh] flex flex-col mx-4 elevate-top">
         {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b shrink-0">
+        <div className="flex items-center justify-between p-5 border-b border-[var(--color-border)] shrink-0">
           <div>
-            <h2 className="text-lg font-semibold text-gray-800">
+            <h2 className="text-base sm:text-lg font-semibold text-[var(--color-fg)] tracking-tight">
               {parseados
                 ? `Preview - ${total} ${entityLabel.toLowerCase()}${total !== 1 ? 's' : ''} encontrad${total !== 1 ? sufGenPlur : sufGen}`
                 : title}
             </h2>
             {parseados && (
               <div className="flex items-center gap-3 mt-1 text-sm">
-                <span className="text-green-700">{validos} valid{genderFem ? 'a' : 'o'}{validos !== 1 ? 's' : ''}</span>
+                <span className="text-[var(--color-success-fg)]">{validos} valid{genderFem ? 'a' : 'o'}{validos !== 1 ? 's' : ''}</span>
                 {invalidos > 0 && (
-                  <span className="text-red-600">{invalidos} com erro</span>
+                  <span className="text-[var(--color-danger)]">{invalidos} com erro</span>
                 )}
               </div>
             )}
           </div>
           <button
             onClick={fechar}
-            className="text-gray-400 hover:text-gray-600 text-2xl leading-none"
+            aria-label="Fechar"
+            className="w-9 h-9 inline-flex items-center justify-center rounded-lg text-[var(--color-fg-subtle)] hover:text-[var(--color-fg)] hover:bg-[var(--color-surface-2)] transition-colors"
           >
-            &times;
+            <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M18 6L6 18M6 6l12 12" />
+            </svg>
           </button>
         </div>
 
@@ -229,8 +232,8 @@ export default function ImportExcelModal({
               <div
                 className={`border-2 border-dashed rounded-xl p-10 text-center transition-colors cursor-pointer ${
                   dragAtivo
-                    ? 'border-emt-verde bg-emt-verde-claro/20'
-                    : 'border-gray-300 hover:border-gray-400 bg-gray-50'
+                    ? 'border-[var(--color-accent)] bg-[var(--color-accent-soft)]'
+                    : 'border-[var(--color-border-strong)] hover:border-[var(--color-fg-subtle)] bg-[var(--color-surface-2)]'
                 }`}
                 onDragOver={(e) => {
                   e.preventDefault();
@@ -268,18 +271,18 @@ export default function ImportExcelModal({
               </div>
 
               {erro && (
-                <div className="bg-red-50 border border-red-200 rounded-lg px-4 py-3 text-sm text-red-700">
+                <div className="bg-[var(--color-danger-soft)] border border-[var(--color-danger)]/30 rounded-lg px-4 py-3 text-sm text-[var(--color-danger-fg)]">
                   {erro}
                 </div>
               )}
 
-              <div className="bg-gray-50 border border-gray-200 rounded-lg px-4 py-3">
-                <p className="text-xs font-medium text-gray-600 mb-1">
+              <div className="bg-[var(--color-surface-2)] border border-[var(--color-border)] rounded-lg px-4 py-3">
+                <p className="text-xs font-medium text-[var(--color-fg-muted)] mb-1">
                   Formato esperado ({formatHintHeaders.length} colunas):
                 </p>
-                <div className="text-xs text-gray-500 font-mono overflow-x-auto">
+                <div className="text-xs text-[var(--color-fg-subtle)] font-mono overflow-x-auto">
                   <div
-                    className="font-semibold text-gray-700 border-b border-gray-200 pb-1 mb-1 min-w-[500px]"
+                    className="font-semibold text-[var(--color-fg)] border-b border-[var(--color-border)] pb-1 mb-1 min-w-[500px]"
                     style={{ display: 'grid', gridTemplateColumns: `repeat(${formatHintHeaders.length}, 1fr)`, gap: '0.25rem' }}
                   >
                     {formatHintHeaders.map((h, i) => (
@@ -304,8 +307,8 @@ export default function ImportExcelModal({
                   key={i}
                   className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm ${
                     item.valido
-                      ? 'bg-green-50 border border-green-200'
-                      : 'bg-red-50 border border-red-200'
+                      ? 'bg-[var(--color-success-soft)] border border-[var(--color-success)]/30'
+                      : 'bg-[var(--color-danger-soft)] border border-[var(--color-danger)]/30'
                   }`}
                 >
                   <span className="shrink-0 text-base">
@@ -313,12 +316,12 @@ export default function ImportExcelModal({
                   </span>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <span className={`font-medium ${item.valido ? 'text-gray-800' : 'text-red-800'}`}>
+                      <span className={`font-medium ${item.valido ? 'text-[var(--color-fg)]' : 'text-[var(--color-danger-fg)]'}`}>
                         {item.resumo || '(vazio)'}
                       </span>
                     </div>
                     {item.erros.length > 0 && (
-                      <p className="text-xs text-red-600 mt-0.5">
+                      <p className="text-xs text-[var(--color-danger)] mt-0.5">
                         {item.erros.join(' \u00b7 ')}
                       </p>
                     )}
@@ -330,7 +333,7 @@ export default function ImportExcelModal({
         </div>
 
         {/* Footer */}
-        <div className="flex items-center justify-between p-6 border-t bg-gray-50 rounded-b-xl shrink-0">
+        <div className="flex items-center justify-between p-5 border-t border-[var(--color-border)] bg-[var(--color-surface-2)] rounded-b-2xl shrink-0">
           {parseados ? (
             <>
               <Button type="button" variant="ghost" onClick={resetar} className="text-sm">

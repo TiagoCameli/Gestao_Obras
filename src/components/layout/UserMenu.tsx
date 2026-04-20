@@ -31,38 +31,49 @@ export default function UserMenu() {
     <>
       <div className="relative" ref={ref}>
         <button
-          className="flex items-center gap-2 text-white/80 hover:text-white transition-colors"
+          className="flex items-center gap-2 pl-1 pr-2 py-1 rounded-lg text-[var(--color-fg-muted)] hover:text-[var(--color-fg)] hover:bg-[var(--color-surface-2)] transition-colors"
           onClick={() => setOpen((v) => !v)}
         >
-          <div className="w-8 h-8 rounded-full bg-emt-verde-escuro flex items-center justify-center text-xs font-bold text-white">
+          <div
+            className="w-7 h-7 rounded-full flex items-center justify-center text-[11px] font-semibold text-[var(--color-fg-on-accent)] bg-[var(--color-accent)] shadow-[inset_0_1px_0_rgba(255,255,255,0.12),var(--shadow-xs)]"
+          >
             {iniciais}
           </div>
           <div className="hidden sm:block text-left">
-            <div className="text-sm font-medium leading-tight">{usuario.nome}</div>
-            <div className="text-xs text-white/60">{usuario.cargo}</div>
+            <div className="text-xs font-medium leading-tight text-[var(--color-fg)]">{usuario.nome}</div>
+            <div className="text-[11px] text-[var(--color-fg-subtle)]">{usuario.cargo}</div>
           </div>
-          <svg className={`w-4 h-4 transition-transform ${open ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+          <svg
+            className={`w-3.5 h-3.5 transition-transform text-[var(--color-fg-subtle)] ${open ? 'rotate-180' : ''}`}
+            fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}
+          >
+            <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
           </svg>
         </button>
 
         {open && (
-          <div className="absolute right-0 mt-2 w-48 bg-white dark:bg-slate-800 rounded-lg shadow-lg border border-gray-200 dark:border-slate-600 py-1 z-50">
+          <div
+            className="absolute right-0 mt-2 w-52 rounded-xl py-1.5 z-50 bg-[var(--color-surface-1)] border border-[var(--color-border)] shadow-[var(--shadow-lg)] elevate-top"
+          >
+            <div className="px-3 py-2 border-b border-[var(--color-border)] mb-1">
+              <div className="text-sm font-medium text-[var(--color-fg)] truncate">{usuario.nome}</div>
+              <div className="text-xs text-[var(--color-fg-subtle)] truncate">{usuario.email}</div>
+            </div>
             <button
-              className="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-slate-200 hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors"
+              className="w-full text-left px-3 py-2 mx-0 text-sm text-[var(--color-fg)] hover:bg-[var(--color-surface-2)] transition-colors rounded-md"
               onClick={() => { setOpen(false); setPerfilOpen(true); }}
             >
               Meu Perfil
             </button>
             <button
-              className="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-slate-200 hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors"
+              className="w-full text-left px-3 py-2 text-sm text-[var(--color-fg)] hover:bg-[var(--color-surface-2)] transition-colors rounded-md"
               onClick={() => { setOpen(false); setSenhaOpen(true); }}
             >
               Alterar Senha
             </button>
-            <div className="border-t border-gray-100 dark:border-slate-600 my-1" />
+            <div className="border-t border-[var(--color-border)] my-1" />
             <button
-              className="w-full text-left px-4 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30 transition-colors"
+              className="w-full text-left px-3 py-2 text-sm text-[var(--color-danger)] hover:bg-[var(--color-danger-soft)] transition-colors rounded-md"
               onClick={() => { setOpen(false); logout(); }}
             >
               Sair
