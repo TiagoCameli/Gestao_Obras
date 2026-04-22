@@ -29,6 +29,7 @@ import PedidoMaterialList from '../components/frete/PedidoMaterialList';
 import { exportarFretesPDF, exportarFretesExcel } from '../utils/freteExport';
 import ImportAtualizacaoFretesModal from '../components/frete/ImportAtualizacaoFretesModal';
 import { exportarPedidosMaterialExcel } from '../utils/pedidosMaterialExport';
+import { exportarAbastecimentosCarretaExcel, exportarAbastecimentosCarretaPDF } from '../utils/abastecimentoCarretaExport';
 
 type Tab = 'dashboard' | 'fretes' | 'pagamentos' | 'abastecimentos' | 'pedidos';
 
@@ -613,6 +614,37 @@ export default function Frete() {
                 Limpar filtros
               </button>
             )}
+          </div>
+
+          <div className="flex gap-2 mb-4">
+            <Button
+              variant="secondary"
+              className="text-xs"
+              onClick={() => exportarAbastecimentosCarretaExcel(abastecimentosCarreta, combustiveis, {
+                transportadora: abastFiltroTransportadora,
+                placa: abastFiltroPlaca,
+                combustivelId: abastFiltroCombustivel,
+                mesReferencia: abastFiltroMes,
+                dataInicio: abastFiltroDataInicio,
+                dataFim: abastFiltroDataFim,
+              })}
+            >
+              Exportar Excel
+            </Button>
+            <Button
+              variant="secondary"
+              className="text-xs"
+              onClick={() => exportarAbastecimentosCarretaPDF(abastecimentosCarreta, combustiveis, {
+                transportadora: abastFiltroTransportadora,
+                placa: abastFiltroPlaca,
+                combustivelId: abastFiltroCombustivel,
+                mesReferencia: abastFiltroMes,
+                dataInicio: abastFiltroDataInicio,
+                dataFim: abastFiltroDataFim,
+              })}
+            >
+              Exportar PDF
+            </Button>
           </div>
 
           <AbastecimentoCarretaList
