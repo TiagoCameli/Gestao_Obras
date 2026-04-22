@@ -28,7 +28,7 @@ import PedidoMaterialForm from '../components/frete/PedidoMaterialForm';
 import PedidoMaterialList from '../components/frete/PedidoMaterialList';
 import { exportarFretesPDF, exportarFretesExcel } from '../utils/freteExport';
 import ImportAtualizacaoFretesModal from '../components/frete/ImportAtualizacaoFretesModal';
-import { exportarPedidosMaterialExcel } from '../utils/pedidosMaterialExport';
+import { exportarPedidosMaterialExcel, exportarPedidosMaterialPDF } from '../utils/pedidosMaterialExport';
 import { exportarAbastecimentosCarretaExcel, exportarAbastecimentosCarretaPDF } from '../utils/abastecimentoCarretaExport';
 
 type Tab = 'dashboard' | 'fretes' | 'pagamentos' | 'abastecimentos' | 'pedidos';
@@ -718,6 +718,18 @@ export default function Frete() {
               )}
             >
               Exportar Excel
+            </Button>
+            <Button
+              variant="secondary"
+              className="text-xs"
+              onClick={() => exportarPedidosMaterialPDF(
+                pedidosMaterial,
+                fornecedores,
+                insumosAtivos,
+                { fornecedorId: pedidoFiltroFornecedor, materialId: pedidoFiltroMaterial, dataInicio: pedidoFiltroDataInicio, dataFim: pedidoFiltroDataFim }
+              )}
+            >
+              Exportar PDF
             </Button>
           </div>
 
