@@ -466,6 +466,10 @@ export async function setCurrentMedicao(obraId: string, n: number): Promise<void
 
 const PHOTO_BUCKET = "rodotracker-photos";
 const PDF_BUCKET = "rodotracker-pdfs";
+// Pasta compartilhada: todos os usuários autenticados leem/escrevem no
+// mesmo caminho pra que as fotos cadastradas por um sejam visíveis pros
+// outros. (A RLS do bucket já é `authenticated = all`.)
+const SHARED_FOLDER = "shared";
 
 function dataUrlToBlob(dataUrl: string): Blob {
   const [header, body] = dataUrl.split(",");
@@ -482,8 +486,8 @@ async function uploadToBucket(
   id: string,
   dataUrl: string
 ): Promise<void> {
-  const userId = await currentUserId();
-  const path = `${userId}/${id}`;
+  await currentUserId(); // garante auth
+  const path = `${SHARED_FOLDER}/${id}`;
   const blob = dataUrlToBlob(dataUrl);
   const { error } = await supabase.storage
     .from(bucket)
@@ -496,8 +500,8 @@ async function signedUrlsFrom(
   ids: string[]
 ): Promise<Record<string, string>> {
   if (ids.length === 0) return {};
-  const userId = await currentUserId();
-  const paths = ids.map((id) => `${userId}/${id}`);
+  await currentUserId();
+  const paths = ids.map((id) => `${SHARED_FOLDER}/${id}`);
   const { data, error } = await supabase.storage
     .from(bucket)
     .createSignedUrls(paths, 3600);
@@ -512,8 +516,8 @@ async function signedUrlsFrom(
 
 async function deleteFromBucket(bucket: string, ids: string[]): Promise<void> {
   if (ids.length === 0) return;
-  const userId = await currentUserId();
-  const paths = ids.map((id) => `${userId}/${id}`);
+  await currentUserId();
+  const paths = ids.map((id) => `${SHARED_FOLDER}/${id}`);
   const { error } = await supabase.storage.from(bucket).remove(paths);
   throwIfError(error, `delete:${bucket}`);
 }
