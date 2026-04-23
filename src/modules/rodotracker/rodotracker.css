@@ -17,12 +17,12 @@
   --border-default: rgba(255, 255, 255, 0.10);
   --border-strong:  rgba(255, 255, 255, 0.16);
 
-  /* Text — luminance-graded (bumped up uma faixa pra ficar mais nítido
-     sobre os fundos escuros; hierarquia preservada) */
-  --text-primary:   #f8fafc;
-  --text-secondary: #d0d6e1;
-  --text-muted:     #9aa1b5;
-  --text-faint:     #6f7689;
+  /* Text — luminance-graded (bumped up um segundo nível pra ficar bem
+     nítido sobre os fundos escuros; hierarquia preservada) */
+  --text-primary:   #ffffff;
+  --text-secondary: #e2e6ee;
+  --text-muted:     #b4bccd;
+  --text-faint:     #8a92a6;
 
   /* Accent — signature amber, tuned for glow */
   --accent:         #ffb020;
@@ -102,9 +102,14 @@
 }
 
 /* Pequenos textos (10-12px) em fontes finas ficam muito mosqueteados em
-   fundo escuro; empurrar pra 480 dá nitidez sem mudar o layout. */
+   fundo escuro; empurrar pra 500 dá nitidez sem mudar o layout. */
 .rodotracker-root .font-mono {
-  font-weight: 480;
+  font-weight: 500;
+}
+/* Labels de grid nos cards da sidebar — bem visíveis */
+.rodotracker-root .label-eyebrow,
+.rodotracker-root [class*="uppercase"] {
+  font-weight: 600;
 }
 
 /* Sidebar redimensionável — mobile stacked, desktop width controlada por

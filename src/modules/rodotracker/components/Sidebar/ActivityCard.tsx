@@ -129,7 +129,7 @@ export function ActivityCard({ activity, contractItems = [], onClick, onDelete }
         <button
           onClick={(e) => { e.stopPropagation(); onDelete(); }}
           className="opacity-0 group-hover:opacity-100 shrink-0 p-1 rounded-md"
-          style={{ color: "var(--text-faint)", transition: "all 0.2s" }}
+          style={{ color: "var(--text-muted)", transition: "all 0.2s" }}
           onMouseEnter={(e) => {
             e.currentTarget.style.color = "var(--danger)";
             e.currentTarget.style.background = "var(--danger-dim)";
@@ -219,15 +219,15 @@ export function ActivityCard({ activity, contractItems = [], onClick, onDelete }
               color: "var(--text-muted)",
             }}
           >
-            <span style={{ color: "var(--text-faint)" }}>Cargas</span>
+            <span style={{ color: "var(--text-muted)" }}>Cargas</span>
             <span style={{ color: "var(--text-secondary)", textAlign: "right" }}>
               {(cbuq.cargas ?? []).length}
             </span>
-            <span style={{ color: "var(--text-faint)" }}>Peso total</span>
+            <span style={{ color: "var(--text-muted)" }}>Peso total</span>
             <span style={{ color: "#f59e0b", textAlign: "right", fontWeight: 600 }}>
               {MEAS_FMT.format(cbuqPesoTotal)} t
             </span>
-            <span style={{ color: "var(--text-faint)" }}>Volume CBUQ</span>
+            <span style={{ color: "var(--text-muted)" }}>Volume CBUQ</span>
             <span style={{ color: "#c084fc", textAlign: "right", fontWeight: 600 }}>
               {MEAS_FMT.format(cbuqVolumeTotal)} m³
             </span>
@@ -268,7 +268,7 @@ export function ActivityCard({ activity, contractItems = [], onClick, onDelete }
             marginTop: 4,
             borderTop: "1px dashed var(--border-hair)",
             fontSize: 10,
-            color: "var(--text-faint)",
+            color: "var(--text-muted)",
             fontStyle: "italic",
             textAlign: "center",
           }}
@@ -291,21 +291,21 @@ export function ActivityCard({ activity, contractItems = [], onClick, onDelete }
               color: "var(--text-muted)",
             }}
           >
-            <span style={{ color: "var(--text-faint)" }}>Comprimento (m)</span>
+            <span style={{ color: "var(--text-muted)" }}>Comprimento (m)</span>
             <span style={{ color: "var(--text-secondary)", textAlign: "right" }}>
               {MEAS_FMT.format(ts.comprimento || 0)}
             </span>
-            <span style={{ color: "var(--text-faint)" }}>Largura (m)</span>
+            <span style={{ color: "var(--text-muted)" }}>Largura (m)</span>
             <span style={{ color: "var(--text-secondary)", textAlign: "right" }}>
               {MEAS_FMT.format(ts.largura || 0)}
             </span>
-            <span style={{ color: "var(--text-faint)" }}>Espessura (m)</span>
+            <span style={{ color: "var(--text-muted)" }}>Espessura (m)</span>
             <span style={{ color: "var(--text-secondary)", textAlign: "right" }}>
               {MEAS_FMT.format(ts.espessura || 0)}
             </span>
             {ts.drenos.length > 0 && (
               <>
-                <span style={{ color: "var(--text-faint)" }}>
+                <span style={{ color: "var(--text-muted)" }}>
                   Drenos ({ts.drenos.length})
                 </span>
                 <span style={{ color: "var(--text-secondary)", textAlign: "right" }}>
@@ -369,7 +369,7 @@ export function ActivityCard({ activity, contractItems = [], onClick, onDelete }
               .slice(0, 3)
               .map((q) => (
                 <span key={q.id} className="contents">
-                  <span style={{ color: "var(--text-faint)" }}>{q.name}</span>
+                  <span style={{ color: "var(--text-muted)" }}>{q.name}</span>
                   <span style={{ color: "var(--text-secondary)", textAlign: "right" }}>
                     {q.value}
                   </span>
