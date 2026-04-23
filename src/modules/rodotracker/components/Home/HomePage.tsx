@@ -566,10 +566,23 @@ function EmptyState({ onCreate }: { onCreate: () => void }) {
 
 /* ─────────────────── LocalMigrationBanner ─────────────────── */
 
+/**
+ * Só retorna true se houver **dados** no localStorage — obras, atividades,
+ * plan items, contract items ou medicao. Ignora chaves de preferência de
+ * UI como `rodotracker-sidebar-width`.
+ */
 function hasLocalRodotrackerData(): boolean {
+  const DATA_PREFIXES = [
+    "rodotracker-obras",
+    "rodotracker-activities-",
+    "rodotracker-plan-",
+    "rodotracker-contract-",
+    "rodotracker-medicao-current-",
+  ];
   for (let i = 0; i < localStorage.length; i++) {
     const k = localStorage.key(i);
-    if (k && k.startsWith("rodotracker-")) return true;
+    if (!k) continue;
+    if (DATA_PREFIXES.some((p) => k === p || k.startsWith(p))) return true;
   }
   return false;
 }
@@ -587,10 +600,20 @@ function LocalMigrationBanner({ onDone }: { onDone: () => void }) {
     try {
       await migrateLocalDataToSupabase((m) => setMsg(m));
       setMsg("Sucesso! Limpando localStorage antigo...");
+      // Remove só as chaves de DADOS — preserva preferências de UI como
+      // `rodotracker-sidebar-width`.
+      const DATA_PREFIXES = [
+        "rodotracker-obras",
+        "rodotracker-activities-",
+        "rodotracker-plan-",
+        "rodotracker-contract-",
+        "rodotracker-medicao-current-",
+      ];
       const keys: string[] = [];
       for (let i = 0; i < localStorage.length; i++) {
         const k = localStorage.key(i);
-        if (k && k.startsWith("rodotracker-")) keys.push(k);
+        if (!k) continue;
+        if (DATA_PREFIXES.some((p) => k === p || k.startsWith(p))) keys.push(k);
       }
       for (const k of keys) localStorage.removeItem(k);
       onDone();
