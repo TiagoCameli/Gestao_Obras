@@ -1108,6 +1108,10 @@ export function MapView({
             }
 
             // --- Center handle: translation ---
+            // Visualmente deslocado pra CIMA do centroide (iconAnchor com y
+            // fora da imagem) pra não sobrepor o pin da atividade que vive
+            // no centroide. Continua ancorado geograficamente no centroide,
+            // portanto o drag translada a área normalmente.
             const moveIcon = L.divIcon({
               className: "",
               html: `<div class="area-move-handle" style="--dim-color:${color}" title="Mover área">
@@ -1116,7 +1120,7 @@ export function MapView({
                 </svg>
               </div>`,
               iconSize: [28, 28],
-              iconAnchor: [14, 14],
+              iconAnchor: [14, 50],
             });
             const liveCentroid: [number, number] = [
               (corners[0][0] + corners[1][0] + corners[2][0] + corners[3][0]) / 4,
