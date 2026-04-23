@@ -718,7 +718,7 @@ export function exportMedicaoExcel({ obra, items, activities, medicao }: ExportA
   rowHeights[footerRow] = 18;
   summary.push(padRow([
     cell(
-      `Gerado em ${new Date().toLocaleString("pt-BR")} · RodoTracker`,
+      `Gerado em ${new Date().toLocaleString("pt-BR")} · Trechos`,
       {
         font: { italic: true, color: { rgb: HEX.textMuted }, sz: 9 },
         alignment: { horizontal: "center", vertical: "center" },

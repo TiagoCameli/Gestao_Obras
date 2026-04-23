@@ -18,7 +18,7 @@ import type {
 async function currentUserId(): Promise<string> {
   const { data } = await supabase.auth.getUser();
   const id = data.user?.id;
-  if (!id) throw new Error("Sem usuário logado — RodoTracker exige auth.");
+  if (!id) throw new Error("Sem usuário logado — Trechos exige auth.");
   return id;
 }
 

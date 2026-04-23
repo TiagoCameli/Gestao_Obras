@@ -97,7 +97,7 @@ export function HomePage({ onOpenObra }: HomePageProps) {
             </div>
             <div className="flex items-baseline gap-2">
               <span style={{ fontSize: 19, fontWeight: 700, letterSpacing: "-0.02em", color: "var(--text-primary)" }}>
-                Rodo<span style={{ color: "var(--accent)" }}>Tracker</span>
+                Tre<span style={{ color: "var(--accent)" }}>chos</span>
               </span>
               <span className="label-eyebrow font-mono" style={{ fontSize: 9 }}>v1.0</span>
             </div>
@@ -136,10 +136,12 @@ export function HomePage({ onOpenObra }: HomePageProps) {
                 marginBottom: 8,
               }}
             >
-              Suas obras em <span style={{ color: "var(--accent)" }}>precisão geoespacial</span>.
+              Do <span style={{ color: "var(--accent)" }}>campo</span> à{" "}
+              <span style={{ color: "var(--accent)" }}>medição</span>, num fluxo só.
             </h1>
-            <p style={{ fontSize: 14, color: "var(--text-secondary)", maxWidth: 580 }}>
-              Registre atividades em campo, gere evidências fotográficas e acompanhe o avanço do trecho em tempo real.
+            <p style={{ fontSize: 14, color: "var(--text-secondary)", maxWidth: 640, lineHeight: 1.55 }}>
+              Planeje o Gantt da obra, registre atividades em campo com fotos e coordenadas,
+              e veja os quantitativos do contrato se atualizarem em tempo real na medição vigente.
             </p>
           </div>
 
