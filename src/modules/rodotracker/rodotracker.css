@@ -92,7 +92,11 @@
   -moz-osx-font-smoothing: grayscale;
   font-feature-settings: "ss01", "cv11";
   letter-spacing: -0.005em;
-  min-height: 100vh;
+  /* Quando montado dentro do FullscreenLayout, o pai já define a altura
+     disponível (flex-1 min-h-0). Preenchemos 100% com overflow controlado
+     pelos filhos. */
+  height: 100%;
+  overflow: hidden;
 }
 
 .font-mono { font-family: var(--font-mono); font-feature-settings: "zero", "ss01"; }

@@ -212,7 +212,7 @@ function TrackerView({ obra, onBack }: { obra: Obra; onBack: () => void }) {
   }, []);
 
   return (
-    <div className="h-screen w-screen flex flex-col md:flex-row bg-[#0f1117] overflow-hidden">
+    <div className="h-full w-full flex flex-col md:flex-row bg-[#0f1117] overflow-hidden">
       <div
         className={`shrink-0 order-2 md:order-1 overflow-hidden ${
           sidebarCollapsed

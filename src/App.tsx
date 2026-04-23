@@ -3,6 +3,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { ThemeProvider } from './contexts/ThemeContext';
 import MainLayout from './components/layout/MainLayout';
+import FullscreenLayout from './components/layout/FullscreenLayout';
 import ProtectedRoute from './components/auth/ProtectedRoute';
 import Dashboard from './pages/Dashboard';
 import ObrasPage from './pages/ObrasPage';
@@ -70,10 +71,25 @@ export default function App() {
               <Route path="/frota" element={<ProtectedRoute modulo="frota"><Frota /></ProtectedRoute>} />
               <Route path="/funcionarios" element={<ProtectedRoute modulo="funcionarios"><Funcionarios /></ProtectedRoute>} />
               <Route path="/apontamentos" element={<ProtectedRoute modulo="apontamentos"><Apontamentos /></ProtectedRoute>} />
-              <Route path="/rodotracker/*" element={<ProtectedRoute modulo="rodotracker"><RodoTrackerPage /></ProtectedRoute>} />
               <Route path="/migrar-dados" element={<MigrarDados />} />
               <Route path="/acesso-negado" element={<AcessoNegado />} />
               <Route path="*" element={<NotFound />} />
+            </Route>
+            <Route
+              element={
+                <ProtectedRoute>
+                  <FullscreenLayout />
+                </ProtectedRoute>
+              }
+            >
+              <Route
+                path="/rodotracker/*"
+                element={
+                  <ProtectedRoute modulo="rodotracker">
+                    <RodoTrackerPage />
+                  </ProtectedRoute>
+                }
+              />
             </Route>
           </Routes>
         </AuthProvider>

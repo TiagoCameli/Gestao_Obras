@@ -55,7 +55,7 @@ export function HomePage({ onOpenObra }: HomePageProps) {
   }, 0);
 
   return (
-    <div className="h-dvh flex flex-col overflow-hidden relative">
+    <div className="h-full flex flex-col overflow-hidden relative">
       {/* Ambient gradient orbs */}
       <div
         className="pointer-events-none absolute inset-0 overflow-hidden"
