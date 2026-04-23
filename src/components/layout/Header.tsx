@@ -11,6 +11,7 @@ const links: { to: string; label: string; acao?: string }[] = [
   { to: '/frete', label: 'Frete', acao: 'ver_frete' },
   { to: '/frota', label: 'Frota', acao: 'ver_frota' },
   { to: '/apontamentos', label: 'Apontamentos', acao: 'ver_apontamentos' },
+  { to: '/rodotracker', label: 'Rastreador', acao: 'ver_rodotracker' },
   { to: '/funcionarios', label: 'Usuários', acao: 'ver_funcionarios' },
 ];
 
