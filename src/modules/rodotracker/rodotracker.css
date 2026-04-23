@@ -107,6 +107,19 @@
   font-weight: 480;
 }
 
+/* Sidebar redimensionável — mobile stacked, desktop width controlada por
+   CSS variable (--rt-sidebar-w) injetada pelo React. */
+.rt-sidebar-shell {
+  width: 100%;
+  height: 50vh;
+}
+@media (min-width: 768px) {
+  .rt-sidebar-shell {
+    width: var(--rt-sidebar-w, 380px);
+    height: 100%;
+  }
+}
+
 .font-mono { font-family: var(--font-mono); font-feature-settings: "zero", "ss01"; }
 
 /* ═══════════════════════════════════════════════════════════════════════════

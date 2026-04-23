@@ -31,6 +31,41 @@ function TrackerView({ obra, onBack }: { obra: Obra; onBack: () => void }) {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [showPlanning, setShowPlanning] = useState(false);
   const [showMeasurement, setShowMeasurement] = useState(false);
+  // Largura da sidebar — arrastável pelo handle na borda direita. Persistida
+  // no localStorage pra voltar igual na próxima sessão.
+  const [sidebarWidth, setSidebarWidth] = useState<number>(() => {
+    const raw = localStorage.getItem("rodotracker-sidebar-width");
+    const n = raw ? parseInt(raw, 10) : NaN;
+    return Number.isFinite(n) && n >= 240 && n <= 900 ? n : 380;
+  });
+  const startResize = useCallback(
+    (e: React.MouseEvent) => {
+      e.preventDefault();
+      const startX = e.clientX;
+      const startWidth = sidebarWidth;
+      const onMove = (ev: MouseEvent) => {
+        const next = Math.max(240, Math.min(900, startWidth + (ev.clientX - startX)));
+        setSidebarWidth(next);
+      };
+      const onUp = () => {
+        window.removeEventListener("mousemove", onMove);
+        window.removeEventListener("mouseup", onUp);
+        document.body.style.cursor = "";
+        document.body.style.userSelect = "";
+        setSidebarWidth((w) => {
+          localStorage.setItem("rodotracker-sidebar-width", String(w));
+          // Pulsa um resize event pro Leaflet recalcular o viewport.
+          window.dispatchEvent(new Event("resize"));
+          return w;
+        });
+      };
+      document.body.style.cursor = "col-resize";
+      document.body.style.userSelect = "none";
+      window.addEventListener("mousemove", onMove);
+      window.addEventListener("mouseup", onUp);
+    },
+    [sidebarWidth]
+  );
 
   useEffect(() => {
     let raf = 0;
@@ -41,7 +76,7 @@ function TrackerView({ obra, onBack }: { obra: Obra; onBack: () => void }) {
     };
     pump();
     return () => cancelAnimationFrame(raf);
-  }, [sidebarCollapsed]);
+  }, [sidebarCollapsed, sidebarWidth]);
   const [tempMarker, setTempMarker] = useState<[number, number] | null>(null);
   const [showForm, setShowForm] = useState(false);
   // Picking = usuário está escolhendo uma coord NO MAPA enquanto o form está
@@ -214,11 +249,16 @@ function TrackerView({ obra, onBack }: { obra: Obra; onBack: () => void }) {
   return (
     <div className="h-full w-full flex flex-col md:flex-row bg-[#0f1117] overflow-hidden">
       <div
-        className={`shrink-0 order-2 md:order-1 overflow-hidden ${
-          sidebarCollapsed
-            ? "w-full md:w-0 h-0 md:h-full"
-            : "w-full md:w-[380px] h-[50vh] md:h-full"
+        className={`shrink-0 order-2 md:order-1 overflow-hidden relative ${
+          sidebarCollapsed ? "w-full md:w-0 h-0 md:h-full" : "rt-sidebar-shell"
         }`}
+        style={
+          sidebarCollapsed
+            ? undefined
+            : ({
+                ["--rt-sidebar-w" as string]: `${sidebarWidth}px`,
+              } as React.CSSProperties)
+        }
       >
         <Sidebar
           obra={obra}
@@ -240,6 +280,38 @@ function TrackerView({ obra, onBack }: { obra: Obra; onBack: () => void }) {
           onOpenMeasurement={() => setShowMeasurement(true)}
         />
       </div>
+
+      {/* Handle de redimensionamento — só em desktop e quando a sidebar
+          está visível. Arrastar horizontalmente altera sidebarWidth. */}
+      {!sidebarCollapsed && (
+        <div
+          onMouseDown={startResize}
+          className="hidden md:block order-1 md:order-1 shrink-0 group"
+          style={{
+            width: 6,
+            cursor: "col-resize",
+            background: "transparent",
+            position: "relative",
+          }}
+          title="Arrastar para redimensionar"
+        >
+          <div
+            className="absolute inset-y-0 left-1/2 -translate-x-1/2 pointer-events-none transition-colors"
+            style={{
+              width: 2,
+              background: "var(--border-subtle)",
+            }}
+          />
+          <div
+            className="absolute inset-y-0 left-1/2 -translate-x-1/2 pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity"
+            style={{
+              width: 2,
+              background: "var(--accent)",
+              boxShadow: "0 0 12px var(--accent-glow)",
+            }}
+          />
+        </div>
+      )}
 
       <div className="flex-1 h-[50vh] md:h-full order-1 md:order-2 relative">
         {sidebarCollapsed && (
