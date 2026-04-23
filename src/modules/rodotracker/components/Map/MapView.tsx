@@ -738,6 +738,28 @@ export function MapView({
     return m;
   }, [segmentData]);
 
+  /**
+   * Atividades com `areaRect` (Troca de Solo, Remendo Profundo) têm o pin
+   * **travado** no centroide da área — ele não pode ser arrastado sozinho,
+   * só acompanha o retângulo. Aqui calculamos o centroide vigente de cada
+   * uma. Enquanto a área está em modo de edição, o centroide vem dos
+   * `editingCorners` (preview live); fora disso, dos corners persistidos.
+   */
+  const areaCentroidById = useMemo(() => {
+    const m = new Map<string, [number, number]>();
+    for (const a of activities) {
+      const corners =
+        editingAreaId === a.id && editingCorners
+          ? editingCorners
+          : a.areaRect?.corners;
+      if (!corners || corners.length < 3) continue;
+      let sumLat = 0, sumLng = 0;
+      for (const c of corners) { sumLat += c[0]; sumLng += c[1]; }
+      m.set(a.id, [sumLat / corners.length, sumLng / corners.length]);
+    }
+    return m;
+  }, [activities, editingAreaId, editingCorners]);
+
   const mapRef = useRef<LeafletMap | null>(null);
   const wrapperRef = useRef<HTMLDivElement>(null);
   // Always point to the latest activities so drag handlers read fresh corners
@@ -1189,7 +1211,9 @@ export function MapView({
           <ActivityMarker
             key={a.id}
             activity={a}
-            positionOverride={segmentMidpointById.get(a.id)}
+            positionOverride={
+              segmentMidpointById.get(a.id) ?? areaCentroidById.get(a.id)
+            }
             pinned={pinnedActivityId === a.id}
             selected={selectedActivityId === a.id}
             editing={editingAreaId === a.id}
