@@ -9,7 +9,7 @@ import { serviceColors } from "../../utils/colors";
 import { usePhotoDB } from "../../hooks/usePhotoDB";
 import { ActivityMarker } from "./ActivityMarker";
 import { MapControls } from "./MapControls";
-import { kmMarkersAlongRoute, sliceRouteBetween } from "../../utils/route";
+import { kmMarkersAlongRoute, sliceRouteBetween, midpointOfPath } from "../../utils/route";
 import { rectangleDimensions, edgeDistance, formatMeters, formatArea } from "../../utils/geometry";
 
 const SATELLITE_URL = "https://mt1.google.com/vt/lyrs=s,h&x={x}&y={y}&z={z}";
@@ -717,14 +717,17 @@ export function MapView({
                 [a.lat, a.lng],
                 [a.latEnd as number, a.lngEnd as number],
               ];
-        // Meio da distância marcada — média simples das coords início/fim.
-        // Para trechos curtos numa rodovia relativamente reta o midpoint do
-        // arco coincidiria; fazer a média evita qualquer surpresa quando o
-        // routeGeoJson tem poucos vértices ou não existe.
-        const midpoint: [number, number] = [
-          (a.lat + (a.latEnd as number)) / 2,
-          (a.lng + (a.lngEnd as number)) / 2,
-        ];
+        // Meio da distância marcada = ponto a 50% do comprimento de arco
+        // da polyline que o usuário enxerga (que pode ser curvada se o
+        // routeGeoJson tem vários vértices). Fallback pra média dos
+        // endpoints se, por algum motivo, midpointOfPath falhar.
+        const arc = midpointOfPath(positions);
+        const midpoint: [number, number] = arc
+          ? [arc.lat, arc.lng]
+          : [
+              (a.lat + (a.latEnd as number)) / 2,
+              (a.lng + (a.lngEnd as number)) / 2,
+            ];
         return { activity: a, positions, midpoint };
       });
   }, [activities, obra?.routeGeoJson]);
