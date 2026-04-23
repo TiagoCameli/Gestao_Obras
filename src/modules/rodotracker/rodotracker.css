@@ -17,11 +17,12 @@
   --border-default: rgba(255, 255, 255, 0.10);
   --border-strong:  rgba(255, 255, 255, 0.16);
 
-  /* Text — luminance-graded */
-  --text-primary:   #eef2f7;
-  --text-secondary: #a7b0c0;
-  --text-muted:     #6b7488;
-  --text-faint:     #4a5164;
+  /* Text — luminance-graded (bumped up uma faixa pra ficar mais nítido
+     sobre os fundos escuros; hierarquia preservada) */
+  --text-primary:   #f8fafc;
+  --text-secondary: #d0d6e1;
+  --text-muted:     #9aa1b5;
+  --text-faint:     #6f7689;
 
   /* Accent — signature amber, tuned for glow */
   --accent:         #ffb020;
@@ -90,6 +91,7 @@
   color: var(--text-primary);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
   font-feature-settings: "ss01", "cv11";
   letter-spacing: -0.005em;
   /* Quando montado dentro do FullscreenLayout, o pai já define a altura
@@ -97,6 +99,12 @@
      pelos filhos. */
   height: 100%;
   overflow: hidden;
+}
+
+/* Pequenos textos (10-12px) em fontes finas ficam muito mosqueteados em
+   fundo escuro; empurrar pra 480 dá nitidez sem mudar o layout. */
+.rodotracker-root .font-mono {
+  font-weight: 480;
 }
 
 .font-mono { font-family: var(--font-mono); font-feature-settings: "zero", "ss01"; }
