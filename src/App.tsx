@@ -83,9 +83,9 @@ export default function App() {
               }
             >
               <Route
-                path="/rodotracker/*"
+                path="/medicao/*"
                 element={
-                  <ProtectedRoute modulo="rodotracker">
+                  <ProtectedRoute modulo="medicao">
                     <RodoTrackerPage />
                   </ProtectedRoute>
                 }

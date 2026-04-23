@@ -190,6 +190,8 @@ export const ACOES_PLATAFORMA: AcaoPlataforma[] = [
   { chave: 'criar_apontamentos', label: 'Criar apontamentos', grupo: 'Apontamentos' },
   { chave: 'editar_apontamentos', label: 'Editar apontamentos', grupo: 'Apontamentos' },
   { chave: 'excluir_apontamentos', label: 'Excluir apontamentos', grupo: 'Apontamentos' },
+  // Medição
+  { chave: 'ver_medicao', label: 'Visualizar o módulo de Medição', grupo: 'Medição' },
 ];
 
 export const TODAS_ACOES_PLATAFORMA: string[] = ACOES_PLATAFORMA.map((a) => a.chave);
