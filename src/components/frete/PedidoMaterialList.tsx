@@ -67,18 +67,18 @@ export default function PedidoMaterialList({
 
   if (filtrados.length === 0) {
     return (
-      <div className="bg-white rounded-lg shadow p-8 text-center">
-        <p className="text-gray-500">Nenhum pedido de material encontrado.</p>
+      <div className="surface-raised p-8 text-center">
+        <p className="text-[var(--color-fg-muted)]">Nenhum pedido de material encontrado.</p>
       </div>
     );
   }
 
   return (
     <>
-      <div className="bg-white rounded-lg shadow overflow-hidden">
+      <div className="surface-raised overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
-            <thead className="bg-emt-verde text-white">
+            <thead className="bg-[var(--color-accent)] text-[var(--color-fg-on-accent)]">
               <tr>
                 <th className="text-left px-4 py-3 text-white font-medium uppercase text-xs w-8" />
                 <th className="text-left px-4 py-3 text-white font-medium uppercase text-xs">Data</th>
@@ -88,14 +88,14 @@ export default function PedidoMaterialList({
                 <th className="text-center px-4 py-3 text-white font-medium uppercase text-xs">Ações</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-100 [&>tr:nth-child(even)]:bg-emt-cinza-claro">
+            <tbody className="divide-y divide-[var(--color-border)] [&>tr:nth-child(even)]:bg-[var(--color-surface-2)]">
               {paginados.map((pedido) => {
                 const valorTotal = calcValorTotal(pedido);
                 const isExpanded = expandedId === pedido.id;
                 return (
                   <Fragment key={pedido.id}>
                     <tr
-                      className="hover:bg-emt-verde-claro cursor-pointer"
+                      className="hover:bg-[var(--color-accent-soft)] cursor-pointer transition-colors"
                       onClick={() => setExpandedId(isExpanded ? null : pedido.id)}
                     >
                       <td className="px-4 py-3 text-gray-400 text-xs">

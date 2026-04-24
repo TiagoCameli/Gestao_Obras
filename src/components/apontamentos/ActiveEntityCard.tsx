@@ -40,21 +40,21 @@ export default function ActiveEntityCard({ name, obra, etapa, horaInicio, type }
   return (
     <div className={`${bgColor} border ${borderColor} rounded-lg p-3 transition-shadow hover:shadow-md`}>
       <div className="flex items-center justify-between mb-1">
-        <span className="font-medium text-sm text-gray-800 dark:text-slate-200 truncate">{name}</span>
-        <span className="inline-flex items-center gap-1 text-xs font-medium text-green-700 bg-green-100 px-2 py-0.5 rounded-full">
+        <span className="font-medium text-sm text-[var(--color-fg)] truncate">{name}</span>
+        <span className="inline-flex items-center gap-1 text-xs font-medium text-green-700 bg-green-100 dark:bg-green-900/40 dark:text-green-300 px-2 py-0.5 rounded-full">
           <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
           {elapsedLabel}
         </span>
       </div>
-      <p className="text-xs text-gray-500 dark:text-slate-400 truncate">{obra}{etapa ? ` — ${etapa}` : ''}</p>
-      <p className="text-xs text-gray-400 dark:text-slate-500 mb-2">Início: {horaInicio}</p>
-      <div className="w-full bg-gray-200 dark:bg-slate-600 rounded-full h-1.5">
+      <p className="text-xs text-[var(--color-fg-muted)] truncate">{obra}{etapa ? ` — ${etapa}` : ''}</p>
+      <p className="text-xs text-[var(--color-fg-subtle)] mb-2">Início: {horaInicio}</p>
+      <div className="w-full bg-[var(--color-surface-3)] rounded-full h-1.5">
         <div
           className={`${barColor} h-1.5 rounded-full transition-all duration-500`}
           style={{ width: `${percent}%` }}
         />
       </div>
-      <p className="text-[10px] text-gray-400 text-right mt-0.5">{Math.round(percent)}% da jornada</p>
+      <p className="text-[10px] text-[var(--color-fg-subtle)] text-right mt-0.5">{Math.round(percent)}% da jornada</p>
     </div>
   );
 }

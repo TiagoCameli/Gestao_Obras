@@ -118,18 +118,18 @@ export default function FreteList({
 
   if (filtrados.length === 0) {
     return (
-      <div className="bg-white rounded-lg shadow p-8 text-center">
-        <p className="text-gray-500">Nenhum frete encontrado.</p>
+      <div className="surface-raised p-8 text-center">
+        <p className="text-[var(--color-fg-muted)]">Nenhum frete encontrado.</p>
       </div>
     );
   }
 
   return (
     <>
-      <div className="bg-white rounded-lg shadow overflow-hidden">
+      <div className="surface-raised overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-sm min-w-[1550px]">
-            <thead className="bg-emt-verde text-white">
+            <thead className="bg-[var(--color-accent)] text-[var(--color-fg-on-accent)]">
               <tr>
                 <th className="text-left px-4 py-3 text-white font-medium uppercase text-xs">Data de Saída</th>
                 <th className="text-left px-4 py-3 text-white font-medium uppercase text-xs">Data de Chegada</th>
@@ -148,9 +148,9 @@ export default function FreteList({
                 <th className="text-center px-4 py-3 text-white font-medium uppercase text-xs">Ações</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-100 [&>tr:nth-child(even)]:bg-emt-cinza-claro">
+            <tbody className="divide-y divide-[var(--color-border)] [&>tr:nth-child(even)]:bg-[var(--color-surface-2)]">
               {paginados.map((frete) => (
-                <tr key={frete.id} className="hover:bg-emt-verde-claro">
+                <tr key={frete.id} className="hover:bg-[var(--color-accent-soft)] transition-colors">
                   <td className="px-4 py-3 text-gray-800 whitespace-nowrap">
                     {frete.data ? new Date(frete.data + 'T00:00:00').toLocaleDateString('pt-BR') : '-'}
                   </td>

@@ -105,7 +105,7 @@ export default function Frota() {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-20">
-        <p className="text-gray-500 dark:text-slate-400">Carregando frota...</p>
+        <p className="text-[var(--color-fg-muted)]">Carregando frota...</p>
       </div>
     );
   }
@@ -162,15 +162,15 @@ export default function Frota() {
               Exportar Excel
             </Button>
             {/* Status filter */}
-            <div className="flex rounded-lg border border-gray-200 dark:border-slate-600 overflow-hidden text-sm">
+            <div className="flex rounded-lg border border-[var(--color-border)] overflow-hidden text-sm">
               {(['todos', 'ativos', 'inativos'] as FiltroAtivo[]).map((f) => (
                 <button
                   key={f}
                   onClick={() => setFiltroAtivo(f)}
                   className={`px-3 py-1.5 capitalize transition-colors ${
                     filtroAtivo === f
-                      ? 'bg-emt-verde text-white'
-                      : 'text-gray-600 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-slate-700'
+                      ? 'bg-[var(--color-accent)] text-[var(--color-fg-on-accent)]'
+                      : 'text-[var(--color-fg-muted)] hover:bg-[var(--color-surface-2)]'
                   }`}
                 >
                   {f}
@@ -178,13 +178,13 @@ export default function Frota() {
               ))}
             </div>
             {/* View toggle */}
-            <div className="flex rounded-lg border border-gray-200 dark:border-slate-600 overflow-hidden">
+            <div className="flex rounded-lg border border-[var(--color-border)] overflow-hidden">
               <button
                 onClick={() => setModoVisualizacao('grid')}
                 className={`p-2 transition-colors ${
                   modoVisualizacao === 'grid'
-                    ? 'bg-emt-verde text-white'
-                    : 'text-gray-600 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-slate-700'
+                    ? 'bg-[var(--color-accent)] text-[var(--color-fg-on-accent)]'
+                    : 'text-[var(--color-fg-muted)] hover:bg-[var(--color-surface-2)]'
                 }`}
                 title="Grid"
               >
@@ -196,8 +196,8 @@ export default function Frota() {
                 onClick={() => setModoVisualizacao('lista')}
                 className={`p-2 transition-colors ${
                   modoVisualizacao === 'lista'
-                    ? 'bg-emt-verde text-white'
-                    : 'text-gray-600 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-slate-700'
+                    ? 'bg-[var(--color-accent)] text-[var(--color-fg-on-accent)]'
+                    : 'text-[var(--color-fg-muted)] hover:bg-[var(--color-surface-2)]'
                 }`}
                 title="Lista"
               >
@@ -211,14 +211,14 @@ export default function Frota() {
       </div>
 
       {/* Main tabs */}
-      <div className="flex gap-1 bg-gray-200 dark:bg-slate-700 rounded-lg p-1 w-fit overflow-x-auto">
+      <div className="flex gap-1 bg-[var(--color-surface-2)] border border-[var(--color-border)] rounded-lg p-1 w-fit overflow-x-auto">
         {mainTabs.map((t) => (
           <button
             key={t.key}
             className={`px-5 py-2.5 rounded-md text-sm font-medium transition-colors whitespace-nowrap ${
               mainTab === t.key
-                ? 'bg-white dark:bg-slate-800 text-gray-800 dark:text-slate-200 shadow-sm'
-                : 'text-gray-600 dark:text-slate-400 hover:text-gray-800 dark:hover:text-slate-200'
+                ? 'bg-[var(--color-surface-1)] text-[var(--color-fg)] shadow-sm'
+                : 'text-[var(--color-fg-muted)] hover:text-[var(--color-fg)]'
             }`}
             onClick={() => setMainTab(t.key)}
           >
@@ -240,19 +240,19 @@ export default function Frota() {
               placeholder="Filtrar por nome..."
               value={busca}
               onChange={(e) => setBusca(e.target.value)}
-              className="w-full h-[44px] border border-gray-300 dark:border-slate-600 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emt-verde dark:bg-slate-700 dark:text-slate-200"
+              className="w-full h-[44px] border border-[var(--color-border)] bg-[var(--color-surface-1)] text-[var(--color-fg)] rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-ring)]"
             />
             <input
               type="text"
               placeholder="Filtrar por patrimônio..."
               value={buscaPatrimonio}
               onChange={(e) => setBuscaPatrimonio(e.target.value)}
-              className="w-full h-[44px] border border-gray-300 dark:border-slate-600 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emt-verde dark:bg-slate-700 dark:text-slate-200"
+              className="w-full h-[44px] border border-[var(--color-border)] bg-[var(--color-surface-1)] text-[var(--color-fg)] rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-ring)]"
             />
             <select
               value={filtroEmpresa}
               onChange={(e) => setFiltroEmpresa(e.target.value)}
-              className="w-full h-[44px] border border-gray-300 dark:border-slate-600 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emt-verde bg-white dark:bg-slate-700 dark:text-slate-200"
+              className="w-full h-[44px] border border-[var(--color-border)] bg-[var(--color-surface-1)] text-[var(--color-fg)] rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-ring)]"
             >
               <option value="">Todas as empresas</option>
               {empresas
@@ -265,7 +265,7 @@ export default function Frota() {
             <select
               value={categoriaFiltro}
               onChange={(e) => setCategoriaFiltro(e.target.value as TipoEquipamento | '')}
-              className="w-full h-[44px] border border-gray-300 dark:border-slate-600 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emt-verde bg-white dark:bg-slate-700 dark:text-slate-200"
+              className="w-full h-[44px] border border-[var(--color-border)] bg-[var(--color-surface-1)] text-[var(--color-fg)] rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-ring)]"
             >
               <option value="">Todos os tipos</option>
               {Array.from(new Set(equipamentos.map((e) => e.tipo).filter(Boolean)))

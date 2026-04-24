@@ -30,8 +30,8 @@ export default function DataTableSortable<T>({
   data,
   totalsRow,
   emptyMessage,
-  headerBgClass = 'bg-gray-50',
-  headerTextClass = 'text-gray-600',
+  headerBgClass = 'bg-[var(--color-surface-2)]',
+  headerTextClass = 'text-[var(--color-fg-muted)]',
   title,
   onRowClick,
 }: DataTableSortableProps<T>) {
@@ -63,9 +63,9 @@ export default function DataTableSortable<T>({
 
   if (data.length === 0) {
     return (
-      <div className="bg-white dark:bg-slate-800 rounded-lg border dark:border-slate-700 shadow-sm">
+      <div className="surface-raised overflow-hidden">
         {title && (
-          <div className={`px-4 py-2.5 border-b dark:border-slate-700 ${headerBgClass}`}>
+          <div className={`px-4 py-2.5 border-b border-[var(--color-border)] ${headerBgClass}`}>
             <h3 className={`text-sm font-semibold ${headerTextClass}`}>{title}</h3>
           </div>
         )}
@@ -78,16 +78,16 @@ export default function DataTableSortable<T>({
     align === 'right' ? 'text-right' : align === 'center' ? 'text-center' : 'text-left';
 
   return (
-    <div className="bg-white dark:bg-slate-800 rounded-lg border dark:border-slate-700 shadow-sm overflow-hidden">
+    <div className="surface-raised overflow-hidden">
       {title && (
-        <div className={`px-4 py-2.5 border-b dark:border-slate-700 ${headerBgClass}`}>
+        <div className={`px-4 py-2.5 border-b border-[var(--color-border)] ${headerBgClass}`}>
           <h3 className={`text-sm font-semibold ${headerTextClass}`}>{title}</h3>
         </div>
       )}
       <div className="overflow-x-auto">
         <table className="w-full min-w-[500px] text-sm" role="table">
           <thead>
-            <tr className={`border-b dark:border-slate-700 ${headerBgClass} ${headerTextClass} text-xs uppercase`}>
+            <tr className={`border-b border-[var(--color-border)] ${headerBgClass} ${headerTextClass} text-xs uppercase tracking-wider`}>
               {columns.map((col) => {
                 const sortable = col.sortable !== false;
                 const isActive = sort.key === col.key;
@@ -110,12 +110,12 @@ export default function DataTableSortable<T>({
               })}
             </tr>
           </thead>
-          <tbody className="divide-y divide-gray-100 dark:divide-slate-700">
+          <tbody className="divide-y divide-[var(--color-border)]">
             {sorted.map((row, i) => (
               <tr
                 key={i}
                 role="row"
-                className={`hover:bg-gray-50 dark:hover:bg-slate-700/50 ${onRowClick ? 'cursor-pointer' : ''}`}
+                className={`hover:bg-[var(--color-surface-2)] transition-colors ${onRowClick ? 'cursor-pointer' : ''}`}
                 onClick={onRowClick ? () => onRowClick(row) : undefined}
               >
                 {columns.map((col) => (
@@ -127,8 +127,8 @@ export default function DataTableSortable<T>({
             ))}
           </tbody>
           {totalsRow && (
-            <tfoot className="border-t-2 border-gray-200 dark:border-slate-600">
-              <tr className="bg-gray-50 dark:bg-slate-700 font-semibold text-gray-800 dark:text-slate-200">
+            <tfoot className="border-t-2 border-[var(--color-border-strong)]">
+              <tr className="bg-[var(--color-surface-2)] font-semibold text-[var(--color-fg)]">
                 {columns.map((col) => (
                   <td key={col.key} className={`${alignClass(col.align)} px-4 py-2 ${col.className || ''}`}>
                     {totalsRow[col.key] ?? ''}

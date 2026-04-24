@@ -12,10 +12,10 @@ export default function FrotaList({ equipamentos, empresas, onSelect, alertasMap
   const empresaMap = new Map(empresas.map((e) => [e.id, e.nome]));
 
   return (
-    <div className="overflow-x-auto rounded-lg shadow">
+    <div className="surface-raised overflow-x-auto">
       <table className="w-full text-sm">
         <thead>
-          <tr className="bg-emt-verde text-white">
+          <tr className="bg-[var(--color-accent)] text-[var(--color-fg-on-accent)]">
             <th className="px-4 py-3 text-left font-semibold">Patrimônio</th>
             <th className="px-4 py-3 text-left font-semibold">Nome</th>
             <th className="px-4 py-3 text-left font-semibold">Tipo</th>
@@ -34,14 +34,14 @@ export default function FrotaList({ equipamentos, empresas, onSelect, alertasMap
               <tr
                 key={eq.id}
                 onClick={() => onSelect(eq)}
-                className={`cursor-pointer transition-colors hover:bg-emt-verde/5 dark:hover:bg-slate-700 ${
-                  i % 2 === 0 ? 'bg-white dark:bg-slate-800' : 'bg-gray-50 dark:bg-slate-800/50'
+                className={`cursor-pointer transition-colors hover:bg-[var(--color-accent-soft)] ${
+                  i % 2 === 0 ? 'bg-[var(--color-surface-1)]' : 'bg-[var(--color-surface-2)]'
                 }`}
               >
-                <td className="px-4 py-3 text-gray-600 dark:text-slate-400 font-mono text-xs">
+                <td className="px-4 py-3 text-[var(--color-fg-muted)] font-mono text-xs">
                   {eq.codigoPatrimonio || '—'}
                 </td>
-                <td className="px-4 py-3 font-medium text-gray-800 dark:text-slate-200">
+                <td className="px-4 py-3 font-medium text-[var(--color-fg)]">
                   <span className="flex items-center gap-1.5">
                     {eq.nome}
                     {alertas > 0 && (
@@ -57,12 +57,12 @@ export default function FrotaList({ equipamentos, empresas, onSelect, alertasMap
                     {cat.codigo}
                   </span>
                 </td>
-                <td className="px-4 py-3 text-gray-600 dark:text-slate-400">{eq.marca || '—'}</td>
-                <td className="px-4 py-3 text-gray-600 dark:text-slate-400">{eq.ano || '—'}</td>
-                <td className="px-4 py-3 text-gray-600 dark:text-slate-400 hidden lg:table-cell font-mono text-xs">
+                <td className="px-4 py-3 text-[var(--color-fg-muted)]">{eq.marca || '—'}</td>
+                <td className="px-4 py-3 text-[var(--color-fg-muted)]">{eq.ano || '—'}</td>
+                <td className="px-4 py-3 text-[var(--color-fg-muted)] hidden lg:table-cell font-mono text-xs">
                   {eq.numeroSerie || '—'}
                 </td>
-                <td className="px-4 py-3 text-gray-600 dark:text-slate-400 hidden md:table-cell">
+                <td className="px-4 py-3 text-[var(--color-fg-muted)] hidden md:table-cell">
                   {empresaMap.get(eq.empresaId) || '—'}
                 </td>
                 <td className="px-4 py-3 text-center">
@@ -79,7 +79,7 @@ export default function FrotaList({ equipamentos, empresas, onSelect, alertasMap
           })}
           {equipamentos.length === 0 && (
             <tr>
-              <td colSpan={8} className="px-4 py-8 text-center text-gray-400 dark:text-slate-500">
+              <td colSpan={8} className="px-4 py-8 text-center text-[var(--color-fg-subtle)]">
                 Nenhum equipamento encontrado.
               </td>
             </tr>

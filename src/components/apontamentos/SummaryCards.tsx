@@ -59,18 +59,18 @@ export default function SummaryCards({
       {items.map((item) => {
         const colors = COLOR_MAP[item.color] || COLOR_MAP.gray;
         return (
-          <div key={item.label} className="bg-white dark:bg-slate-800 rounded-lg p-4 border dark:border-slate-700 shadow-sm relative group">
+          <div key={item.label} className="surface-raised p-4 relative group">
             <div className="flex items-center gap-2 mb-1">
               <span className={`${colors.bg} ${colors.text} p-1.5 rounded-lg`}>
                 {item.icon}
               </span>
-              <p className="text-xs text-gray-500 dark:text-slate-400 uppercase font-medium">{item.label}</p>
+              <p className="text-xs text-[var(--color-fg-muted)] uppercase font-medium tracking-wider">{item.label}</p>
             </div>
             <p className={`text-2xl font-bold ${colors.text} mt-1`}>
               <CountUp target={item.value} format={item.format} />
             </p>
             {item.subtitle && (
-              <p className="text-xs text-gray-400 mt-1">{item.subtitle}</p>
+              <p className="text-xs text-[var(--color-fg-subtle)] mt-1">{item.subtitle}</p>
             )}
             {item.trend && item.trend.value !== 0 && (
               <p className={`text-xs mt-1 ${item.trend.value > 0 ? 'text-green-600' : 'text-red-500'}`}>

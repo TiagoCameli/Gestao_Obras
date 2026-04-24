@@ -518,7 +518,7 @@ export default function Apontamentos() {
           {/* Ativos agora */}
           {subPainel === 'equipamentos' && (
             <div>
-              <h2 className="text-lg font-semibold text-gray-800 mb-3">Equipamentos Ativos Agora</h2>
+              <h2 className="text-lg font-semibold text-[var(--color-fg)] mb-3">Equipamentos Ativos Agora</h2>
               {equipAbertosHoje.length === 0 ? (
                 <EmptyState type="equipamentos" message="Nenhum equipamento ativo no momento" />
               ) : (
@@ -543,7 +543,7 @@ export default function Apontamentos() {
 
           {subPainel === 'colaboradores' && (
             <div>
-              <h2 className="text-lg font-semibold text-gray-800 mb-3">Colaboradores Ativos Agora</h2>
+              <h2 className="text-lg font-semibold text-[var(--color-fg)] mb-3">Colaboradores Ativos Agora</h2>
               {colabAbertosHoje.length === 0 ? (
                 <EmptyState type="colaboradores" message="Nenhum colaborador ativo no momento" />
               ) : (
@@ -574,7 +574,7 @@ export default function Apontamentos() {
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-2">
                   <WrenchIcon className="w-5 h-5 text-blue-600" />
-                  <h3 className="text-base font-semibold text-gray-800">Equipamentos</h3>
+                  <h3 className="text-base font-semibold text-[var(--color-fg)]">Equipamentos</h3>
                 </div>
                 {relatorioEquip.length > 0 && (
                   <div className="flex gap-2">
@@ -680,7 +680,7 @@ export default function Apontamentos() {
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-2">
                   <UsersIcon className="w-5 h-5 text-green-600" />
-                  <h3 className="text-base font-semibold text-gray-800">Colaboradores</h3>
+                  <h3 className="text-base font-semibold text-[var(--color-fg)]">Colaboradores</h3>
                 </div>
                 {relatorioColab.length > 0 && (
                   <div className="flex gap-2">
@@ -793,7 +793,7 @@ export default function Apontamentos() {
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-2">
                   <CurrencyIcon className="w-5 h-5 text-orange-600" />
-                  <h3 className="text-base font-semibold text-gray-800">Diárias</h3>
+                  <h3 className="text-base font-semibold text-[var(--color-fg)]">Diárias</h3>
                 </div>
                 {relatorioDiaristas.porObra.length > 0 && (
                   <div className="flex gap-2">
@@ -874,14 +874,14 @@ export default function Apontamentos() {
             return (
               <div
                 key={equip.id}
-                className="bg-white rounded-lg p-4 border shadow-sm cursor-pointer hover:shadow-md hover:scale-[1.02] transition-all duration-200"
+                className="surface-raised p-4 cursor-pointer hover:shadow-md hover:scale-[1.02] hover:border-[var(--color-border-strong)] transition-all duration-200"
                 onClick={() => setDetalheModal({ tipo: 'equipamento', id: equip.id, nome: equip.nome })}
               >
                 <div className="flex items-center justify-between mb-2">
-                  <h3 className="text-sm font-semibold text-gray-800 truncate">{equip.nome}</h3>
+                  <h3 className="text-sm font-semibold text-[var(--color-fg)] truncate">{equip.nome}</h3>
                   <StatusBadge status={status} />
                 </div>
-                <p className="text-xs text-gray-500">{equip.marca} {equip.codigoPatrimonio && `| ${equip.codigoPatrimonio}`}</p>
+                <p className="text-xs text-[var(--color-fg-muted)]">{equip.marca} {equip.codigoPatrimonio && `| ${equip.codigoPatrimonio}`}</p>
               </div>
             );
           })}
@@ -914,14 +914,14 @@ export default function Apontamentos() {
             return (
               <div
                 key={colab.id}
-                className="bg-white rounded-lg p-4 border shadow-sm cursor-pointer hover:shadow-md hover:scale-[1.02] transition-all duration-200"
+                className="surface-raised p-4 cursor-pointer hover:shadow-md hover:scale-[1.02] hover:border-[var(--color-border-strong)] transition-all duration-200"
                 onClick={() => setDetalheModal({ tipo: 'colaborador', id: colab.id, nome: colab.nome })}
               >
                 <div className="flex items-center justify-between mb-2">
-                  <h3 className="text-sm font-semibold text-gray-800 truncate">{colab.nome}</h3>
+                  <h3 className="text-sm font-semibold text-[var(--color-fg)] truncate">{colab.nome}</h3>
                   <StatusBadge status={status} />
                 </div>
-                <p className="text-xs text-gray-500">{empresasMap.get(colab.empresaId) || ''}</p>
+                <p className="text-xs text-[var(--color-fg-muted)]">{empresasMap.get(colab.empresaId) || ''}</p>
               </div>
             );
           })}

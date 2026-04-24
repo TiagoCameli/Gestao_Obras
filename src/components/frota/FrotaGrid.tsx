@@ -15,7 +15,7 @@ function EquipamentoCard({ eq, empresaNome, alertas, onClick }: { eq: Equipament
   return (
     <button
       onClick={onClick}
-      className="bg-white dark:bg-slate-800 rounded-lg shadow hover:shadow-md transition-shadow p-4 text-left w-full border border-gray-100 dark:border-slate-700"
+      className="surface-raised p-4 text-left w-full hover:shadow-md hover:border-[var(--color-border-strong)] transition-all"
     >
       <div className="flex items-start justify-between mb-2">
         <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-semibold ${cat.corBg} ${cat.corTexto}`}>
@@ -37,17 +37,17 @@ function EquipamentoCard({ eq, empresaNome, alertas, onClick }: { eq: Equipament
           </span>
         </div>
       </div>
-      <h3 className="font-semibold text-gray-800 dark:text-slate-200 truncate">{eq.nome}</h3>
-      <p className="text-sm text-gray-500 dark:text-slate-400 mt-1">
+      <h3 className="font-semibold text-[var(--color-fg)] truncate">{eq.nome}</h3>
+      <p className="text-sm text-[var(--color-fg-muted)] mt-1">
         {[eq.marca, eq.ano].filter(Boolean).join(' · ') || '—'}
       </p>
       {eq.codigoPatrimonio && (
-        <p className="text-xs text-gray-400 dark:text-slate-500 mt-1">
+        <p className="text-xs text-[var(--color-fg-subtle)] mt-1">
           Patrimônio: {eq.codigoPatrimonio}
         </p>
       )}
       {empresaNome && (
-        <p className="text-xs text-gray-400 dark:text-slate-500 mt-1 truncate">
+        <p className="text-xs text-[var(--color-fg-subtle)] mt-1 truncate">
           {empresaNome}
         </p>
       )}
@@ -90,7 +90,7 @@ export default function FrotaGrid({ equipamentos, empresas, categoriaFiltro, onS
         const cat = getCategoriaFrota(tipo as Equipamento['tipo']);
         return (
           <div key={tipo}>
-            <h3 className="text-sm font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wider mb-3 flex items-center gap-2">
+            <h3 className="text-sm font-semibold text-[var(--color-fg-muted)] uppercase tracking-wider mb-3 flex items-center gap-2">
               <span className={`w-2.5 h-2.5 rounded-full ${cat.cor}`} />
               {cat.label} ({eqs.length})
             </h3>
