@@ -81,7 +81,7 @@ export default function FreteList({
   canDelete = true,
 }: FreteListProps) {
   const [pagina, setPagina] = useState(0);
-  const porPagina = 15;
+  const porPagina = 100;
 
   const insumosMap = useMemo(() => new Map(insumos.map((i) => [i.id, i.nome])), [insumos]);
 
