@@ -207,10 +207,13 @@ export default function FreteDashboard({
   const saldoEtam = fretesEtam + pagosPelaEtam - pagosParaEtam;
 
   // ── Saldo EMT Transportes ──
-  const EMT_TRANSPORTES = 'EMT TRANSPORTES';
-  const fretesEmtTransportes = fretesF.filter((f) => f.transportadora === EMT_TRANSPORTES).reduce((s, f) => s + f.valorTotal, 0);
-  const pagosParaEmtTransportes = pagamentosF.filter((p) => p.transportadora === EMT_TRANSPORTES).reduce((s, p) => s + p.valor, 0);
-  const abastEmtTransportes = abastCarretaF.filter((a) => a.transportadora === EMT_TRANSPORTES).reduce((s, a) => s + a.valorTotal, 0);
+  // Comparação normalizada (trim + lowercase) pra não errar por causa de
+  // espaços invisíveis ou diferença de caixa na string da transportadora.
+  const isEmtTransportes = (s: string | undefined | null) =>
+    (s ?? '').trim().toLowerCase() === 'emt transportes';
+  const fretesEmtTransportes = fretesF.filter((f) => isEmtTransportes(f.transportadora)).reduce((s, f) => s + f.valorTotal, 0);
+  const pagosParaEmtTransportes = pagamentosF.filter((p) => isEmtTransportes(p.transportadora)).reduce((s, p) => s + p.valor, 0);
+  const abastEmtTransportes = abastCarretaF.filter((a) => isEmtTransportes(a.transportadora)).reduce((s, a) => s + a.valorTotal, 0);
   const saldoEmtTransportes = fretesEmtTransportes - pagosParaEmtTransportes - abastEmtTransportes;
 
   // ── Saldo Andrade Transporte ──
