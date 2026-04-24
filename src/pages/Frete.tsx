@@ -13,7 +13,6 @@ import { useFornecedores } from '../hooks/useFornecedores';
 import { useAuth } from '../contexts/AuthContext';
 import Button from '../components/ui/Button';
 import Input from '../components/ui/Input';
-import FilterCombobox from '../components/ui/FilterCombobox';
 import Modal from '../components/ui/Modal';
 import ConfirmDialog from '../components/ui/ConfirmDialog';
 import PasswordDialog from '../components/ui/PasswordDialog';
@@ -30,6 +29,8 @@ import { exportarFretesPDF, exportarFretesExcel } from '../utils/freteExport';
 import ImportAtualizacaoFretesModal from '../components/frete/ImportAtualizacaoFretesModal';
 import { exportarPedidosMaterialExcel, exportarPedidosMaterialPDF } from '../utils/pedidosMaterialExport';
 import { exportarAbastecimentosCarretaExcel, exportarAbastecimentosCarretaPDF } from '../utils/abastecimentoCarretaExport';
+import FilterBar from '../components/frete/FilterBar';
+import { Truck, Sparkles, BarChart3, Wallet, Fuel, PackageSearch } from 'lucide-react';
 
 type Tab = 'dashboard' | 'fretes' | 'pagamentos' | 'abastecimentos' | 'pedidos';
 
@@ -302,23 +303,57 @@ export default function Frete() {
     );
   }
 
-  const tabs: { key: Tab; label: string }[] = [
-    { key: 'dashboard', label: 'Dashboard' },
-    { key: 'fretes', label: 'Fretes' },
-    { key: 'pagamentos', label: 'Pagamentos' },
-    { key: 'abastecimentos', label: 'Abastecimentos' },
-    { key: 'pedidos', label: 'Pedidos' },
+  const tabs: { key: Tab; label: string; icon: React.ReactNode }[] = [
+    { key: 'dashboard', label: 'Dashboard', icon: <BarChart3 className="h-3.5 w-3.5" /> },
+    { key: 'fretes', label: 'Fretes', icon: <Truck className="h-3.5 w-3.5" /> },
+    { key: 'pagamentos', label: 'Pagamentos', icon: <Wallet className="h-3.5 w-3.5" /> },
+    { key: 'abastecimentos', label: 'Abastecimentos', icon: <Fuel className="h-3.5 w-3.5" /> },
+    { key: 'pedidos', label: 'Pedidos', icon: <PackageSearch className="h-3.5 w-3.5" /> },
   ];
 
   return (
-    <div>
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
-        <div>
-          <h1 className="text-2xl sm:text-[28px] font-semibold tracking-tight text-[var(--color-fg)]">Frete</h1>
-          <p className="text-sm text-[var(--color-fg-muted)] mt-1">Fretes, pagamentos, abastecimentos e pedidos de material.</p>
+    <div
+      className="frete-premium ambient-bg -mx-3 sm:-mx-6 -my-6 sm:-my-8 px-3 sm:px-6 py-6 sm:py-8 min-h-[calc(100dvh-64px)]"
+      style={
+        {
+          /* Scope: o accent da página vira âmbar, alinhando com o módulo
+             de Medição. Nada fora desta página é afetado. */
+          ['--color-accent' as string]: 'var(--color-accent-amber)',
+          ['--color-accent-hover' as string]: 'var(--color-accent-amber-hover)',
+          ['--color-accent-soft' as string]: 'var(--color-accent-amber-soft)',
+          ['--color-accent-fg' as string]: 'var(--color-accent-amber-fg)',
+          ['--color-ring' as string]: 'var(--color-accent-amber-glow)',
+        } as React.CSSProperties
+      }
+    >
+      {/* ── Hero header ─────────────────────────────────────────────── */}
+      <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-6 mb-8">
+        <div className="flex items-start gap-4">
+          <div
+            className="flex items-center justify-center shrink-0"
+            style={{
+              width: 48, height: 48, borderRadius: 14,
+              background: 'linear-gradient(135deg, var(--color-accent), var(--color-accent-hover))',
+              boxShadow: '0 10px 24px -8px var(--color-accent-amber-glow), inset 0 1px 0 rgba(255,255,255,0.2)',
+            }}
+          >
+            <Truck className="h-5 w-5" style={{ color: 'var(--color-fg-on-accent)' }} />
+          </div>
+          <div>
+            <div className="flex items-center gap-2 mb-1.5">
+              <Sparkles className="h-3 w-3" style={{ color: 'var(--color-accent)' }} />
+              <span className="label-eyebrow">Operations · Logística</span>
+            </div>
+            <h1 className="text-2xl sm:text-[30px] font-bold tracking-tight text-[var(--color-fg)] leading-tight">
+              Frete &amp; <span style={{ color: 'var(--color-accent)' }}>Logística</span>.
+            </h1>
+            <p className="text-sm text-[var(--color-fg-muted)] mt-1.5 max-w-[640px] leading-relaxed">
+              Fretes, pagamentos a transportadoras, abastecimentos de carreta e pedidos de material — tudo num painel unificado com controle granular de custos.
+            </p>
+          </div>
         </div>
         {canCreate && (
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap gap-2 shrink-0">
             <Button variant="secondary" onClick={() => setLocalidadeModalOpen(true)}>
               Nova Localidade
             </Button>
@@ -332,27 +367,43 @@ export default function Frete() {
               Novo Pagamento
             </Button>
             <Button onClick={() => { setEditando(null); setModalOpen(true); }}>
-              Novo Frete
+              + Novo Frete
             </Button>
           </div>
         )}
       </div>
 
-      {/* Tabs */}
-      <div className="flex gap-1 mb-6 bg-[var(--color-surface-2)] border border-[var(--color-border)] rounded-lg p-1 w-full sm:w-fit overflow-x-auto">
-        {tabs.map((t) => (
-          <button
-            key={t.key}
-            className={`px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${
-              tab === t.key
-                ? 'bg-[var(--color-surface-1)] text-[var(--color-fg)] shadow-[var(--shadow-xs)]'
-                : 'text-[var(--color-fg-muted)] hover:text-[var(--color-fg)]'
-            }`}
-            onClick={() => setTab(t.key)}
-          >
-            {t.label}
-          </button>
-        ))}
+      {/* ── Premium tab bar com underline accent ─────────────────────── */}
+      <div className="border-b border-[var(--color-border)] mb-6">
+        <div className="flex gap-1 overflow-x-auto -mb-px">
+          {tabs.map((t) => {
+            const active = tab === t.key;
+            return (
+              <button
+                key={t.key}
+                onClick={() => setTab(t.key)}
+                className={`relative inline-flex items-center gap-1.5 px-4 py-3 text-sm font-medium whitespace-nowrap transition-colors ${
+                  active
+                    ? 'text-[var(--color-fg)]'
+                    : 'text-[var(--color-fg-muted)] hover:text-[var(--color-fg)]'
+                }`}
+              >
+                <span className={active ? 'text-[var(--color-accent)]' : ''}>{t.icon}</span>
+                {t.label}
+                {active && (
+                  <span
+                    aria-hidden
+                    className="absolute left-2 right-2 bottom-0 h-0.5 rounded-full"
+                    style={{
+                      background: 'linear-gradient(90deg, transparent, var(--color-accent) 30%, var(--color-accent) 70%, transparent)',
+                      boxShadow: '0 0 12px var(--color-accent-amber-glow)',
+                    }}
+                  />
+                )}
+              </button>
+            );
+          })}
+        </div>
       </div>
 
       {/* ── Dashboard Tab ── */}
@@ -370,73 +421,25 @@ export default function Frete() {
       {/* ── Fretes Tab ── */}
       {tab === 'fretes' && (
         <>
-          {/* Filtros */}
-          <div className="flex flex-wrap gap-3 mb-4">
-            <FilterCombobox
-              className="w-48"
-              value={filtros.obraId}
-              onChange={(v) => setFiltros((f) => ({ ...f, obraId: v }))}
-              options={obras.map((o) => ({ value: o.id, label: o.nome }))}
-              placeholder="Todas as obras"
-            />
-            <FilterCombobox
-              className="w-48"
-              value={filtros.transportadora}
-              onChange={(v) => setFiltros((f) => ({ ...f, transportadora: v }))}
-              options={transportadoras.map((t) => ({ value: t, label: t }))}
-              placeholder="Todas as transportadoras"
-            />
-            <FilterCombobox
-              className="w-48"
-              value={filtros.motorista}
-              onChange={(v) => setFiltros((f) => ({ ...f, motorista: v }))}
-              options={motoristas.map((m) => ({ value: m, label: m }))}
-              placeholder="Todos os motoristas"
-            />
-            <FilterCombobox
-              className="w-48"
-              value={filtros.insumoId}
-              onChange={(v) => setFiltros((f) => ({ ...f, insumoId: v }))}
-              options={insumosAtivos.map((i) => ({ value: i.id, label: i.nome }))}
-              placeholder="Todos os materiais"
-            />
-            <FilterCombobox
-              className="w-48"
-              value={filtros.origem}
-              onChange={(v) => setFiltros((f) => ({ ...f, origem: v }))}
-              options={origens.map((o) => ({ value: o, label: o }))}
-              placeholder="Todas as pedreiras"
-            />
-            <input
-              className="rounded-lg px-3 h-[38px] text-sm bg-[var(--color-surface-1)] text-[var(--color-fg)] border border-[var(--color-border)] focus:outline-none focus:border-[var(--color-accent)] focus:ring-2 focus:ring-[var(--color-ring)]"
-              type="date"
-              value={filtros.dataInicio}
-              onChange={(e) => setFiltros((f) => ({ ...f, dataInicio: e.target.value }))}
-              title="Data inicio"
-            />
-            <input
-              className="rounded-lg px-3 h-[38px] text-sm bg-[var(--color-surface-1)] text-[var(--color-fg)] border border-[var(--color-border)] focus:outline-none focus:border-[var(--color-accent)] focus:ring-2 focus:ring-[var(--color-ring)]"
-              type="date"
-              value={filtros.dataFim}
-              onChange={(e) => setFiltros((f) => ({ ...f, dataFim: e.target.value }))}
-              title="Data fim"
-            />
-            <input
-              className="rounded-lg px-3 h-[38px] text-sm w-48 bg-[var(--color-surface-1)] text-[var(--color-fg)] border border-[var(--color-border)] placeholder:text-[var(--color-fg-subtle)] focus:outline-none focus:border-[var(--color-accent)] focus:ring-2 focus:ring-[var(--color-ring)]"
-              type="text"
-              placeholder="Filtrar nota fiscal"
-              value={filtros.notaFiscal}
-              onChange={(e) => setFiltros((f) => ({ ...f, notaFiscal: e.target.value }))}
-            />
-            {(filtros.obraId || filtros.transportadora || filtros.motorista || filtros.insumoId || filtros.origem || filtros.dataInicio || filtros.dataFim || filtros.notaFiscal) && (
-              <button
-                className="text-sm text-[var(--color-accent)] hover:text-[var(--color-accent-hover)] font-medium"
-                onClick={() => setFiltros({ obraId: '', transportadora: '', motorista: '', insumoId: '', origem: '', dataInicio: '', dataFim: '', notaFiscal: '' })}
-              >
-                Limpar filtros
-              </button>
-            )}
-          </div>
+          <FilterBar
+            search={{
+              value: filtros.notaFiscal,
+              onChange: (v) => setFiltros((f) => ({ ...f, notaFiscal: v })),
+              placeholder: 'Buscar por nota fiscal...',
+            }}
+            fields={[
+              { key: 'obraId', label: 'Obra', value: filtros.obraId, onChange: (v) => setFiltros((f) => ({ ...f, obraId: v })), options: obras.map((o) => ({ value: o.id, label: o.nome })), placeholder: 'Todas as obras' },
+              { key: 'transportadora', label: 'Transportadora', value: filtros.transportadora, onChange: (v) => setFiltros((f) => ({ ...f, transportadora: v })), options: transportadoras.map((t) => ({ value: t, label: t })), placeholder: 'Todas as transportadoras' },
+              { key: 'dataInicio', label: 'De', value: filtros.dataInicio, onChange: (v) => setFiltros((f) => ({ ...f, dataInicio: v })), type: 'date', placeholder: 'Data início' },
+              { key: 'dataFim', label: 'Até', value: filtros.dataFim, onChange: (v) => setFiltros((f) => ({ ...f, dataFim: v })), type: 'date', placeholder: 'Data fim' },
+              { key: 'motorista', label: 'Motorista', value: filtros.motorista, onChange: (v) => setFiltros((f) => ({ ...f, motorista: v })), options: motoristas.map((m) => ({ value: m, label: m })), placeholder: 'Todos os motoristas', collapsed: true },
+              { key: 'insumoId', label: 'Material', value: filtros.insumoId, onChange: (v) => setFiltros((f) => ({ ...f, insumoId: v })), options: insumosAtivos.map((i) => ({ value: i.id, label: i.nome })), placeholder: 'Todos os materiais', collapsed: true },
+              { key: 'origem', label: 'Pedreira', value: filtros.origem, onChange: (v) => setFiltros((f) => ({ ...f, origem: v })), options: origens.map((o) => ({ value: o, label: o })), placeholder: 'Todas as pedreiras', collapsed: true },
+            ]}
+            onClearAll={() =>
+              setFiltros({ obraId: '', transportadora: '', motorista: '', insumoId: '', origem: '', dataInicio: '', dataFim: '', notaFiscal: '' })
+            }
+          />
 
           <div className="flex gap-2 mb-4">
             <Button
@@ -483,62 +486,28 @@ export default function Frete() {
       {/* ── Pagamentos Tab ── */}
       {tab === 'pagamentos' && (
         <>
-          <div className="flex flex-wrap gap-3 mb-4">
-            <FilterCombobox
-              className="w-48"
-              value={pagFiltroTransportadora}
-              onChange={setPagFiltroTransportadora}
-              options={transportadoras.map((t) => ({ value: t, label: t }))}
-              placeholder="Todas as transportadoras"
-            />
-            <FilterCombobox
-              className="w-48"
-              value={pagFiltroMes}
-              onChange={setPagFiltroMes}
-              options={mesesPagamento.map((m) => {
-                const [ano, mes] = m.split('-');
-                const nomes = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
-                return { value: m, label: `${nomes[parseInt(mes, 10) - 1]}/${ano}` };
-              })}
-              placeholder="Todos os meses"
-            />
-            <FilterCombobox
-              className="w-48"
-              value={pagFiltroMetodo}
-              onChange={setPagFiltroMetodo}
-              options={METODO_OPTIONS}
-              placeholder="Todos os métodos"
-            />
-            <FilterCombobox
-              className="w-48"
-              value={pagFiltroPagoPor}
-              onChange={setPagFiltroPagoPor}
-              options={pagoPorOpcoes.map((p) => ({ value: p, label: p }))}
-              placeholder="Todos - Pago Por"
-            />
-            <input
-              className="rounded-lg px-3 h-[38px] text-sm bg-[var(--color-surface-1)] text-[var(--color-fg)] border border-[var(--color-border)] focus:outline-none focus:border-[var(--color-accent)] focus:ring-2 focus:ring-[var(--color-ring)]"
-              type="date"
-              value={pagFiltroDataInicio}
-              onChange={(e) => setPagFiltroDataInicio(e.target.value)}
-              title="Data início"
-            />
-            <input
-              className="rounded-lg px-3 h-[38px] text-sm bg-[var(--color-surface-1)] text-[var(--color-fg)] border border-[var(--color-border)] focus:outline-none focus:border-[var(--color-accent)] focus:ring-2 focus:ring-[var(--color-ring)]"
-              type="date"
-              value={pagFiltroDataFim}
-              onChange={(e) => setPagFiltroDataFim(e.target.value)}
-              title="Data fim"
-            />
-            {(pagFiltroTransportadora || pagFiltroMes || pagFiltroMetodo || pagFiltroPagoPor || pagFiltroDataInicio || pagFiltroDataFim) && (
-              <button
-                className="text-sm text-[var(--color-accent)] hover:text-[var(--color-accent-hover)] font-medium"
-                onClick={() => { setPagFiltroTransportadora(''); setPagFiltroMes(''); setPagFiltroMetodo(''); setPagFiltroPagoPor(''); setPagFiltroDataInicio(''); setPagFiltroDataFim(''); }}
-              >
-                Limpar filtros
-              </button>
-            )}
-          </div>
+          <FilterBar
+            fields={[
+              { key: 'transportadora', label: 'Transportadora', value: pagFiltroTransportadora, onChange: setPagFiltroTransportadora, options: transportadoras.map((t) => ({ value: t, label: t })), placeholder: 'Todas as transportadoras' },
+              {
+                key: 'mes', label: 'Mês', value: pagFiltroMes, onChange: setPagFiltroMes,
+                options: mesesPagamento.map((m) => {
+                  const [ano, mes] = m.split('-');
+                  const nomes = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+                  return { value: m, label: `${nomes[parseInt(mes, 10) - 1]}/${ano}` };
+                }),
+                placeholder: 'Todos os meses',
+              },
+              { key: 'dataInicio', label: 'De', value: pagFiltroDataInicio, onChange: setPagFiltroDataInicio, type: 'date', placeholder: 'Data início' },
+              { key: 'dataFim', label: 'Até', value: pagFiltroDataFim, onChange: setPagFiltroDataFim, type: 'date', placeholder: 'Data fim' },
+              { key: 'metodo', label: 'Método', value: pagFiltroMetodo, onChange: setPagFiltroMetodo, options: METODO_OPTIONS, placeholder: 'Todos os métodos', collapsed: true },
+              { key: 'pagoPor', label: 'Pago por', value: pagFiltroPagoPor, onChange: setPagFiltroPagoPor, options: pagoPorOpcoes.map((p) => ({ value: p, label: p })), placeholder: 'Todos - Pago Por', collapsed: true },
+            ]}
+            onClearAll={() => {
+              setPagFiltroTransportadora(''); setPagFiltroMes(''); setPagFiltroMetodo('');
+              setPagFiltroPagoPor(''); setPagFiltroDataInicio(''); setPagFiltroDataFim('');
+            }}
+          />
 
           <PagamentoFreteList
             pagamentos={pagamentosFrete}
@@ -559,62 +528,28 @@ export default function Frete() {
       {/* ── Abastecimentos Tab ── */}
       {tab === 'abastecimentos' && (
         <>
-          <div className="flex flex-wrap gap-3 mb-4">
-            <FilterCombobox
-              className="w-48"
-              value={abastFiltroTransportadora}
-              onChange={setAbastFiltroTransportadora}
-              options={transportadoras.map((t) => ({ value: t, label: t }))}
-              placeholder="Todas as transportadoras"
-            />
-            <FilterCombobox
-              className="w-48"
-              value={abastFiltroPlaca}
-              onChange={setAbastFiltroPlaca}
-              options={placasAbast.map((p) => ({ value: p, label: p }))}
-              placeholder="Todas as placas"
-            />
-            <FilterCombobox
-              className="w-48"
-              value={abastFiltroCombustivel}
-              onChange={setAbastFiltroCombustivel}
-              options={combustiveis.map((c) => ({ value: c.id, label: c.nome }))}
-              placeholder="Todos os combustíveis"
-            />
-            <FilterCombobox
-              className="w-48"
-              value={abastFiltroMes}
-              onChange={setAbastFiltroMes}
-              options={mesesAbast.map((m) => {
-                const [ano, mes] = m.split('-');
-                const nomes = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
-                return { value: m, label: `${nomes[parseInt(mes, 10) - 1]}/${ano}` };
-              })}
-              placeholder="Todos os meses"
-            />
-            <input
-              className="rounded-lg px-3 h-[38px] text-sm bg-[var(--color-surface-1)] text-[var(--color-fg)] border border-[var(--color-border)] focus:outline-none focus:border-[var(--color-accent)] focus:ring-2 focus:ring-[var(--color-ring)]"
-              type="date"
-              value={abastFiltroDataInicio}
-              onChange={(e) => setAbastFiltroDataInicio(e.target.value)}
-              title="Data início"
-            />
-            <input
-              className="rounded-lg px-3 h-[38px] text-sm bg-[var(--color-surface-1)] text-[var(--color-fg)] border border-[var(--color-border)] focus:outline-none focus:border-[var(--color-accent)] focus:ring-2 focus:ring-[var(--color-ring)]"
-              type="date"
-              value={abastFiltroDataFim}
-              onChange={(e) => setAbastFiltroDataFim(e.target.value)}
-              title="Data fim"
-            />
-            {(abastFiltroTransportadora || abastFiltroPlaca || abastFiltroCombustivel || abastFiltroMes || abastFiltroDataInicio || abastFiltroDataFim) && (
-              <button
-                className="text-sm text-[var(--color-accent)] hover:text-[var(--color-accent-hover)] font-medium"
-                onClick={() => { setAbastFiltroTransportadora(''); setAbastFiltroPlaca(''); setAbastFiltroCombustivel(''); setAbastFiltroMes(''); setAbastFiltroDataInicio(''); setAbastFiltroDataFim(''); }}
-              >
-                Limpar filtros
-              </button>
-            )}
-          </div>
+          <FilterBar
+            fields={[
+              { key: 'transportadora', label: 'Transportadora', value: abastFiltroTransportadora, onChange: setAbastFiltroTransportadora, options: transportadoras.map((t) => ({ value: t, label: t })), placeholder: 'Todas as transportadoras' },
+              { key: 'placa', label: 'Placa', value: abastFiltroPlaca, onChange: setAbastFiltroPlaca, options: placasAbast.map((p) => ({ value: p, label: p })), placeholder: 'Todas as placas' },
+              { key: 'dataInicio', label: 'De', value: abastFiltroDataInicio, onChange: setAbastFiltroDataInicio, type: 'date', placeholder: 'Data início' },
+              { key: 'dataFim', label: 'Até', value: abastFiltroDataFim, onChange: setAbastFiltroDataFim, type: 'date', placeholder: 'Data fim' },
+              { key: 'combustivel', label: 'Combustível', value: abastFiltroCombustivel, onChange: setAbastFiltroCombustivel, options: combustiveis.map((c) => ({ value: c.id, label: c.nome })), placeholder: 'Todos os combustíveis', collapsed: true },
+              {
+                key: 'mes', label: 'Mês', value: abastFiltroMes, onChange: setAbastFiltroMes,
+                options: mesesAbast.map((m) => {
+                  const [ano, mes] = m.split('-');
+                  const nomes = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+                  return { value: m, label: `${nomes[parseInt(mes, 10) - 1]}/${ano}` };
+                }),
+                placeholder: 'Todos os meses', collapsed: true,
+              },
+            ]}
+            onClearAll={() => {
+              setAbastFiltroTransportadora(''); setAbastFiltroPlaca(''); setAbastFiltroCombustivel('');
+              setAbastFiltroMes(''); setAbastFiltroDataInicio(''); setAbastFiltroDataFim('');
+            }}
+          />
 
           <div className="flex gap-2 mb-4">
             <Button
@@ -667,44 +602,18 @@ export default function Frete() {
       {/* ── Pedidos Tab ── */}
       {tab === 'pedidos' && (
         <>
-          <div className="flex flex-wrap gap-3 mb-4">
-            <FilterCombobox
-              className="w-48"
-              value={pedidoFiltroFornecedor}
-              onChange={setPedidoFiltroFornecedor}
-              options={fornecedores.filter((f) => f.ativo !== false).map((f) => ({ value: f.id, label: f.nome }))}
-              placeholder="Todos os fornecedores"
-            />
-            <FilterCombobox
-              className="w-48"
-              value={pedidoFiltroMaterial}
-              onChange={setPedidoFiltroMaterial}
-              options={insumosAtivos.map((i) => ({ value: i.id, label: i.nome }))}
-              placeholder="Todos os materiais"
-            />
-            <input
-              className="rounded-lg px-3 h-[38px] text-sm bg-[var(--color-surface-1)] text-[var(--color-fg)] border border-[var(--color-border)] focus:outline-none focus:border-[var(--color-accent)] focus:ring-2 focus:ring-[var(--color-ring)]"
-              type="date"
-              value={pedidoFiltroDataInicio}
-              onChange={(e) => setPedidoFiltroDataInicio(e.target.value)}
-              title="Data início"
-            />
-            <input
-              className="rounded-lg px-3 h-[38px] text-sm bg-[var(--color-surface-1)] text-[var(--color-fg)] border border-[var(--color-border)] focus:outline-none focus:border-[var(--color-accent)] focus:ring-2 focus:ring-[var(--color-ring)]"
-              type="date"
-              value={pedidoFiltroDataFim}
-              onChange={(e) => setPedidoFiltroDataFim(e.target.value)}
-              title="Data fim"
-            />
-            {(pedidoFiltroFornecedor || pedidoFiltroMaterial || pedidoFiltroDataInicio || pedidoFiltroDataFim) && (
-              <button
-                className="text-sm text-[var(--color-accent)] hover:text-[var(--color-accent-hover)] font-medium"
-                onClick={() => { setPedidoFiltroFornecedor(''); setPedidoFiltroMaterial(''); setPedidoFiltroDataInicio(''); setPedidoFiltroDataFim(''); }}
-              >
-                Limpar filtros
-              </button>
-            )}
-          </div>
+          <FilterBar
+            fields={[
+              { key: 'fornecedor', label: 'Fornecedor', value: pedidoFiltroFornecedor, onChange: setPedidoFiltroFornecedor, options: fornecedores.filter((f) => f.ativo !== false).map((f) => ({ value: f.id, label: f.nome })), placeholder: 'Todos os fornecedores' },
+              { key: 'material', label: 'Material', value: pedidoFiltroMaterial, onChange: setPedidoFiltroMaterial, options: insumosAtivos.map((i) => ({ value: i.id, label: i.nome })), placeholder: 'Todos os materiais' },
+              { key: 'dataInicio', label: 'De', value: pedidoFiltroDataInicio, onChange: setPedidoFiltroDataInicio, type: 'date', placeholder: 'Data início' },
+              { key: 'dataFim', label: 'Até', value: pedidoFiltroDataFim, onChange: setPedidoFiltroDataFim, type: 'date', placeholder: 'Data fim' },
+            ]}
+            onClearAll={() => {
+              setPedidoFiltroFornecedor(''); setPedidoFiltroMaterial('');
+              setPedidoFiltroDataInicio(''); setPedidoFiltroDataFim('');
+            }}
+          />
 
           <div className="flex gap-2 mb-4">
             <Button
