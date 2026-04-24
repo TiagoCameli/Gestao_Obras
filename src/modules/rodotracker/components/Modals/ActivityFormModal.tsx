@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from "react";
-import { X, Save, MapPin, RotateCcw, RectangleHorizontal } from "lucide-react";
+import { X, Save, MapPin, RotateCcw, RectangleHorizontal, Loader2 } from "lucide-react";
 import { MapContainer, TileLayer, Polygon, Marker, Tooltip, useMapEvents, useMap } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
@@ -499,6 +499,8 @@ export function ActivityFormModal({
   const [pdfs, setPdfs] = useState<PdfItem[]>([]);
 
   const [autoKm, setAutoKm] = useState(false);
+  /** Impede double-submit enquanto os uploads/queries de fotos e Supabase rodam. */
+  const [isSaving, setIsSaving] = useState(false);
 
   const [contractItems, setContractItems] = useState<ContractItem[]>([]);
   useEffect(() => {
@@ -668,6 +670,7 @@ export function ActivityFormModal({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isSaving) return; // guarda contra double-click / Enter duplo
 
     if (lat === 0 && lng === 0) {
       alert("Informe as coordenadas iniciais ou marque a localização no mapa.");
@@ -714,7 +717,7 @@ export function ActivityFormModal({
       }
     }
 
-    // Save all photos to IndexedDB and build folder structure (recursivo)
+    setIsSaving(true);
     type PersistedFolder = {
       id: string;
       name: string;
@@ -722,33 +725,43 @@ export function ActivityFormModal({
       subfolders?: PersistedFolder[];
     };
     const allPhotoIds: string[] = [];
-    const persistFolder = async (folder: FolderData): Promise<PersistedFolder> => {
-      const photoIds: string[] = [];
-      for (const p of folder.photos) {
-        await savePhoto(p.id, p.data);
-        photoIds.push(p.id);
-        allPhotoIds.push(p.id);
-      }
-      const subfolders: PersistedFolder[] | undefined = folder.subfolders?.length
-        ? await Promise.all(folder.subfolders.map(persistFolder))
-        : undefined;
-      return { id: folder.id, name: folder.name, photoIds, subfolders };
-    };
     const photoFolders: PersistedFolder[] = [];
-    for (const f of folders) {
-      photoFolders.push(await persistFolder(f));
-    }
-
-    // Save PDFs and build metadata array
-    const keptPdfIds = new Set(pdfs.map((p) => p.id));
-    const previousPdfIds = editActivity?.pdfs?.map((p) => p.id) ?? [];
-    const removedPdfIds = previousPdfIds.filter((id) => !keptPdfIds.has(id));
-    if (removedPdfIds.length > 0) await deletePdfs(removedPdfIds);
-
     const pdfsMeta = [] as { id: string; name: string; size: number }[];
-    for (const p of pdfs) {
-      await savePdf(p.id, p.data);
-      pdfsMeta.push({ id: p.id, name: p.name, size: p.size });
+    try {
+      // Uploads em paralelo — fotos, subpastas e PDFs disparam juntos.
+      const persistFolder = async (folder: FolderData): Promise<PersistedFolder> => {
+        const photoIds: string[] = [];
+        await Promise.all(
+          folder.photos.map(async (p) => {
+            await savePhoto(p.id, p.data);
+            photoIds.push(p.id);
+            allPhotoIds.push(p.id);
+          })
+        );
+        const subfolders: PersistedFolder[] | undefined = folder.subfolders?.length
+          ? await Promise.all(folder.subfolders.map(persistFolder))
+          : undefined;
+        return { id: folder.id, name: folder.name, photoIds, subfolders };
+      };
+      const persistedAll = await Promise.all(folders.map(persistFolder));
+      photoFolders.push(...persistedAll);
+
+      // PDFs: deleta removidos + sobe novos, tudo em paralelo.
+      const keptPdfIds = new Set(pdfs.map((p) => p.id));
+      const previousPdfIds = editActivity?.pdfs?.map((p) => p.id) ?? [];
+      const removedPdfIds = previousPdfIds.filter((id) => !keptPdfIds.has(id));
+      await Promise.all([
+        removedPdfIds.length > 0 ? deletePdfs(removedPdfIds) : Promise.resolve(),
+        ...pdfs.map(async (p) => {
+          await savePdf(p.id, p.data);
+          pdfsMeta.push({ id: p.id, name: p.name, size: p.size });
+        }),
+      ]);
+    } catch (e) {
+      console.error("Falha ao salvar mídia:", e);
+      setIsSaving(false);
+      alert("Falha ao salvar fotos/PDFs. Tente novamente.");
+      return;
     }
 
     const now = Date.now();
@@ -1227,11 +1240,21 @@ export function ActivityFormModal({
           {/* Submit */}
           <button
             type="submit"
+            disabled={isSaving}
             className="btn btn-primary shimmer-wrap w-full"
-            style={{ padding: "12px 20px", fontSize: 14 }}
+            style={{
+              padding: "12px 20px",
+              fontSize: 14,
+              cursor: isSaving ? "wait" : "pointer",
+              opacity: isSaving ? 0.75 : 1,
+            }}
           >
-            <Save className="h-4 w-4" />
-            Salvar Atividade
+            {isSaving ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Save className="h-4 w-4" />
+            )}
+            {isSaving ? "Salvando..." : "Salvar Atividade"}
           </button>
         </form>
       </div>
