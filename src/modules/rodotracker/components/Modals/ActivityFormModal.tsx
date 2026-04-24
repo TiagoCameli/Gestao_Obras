@@ -830,7 +830,8 @@ export function ActivityFormModal({
         // montado preservando todo o estado do formulário.
         display: hidden ? "none" : undefined,
       }}
-      onClick={onClose}
+      // Fechamento apenas pelo botão "X" / "Salvar" — clicar fora NÃO fecha
+      // mais (evita perda acidental do form enquanto o usuário preenche).
     >
       <div
         className="w-full max-w-5xl max-h-[94vh] overflow-y-auto animate-slideUp"
@@ -841,7 +842,6 @@ export function ActivityFormModal({
           borderRadius: "var(--r-2xl)",
           boxShadow: "var(--shadow-4)",
         }}
-        onClick={(e) => e.stopPropagation()}
       >
         <div
           className="flex items-center justify-between sticky top-0 z-10"
