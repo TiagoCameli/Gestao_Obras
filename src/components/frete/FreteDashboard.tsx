@@ -207,7 +207,7 @@ export default function FreteDashboard({
   const saldoEtam = fretesEtam + pagosPelaEtam - pagosParaEtam;
 
   // ── Saldo EMT Transportes ──
-  const EMT_TRANSPORTES = 'EMT Transportes';
+  const EMT_TRANSPORTES = 'EMT TRANSPORTES';
   const fretesEmtTransportes = fretesF.filter((f) => f.transportadora === EMT_TRANSPORTES).reduce((s, f) => s + f.valorTotal, 0);
   const pagosParaEmtTransportes = pagamentosF.filter((p) => p.transportadora === EMT_TRANSPORTES).reduce((s, p) => s + p.valor, 0);
   const abastEmtTransportes = abastCarretaF.filter((a) => a.transportadora === EMT_TRANSPORTES).reduce((s, a) => s + a.valorTotal, 0);
@@ -664,7 +664,7 @@ export default function FreteDashboard({
             <p>Triunfo: {formatCurrency(saldoTriunfo)}</p>
             <p>Andrade: {formatCurrency(saldoAndrade)}</p>
             <p>ETAM: {formatCurrency(saldoEtam)}</p>
-            <p>EMT Transportes: {formatCurrency(saldoEmtTransportes)}</p>
+            <p>EMT TRANSPORTES: {formatCurrency(saldoEmtTransportes)}</p>
           </div>
         </Card>
       </div>
@@ -728,13 +728,13 @@ export default function FreteDashboard({
           </div>
         </Card>
         <Card>
-          <p className="text-sm text-gray-500">Saldo EMT Transportes</p>
+          <p className="text-sm text-gray-500">Saldo EMT TRANSPORTES</p>
           <p className={`text-2xl font-bold mt-1 ${saldoEmtTransportes > 0 ? 'text-red-600' : saldoEmtTransportes < 0 ? 'text-green-600' : 'text-gray-500'}`}>
             {formatCurrency(saldoEmtTransportes)}
           </p>
           <div className="text-xs text-gray-400 mt-1 space-y-0.5">
             <p>Fretes: {formatCurrency(fretesEmtTransportes)}</p>
-            <p>Pago p/ EMT Transportes: −{formatCurrency(pagosParaEmtTransportes)}</p>
+            <p>Pago p/ EMT TRANSPORTES: −{formatCurrency(pagosParaEmtTransportes)}</p>
             <p>Abastecimentos: −{formatCurrency(abastEmtTransportes)}</p>
           </div>
         </Card>
