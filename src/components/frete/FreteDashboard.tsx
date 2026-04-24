@@ -206,6 +206,13 @@ export default function FreteDashboard({
   const pagosParaEtam = pagamentosF.filter((p) => p.transportadora === ETAM).reduce((s, p) => s + p.valor, 0);
   const saldoEtam = fretesEtam + pagosPelaEtam - pagosParaEtam;
 
+  // ── Saldo EMT Transportes ──
+  const EMT_TRANSPORTES = 'EMT Transportes';
+  const fretesEmtTransportes = fretesF.filter((f) => f.transportadora === EMT_TRANSPORTES).reduce((s, f) => s + f.valorTotal, 0);
+  const pagosParaEmtTransportes = pagamentosF.filter((p) => p.transportadora === EMT_TRANSPORTES).reduce((s, p) => s + p.valor, 0);
+  const abastEmtTransportes = abastCarretaF.filter((a) => a.transportadora === EMT_TRANSPORTES).reduce((s, a) => s + a.valorTotal, 0);
+  const saldoEmtTransportes = fretesEmtTransportes - pagosParaEmtTransportes - abastEmtTransportes;
+
   // ── Saldo Andrade Transporte ──
   const ANDRADE = 'Andrade Transporte';
   const fretesAndrade = fretesF.filter((f) => f.transportadora === ANDRADE).reduce((s, f) => s + f.valorTotal, 0);
@@ -214,7 +221,7 @@ export default function FreteDashboard({
   const saldoAndrade = fretesAndrade - pagosParaAndrade - abastAndrade;
 
   // ── A Pagar EMT ──
-  const aPagarEmt = saldoAreacre + saldoAmazonia + saldoTriunfo + saldoEtam + saldoAndrade;
+  const aPagarEmt = saldoAreacre + saldoAmazonia + saldoTriunfo + saldoEtam + saldoAndrade + saldoEmtTransportes;
 
   // ── Gasto por transportadora ──
   const gastoPorTransportadora = new Map<string, number>();
@@ -657,12 +664,13 @@ export default function FreteDashboard({
             <p>Triunfo: {formatCurrency(saldoTriunfo)}</p>
             <p>Andrade: {formatCurrency(saldoAndrade)}</p>
             <p>ETAM: {formatCurrency(saldoEtam)}</p>
+            <p>EMT Transportes: {formatCurrency(saldoEmtTransportes)}</p>
           </div>
         </Card>
       </div>
 
       {/* Cards resumo - fileira 2 */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
         <Card>
           <p className="text-sm text-gray-500">Saldo Areacre</p>
           <p className={`text-2xl font-bold mt-1 ${saldoAreacre > 0 ? 'text-red-600' : saldoAreacre < 0 ? 'text-green-600' : 'text-gray-500'}`}>
@@ -717,6 +725,17 @@ export default function FreteDashboard({
             <p>Total Fretes: {formatCurrency(fretesEtam)}</p>
             <p>Pago pela Etam: +{formatCurrency(pagosPelaEtam)}</p>
             <p>Pago p/ Etam: −{formatCurrency(pagosParaEtam)}</p>
+          </div>
+        </Card>
+        <Card>
+          <p className="text-sm text-gray-500">Saldo EMT Transportes</p>
+          <p className={`text-2xl font-bold mt-1 ${saldoEmtTransportes > 0 ? 'text-red-600' : saldoEmtTransportes < 0 ? 'text-green-600' : 'text-gray-500'}`}>
+            {formatCurrency(saldoEmtTransportes)}
+          </p>
+          <div className="text-xs text-gray-400 mt-1 space-y-0.5">
+            <p>Fretes: {formatCurrency(fretesEmtTransportes)}</p>
+            <p>Pago p/ EMT Transportes: −{formatCurrency(pagosParaEmtTransportes)}</p>
+            <p>Abastecimentos: −{formatCurrency(abastEmtTransportes)}</p>
           </div>
         </Card>
       </div>
