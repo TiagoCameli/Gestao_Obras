@@ -696,6 +696,73 @@ export function MapView({
   const [editingAreaId, setEditingAreaId] = useState<string | null>(null);
   const [editingCorners, setEditingCorners] = useState<[number, number][] | null>(null);
 
+  // ── Live location tracking ────────────────────────────────────────────
+  // O usuário pode ligar/desligar via botão na MapControls. Usa
+  // navigator.geolocation.watchPosition pra atualizar a posição em
+  // streaming até o usuário desligar (ou navegar pra fora da página).
+  const [isTrackingLocation, setIsTrackingLocation] = useState(false);
+  const [isLocating, setIsLocating] = useState(false);
+  const [userLocation, setUserLocation] = useState<{
+    lat: number;
+    lng: number;
+    accuracy: number;
+  } | null>(null);
+  const watchIdRef = useRef<number | null>(null);
+
+  const stopLocationWatch = useCallback(() => {
+    if (watchIdRef.current != null) {
+      navigator.geolocation.clearWatch(watchIdRef.current);
+      watchIdRef.current = null;
+    }
+    setIsTrackingLocation(false);
+    setIsLocating(false);
+    setUserLocation(null);
+  }, []);
+
+  const toggleLocationTracking = useCallback(() => {
+    if (isTrackingLocation || isLocating) {
+      stopLocationWatch();
+      return;
+    }
+    if (!navigator.geolocation) {
+      alert("Geolocalização não está disponível neste navegador.");
+      return;
+    }
+    setIsLocating(true);
+    let firstFix = true;
+    watchIdRef.current = navigator.geolocation.watchPosition(
+      (pos) => {
+        const { latitude, longitude, accuracy } = pos.coords;
+        setUserLocation({ lat: latitude, lng: longitude, accuracy });
+        if (firstFix) {
+          firstFix = false;
+          setIsLocating(false);
+          setIsTrackingLocation(true);
+          mapRef.current?.flyTo([latitude, longitude], Math.max(mapRef.current.getZoom(), 15));
+        }
+      },
+      (err) => {
+        console.error("geolocation error", err);
+        const msg =
+          err.code === err.PERMISSION_DENIED
+            ? "Permissão de localização negada. Habilite no navegador e tente de novo."
+            : err.code === err.POSITION_UNAVAILABLE
+            ? "Localização indisponível no momento."
+            : "Não foi possível obter sua localização.";
+        alert(msg);
+        stopLocationWatch();
+      },
+      { enableHighAccuracy: true, maximumAge: 5_000, timeout: 15_000 }
+    );
+  }, [isTrackingLocation, isLocating, stopLocationWatch]);
+
+  // Limpa o watch quando o componente desmonta.
+  useEffect(() => {
+    return () => {
+      if (watchIdRef.current != null) navigator.geolocation.clearWatch(watchIdRef.current);
+    };
+  }, []);
+
   // Atividades com trecho (CBUQ): polyline ao longo da rodovia + midpoint
   // exato (meio geodésico entre início e fim) para posicionar o pin.
   const segmentData = useMemo(() => {
@@ -1248,14 +1315,48 @@ export function MapView({
             }}
           />
         )}
+
+        {/* Posição do usuário em tempo real — círculo de precisão (raio em
+            metros, escala com o zoom) + ponto azul "Google Maps style" no
+            centro. */}
+        {userLocation && (
+          <>
+            <CircleMarker
+              center={[userLocation.lat, userLocation.lng]}
+              radius={Math.max(20, Math.min(80, userLocation.accuracy / 4))}
+              pathOptions={{
+                color: "#3b82f6",
+                weight: 1,
+                opacity: 0.4,
+                fillColor: "#3b82f6",
+                fillOpacity: 0.12,
+              }}
+              interactive={false}
+            />
+            <CircleMarker
+              center={[userLocation.lat, userLocation.lng]}
+              radius={7}
+              pathOptions={{
+                color: "#ffffff",
+                weight: 2.5,
+                fillColor: "#3b82f6",
+                fillOpacity: 1,
+              }}
+              interactive={false}
+            />
+          </>
+        )}
       </MapContainer>
 
       <MapControls
         isSatellite={isSatellite}
         isStreetViewMode={streetViewMode}
+        isTrackingLocation={isTrackingLocation}
+        isLocating={isLocating}
         onToggleLayer={toggleLayer}
         onCenter={centerMap}
         onToggleStreetView={toggleStreetView}
+        onToggleLocation={toggleLocationTracking}
       />
 
       {/* Extension badge */}

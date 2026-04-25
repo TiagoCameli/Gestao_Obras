@@ -1,19 +1,25 @@
-import { Satellite, Map, Crosshair, PersonStanding } from "lucide-react";
+import { Satellite, Map, Crosshair, PersonStanding, LocateFixed, Loader2 } from "lucide-react";
 
 interface MapControlsProps {
   isSatellite: boolean;
   isStreetViewMode: boolean;
+  isTrackingLocation: boolean;
+  isLocating: boolean;
   onToggleLayer: () => void;
   onCenter: () => void;
   onToggleStreetView: () => void;
+  onToggleLocation: () => void;
 }
 
 export function MapControls({
   isSatellite,
   isStreetViewMode,
+  isTrackingLocation,
+  isLocating,
   onToggleLayer,
   onCenter,
   onToggleStreetView,
+  onToggleLocation,
 }: MapControlsProps) {
   return (
     <div
@@ -49,6 +55,22 @@ export function MapControls({
         active={isStreetViewMode}
       >
         <PersonStanding className="h-4 w-4" />
+      </MapBtn>
+
+      <MapBtn
+        onClick={onToggleLocation}
+        title={
+          isTrackingLocation
+            ? "Parar rastreamento da minha localização"
+            : "Mostrar minha localização em tempo real"
+        }
+        active={isTrackingLocation}
+      >
+        {isLocating ? (
+          <Loader2 className="h-4 w-4 animate-spin" />
+        ) : (
+          <LocateFixed className="h-4 w-4" />
+        )}
       </MapBtn>
     </div>
   );
