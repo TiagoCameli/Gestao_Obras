@@ -697,9 +697,15 @@ export function MapView({
   const [editingCorners, setEditingCorners] = useState<[number, number][] | null>(null);
 
   // ── Live location tracking ────────────────────────────────────────────
-  // O usuário pode ligar/desligar via botão na MapControls. Usa
-  // navigator.geolocation.watchPosition pra atualizar a posição em
-  // streaming até o usuário desligar (ou navegar pra fora da página).
+  // O usuário liga/desliga via botão na MapControls. O watch é cancelado
+  // SEMPRE que:
+  //   • clica de novo no botão (toggle-off explícito)
+  //   • o componente desmonta (mudou de obra, fechou o mapa, navegou pra
+  //     outra rota do app — `RodoTrackerPage`/`MainLayout` desmontam
+  //     `MapView`, e este `useEffect` limpa o watch)
+  //   • a aba do navegador deixa de estar visível (visibilitychange)
+  // Isso garante que o app só consome geolocalização enquanto a página
+  // do mapa está EFETIVAMENTE em uso.
   const [isTrackingLocation, setIsTrackingLocation] = useState(false);
   const [isLocating, setIsLocating] = useState(false);
   const [userLocation, setUserLocation] = useState<{
@@ -709,15 +715,19 @@ export function MapView({
   } | null>(null);
   const watchIdRef = useRef<number | null>(null);
 
-  const stopLocationWatch = useCallback(() => {
+  const clearActiveWatch = useCallback(() => {
     if (watchIdRef.current != null) {
       navigator.geolocation.clearWatch(watchIdRef.current);
       watchIdRef.current = null;
     }
+  }, []);
+
+  const stopLocationWatch = useCallback(() => {
+    clearActiveWatch();
     setIsTrackingLocation(false);
     setIsLocating(false);
     setUserLocation(null);
-  }, []);
+  }, [clearActiveWatch]);
 
   const toggleLocationTracking = useCallback(() => {
     if (isTrackingLocation || isLocating) {
@@ -728,6 +738,8 @@ export function MapView({
       alert("Geolocalização não está disponível neste navegador.");
       return;
     }
+    // Garantia paranoica — se algum watch ficou pendurado, mata antes de abrir outro.
+    clearActiveWatch();
     setIsLocating(true);
     let firstFix = true;
     watchIdRef.current = navigator.geolocation.watchPosition(
@@ -754,14 +766,23 @@ export function MapView({
       },
       { enableHighAccuracy: true, maximumAge: 5_000, timeout: 15_000 }
     );
-  }, [isTrackingLocation, isLocating, stopLocationWatch]);
+  }, [isTrackingLocation, isLocating, stopLocationWatch, clearActiveWatch]);
 
-  // Limpa o watch quando o componente desmonta.
+  // Cleanup forte: desmontou ou aba ficou invisível → mata o watch.
   useEffect(() => {
-    return () => {
-      if (watchIdRef.current != null) navigator.geolocation.clearWatch(watchIdRef.current);
+    const onVisibility = () => {
+      if (document.hidden && watchIdRef.current != null) {
+        // Aba escondida: para de consumir GPS imediatamente. O usuário
+        // precisa reativar manualmente quando voltar.
+        stopLocationWatch();
+      }
     };
-  }, []);
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => {
+      document.removeEventListener("visibilitychange", onVisibility);
+      clearActiveWatch();
+    };
+  }, [clearActiveWatch, stopLocationWatch]);
 
   // Atividades com trecho (CBUQ): polyline ao longo da rodovia + midpoint
   // exato (meio geodésico entre início e fim) para posicionar o pin.
