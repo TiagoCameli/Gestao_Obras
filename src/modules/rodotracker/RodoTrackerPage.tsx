@@ -1,4 +1,5 @@
 import { useState, useCallback, useEffect } from "react";
+import { Routes, Route, useNavigate, useParams } from "react-router-dom";
 import { PanelLeftOpen } from "lucide-react";
 import "leaflet/dist/leaflet.css";
 import "./rodotracker.css";
@@ -13,6 +14,7 @@ import { ActivityDetailModal } from "./components/Modals/ActivityDetailModal";
 import { PlanningView } from "./components/Planning/PlanningView";
 import { MeasurementView } from "./components/Measurement/MeasurementView";
 import { useContractItems } from "./hooks/useContractItems";
+import { listObras } from "./utils/rodotrackerApi";
 
 function TrackerView({ obra, onBack }: { obra: Obra; onBack: () => void }) {
   const { activities, addActivity, updateActivity, deleteActivity } = useActivities(obra.id);
@@ -443,20 +445,80 @@ function TrackerView({ obra, onBack }: { obra: Obra; onBack: () => void }) {
   );
 }
 
+/**
+ * Roteamento interno do módulo: a obra selecionada vive na URL
+ * (/medicao/obra/:obraId) — assim o reload do navegador, o botão Voltar
+ * e copiar/colar link continuam preservando exatamente a obra que o
+ * usuário está vendo. A HomePage segue na raiz (/medicao).
+ */
 export default function RodoTrackerPage() {
-  const [currentObra, setCurrentObra] = useState<Obra | null>(null);
-
   return (
     <div className="rodotracker-root">
-      {!currentObra ? (
-        <HomePage onOpenObra={setCurrentObra} />
-      ) : (
-        <TrackerView
-          key={currentObra.id}
-          obra={currentObra}
-          onBack={() => setCurrentObra(null)}
-        />
-      )}
+      <Routes>
+        <Route index element={<HomeRoute />} />
+        <Route path="obra/:obraId" element={<ObraRoute />} />
+      </Routes>
     </div>
+  );
+}
+
+function HomeRoute() {
+  const navigate = useNavigate();
+  return <HomePage onOpenObra={(obra) => navigate(`obra/${obra.id}`)} />;
+}
+
+function ObraRoute() {
+  const { obraId } = useParams<{ obraId: string }>();
+  const navigate = useNavigate();
+  const [obra, setObra] = useState<Obra | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let alive = true;
+    setLoading(true);
+    listObras().then((all) => {
+      if (!alive) return;
+      const found = all.find((o) => o.id === obraId) ?? null;
+      setObra(found);
+      setLoading(false);
+    });
+    return () => {
+      alive = false;
+    };
+  }, [obraId]);
+
+  if (loading) {
+    return (
+      <div className="h-full w-full flex items-center justify-center text-[var(--text-muted)]">
+        Carregando obra...
+      </div>
+    );
+  }
+  if (!obra) {
+    // Obra inexistente / removida — manda de volta pra lista
+    return (
+      <div className="h-full w-full flex flex-col items-center justify-center gap-3 text-[var(--text-muted)]">
+        <p>Obra não encontrada.</p>
+        <button
+          onClick={() => navigate("/medicao", { replace: true })}
+          className="px-4 py-2 rounded-md text-sm font-semibold"
+          style={{
+            background: "var(--accent-faint)",
+            border: "1px solid var(--accent-border)",
+            color: "var(--accent)",
+          }}
+        >
+          Voltar às obras
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <TrackerView
+      key={obra.id}
+      obra={obra}
+      onBack={() => navigate("/medicao")}
+    />
   );
 }
