@@ -464,7 +464,7 @@ export default function RodoTrackerPage() {
 
 function HomeRoute() {
   const navigate = useNavigate();
-  return <HomePage onOpenObra={(obra) => navigate(`obra/${obra.id}`)} />;
+  return <HomePage onOpenObra={(obra) => navigate(`/medicao/obra/${obra.id}`)} />;
 }
 
 function ObraRoute() {
