@@ -9,7 +9,6 @@ import {
   TrendingUp,
   TrendingDown,
   Equal,
-  Calendar,
   MapPin,
   Package,
 } from 'lucide-react';
@@ -269,13 +268,6 @@ export default function SaldoTransportadora() {
 
   const dashboardLink = `/frete?tab=dashboard${dataInicio ? `&inicio=${dataInicio}` : ''}${dataFim ? `&fim=${dataFim}` : ''}${obraIdFiltro ? `&obra=${obraIdFiltro}` : ''}`;
 
-  const periodoLabel = dataInicio && dataFim
-    ? `${formatDate(dataInicio)} → ${formatDate(dataFim)}`
-    : dataInicio
-    ? `Desde ${formatDate(dataInicio)}`
-    : dataFim
-    ? `Até ${formatDate(dataFim)}`
-    : 'Todos os períodos';
   const obraLabel = obraIdFiltro ? obrasMap.get(obraIdFiltro) || '—' : null;
 
   return (
@@ -368,12 +360,6 @@ export default function SaldoTransportadora() {
         </div>
       </div>
 
-      {/* Chip resumo de período (somente visual, abaixo do header) */}
-      <div className="-mt-4 mb-6">
-        <span className="chip" style={{ background: 'var(--color-surface-1)', color: 'var(--color-fg-muted)' }}>
-          <Calendar className="h-3 w-3" /> {periodoLabel}
-        </span>
-      </div>
 
       {/* ── KPI principal + resumo entradas/saídas ──────────────────── */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6">
