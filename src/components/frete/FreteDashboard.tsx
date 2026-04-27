@@ -238,14 +238,6 @@ export default function FreteDashboard({
   const pagosParaAreacre = pagamentosF.filter((p) => p.transportadora === 'Areacre' && p.pagoPor?.trim() !== 'Areacre').reduce((s, p) => s + p.valor, 0);
   const saldoAreacre = fretesAreacre - pagosParaAreacre + totalAbastCarreta;
 
-  // ── Saldo Amazonia Agroindustria ──
-  const AMAZONIA = 'Amazonia Agroindustria';
-  const fretesAmazonia = fretesF.filter((f) => f.transportadora === AMAZONIA).reduce((s, f) => s + f.valorTotal, 0);
-  const abastAmazonia = abastCarretaF.filter((a) => a.transportadora === AMAZONIA).reduce((s, a) => s + a.valorTotal, 0);
-  const pagosParaAmazonia = pagamentosF.filter((p) => p.transportadora === AMAZONIA).reduce((s, p) => s + p.valor, 0);
-  const pagosPelaAmazonia = pagamentosF.filter((p) => p.pagoPor?.trim() === AMAZONIA).reduce((s, p) => s + p.valor, 0);
-  const saldoAmazonia = fretesAmazonia - abastAmazonia - pagosParaAmazonia + pagosPelaAmazonia;
-
   // ── Saldo Triunfo ──
   const TRIUNFO = 'Transportadora Triunfo';
   const fretesTriunfo = fretesF.filter((f) => f.transportadora === TRIUNFO).reduce((s, f) => s + f.valorTotal, 0);
@@ -265,15 +257,18 @@ export default function FreteDashboard({
   const pagosParaEtam = pagamentosF.filter((p) => p.transportadora === ETAM).reduce((s, p) => s + p.valor, 0);
   const saldoEtam = fretesEtam + pagosPelaEtam - pagosParaEtam;
 
-  // ── Saldo EMT Transportes ──
+  // ── Saldo EMT Transportes (consolidado: Amazonia Agroindustria + EMT Transportes) ──
   // Comparação normalizada (trim + lowercase) pra não errar por causa de
   // espaços invisíveis ou diferença de caixa na string da transportadora.
-  const isEmtTransportes = (s: string | undefined | null) =>
-    (s ?? '').trim().toLowerCase() === 'emt transportes';
-  const fretesEmtTransportes = fretesF.filter((f) => isEmtTransportes(f.transportadora)).reduce((s, f) => s + f.valorTotal, 0);
-  const pagosParaEmtTransportes = pagamentosF.filter((p) => isEmtTransportes(p.transportadora)).reduce((s, p) => s + p.valor, 0);
-  const abastEmtTransportes = abastCarretaF.filter((a) => isEmtTransportes(a.transportadora)).reduce((s, a) => s + a.valorTotal, 0);
-  const saldoEmtTransportes = fretesEmtTransportes - pagosParaEmtTransportes - abastEmtTransportes;
+  const isEmtConsolidado = (s: string | undefined | null) => {
+    const v = (s ?? '').trim().toLowerCase();
+    return v === 'emt transportes' || v === 'amazonia agroindustria';
+  };
+  const fretesEmtTransportes = fretesF.filter((f) => isEmtConsolidado(f.transportadora)).reduce((s, f) => s + f.valorTotal, 0);
+  const pagosParaEmtTransportes = pagamentosF.filter((p) => isEmtConsolidado(p.transportadora)).reduce((s, p) => s + p.valor, 0);
+  const abastEmtTransportes = abastCarretaF.filter((a) => isEmtConsolidado(a.transportadora)).reduce((s, a) => s + a.valorTotal, 0);
+  const pagosPelaEmtConsolidado = pagamentosF.filter((p) => isEmtConsolidado(p.pagoPor)).reduce((s, p) => s + p.valor, 0);
+  const saldoEmtTransportes = fretesEmtTransportes - pagosParaEmtTransportes - abastEmtTransportes + pagosPelaEmtConsolidado;
 
   // ── Saldo Andrade Transporte ──
   const ANDRADE = 'Andrade Transporte';
@@ -283,7 +278,7 @@ export default function FreteDashboard({
   const saldoAndrade = fretesAndrade - pagosParaAndrade - abastAndrade;
 
   // ── A Pagar EMT ──
-  const aPagarEmt = saldoAreacre + saldoAmazonia + saldoTriunfo + saldoEtam + saldoAndrade + saldoEmtTransportes;
+  const aPagarEmt = saldoAreacre + saldoTriunfo + saldoEtam + saldoAndrade + saldoEmtTransportes;
 
   // ── Gasto por transportadora ──
   const gastoPorTransportadora = new Map<string, number>();
@@ -722,7 +717,6 @@ export default function FreteDashboard({
           </p>
           <div className="text-xs text-gray-400 mt-1 space-y-0.5">
             <p>Areacre: {formatCurrency(saldoAreacre)}</p>
-            <p>Amazonia: {formatCurrency(saldoAmazonia)}</p>
             <p>Triunfo: {formatCurrency(saldoTriunfo)}</p>
             <p>Andrade: {formatCurrency(saldoAndrade)}</p>
             <p>ETAM: {formatCurrency(saldoEtam)}</p>
@@ -732,7 +726,7 @@ export default function FreteDashboard({
       </div>
 
       {/* Cards resumo - fileira 2 — clicáveis, abrem relatório detalhado */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
         <SaldoCard
           titulo="Saldo Areacre"
           saldo={saldoAreacre}
@@ -742,17 +736,6 @@ export default function FreteDashboard({
             { label: 'Abastecimentos', valor: `+${formatCurrency(totalAbastCarreta)}` },
           ]}
           onClick={() => goSaldo('areacre')}
-        />
-        <SaldoCard
-          titulo="Saldo Amazonia"
-          saldo={saldoAmazonia}
-          linhas={[
-            { label: 'Fretes', valor: `${formatCurrency(fretesAmazonia)}` },
-            { label: 'Abastecimentos', valor: `−${formatCurrency(abastAmazonia)}` },
-            { label: 'Pago p/ Amazonia', valor: `−${formatCurrency(pagosParaAmazonia)}` },
-            { label: 'Pago pela Amazonia', valor: `+${formatCurrency(pagosPelaAmazonia)}` },
-          ]}
-          onClick={() => goSaldo('amazonia')}
         />
         <SaldoCard
           titulo="Saldo Triunfo"
@@ -791,6 +774,7 @@ export default function FreteDashboard({
             { label: 'Fretes', valor: `${formatCurrency(fretesEmtTransportes)}` },
             { label: 'Pago p/ EMT TRANSPORTES', valor: `−${formatCurrency(pagosParaEmtTransportes)}` },
             { label: 'Abastecimentos', valor: `−${formatCurrency(abastEmtTransportes)}` },
+            { label: 'Pago pela EMT TRANSPORTES', valor: `+${formatCurrency(pagosPelaEmtConsolidado)}` },
           ]}
           onClick={() => goSaldo('emt-transportes')}
         />

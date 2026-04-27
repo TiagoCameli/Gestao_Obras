@@ -45,15 +45,16 @@ interface SaldoConfig {
 
 const SLUG_TO_TRANSPORTADORA: Record<string, { nome: string; transportadora: string }> = {
   areacre: { nome: 'Areacre', transportadora: 'Areacre' },
-  amazonia: { nome: 'Amazonia', transportadora: 'Amazonia Agroindustria' },
   triunfo: { nome: 'Triunfo', transportadora: 'Transportadora Triunfo' },
   andrade: { nome: 'Andrade Transporte', transportadora: 'Andrade Transporte' },
   etam: { nome: 'ETAM', transportadora: 'ETAM Construtora' },
   'emt-transportes': { nome: 'EMT TRANSPORTES', transportadora: 'EMT Transportes' },
 };
 
-const isEmtTransportes = (s: string | undefined | null) =>
-  (s ?? '').trim().toLowerCase() === 'emt transportes';
+const isEmtConsolidado = (s: string | undefined | null) => {
+  const v = (s ?? '').trim().toLowerCase();
+  return v === 'emt transportes' || v === 'amazonia agroindustria';
+};
 
 export default function SaldoTransportadora() {
   const { slug = '' } = useParams<{ slug: string }>();
@@ -146,27 +147,6 @@ export default function SaldoTransportadora() {
         abastecimentosDetalhe: abastTodos,
       };
     }
-    if (slug === 'amazonia') {
-      const fretesT = fretesF.filter((f) => f.transportadora === t);
-      const abastT = abastF.filter((a) => a.transportadora === t);
-      const pagosPara = pagamentosF.filter((p) => p.transportadora === t);
-      const pagosPela = pagamentosF.filter((p) => p.pagoPor?.trim() === t);
-      return {
-        slug,
-        nome: meta.nome,
-        subtitulo: 'Saldo da Amazonia Agroindustria considerando fretes, abastecimentos da carreta, pagamentos recebidos e pagamentos efetuados pela própria Amazonia.',
-        componentes: [
-          { label: 'Fretes Amazonia', sign: '+', valor: sum(fretesT, 'valorTotal'), qtd: fretesT.length },
-          { label: 'Abastecimentos Amazonia', sign: '−', valor: sum(abastT, 'valorTotal'), qtd: abastT.length, hint: 'Combustível abastecido para a frota da Amazonia.' },
-          { label: 'Pago para Amazonia', sign: '−', valor: sum(pagosPara, 'valor'), qtd: pagosPara.length },
-          { label: 'Pago pela Amazonia', sign: '+', valor: sum(pagosPela, 'valor'), qtd: pagosPela.length, hint: 'Pagamentos quitados pela Amazonia em nome de outros.' },
-        ],
-        fretesDetalhe: fretesT,
-        pagamentosParaDetalhe: pagosPara,
-        pagamentosPelaDetalhe: pagosPela,
-        abastecimentosDetalhe: abastT,
-      };
-    }
     if (slug === 'triunfo') {
       const fretesT = fretesF.filter((f) => f.transportadora === t);
       const pagosPara = pagamentosF.filter((p) => p.transportadora === t);
@@ -223,20 +203,23 @@ export default function SaldoTransportadora() {
       };
     }
     if (slug === 'emt-transportes') {
-      const fretesT = fretesF.filter((f) => isEmtTransportes(f.transportadora));
-      const pagosPara = pagamentosF.filter((p) => isEmtTransportes(p.transportadora));
-      const abastT = abastF.filter((a) => isEmtTransportes(a.transportadora));
+      const fretesT = fretesF.filter((f) => isEmtConsolidado(f.transportadora));
+      const pagosPara = pagamentosF.filter((p) => isEmtConsolidado(p.transportadora));
+      const abastT = abastF.filter((a) => isEmtConsolidado(a.transportadora));
+      const pagosPela = pagamentosF.filter((p) => isEmtConsolidado(p.pagoPor));
       return {
         slug,
         nome: meta.nome,
-        subtitulo: 'Saldo da EMT Transportes: fretes prestados descontados pagamentos efetuados e abastecimentos consumidos.',
+        subtitulo: 'Saldo consolidado da EMT TRANSPORTES (incluindo Amazonia Agroindustria): fretes prestados, pagamentos efetuados, abastecimentos consumidos e pagamentos quitados pela própria transportadora.',
         componentes: [
-          { label: 'Fretes EMT Transportes', sign: '+', valor: sum(fretesT, 'valorTotal'), qtd: fretesT.length },
-          { label: 'Pago para EMT Transportes', sign: '−', valor: sum(pagosPara, 'valor'), qtd: pagosPara.length },
-          { label: 'Abastecimentos EMT Transportes', sign: '−', valor: sum(abastT, 'valorTotal'), qtd: abastT.length },
+          { label: 'Fretes EMT TRANSPORTES', sign: '+', valor: sum(fretesT, 'valorTotal'), qtd: fretesT.length, hint: 'Fretes onde a transportadora é EMT Transportes ou Amazonia Agroindustria.' },
+          { label: 'Pago para EMT TRANSPORTES', sign: '−', valor: sum(pagosPara, 'valor'), qtd: pagosPara.length },
+          { label: 'Abastecimentos EMT TRANSPORTES', sign: '−', valor: sum(abastT, 'valorTotal'), qtd: abastT.length },
+          { label: 'Pago pela EMT TRANSPORTES', sign: '+', valor: sum(pagosPela, 'valor'), qtd: pagosPela.length, hint: 'Pagamentos quitados pela EMT Transportes ou Amazonia em nome de outros.' },
         ],
         fretesDetalhe: fretesT,
         pagamentosParaDetalhe: pagosPara,
+        pagamentosPelaDetalhe: pagosPela,
         abastecimentosDetalhe: abastT,
       };
     }
