@@ -526,6 +526,7 @@ export default function SaldoTransportadora() {
                 <tr className="text-left text-[var(--color-fg-subtle)] border-b border-[var(--color-border)]">
                   <Th>Data</Th>
                   <Th>NF</Th>
+                  <Th>Placa</Th>
                   <Th>Origem → Destino</Th>
                   <Th>Material</Th>
                   <Th className="text-right">Peso (t)</Th>
@@ -544,6 +545,7 @@ export default function SaldoTransportadora() {
                     >
                       <Td className="whitespace-nowrap text-[var(--color-fg-muted)]">{formatDate(f.data)}</Td>
                       <Td className="font-mono text-[var(--color-fg-muted)]">{f.notaFiscal || '—'}</Td>
+                      <Td className="font-mono text-[var(--color-fg)] whitespace-nowrap">{f.placaCarreta || '—'}</Td>
                       <Td className="text-[var(--color-fg)]">
                         <span className="truncate inline-block max-w-[140px] align-middle">{f.origem || '—'}</span>
                         <span className="text-[var(--color-fg-subtle)] mx-1">→</span>
