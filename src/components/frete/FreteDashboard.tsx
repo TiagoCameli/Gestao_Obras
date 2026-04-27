@@ -1,4 +1,5 @@
 import { Fragment, useState, useRef, useEffect, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import type { Frete, PagamentoFrete, AbastecimentoCarreta, Obra, PedidoMaterial, Fornecedor } from '../../types';
 import { useInsumos } from '../../hooks/useInsumos';
 import { formatCurrency } from '../../utils/formatters';
@@ -89,6 +90,54 @@ function FilterMultiSelect({
   );
 }
 
+function SaldoCard({
+  titulo,
+  saldo,
+  linhas,
+  onClick,
+}: {
+  titulo: string;
+  saldo: number;
+  linhas: { label: string; valor: string }[];
+  onClick: () => void;
+}) {
+  const cor = saldo > 0 ? 'text-red-600' : saldo < 0 ? 'text-green-600' : 'text-gray-500';
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="card-premium p-6 text-left transition-all duration-200 cursor-pointer focus:outline-none focus:ring-2 focus:ring-[var(--color-ring)] hover:-translate-y-0.5 hover:border-[var(--color-accent)]/40 hover:shadow-[var(--shadow-md)] group relative overflow-hidden"
+    >
+      <span
+        aria-hidden
+        className="absolute inset-x-0 top-0 h-px opacity-0 group-hover:opacity-100 transition-opacity"
+        style={{ background: 'linear-gradient(90deg, transparent, var(--color-accent) 50%, transparent)' }}
+      />
+      <div className="flex items-start justify-between gap-2">
+        <p className="text-sm text-gray-500">{titulo}</p>
+        <svg
+          aria-hidden
+          className="h-3.5 w-3.5 shrink-0 text-[var(--color-fg-subtle)] opacity-0 group-hover:opacity-100 group-hover:text-[var(--color-accent)] transition-all"
+          fill="none" stroke="currentColor" viewBox="0 0 24 24"
+        >
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+        </svg>
+      </div>
+      <p className={`text-2xl font-bold mt-1 ${cor}`}>{formatCurrency(saldo)}</p>
+      <div className="text-xs text-gray-400 mt-1 space-y-0.5">
+        {linhas.map((l) => (
+          <p key={l.label}>
+            {l.label}: {l.valor}
+          </p>
+        ))}
+      </div>
+      <p className="text-[10px] uppercase tracking-wider font-semibold mt-3 opacity-0 group-hover:opacity-100 transition-opacity" style={{ color: 'var(--color-accent)' }}>
+        Ver relatório completo →
+      </p>
+    </button>
+  );
+}
+
 const METODO_LABELS: Record<string, string> = {
   pix: 'Pix',
   boleto: 'Boleto',
@@ -115,9 +164,19 @@ export default function FreteDashboard({
   pedidosMaterial,
   fornecedores,
 }: FreteDashboardProps) {
+  const navigate = useNavigate();
   const [dataInicio, setDataInicio] = useState('');
   const [dataFim, setDataFim] = useState('');
   const [obraIdFiltro, setObraIdFiltro] = useState('');
+
+  const goSaldo = (slug: string) => {
+    const params = new URLSearchParams();
+    if (dataInicio) params.set('inicio', dataInicio);
+    if (dataFim) params.set('fim', dataFim);
+    if (obraIdFiltro) params.set('obra', obraIdFiltro);
+    const qs = params.toString();
+    navigate(`/frete/saldo/${slug}${qs ? `?${qs}` : ''}`);
+  };
   const [cmfMaterialFiltro, setCmfMaterialFiltro] = useState<string[]>([]);
   const [cmfDestinoFiltro, setCmfDestinoFiltro] = useState<string[]>([]);
   const [cmfPedreiraFiltro, setCmfPedreiraFiltro] = useState<string[]>([]);
@@ -672,75 +731,69 @@ export default function FreteDashboard({
         </Card>
       </div>
 
-      {/* Cards resumo - fileira 2 */}
+      {/* Cards resumo - fileira 2 — clicáveis, abrem relatório detalhado */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
-        <Card>
-          <p className="text-sm text-gray-500">Saldo Areacre</p>
-          <p className={`text-2xl font-bold mt-1 ${saldoAreacre > 0 ? 'text-red-600' : saldoAreacre < 0 ? 'text-green-600' : 'text-gray-500'}`}>
-            {formatCurrency(saldoAreacre)}
-          </p>
-          <div className="text-xs text-gray-400 mt-1 space-y-0.5">
-            <p>Fretes: {formatCurrency(fretesAreacre)}</p>
-            <p>Pago p/ Areacre: −{formatCurrency(pagosParaAreacre)}</p>
-            <p>Abastecimentos: +{formatCurrency(totalAbastCarreta)}</p>
-          </div>
-        </Card>
-        <Card>
-          <p className="text-sm text-gray-500">Saldo Amazonia</p>
-          <p className={`text-2xl font-bold mt-1 ${saldoAmazonia > 0 ? 'text-red-600' : saldoAmazonia < 0 ? 'text-green-600' : 'text-gray-500'}`}>
-            {formatCurrency(saldoAmazonia)}
-          </p>
-          <div className="text-xs text-gray-400 mt-1 space-y-0.5">
-            <p>Fretes: {formatCurrency(fretesAmazonia)}</p>
-            <p>Abastecimentos: −{formatCurrency(abastAmazonia)}</p>
-            <p>Pago p/ Amazonia: −{formatCurrency(pagosParaAmazonia)}</p>
-            <p>Pago pela Amazonia: +{formatCurrency(pagosPelaAmazonia)}</p>
-          </div>
-        </Card>
-        <Card>
-          <p className="text-sm text-gray-500">Saldo Triunfo</p>
-          <p className={`text-2xl font-bold mt-1 ${saldoTriunfo > 0 ? 'text-red-600' : saldoTriunfo < 0 ? 'text-green-600' : 'text-gray-500'}`}>
-            {formatCurrency(saldoTriunfo)}
-          </p>
-          <div className="text-xs text-gray-400 mt-1 space-y-0.5">
-            <p>Fretes: {formatCurrency(fretesTriunfo)}</p>
-            <p>Pago p/ Triunfo: −{formatCurrency(pagosParaTriunfo)}</p>
-            <p>Abastecimentos: −{formatCurrency(abastTriunfo)}</p>
-          </div>
-        </Card>
-        <Card>
-          <p className="text-sm text-gray-500">Saldo Andrade Transporte</p>
-          <p className={`text-2xl font-bold mt-1 ${saldoAndrade > 0 ? 'text-red-600' : saldoAndrade < 0 ? 'text-green-600' : 'text-gray-500'}`}>
-            {formatCurrency(saldoAndrade)}
-          </p>
-          <div className="text-xs text-gray-400 mt-1 space-y-0.5">
-            <p>Fretes: {formatCurrency(fretesAndrade)}</p>
-            <p>Pago p/ Andrade: −{formatCurrency(pagosParaAndrade)}</p>
-            <p>Abastecimentos: −{formatCurrency(abastAndrade)}</p>
-          </div>
-        </Card>
-        <Card>
-          <p className="text-sm text-gray-500">Saldo ETAM</p>
-          <p className={`text-2xl font-bold mt-1 ${saldoEtam > 0 ? 'text-red-600' : saldoEtam < 0 ? 'text-green-600' : 'text-gray-500'}`}>
-            {formatCurrency(saldoEtam)}
-          </p>
-          <div className="text-xs text-gray-400 mt-1 space-y-0.5">
-            <p>Total Fretes: {formatCurrency(fretesEtam)}</p>
-            <p>Pago pela Etam: +{formatCurrency(pagosPelaEtam)}</p>
-            <p>Pago p/ Etam: −{formatCurrency(pagosParaEtam)}</p>
-          </div>
-        </Card>
-        <Card>
-          <p className="text-sm text-gray-500">Saldo EMT TRANSPORTES</p>
-          <p className={`text-2xl font-bold mt-1 ${saldoEmtTransportes > 0 ? 'text-red-600' : saldoEmtTransportes < 0 ? 'text-green-600' : 'text-gray-500'}`}>
-            {formatCurrency(saldoEmtTransportes)}
-          </p>
-          <div className="text-xs text-gray-400 mt-1 space-y-0.5">
-            <p>Fretes: {formatCurrency(fretesEmtTransportes)}</p>
-            <p>Pago p/ EMT TRANSPORTES: −{formatCurrency(pagosParaEmtTransportes)}</p>
-            <p>Abastecimentos: −{formatCurrency(abastEmtTransportes)}</p>
-          </div>
-        </Card>
+        <SaldoCard
+          titulo="Saldo Areacre"
+          saldo={saldoAreacre}
+          linhas={[
+            { label: 'Fretes', valor: `${formatCurrency(fretesAreacre)}` },
+            { label: 'Pago p/ Areacre', valor: `−${formatCurrency(pagosParaAreacre)}` },
+            { label: 'Abastecimentos', valor: `+${formatCurrency(totalAbastCarreta)}` },
+          ]}
+          onClick={() => goSaldo('areacre')}
+        />
+        <SaldoCard
+          titulo="Saldo Amazonia"
+          saldo={saldoAmazonia}
+          linhas={[
+            { label: 'Fretes', valor: `${formatCurrency(fretesAmazonia)}` },
+            { label: 'Abastecimentos', valor: `−${formatCurrency(abastAmazonia)}` },
+            { label: 'Pago p/ Amazonia', valor: `−${formatCurrency(pagosParaAmazonia)}` },
+            { label: 'Pago pela Amazonia', valor: `+${formatCurrency(pagosPelaAmazonia)}` },
+          ]}
+          onClick={() => goSaldo('amazonia')}
+        />
+        <SaldoCard
+          titulo="Saldo Triunfo"
+          saldo={saldoTriunfo}
+          linhas={[
+            { label: 'Fretes', valor: `${formatCurrency(fretesTriunfo)}` },
+            { label: 'Pago p/ Triunfo', valor: `−${formatCurrency(pagosParaTriunfo)}` },
+            { label: 'Abastecimentos', valor: `−${formatCurrency(abastTriunfo)}` },
+          ]}
+          onClick={() => goSaldo('triunfo')}
+        />
+        <SaldoCard
+          titulo="Saldo Andrade Transporte"
+          saldo={saldoAndrade}
+          linhas={[
+            { label: 'Fretes', valor: `${formatCurrency(fretesAndrade)}` },
+            { label: 'Pago p/ Andrade', valor: `−${formatCurrency(pagosParaAndrade)}` },
+            { label: 'Abastecimentos', valor: `−${formatCurrency(abastAndrade)}` },
+          ]}
+          onClick={() => goSaldo('andrade')}
+        />
+        <SaldoCard
+          titulo="Saldo ETAM"
+          saldo={saldoEtam}
+          linhas={[
+            { label: 'Total Fretes', valor: `${formatCurrency(fretesEtam)}` },
+            { label: 'Pago pela Etam', valor: `+${formatCurrency(pagosPelaEtam)}` },
+            { label: 'Pago p/ Etam', valor: `−${formatCurrency(pagosParaEtam)}` },
+          ]}
+          onClick={() => goSaldo('etam')}
+        />
+        <SaldoCard
+          titulo="Saldo EMT TRANSPORTES"
+          saldo={saldoEmtTransportes}
+          linhas={[
+            { label: 'Fretes', valor: `${formatCurrency(fretesEmtTransportes)}` },
+            { label: 'Pago p/ EMT TRANSPORTES', valor: `−${formatCurrency(pagosParaEmtTransportes)}` },
+            { label: 'Abastecimentos', valor: `−${formatCurrency(abastEmtTransportes)}` },
+          ]}
+          onClick={() => goSaldo('emt-transportes')}
+        />
       </div>
 
       {/* Gasto por transportadora com saldo */}

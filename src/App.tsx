@@ -9,6 +9,7 @@ import Dashboard from './pages/Dashboard';
 import ObrasPage from './pages/ObrasPage';
 import Obras from './pages/Obras';
 import Frete from './pages/Frete';
+import SaldoTransportadora from './pages/SaldoTransportadora';
 import Funcionarios from './pages/Funcionarios';
 import Apontamentos from './pages/Apontamentos';
 import Frota from './pages/Frota';
@@ -17,6 +18,7 @@ import AcessoNegado from './pages/AcessoNegado';
 import NotFound from './pages/NotFound';
 import MigrarDados from './pages/MigrarDados';
 import RodoTrackerPage from './modules/rodotracker/RodoTrackerPage';
+import ApontamentoPage from './modules/apontamento/ApontamentoPage';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -31,6 +33,7 @@ const PAGINAS_FALLBACK: { acao: string; rota: string }[] = [
   { acao: 'ver_frota', rota: '/frota' },
   { acao: 'ver_funcionarios', rota: '/funcionarios' },
   { acao: 'ver_apontamentos', rota: '/apontamentos' },
+  { acao: 'ver_apontamento_rh', rota: '/apontamento' },
 ];
 
 function HomeRedirect() {
@@ -68,9 +71,11 @@ export default function App() {
               <Route path="/obras" element={<ProtectedRoute modulo="obras"><ObrasPage /></ProtectedRoute>} />
               <Route path="/cadastros" element={<ProtectedRoute modulo="cadastros"><Obras /></ProtectedRoute>} />
               <Route path="/frete" element={<ProtectedRoute modulo="frete"><Frete /></ProtectedRoute>} />
+              <Route path="/frete/saldo/:slug" element={<ProtectedRoute modulo="frete"><SaldoTransportadora /></ProtectedRoute>} />
               <Route path="/frota" element={<ProtectedRoute modulo="frota"><Frota /></ProtectedRoute>} />
               <Route path="/funcionarios" element={<ProtectedRoute modulo="funcionarios"><Funcionarios /></ProtectedRoute>} />
               <Route path="/apontamentos" element={<ProtectedRoute modulo="apontamentos"><Apontamentos /></ProtectedRoute>} />
+              <Route path="/apontamento" element={<ProtectedRoute modulo="apontamento_rh"><ApontamentoPage /></ProtectedRoute>} />
               <Route path="/migrar-dados" element={<MigrarDados />} />
               <Route path="/acesso-negado" element={<AcessoNegado />} />
               <Route path="*" element={<NotFound />} />
