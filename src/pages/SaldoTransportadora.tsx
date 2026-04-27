@@ -58,10 +58,23 @@ const isEmtTransportes = (s: string | undefined | null) =>
 
 export default function SaldoTransportadora() {
   const { slug = '' } = useParams<{ slug: string }>();
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const dataInicio = searchParams.get('inicio') || '';
   const dataFim = searchParams.get('fim') || '';
   const obraIdFiltro = searchParams.get('obra') || '';
+
+  const updateParam = (key: 'inicio' | 'fim', value: string) => {
+    const next = new URLSearchParams(searchParams);
+    if (value) next.set(key, value);
+    else next.delete(key);
+    setSearchParams(next, { replace: true });
+  };
+  const limparPeriodo = () => {
+    const next = new URLSearchParams(searchParams);
+    next.delete('inicio');
+    next.delete('fim');
+    setSearchParams(next, { replace: true });
+  };
 
   const { data: fretes = [], isLoading: loadingFretes } = useFretes();
   const { data: pagamentos = [], isLoading: loadingPag } = usePagamentosFrete();
@@ -314,17 +327,52 @@ export default function SaldoTransportadora() {
           </div>
         </div>
 
-        {/* Chips de contexto */}
-        <div className="flex flex-wrap gap-2 shrink-0">
-          <span className="chip" style={{ background: 'var(--color-surface-1)', color: 'var(--color-fg-muted)' }}>
-            <Calendar className="h-3 w-3" /> {periodoLabel}
-          </span>
+        {/* Filtro de período + chip de obra */}
+        <div className="flex flex-wrap items-end gap-3 shrink-0">
+          <div className="flex flex-col">
+            <label className="block text-[11px] font-medium text-[var(--color-fg-muted)] mb-1 uppercase tracking-wider">
+              Data Início
+            </label>
+            <input
+              type="date"
+              value={dataInicio}
+              onChange={(e) => updateParam('inicio', e.target.value)}
+              className="rounded-md px-3 text-sm h-[34px] bg-[var(--color-surface-1)] text-[var(--color-fg)] border border-[var(--color-border)] focus:outline-none focus:border-[var(--color-accent)] focus:ring-2 focus:ring-[var(--color-ring)]"
+            />
+          </div>
+          <div className="flex flex-col">
+            <label className="block text-[11px] font-medium text-[var(--color-fg-muted)] mb-1 uppercase tracking-wider">
+              Data Fim
+            </label>
+            <input
+              type="date"
+              value={dataFim}
+              onChange={(e) => updateParam('fim', e.target.value)}
+              className="rounded-md px-3 text-sm h-[34px] bg-[var(--color-surface-1)] text-[var(--color-fg)] border border-[var(--color-border)] focus:outline-none focus:border-[var(--color-accent)] focus:ring-2 focus:ring-[var(--color-ring)]"
+            />
+          </div>
+          {(dataInicio || dataFim) && (
+            <button
+              type="button"
+              onClick={limparPeriodo}
+              className="text-xs text-[var(--color-danger)] hover:text-[var(--color-danger-fg)] font-medium pb-2"
+            >
+              Limpar período
+            </button>
+          )}
           {obraLabel && (
-            <span className="chip" style={{ background: 'var(--color-accent-soft)', color: 'var(--color-accent-fg)' }}>
+            <span className="chip pb-2 self-end" style={{ background: 'var(--color-accent-soft)', color: 'var(--color-accent-fg)' }}>
               <MapPin className="h-3 w-3" /> {obraLabel}
             </span>
           )}
         </div>
+      </div>
+
+      {/* Chip resumo de período (somente visual, abaixo do header) */}
+      <div className="-mt-4 mb-6">
+        <span className="chip" style={{ background: 'var(--color-surface-1)', color: 'var(--color-fg-muted)' }}>
+          <Calendar className="h-3 w-3" /> {periodoLabel}
+        </span>
       </div>
 
       {/* ── KPI principal + resumo entradas/saídas ──────────────────── */}
