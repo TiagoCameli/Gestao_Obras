@@ -24,12 +24,12 @@ import {
   Wallet,
   Mountain,
 } from 'lucide-react';
-import type { Frete, PagamentoFrete } from '../../types';
+import type { Frete, PagamentoFrete, AbastecimentoCarreta } from '../../types';
 import { formatCurrency } from '../../utils/formatters';
+import type { CrossFilters, CrossDim } from './crossFilterTypes';
 
-// Paleta usada nos gráficos — alinhada ao Dashboard principal.
 const PALETTE = [
-  '#F7B155', // amber (accent do módulo de frete)
+  '#F7B155',
   '#3AA368',
   '#6AA2FF',
   '#A78BFA',
@@ -51,10 +51,15 @@ const METODO_LABELS: Record<string, string> = {
 };
 
 interface Props {
-  fretes: Frete[];
-  pagamentos: PagamentoFrete[];
+  fretesBase: Frete[];
+  pagamentosBase: PagamentoFrete[];
+  abastBase: AbastecimentoCarreta[];
   obrasMap: Map<string, string>;
   insumosMap: Map<string, string>;
+  crossFilters: CrossFilters;
+  onToggle: (dim: CrossDim, value: string) => void;
+  applyCrossFretes: (items: Frete[], except?: CrossDim) => Frete[];
+  applyCrossPag: (items: PagamentoFrete[], except?: CrossDim) => PagamentoFrete[];
 }
 
 const TOOLTIP_STYLE = {
@@ -66,23 +71,43 @@ const TOOLTIP_STYLE = {
   fontSize: 12,
 };
 
-export default function FreteAnalyticsOverview({ fretes, pagamentos, obrasMap, insumosMap }: Props) {
-  // ── KPIs base ─────────────────────────────────────────────────────────
-  const totalFretes = useMemo(() => fretes.reduce((s, f) => s + f.valorTotal, 0), [fretes]);
-  const totalToneladas = useMemo(() => fretes.reduce((s, f) => s + (f.pesoToneladas || 0), 0), [fretes]);
-  const totalKm = useMemo(() => fretes.reduce((s, f) => s + (f.kmRodados || 0), 0), [fretes]);
+// Helper de cor com dim — quando há seleção naquela dim, dimme os não-selecionados
+function fillFor(palette: string, isSelected: boolean, hasSelection: boolean): string {
+  if (!hasSelection) return palette;
+  return isSelected ? palette : `${palette}40`; // 40 = ~25% alpha em hex8
+}
+
+export default function FreteAnalyticsOverview({
+  fretesBase,
+  pagamentosBase,
+  obrasMap,
+  insumosMap,
+  crossFilters,
+  onToggle,
+  applyCrossFretes,
+  applyCrossPag,
+}: Props) {
+  // Para KPIs e qualquer chart sem dimensão "própria", aplicamos todos
+  // os cross-filters.
+  const fretesAll = useMemo(() => applyCrossFretes(fretesBase), [fretesBase, applyCrossFretes]);
+
+  // ── KPIs ──────────────────────────────────────────────────────────
+  const totalFretes = fretesAll.reduce((s, f) => s + f.valorTotal, 0);
+  const totalToneladas = fretesAll.reduce((s, f) => s + (f.pesoToneladas || 0), 0);
+  const totalKm = fretesAll.reduce((s, f) => s + (f.kmRodados || 0), 0);
   const custoMedioPorTon = totalToneladas > 0 ? totalFretes / totalToneladas : 0;
   const custoMedioPorKm = totalKm > 0 ? totalFretes / totalKm : 0;
-  const fretesEntregues = useMemo(() => fretes.filter((f) => !!f.dataChegada).length, [fretes]);
-  const fretesTransito = fretes.length - fretesEntregues;
-  const pctEntregues = fretes.length > 0 ? (fretesEntregues / fretes.length) * 100 : 0;
+  const fretesEntregues = fretesAll.filter((f) => !!f.dataChegada).length;
+  const fretesTransito = fretesAll.length - fretesEntregues;
+  const pctEntregues = fretesAll.length > 0 ? (fretesEntregues / fretesAll.length) * 100 : 0;
 
-  // ── Evolução mensal: valor + qtd fretes ──────────────────────────────
+  // ── Evolução mensal (own dim: 'mes') ───────────────────────────────
+  const fretesPorMes = useMemo(() => applyCrossFretes(fretesBase, 'mes'), [fretesBase, applyCrossFretes]);
   const evolucaoMensal = useMemo(() => {
     const map = new Map<string, { valor: number; qtd: number; toneladas: number }>();
-    fretes.forEach((f) => {
+    fretesPorMes.forEach((f) => {
       if (!f.data) return;
-      const ym = f.data.slice(0, 7); // YYYY-MM
+      const ym = f.data.slice(0, 7);
       const prev = map.get(ym) || { valor: 0, qtd: 0, toneladas: 0 };
       map.set(ym, {
         valor: prev.valor + f.valorTotal,
@@ -103,12 +128,13 @@ export default function FreteAnalyticsOverview({ fretes, pagamentos, obrasMap, i
           toneladas: Math.round(d.toneladas),
         };
       });
-  }, [fretes]);
+  }, [fretesPorMes]);
 
-  // ── Top transportadoras (gasto) ──────────────────────────────────────
+  // ── Top transportadoras (own dim) ──────────────────────────────────
+  const fretesPorTransp = useMemo(() => applyCrossFretes(fretesBase, 'transportadora'), [fretesBase, applyCrossFretes]);
   const topTransportadoras = useMemo(() => {
     const map = new Map<string, { valor: number; qtd: number }>();
-    fretes.forEach((f) => {
+    fretesPorTransp.forEach((f) => {
       const key = (f.transportadora || 'Sem transportadora').trim() || 'Sem transportadora';
       const prev = map.get(key) || { valor: 0, qtd: 0 };
       map.set(key, { valor: prev.valor + f.valorTotal, qtd: prev.qtd + 1 });
@@ -117,26 +143,28 @@ export default function FreteAnalyticsOverview({ fretes, pagamentos, obrasMap, i
       .map(([nome, d]) => ({ nome, valor: d.valor, qtd: d.qtd }))
       .sort((a, b) => b.valor - a.valor)
       .slice(0, 8);
-  }, [fretes]);
+  }, [fretesPorTransp]);
 
-  // ── Top obras (gasto) ────────────────────────────────────────────────
+  // ── Top obras (own dim: obraId) ────────────────────────────────────
+  const fretesPorObra = useMemo(() => applyCrossFretes(fretesBase, 'obraId'), [fretesBase, applyCrossFretes]);
   const topObras = useMemo(() => {
     const map = new Map<string, { valor: number; qtd: number }>();
-    fretes.forEach((f) => {
+    fretesPorObra.forEach((f) => {
       if (!f.obraId) return;
       const prev = map.get(f.obraId) || { valor: 0, qtd: 0 };
       map.set(f.obraId, { valor: prev.valor + f.valorTotal, qtd: prev.qtd + 1 });
     });
     return Array.from(map.entries())
-      .map(([id, d]) => ({ nome: obrasMap.get(id) || 'Sem obra', valor: d.valor, qtd: d.qtd }))
+      .map(([id, d]) => ({ id, nome: obrasMap.get(id) || 'Sem obra', valor: d.valor, qtd: d.qtd }))
       .sort((a, b) => b.valor - a.valor)
       .slice(0, 8);
-  }, [fretes, obrasMap]);
+  }, [fretesPorObra, obrasMap]);
 
-  // ── Top materiais (gasto + ton) ──────────────────────────────────────
+  // ── Top materiais (own dim: insumoId) ──────────────────────────────
+  const fretesPorMat = useMemo(() => applyCrossFretes(fretesBase, 'insumoId'), [fretesBase, applyCrossFretes]);
   const topMateriais = useMemo(() => {
     const map = new Map<string, { valor: number; toneladas: number; qtd: number }>();
-    fretes.forEach((f) => {
+    fretesPorMat.forEach((f) => {
       if (!f.insumoId) return;
       const prev = map.get(f.insumoId) || { valor: 0, toneladas: 0, qtd: 0 };
       map.set(f.insumoId, {
@@ -147,6 +175,7 @@ export default function FreteAnalyticsOverview({ fretes, pagamentos, obrasMap, i
     });
     return Array.from(map.entries())
       .map(([id, d]) => ({
+        id,
         nome: insumosMap.get(id) || id,
         valor: d.valor,
         toneladas: d.toneladas,
@@ -154,12 +183,13 @@ export default function FreteAnalyticsOverview({ fretes, pagamentos, obrasMap, i
       }))
       .sort((a, b) => b.valor - a.valor)
       .slice(0, 8);
-  }, [fretes, insumosMap]);
+  }, [fretesPorMat, insumosMap]);
 
-  // ── Top pedreiras (origens) ──────────────────────────────────────────
+  // ── Top pedreiras (own dim: origem) ────────────────────────────────
+  const fretesPorPedreira = useMemo(() => applyCrossFretes(fretesBase, 'origem'), [fretesBase, applyCrossFretes]);
   const topPedreiras = useMemo(() => {
     const map = new Map<string, { valor: number; toneladas: number }>();
-    fretes.forEach((f) => {
+    fretesPorPedreira.forEach((f) => {
       const key = (f.origem || '').trim();
       if (!key) return;
       const prev = map.get(key) || { valor: 0, toneladas: 0 };
@@ -177,37 +207,28 @@ export default function FreteAnalyticsOverview({ fretes, pagamentos, obrasMap, i
       }))
       .sort((a, b) => b.valor - a.valor)
       .slice(0, 10);
-  }, [fretes]);
+  }, [fretesPorPedreira]);
 
-  // ── Distribuição pagamentos por método ───────────────────────────────
+  // ── Pagamentos por método (own dim: metodo) ────────────────────────
+  const pagPorMetodo = useMemo(() => applyCrossPag(pagamentosBase, 'metodo'), [pagamentosBase, applyCrossPag]);
   const pagamentosPorMetodo = useMemo(() => {
     const map = new Map<string, { valor: number; qtd: number }>();
-    pagamentos.forEach((p) => {
+    pagPorMetodo.forEach((p) => {
       const m = p.metodo || 'outro';
       const prev = map.get(m) || { valor: 0, qtd: 0 };
       map.set(m, { valor: prev.valor + p.valor, qtd: prev.qtd + 1 });
     });
     return Array.from(map.entries())
       .map(([metodo, d]) => ({
+        id: metodo,
         nome: METODO_LABELS[metodo] || metodo,
         valor: d.valor,
         qtd: d.qtd,
       }))
       .sort((a, b) => b.valor - a.valor);
-  }, [pagamentos]);
+  }, [pagPorMetodo]);
   const totalPagamentosMetodo = pagamentosPorMetodo.reduce((s, p) => s + p.valor, 0);
 
-  // ── Custo R$/ton por mês (linha de tendência) ────────────────────────
-  const custoMedioMensal = useMemo(
-    () =>
-      evolucaoMensal.map((m) => ({
-        ...m,
-        custoTon: m.toneladas > 0 ? m.valor / m.toneladas : 0,
-      })),
-    [evolucaoMensal]
-  );
-
-  // Toggle pra alternar métrica do gráfico mensal (R$ ou Ton)
   const [metricaMensal, setMetricaMensal] = useState<'valor' | 'toneladas'>('valor');
 
   return (
@@ -218,7 +239,7 @@ export default function FreteAnalyticsOverview({ fretes, pagamentos, obrasMap, i
           icon={<Truck className="h-4 w-4" />}
           eyebrow="Total de Fretes"
           value={formatCurrency(totalFretes)}
-          subtitle={`${fretes.length} frete${fretes.length !== 1 ? 's' : ''} no período`}
+          subtitle={`${fretesAll.length} frete${fretesAll.length !== 1 ? 's' : ''} no período`}
           tone="amber"
         />
         <KpiCard
@@ -242,11 +263,11 @@ export default function FreteAnalyticsOverview({ fretes, pagamentos, obrasMap, i
         />
       </div>
 
-      {/* ── Evolução mensal (composed chart) + Top transportadoras ──── */}
+      {/* ── Evolução Mensal + Top Transportadoras ──────────────────── */}
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-3">
         <ChartCard
           title="Evolução Mensal"
-          subtitle={metricaMensal === 'valor' ? 'Valor de fretes (R$) e quantidade por mês' : 'Toneladas transportadas e quantidade por mês'}
+          subtitle={metricaMensal === 'valor' ? 'Valor de fretes (R$) e quantidade por mês — clique numa barra para filtrar' : 'Toneladas transportadas e quantidade por mês — clique numa barra para filtrar'}
           icon={<TrendingUp className="h-4 w-4" />}
           className="xl:col-span-2"
           headerExtra={
@@ -254,62 +275,27 @@ export default function FreteAnalyticsOverview({ fretes, pagamentos, obrasMap, i
               <button
                 type="button"
                 onClick={() => setMetricaMensal('valor')}
-                className={`text-[11px] px-2.5 py-1 rounded transition-colors ${
-                  metricaMensal === 'valor'
-                    ? 'bg-[var(--color-accent-soft)] text-[var(--color-accent-fg)] font-semibold'
-                    : 'text-[var(--color-fg-muted)] hover:text-[var(--color-fg)]'
-                }`}
-              >
-                R$
-              </button>
+                className={`text-[11px] px-2.5 py-1 rounded transition-colors ${metricaMensal === 'valor' ? 'bg-[var(--color-accent-soft)] text-[var(--color-accent-fg)] font-semibold' : 'text-[var(--color-fg-muted)] hover:text-[var(--color-fg)]'}`}
+              >R$</button>
               <button
                 type="button"
                 onClick={() => setMetricaMensal('toneladas')}
-                className={`text-[11px] px-2.5 py-1 rounded transition-colors ${
-                  metricaMensal === 'toneladas'
-                    ? 'bg-[var(--color-accent-soft)] text-[var(--color-accent-fg)] font-semibold'
-                    : 'text-[var(--color-fg-muted)] hover:text-[var(--color-fg)]'
-                }`}
-              >
-                Ton
-              </button>
+                className={`text-[11px] px-2.5 py-1 rounded transition-colors ${metricaMensal === 'toneladas' ? 'bg-[var(--color-accent-soft)] text-[var(--color-accent-fg)] font-semibold' : 'text-[var(--color-fg-muted)] hover:text-[var(--color-fg)]'}`}
+              >Ton</button>
             </div>
           }
           height={300}
         >
-          {custoMedioMensal.length === 0 ? (
+          {evolucaoMensal.length === 0 ? (
             <EmptyChart text="Nenhum frete no período selecionado." />
           ) : (
             <ResponsiveContainer width="100%" height="100%">
-              <ComposedChart data={custoMedioMensal} margin={{ top: 8, right: 16, left: 4, bottom: 0 }}>
+              <ComposedChart data={evolucaoMensal} margin={{ top: 8, right: 16, left: 4, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" vertical={false} />
-                <XAxis
-                  dataKey="label"
-                  fontSize={11}
-                  tick={{ fill: 'var(--color-fg-muted)' }}
-                  axisLine={{ stroke: 'var(--color-border)' }}
-                  tickLine={false}
-                />
-                <YAxis
-                  yAxisId="left"
-                  fontSize={11}
-                  tick={{ fill: 'var(--color-fg-muted)' }}
-                  axisLine={{ stroke: 'var(--color-border)' }}
-                  tickLine={false}
-                  tickFormatter={(v) =>
-                    metricaMensal === 'valor'
-                      ? `R$ ${(v / 1000).toFixed(0)}k`
-                      : `${(v as number).toLocaleString('pt-BR')}t`
-                  }
-                />
-                <YAxis
-                  yAxisId="right"
-                  orientation="right"
-                  fontSize={11}
-                  tick={{ fill: 'var(--color-fg-muted)' }}
-                  axisLine={{ stroke: 'var(--color-border)' }}
-                  tickLine={false}
-                />
+                <XAxis dataKey="label" fontSize={11} tick={{ fill: 'var(--color-fg-muted)' }} axisLine={{ stroke: 'var(--color-border)' }} tickLine={false} />
+                <YAxis yAxisId="left" fontSize={11} tick={{ fill: 'var(--color-fg-muted)' }} axisLine={{ stroke: 'var(--color-border)' }} tickLine={false}
+                  tickFormatter={(v) => metricaMensal === 'valor' ? `R$ ${(v / 1000).toFixed(0)}k` : `${(v as number).toLocaleString('pt-BR')}t`} />
+                <YAxis yAxisId="right" orientation="right" fontSize={11} tick={{ fill: 'var(--color-fg-muted)' }} axisLine={{ stroke: 'var(--color-border)' }} tickLine={false} />
                 <Tooltip
                   cursor={{ fill: 'color-mix(in srgb, var(--color-fg) 6%, transparent)' }}
                   contentStyle={TOOLTIP_STYLE}
@@ -320,23 +306,14 @@ export default function FreteAnalyticsOverview({ fretes, pagamentos, obrasMap, i
                   }}
                 />
                 <Legend wrapperStyle={{ fontSize: 11, paddingTop: 4 }} />
-                <Bar
-                  yAxisId="left"
-                  dataKey={metricaMensal}
-                  name={metricaMensal === 'valor' ? 'Valor (R$)' : 'Toneladas'}
-                  fill="var(--color-accent-amber)"
-                  radius={[6, 6, 0, 0]}
-                />
-                <Line
-                  yAxisId="right"
-                  type="monotone"
-                  dataKey="qtd"
-                  name="Qtd fretes"
-                  stroke="#6AA2FF"
-                  strokeWidth={2}
-                  dot={{ r: 3, fill: '#6AA2FF' }}
-                  activeDot={{ r: 5 }}
-                />
+                <Bar yAxisId="left" dataKey={metricaMensal} name={metricaMensal === 'valor' ? 'Valor (R$)' : 'Toneladas'} radius={[6, 6, 0, 0]} cursor="pointer"
+                  onClick={(e) => onToggle('mes', (e as { ym?: string }).ym || '')}
+                >
+                  {evolucaoMensal.map((d) => (
+                    <Cell key={d.ym} fill={fillFor('var(--color-accent-amber)', crossFilters.mes === d.ym, !!crossFilters.mes)} />
+                  ))}
+                </Bar>
+                <Line yAxisId="right" type="monotone" dataKey="qtd" name="Qtd fretes" stroke="#6AA2FF" strokeWidth={2} dot={{ r: 3, fill: '#6AA2FF' }} activeDot={{ r: 5 }} />
               </ComposedChart>
             </ResponsiveContainer>
           )}
@@ -344,7 +321,7 @@ export default function FreteAnalyticsOverview({ fretes, pagamentos, obrasMap, i
 
         <ChartCard
           title="Top Transportadoras"
-          subtitle="Por valor de fretes prestados"
+          subtitle="Clique para filtrar"
           icon={<Truck className="h-4 w-4" />}
           height={300}
         >
@@ -352,40 +329,20 @@ export default function FreteAnalyticsOverview({ fretes, pagamentos, obrasMap, i
             <EmptyChart text="Sem dados de transportadoras." />
           ) : (
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart
-                data={topTransportadoras}
-                layout="vertical"
-                margin={{ top: 4, right: 12, left: 4, bottom: 4 }}
-              >
+              <BarChart data={topTransportadoras} layout="vertical" margin={{ top: 4, right: 12, left: 4, bottom: 4 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" horizontal={false} />
-                <XAxis
-                  type="number"
-                  fontSize={11}
-                  tick={{ fill: 'var(--color-fg-muted)' }}
-                  axisLine={{ stroke: 'var(--color-border)' }}
-                  tickLine={false}
-                  tickFormatter={(v) => `R$ ${(v / 1000).toFixed(0)}k`}
-                />
-                <YAxis
-                  dataKey="nome"
-                  type="category"
-                  fontSize={11}
-                  tick={{ fill: 'var(--color-fg-muted)' }}
-                  axisLine={{ stroke: 'var(--color-border)' }}
-                  tickLine={false}
-                  width={110}
-                />
-                <Tooltip
-                  cursor={{ fill: 'color-mix(in srgb, var(--color-fg) 6%, transparent)' }}
-                  contentStyle={TOOLTIP_STYLE}
+                <XAxis type="number" fontSize={11} tick={{ fill: 'var(--color-fg-muted)' }} axisLine={{ stroke: 'var(--color-border)' }} tickLine={false} tickFormatter={(v) => `R$ ${(v / 1000).toFixed(0)}k`} />
+                <YAxis dataKey="nome" type="category" fontSize={11} tick={{ fill: 'var(--color-fg-muted)' }} axisLine={{ stroke: 'var(--color-border)' }} tickLine={false} width={110} />
+                <Tooltip cursor={{ fill: 'color-mix(in srgb, var(--color-fg) 6%, transparent)' }} contentStyle={TOOLTIP_STYLE}
                   formatter={(value, _name, item) => {
                     const qtd = item?.payload?.qtd;
                     return [`${formatCurrency(Number(value))} · ${qtd} frete${qtd !== 1 ? 's' : ''}`, 'Gasto'];
-                  }}
-                />
-                <Bar dataKey="valor" radius={[0, 6, 6, 0]}>
-                  {topTransportadoras.map((_, i) => (
-                    <Cell key={i} fill={PALETTE[i % PALETTE.length]} />
+                  }} />
+                <Bar dataKey="valor" radius={[0, 6, 6, 0]} cursor="pointer"
+                  onClick={(e) => onToggle('transportadora', (e as { nome?: string }).nome || '')}
+                >
+                  {topTransportadoras.map((d, i) => (
+                    <Cell key={d.nome} fill={fillFor(PALETTE[i % PALETTE.length], crossFilters.transportadora === d.nome, !!crossFilters.transportadora)} />
                   ))}
                 </Bar>
               </BarChart>
@@ -394,48 +351,27 @@ export default function FreteAnalyticsOverview({ fretes, pagamentos, obrasMap, i
         </ChartCard>
       </div>
 
-      {/* ── Top Obras + Top Materiais ──────────────────────────────── */}
+      {/* ── Gasto por Obra + Top Materiais ─────────────────────────── */}
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-3">
-        <ChartCard
-          title="Gasto por Obra"
-          subtitle="Top 8 obras com maior gasto em fretes"
-          icon={<Activity className="h-4 w-4" />}
-          height={280}
-        >
+        <ChartCard title="Gasto por Obra" subtitle="Top 8 — clique para filtrar" icon={<Activity className="h-4 w-4" />} height={280}>
           {topObras.length === 0 ? (
             <EmptyChart text="Sem fretes vinculados a obra." />
           ) : (
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={topObras} layout="vertical" margin={{ top: 4, right: 12, left: 4, bottom: 4 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" horizontal={false} />
-                <XAxis
-                  type="number"
-                  fontSize={11}
-                  tick={{ fill: 'var(--color-fg-muted)' }}
-                  axisLine={{ stroke: 'var(--color-border)' }}
-                  tickLine={false}
-                  tickFormatter={(v) => `R$ ${(v / 1000).toFixed(0)}k`}
-                />
-                <YAxis
-                  dataKey="nome"
-                  type="category"
-                  fontSize={11}
-                  tick={{ fill: 'var(--color-fg-muted)' }}
-                  axisLine={{ stroke: 'var(--color-border)' }}
-                  tickLine={false}
-                  width={130}
-                />
-                <Tooltip
-                  cursor={{ fill: 'color-mix(in srgb, var(--color-fg) 6%, transparent)' }}
-                  contentStyle={TOOLTIP_STYLE}
+                <XAxis type="number" fontSize={11} tick={{ fill: 'var(--color-fg-muted)' }} axisLine={{ stroke: 'var(--color-border)' }} tickLine={false} tickFormatter={(v) => `R$ ${(v / 1000).toFixed(0)}k`} />
+                <YAxis dataKey="nome" type="category" fontSize={11} tick={{ fill: 'var(--color-fg-muted)' }} axisLine={{ stroke: 'var(--color-border)' }} tickLine={false} width={130} />
+                <Tooltip cursor={{ fill: 'color-mix(in srgb, var(--color-fg) 6%, transparent)' }} contentStyle={TOOLTIP_STYLE}
                   formatter={(value, _name, item) => {
                     const qtd = item?.payload?.qtd;
                     return [`${formatCurrency(Number(value))} · ${qtd} frete${qtd !== 1 ? 's' : ''}`, 'Gasto'];
-                  }}
-                />
-                <Bar dataKey="valor" radius={[0, 6, 6, 0]}>
-                  {topObras.map((_, i) => (
-                    <Cell key={i} fill={PALETTE[(i + 1) % PALETTE.length]} />
+                  }} />
+                <Bar dataKey="valor" radius={[0, 6, 6, 0]} cursor="pointer"
+                  onClick={(e) => onToggle('obraId', (e as { id?: string }).id || '')}
+                >
+                  {topObras.map((d, i) => (
+                    <Cell key={d.id} fill={fillFor(PALETTE[(i + 1) % PALETTE.length], crossFilters.obraId === d.id, !!crossFilters.obraId)} />
                   ))}
                 </Bar>
               </BarChart>
@@ -443,49 +379,28 @@ export default function FreteAnalyticsOverview({ fretes, pagamentos, obrasMap, i
           )}
         </ChartCard>
 
-        <ChartCard
-          title="Top Materiais"
-          subtitle="Por valor transportado"
-          icon={<Package className="h-4 w-4" />}
-          height={280}
-        >
+        <ChartCard title="Top Materiais" subtitle="Por valor — clique para filtrar" icon={<Package className="h-4 w-4" />} height={280}>
           {topMateriais.length === 0 ? (
             <EmptyChart text="Sem materiais transportados." />
           ) : (
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={topMateriais} layout="vertical" margin={{ top: 4, right: 12, left: 4, bottom: 4 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" horizontal={false} />
-                <XAxis
-                  type="number"
-                  fontSize={11}
-                  tick={{ fill: 'var(--color-fg-muted)' }}
-                  axisLine={{ stroke: 'var(--color-border)' }}
-                  tickLine={false}
-                  tickFormatter={(v) => `R$ ${(v / 1000).toFixed(0)}k`}
-                />
-                <YAxis
-                  dataKey="nome"
-                  type="category"
-                  fontSize={11}
-                  tick={{ fill: 'var(--color-fg-muted)' }}
-                  axisLine={{ stroke: 'var(--color-border)' }}
-                  tickLine={false}
-                  width={130}
-                />
-                <Tooltip
-                  cursor={{ fill: 'color-mix(in srgb, var(--color-fg) 6%, transparent)' }}
-                  contentStyle={TOOLTIP_STYLE}
+                <XAxis type="number" fontSize={11} tick={{ fill: 'var(--color-fg-muted)' }} axisLine={{ stroke: 'var(--color-border)' }} tickLine={false} tickFormatter={(v) => `R$ ${(v / 1000).toFixed(0)}k`} />
+                <YAxis dataKey="nome" type="category" fontSize={11} tick={{ fill: 'var(--color-fg-muted)' }} axisLine={{ stroke: 'var(--color-border)' }} tickLine={false} width={130} />
+                <Tooltip cursor={{ fill: 'color-mix(in srgb, var(--color-fg) 6%, transparent)' }} contentStyle={TOOLTIP_STYLE}
                   formatter={(value, _name, item) => {
                     const ton = item?.payload?.toneladas;
                     return [
                       `${formatCurrency(Number(value))} · ${Number(ton).toLocaleString('pt-BR', { maximumFractionDigits: 1 })} t`,
                       'Frete',
                     ];
-                  }}
-                />
-                <Bar dataKey="valor" radius={[0, 6, 6, 0]}>
-                  {topMateriais.map((_, i) => (
-                    <Cell key={i} fill={PALETTE[(i + 2) % PALETTE.length]} />
+                  }} />
+                <Bar dataKey="valor" radius={[0, 6, 6, 0]} cursor="pointer"
+                  onClick={(e) => onToggle('insumoId', (e as { id?: string }).id || '')}
+                >
+                  {topMateriais.map((d, i) => (
+                    <Cell key={d.id} fill={fillFor(PALETTE[(i + 2) % PALETTE.length], crossFilters.insumoId === d.id, !!crossFilters.insumoId)} />
                   ))}
                 </Bar>
               </BarChart>
@@ -494,14 +409,9 @@ export default function FreteAnalyticsOverview({ fretes, pagamentos, obrasMap, i
         </ChartCard>
       </div>
 
-      {/* ── Pagamentos por método (donut) + Top pedreiras ─────────── */}
+      {/* ── Pagamentos por método + Top Pedreiras ──────────────────── */}
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-3">
-        <ChartCard
-          title="Pagamentos por Método"
-          subtitle="Distribuição de valores pagos"
-          icon={<Wallet className="h-4 w-4" />}
-          height={300}
-        >
+        <ChartCard title="Pagamentos por Método" subtitle="Clique numa fatia para filtrar" icon={<Wallet className="h-4 w-4" />} height={300}>
           {pagamentosPorMetodo.length === 0 ? (
             <EmptyChart text="Sem pagamentos no período." />
           ) : (
@@ -518,9 +428,11 @@ export default function FreteAnalyticsOverview({ fretes, pagamentos, obrasMap, i
                   paddingAngle={2}
                   stroke="var(--color-surface-1)"
                   strokeWidth={2}
+                  cursor="pointer"
+                  onClick={(e) => onToggle('metodo', (e as { id?: string }).id || '')}
                 >
-                  {pagamentosPorMetodo.map((_, i) => (
-                    <Cell key={i} fill={PALETTE[i % PALETTE.length]} />
+                  {pagamentosPorMetodo.map((d, i) => (
+                    <Cell key={d.id} fill={fillFor(PALETTE[i % PALETTE.length], crossFilters.metodo === d.id, !!crossFilters.metodo)} />
                   ))}
                 </Pie>
                 <Tooltip
@@ -528,55 +440,25 @@ export default function FreteAnalyticsOverview({ fretes, pagamentos, obrasMap, i
                   formatter={(value, _name, item) => {
                     const pct = totalPagamentosMetodo > 0 ? (Number(value) / totalPagamentosMetodo) * 100 : 0;
                     const qtd = item?.payload?.qtd;
-                    return [
-                      `${formatCurrency(Number(value))} · ${pct.toFixed(1)}% · ${qtd} pagto${qtd !== 1 ? 's' : ''}`,
-                      item?.payload?.nome,
-                    ];
+                    return [`${formatCurrency(Number(value))} · ${pct.toFixed(1)}% · ${qtd} pagto${qtd !== 1 ? 's' : ''}`, item?.payload?.nome];
                   }}
                 />
-                <Legend
-                  wrapperStyle={{ fontSize: 11, paddingTop: 4 }}
-                  formatter={(value) => <span style={{ color: 'var(--color-fg-muted)' }}>{value}</span>}
-                />
+                <Legend wrapperStyle={{ fontSize: 11, paddingTop: 4 }} formatter={(value) => <span style={{ color: 'var(--color-fg-muted)' }}>{value}</span>} />
               </PieChart>
             </ResponsiveContainer>
           )}
         </ChartCard>
 
-        <ChartCard
-          title="Top Pedreiras / Origens"
-          subtitle="Gasto e custo médio por tonelada"
-          icon={<Mountain className="h-4 w-4" />}
-          className="xl:col-span-2"
-          height={300}
-        >
+        <ChartCard title="Top Pedreiras / Origens" subtitle="Gasto e custo médio R$/t — clique para filtrar" icon={<Mountain className="h-4 w-4" />} className="xl:col-span-2" height={300}>
           {topPedreiras.length === 0 ? (
             <EmptyChart text="Sem dados de origem." />
           ) : (
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={topPedreiras} margin={{ top: 4, right: 12, left: 4, bottom: 40 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" vertical={false} />
-                <XAxis
-                  dataKey="nome"
-                  fontSize={10}
-                  tick={{ fill: 'var(--color-fg-muted)' }}
-                  axisLine={{ stroke: 'var(--color-border)' }}
-                  tickLine={false}
-                  angle={-30}
-                  textAnchor="end"
-                  height={60}
-                  interval={0}
-                />
-                <YAxis
-                  fontSize={11}
-                  tick={{ fill: 'var(--color-fg-muted)' }}
-                  axisLine={{ stroke: 'var(--color-border)' }}
-                  tickLine={false}
-                  tickFormatter={(v) => `R$ ${(v / 1000).toFixed(0)}k`}
-                />
-                <Tooltip
-                  cursor={{ fill: 'color-mix(in srgb, var(--color-fg) 6%, transparent)' }}
-                  contentStyle={TOOLTIP_STYLE}
+                <XAxis dataKey="nome" fontSize={10} tick={{ fill: 'var(--color-fg-muted)' }} axisLine={{ stroke: 'var(--color-border)' }} tickLine={false} angle={-30} textAnchor="end" height={60} interval={0} />
+                <YAxis fontSize={11} tick={{ fill: 'var(--color-fg-muted)' }} axisLine={{ stroke: 'var(--color-border)' }} tickLine={false} tickFormatter={(v) => `R$ ${(v / 1000).toFixed(0)}k`} />
+                <Tooltip cursor={{ fill: 'color-mix(in srgb, var(--color-fg) 6%, transparent)' }} contentStyle={TOOLTIP_STYLE}
                   formatter={(value, _name, item) => {
                     const ton = item?.payload?.toneladas;
                     const cm = item?.payload?.custoMedio;
@@ -584,11 +466,12 @@ export default function FreteAnalyticsOverview({ fretes, pagamentos, obrasMap, i
                       `${formatCurrency(Number(value))} · ${Number(ton).toLocaleString('pt-BR', { maximumFractionDigits: 1 })} t · ${formatCurrency(cm)}/t`,
                       'Gasto',
                     ];
-                  }}
-                />
-                <Bar dataKey="valor" radius={[6, 6, 0, 0]}>
-                  {topPedreiras.map((_, i) => (
-                    <Cell key={i} fill={PALETTE[(i + 3) % PALETTE.length]} />
+                  }} />
+                <Bar dataKey="valor" radius={[6, 6, 0, 0]} cursor="pointer"
+                  onClick={(e) => onToggle('origem', (e as { nome?: string }).nome || '')}
+                >
+                  {topPedreiras.map((d, i) => (
+                    <Cell key={d.nome} fill={fillFor(PALETTE[(i + 3) % PALETTE.length], crossFilters.origem === d.nome, !!crossFilters.origem)} />
                   ))}
                 </Bar>
               </BarChart>
@@ -621,40 +504,20 @@ function KpiCard({
   return (
     <div className="card-premium elevate-top p-4 relative overflow-hidden">
       {tone === 'amber' && (
-        <div
-          aria-hidden
-          className="absolute -top-10 -right-10 w-32 h-32 rounded-full opacity-25 pointer-events-none"
-          style={{ background: 'radial-gradient(circle, var(--color-accent-amber) 0%, transparent 70%)' }}
-        />
+        <div aria-hidden className="absolute -top-10 -right-10 w-32 h-32 rounded-full opacity-25 pointer-events-none" style={{ background: 'radial-gradient(circle, var(--color-accent-amber) 0%, transparent 70%)' }} />
       )}
       <div className="relative">
         <div className="flex items-center justify-between mb-2">
           <span className="label-eyebrow">{eyebrow}</span>
-          <span
-            className="inline-flex items-center justify-center h-7 w-7 rounded-md"
-            style={{
-              background: 'var(--color-accent-soft)',
-              color: 'var(--color-accent-fg)',
-            }}
-          >
+          <span className="inline-flex items-center justify-center h-7 w-7 rounded-md" style={{ background: 'var(--color-accent-soft)', color: 'var(--color-accent-fg)' }}>
             {icon}
           </span>
         </div>
-        <p className="text-[22px] font-bold tracking-tight" style={{ color: accent }}>
-          {value}
-        </p>
-        {subtitle && (
-          <p className="text-[11px] text-[var(--color-fg-subtle)] mt-1 truncate">{subtitle}</p>
-        )}
+        <p className="text-[22px] font-bold tracking-tight" style={{ color: accent }}>{value}</p>
+        {subtitle && <p className="text-[11px] text-[var(--color-fg-subtle)] mt-1 truncate">{subtitle}</p>}
         {typeof progress === 'number' && (
           <div className="mt-3 h-1.5 rounded-full overflow-hidden" style={{ background: 'color-mix(in srgb, var(--color-fg) 8%, transparent)' }}>
-            <div
-              className="h-full rounded-full transition-all"
-              style={{
-                width: `${Math.max(0, Math.min(100, progress))}%`,
-                background: 'linear-gradient(90deg, var(--color-success), var(--color-accent-amber))',
-              }}
-            />
+            <div className="h-full rounded-full transition-all" style={{ width: `${Math.max(0, Math.min(100, progress))}%`, background: 'linear-gradient(90deg, var(--color-success), var(--color-accent-amber))' }} />
           </div>
         )}
       </div>
@@ -684,13 +547,7 @@ function ChartCard({
       <div className="flex items-start justify-between gap-3 mb-4">
         <div className="flex items-start gap-2 min-w-0">
           {icon && (
-            <span
-              className="inline-flex items-center justify-center h-7 w-7 rounded-md shrink-0 mt-0.5"
-              style={{
-                background: 'var(--color-accent-soft)',
-                color: 'var(--color-accent-fg)',
-              }}
-            >
+            <span className="inline-flex items-center justify-center h-7 w-7 rounded-md shrink-0 mt-0.5" style={{ background: 'var(--color-accent-soft)', color: 'var(--color-accent-fg)' }}>
               {icon}
             </span>
           )}

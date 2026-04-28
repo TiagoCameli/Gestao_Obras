@@ -5,6 +5,7 @@ import { useInsumos } from '../../hooks/useInsumos';
 import { formatCurrency } from '../../utils/formatters';
 import Card from '../ui/Card';
 import FreteAnalyticsOverview from './FreteAnalyticsOverview';
+import type { CrossFilters } from './crossFilterTypes';
 
 function FilterMultiSelect({
   options,
@@ -198,27 +199,72 @@ export default function FreteDashboard({
   const [mtMaterialFiltro, setMtMaterialFiltro] = useState<string[]>([]);
   const [mtDestinoFiltro, setMtDestinoFiltro] = useState<string[]>([]);
 
-  // ── Filtrar por período ──
+  // ── Cross-filtering tipo Power BI ─────────────────────────────────
+  // Cada visualização aplica todos os cross-filters EXCETO o da própria
+  // dimensão (assim o chart clicado mostra todas as barras + destaca a
+  // selecionada). Clique de novo desmarca.
+  const [crossFilters, setCrossFilters] = useState<CrossFilters>({});
+  const toggleCross = (dim: keyof CrossFilters, value: string) => {
+    setCrossFilters((prev) => (prev[dim] === value ? { ...prev, [dim]: undefined } : { ...prev, [dim]: value }));
+  };
+  const clearCross = (dim?: keyof CrossFilters) => {
+    if (!dim) setCrossFilters({});
+    else setCrossFilters((prev) => ({ ...prev, [dim]: undefined }));
+  };
+
+  // ── Filtrar por período + obra (filtros globais do topo) ──────────
   const inRange = (d: string) => {
     if (!d) return true;
     if (dataInicio && d < dataInicio) return false;
     if (dataFim && d > dataFim) return false;
     return true;
   };
-  const fretesF = fretes.filter((f) => {
+  const fretesBase = fretes.filter((f) => {
     if (!inRange(f.data)) return false;
     if (obraIdFiltro && f.obraId !== obraIdFiltro) return false;
     return true;
   });
-  const pagamentosF = pagamentos.filter((p) => {
-    const mr = p.mesReferencia; // "YYYY-MM"
+  const pagamentosBase = pagamentos.filter((p) => {
+    const mr = p.mesReferencia;
     if (!mr) return true;
     if (dataInicio && mr < dataInicio.slice(0, 7)) return false;
     if (dataFim && mr > dataFim.slice(0, 7)) return false;
     return true;
   });
-  const abastCarretaF = abastecimentosCarreta.filter((a) => inRange(a.data));
-  const pedidosF = pedidosMaterial.filter((p) => inRange(p.data));
+  const abastCarretaBase = abastecimentosCarreta.filter((a) => inRange(a.data));
+  const pedidosBase = pedidosMaterial.filter((p) => inRange(p.data));
+
+  // Helpers de cross-filtering
+  const applyCrossFretes = (items: Frete[], except?: keyof CrossFilters) =>
+    items.filter((f) => {
+      if (except !== 'transportadora' && crossFilters.transportadora && f.transportadora?.trim() !== crossFilters.transportadora) return false;
+      if (except !== 'obraId' && crossFilters.obraId && f.obraId !== crossFilters.obraId) return false;
+      if (except !== 'insumoId' && crossFilters.insumoId && f.insumoId !== crossFilters.insumoId) return false;
+      if (except !== 'origem' && crossFilters.origem && f.origem?.trim() !== crossFilters.origem) return false;
+      if (except !== 'destino' && crossFilters.destino && f.destino?.trim() !== crossFilters.destino) return false;
+      if (except !== 'mes' && crossFilters.mes && (f.data || '').slice(0, 7) !== crossFilters.mes) return false;
+      return true;
+    });
+  const applyCrossPag = (items: PagamentoFrete[], except?: keyof CrossFilters) =>
+    items.filter((p) => {
+      if (except !== 'transportadora' && crossFilters.transportadora && p.transportadora?.trim() !== crossFilters.transportadora) return false;
+      if (except !== 'metodo' && crossFilters.metodo && p.metodo !== crossFilters.metodo) return false;
+      if (except !== 'pagoPor' && crossFilters.pagoPor && p.pagoPor?.trim() !== crossFilters.pagoPor) return false;
+      if (except !== 'mes' && crossFilters.mes && (p.mesReferencia || '') !== crossFilters.mes) return false;
+      return true;
+    });
+  const applyCrossAbast = (items: AbastecimentoCarreta[], except?: keyof CrossFilters) =>
+    items.filter((a) => {
+      if (except !== 'transportadora' && crossFilters.transportadora && a.transportadora?.trim() !== crossFilters.transportadora) return false;
+      if (except !== 'mes' && crossFilters.mes && (a.data || '').slice(0, 7) !== crossFilters.mes) return false;
+      return true;
+    });
+
+  // Versões totalmente cross-filtradas (usadas por todas as tabelas/saldos abaixo)
+  const fretesF = applyCrossFretes(fretesBase);
+  const pagamentosF = applyCrossPag(pagamentosBase);
+  const abastCarretaF = applyCrossAbast(abastCarretaBase);
+  const pedidosF = pedidosBase;
 
   const obrasMap = new Map(obras.map((o) => [o.id, o.nome]));
   const { data: insumosData } = useInsumos();
@@ -646,6 +692,29 @@ export default function FreteDashboard({
     })
     .sort((a, b) => a.material.localeCompare(b.material));
 
+  // Labels dos cross-filters ativos pra barra de chips
+  const activeCrossChips = (Object.keys(crossFilters) as (keyof CrossFilters)[])
+    .filter((dim) => crossFilters[dim])
+    .map((dim) => {
+      const value = crossFilters[dim] as string;
+      let label: string = value;
+      if (dim === 'obraId') label = obrasMap.get(value) || value;
+      else if (dim === 'insumoId') label = insumosMap.get(value) || value;
+      else if (dim === 'mes') {
+        const [ano, mes] = value.split('-');
+        const meses = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+        label = `${meses[parseInt(mes, 10) - 1]}/${ano}`;
+      } else if (dim === 'metodo') {
+        const m: Record<string, string> = { pix: 'Pix', boleto: 'Boleto', cheque: 'Cheque', dinheiro: 'Dinheiro', transferencia: 'Transferência', combustivel: 'Combustível' };
+        label = m[value] || value;
+      }
+      const dimLabels: Record<keyof CrossFilters, string> = {
+        transportadora: 'Transportadora', obraId: 'Obra', insumoId: 'Material',
+        origem: 'Pedreira', destino: 'Destino', mes: 'Mês', metodo: 'Método', pagoPor: 'Pago por',
+      };
+      return { dim, value, label, dimLabel: dimLabels[dim] };
+    });
+
   return (
     <div className="space-y-8">
       {/* Filtros */}
@@ -690,6 +759,37 @@ export default function FreteDashboard({
           </button>
         )}
       </div>
+
+      {/* Barra de cross-filters ativos (PBI-style) */}
+      {activeCrossChips.length > 0 && (
+        <div className="flex flex-wrap items-center gap-2 -mt-4">
+          <span className="label-eyebrow shrink-0">Filtros ativos:</span>
+          {activeCrossChips.map((c) => (
+            <button
+              key={c.dim}
+              type="button"
+              onClick={() => clearCross(c.dim)}
+              className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium transition-colors hover:opacity-80"
+              style={{
+                background: 'var(--color-accent-soft)',
+                color: 'var(--color-accent-fg)',
+                border: '1px solid color-mix(in srgb, var(--color-accent) 40%, transparent)',
+              }}
+            >
+              <span className="opacity-70">{c.dimLabel}:</span>
+              <span className="truncate max-w-[160px]">{c.label}</span>
+              <span aria-hidden className="text-[var(--color-fg-muted)] hover:text-[var(--color-danger)]">×</span>
+            </button>
+          ))}
+          <button
+            type="button"
+            onClick={() => clearCross()}
+            className="text-xs text-[var(--color-danger)] hover:text-[var(--color-danger-fg)] font-medium ml-1"
+          >
+            Limpar todos
+          </button>
+        </div>
+      )}
 
       {/* Cards resumo - fileira 1 */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -783,10 +883,15 @@ export default function FreteDashboard({
 
       {/* ── Analytics Overview: KPIs + gráficos interativos ── */}
       <FreteAnalyticsOverview
-        fretes={fretesF}
-        pagamentos={pagamentosF}
+        fretesBase={fretesBase}
+        pagamentosBase={pagamentosBase}
+        abastBase={abastCarretaBase}
         obrasMap={obrasMap}
         insumosMap={insumosMap}
+        crossFilters={crossFilters}
+        onToggle={toggleCross}
+        applyCrossFretes={applyCrossFretes}
+        applyCrossPag={applyCrossPag}
       />
 
       {/* Gasto por transportadora com saldo */}
