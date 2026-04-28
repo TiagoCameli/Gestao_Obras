@@ -4,6 +4,7 @@ import type { Frete, PagamentoFrete, AbastecimentoCarreta, Obra, PedidoMaterial,
 import { useInsumos } from '../../hooks/useInsumos';
 import { formatCurrency } from '../../utils/formatters';
 import Card from '../ui/Card';
+import FreteAnalyticsOverview from './FreteAnalyticsOverview';
 
 function FilterMultiSelect({
   options,
@@ -779,6 +780,14 @@ export default function FreteDashboard({
           onClick={() => goSaldo('emt-transportes')}
         />
       </div>
+
+      {/* ── Analytics Overview: KPIs + gráficos interativos ── */}
+      <FreteAnalyticsOverview
+        fretes={fretesF}
+        pagamentos={pagamentosF}
+        obrasMap={obrasMap}
+        insumosMap={insumosMap}
+      />
 
       {/* Gasto por transportadora com saldo */}
       <Card>
