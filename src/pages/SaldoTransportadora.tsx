@@ -48,7 +48,7 @@ const SLUG_TO_TRANSPORTADORA: Record<string, { nome: string; transportadora: str
   triunfo: { nome: 'Triunfo', transportadora: 'Transportadora Triunfo' },
   andrade: { nome: 'Andrade Transporte', transportadora: 'Andrade Transporte' },
   etam: { nome: 'ETAM', transportadora: 'ETAM Construtora' },
-  'emt-transportes': { nome: 'EMT TRANSPORTES', transportadora: 'EMT Transportes' },
+  'emt-transportes': { nome: 'EMT TRANSPORTES', transportadora: 'EMT TRANSPORTES' },
 };
 
 const isEmtConsolidado = (s: string | undefined | null) => {
