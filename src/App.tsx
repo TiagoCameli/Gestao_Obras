@@ -18,6 +18,7 @@ import AcessoNegado from './pages/AcessoNegado';
 import NotFound from './pages/NotFound';
 import MigrarDados from './pages/MigrarDados';
 import RodoTrackerPage from './modules/rodotracker/RodoTrackerPage';
+import ApontamentoPage from './modules/apontamento/ApontamentoPage';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -32,6 +33,7 @@ const PAGINAS_FALLBACK: { acao: string; rota: string }[] = [
   { acao: 'ver_frota', rota: '/frota' },
   { acao: 'ver_funcionarios', rota: '/funcionarios' },
   { acao: 'ver_apontamentos', rota: '/apontamentos' },
+  { acao: 'ver_apontamento_rh', rota: '/apontamento' },
 ];
 
 function HomeRedirect() {
@@ -73,6 +75,7 @@ export default function App() {
               <Route path="/frota" element={<ProtectedRoute modulo="frota"><Frota /></ProtectedRoute>} />
               <Route path="/funcionarios" element={<ProtectedRoute modulo="funcionarios"><Funcionarios /></ProtectedRoute>} />
               <Route path="/apontamentos" element={<ProtectedRoute modulo="apontamentos"><Apontamentos /></ProtectedRoute>} />
+              <Route path="/apontamento" element={<ProtectedRoute modulo="apontamento_rh"><ApontamentoPage /></ProtectedRoute>} />
               <Route path="/migrar-dados" element={<MigrarDados />} />
               <Route path="/acesso-negado" element={<AcessoNegado />} />
               <Route path="*" element={<NotFound />} />

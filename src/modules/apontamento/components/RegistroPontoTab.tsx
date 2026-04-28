@@ -1,0 +1,959 @@
+import { useEffect, useMemo, useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import Button from "../../../components/ui/Button";
+import Select from "../../../components/ui/Select";
+import Input from "../../../components/ui/Input";
+import Modal from "../../../components/ui/Modal";
+import ConfirmDialog from "../../../components/ui/ConfirmDialog";
+import {
+  useEquipesApont,
+  useFuncionarios,
+  useObrasApont,
+} from "../hooks/useApontamentoData";
+import {
+  aprovarBatidaManual,
+  aprovarPontoDia,
+  atualizarHoraBatida,
+  excluirBatida,
+  getAprovacaoDia,
+  getFotoPontoUrls,
+  listPendenciasSaida,
+  listRegistrosDoDia,
+  reabrirPontoDia,
+  registrarBatida,
+  rejeitarBatidaManual,
+  type RegistroPonto,
+  type TipoBatida,
+} from "../utils/pontoApi";
+import { compararFace } from "../utils/faceRecognition";
+import { getFotoUrls } from "../utils/apontamentoApi";
+import CapturaFotoModal from "./CapturaFotoModal";
+import type { Funcionario } from "../types/funcionario";
+
+const TIPO_BATIDA_LABEL: Record<TipoBatida, string> = {
+  entrada: "Entrada",
+  saida_almoco: "Saída p/ almoço",
+  retorno_almoco: "Retorno do almoço",
+  saida_final: "Saída final",
+};
+
+type StatusFunc =
+  | "aguardando"
+  | "presente"
+  | "em_almoco"
+  | "retornou"
+  | "saiu"
+  | "manual_pendente";
+
+const STATUS_INFO: Record<StatusFunc, { label: string; cor: string; emoji: string }> = {
+  aguardando: { label: "Aguardando entrada", cor: "text-blue-400", emoji: "🔵" },
+  presente: { label: "Presente", cor: "text-emerald-400", emoji: "🟢" },
+  em_almoco: { label: "Em almoço", cor: "text-amber-400", emoji: "🟡" },
+  retornou: { label: "Retornou do almoço", cor: "text-orange-400", emoji: "🟠" },
+  saiu: { label: "Saiu", cor: "text-zinc-400", emoji: "⚫" },
+  manual_pendente: {
+    label: "Lançamento manual pendente",
+    cor: "text-purple-400",
+    emoji: "🟣",
+  },
+};
+
+function statusDoFuncionario(rs: RegistroPonto[]): StatusFunc {
+  const aprov = rs.filter((r) => r.statusAprovacao !== "rejeitado");
+  if (aprov.some((r) => r.statusAprovacao === "pendente_aprovacao"))
+    return "manual_pendente";
+  if (aprov.some((r) => r.tipoBatida === "saida_final")) return "saiu";
+  if (aprov.some((r) => r.tipoBatida === "retorno_almoco")) return "retornou";
+  if (aprov.some((r) => r.tipoBatida === "saida_almoco")) return "em_almoco";
+  if (aprov.some((r) => r.tipoBatida === "entrada")) return "presente";
+  return "aguardando";
+}
+
+function hojeIso() {
+  return new Date().toISOString().slice(0, 10);
+}
+
+export default function RegistroPontoTab() {
+  const qc = useQueryClient();
+  const { data: obras = [] } = useObrasApont();
+  const [obraId, setObraId] = useState<string>("");
+  const { data: equipes = [] } = useEquipesApont(obraId || undefined);
+  const [equipeId, setEquipeId] = useState<string>("");
+  const [data, setData] = useState<string>(hojeIso());
+
+  const { data: funcionarios = [] } = useFuncionarios();
+  const funcsDaEquipe = useMemo(
+    () =>
+      funcionarios.filter(
+        (f) => f.equipeId === equipeId && f.status === "ativo"
+      ),
+    [funcionarios, equipeId]
+  );
+
+  const registrosKey = ["apont", "registros", equipeId, data] as const;
+  const { data: registros = [], isLoading: loadingRegs } = useQuery({
+    queryKey: registrosKey,
+    queryFn: () => listRegistrosDoDia(equipeId, data),
+    enabled: !!equipeId && !!data,
+  });
+
+  const aprovKey = ["apont", "aprovacao-dia", equipeId, data] as const;
+  const { data: aprovacao } = useQuery({
+    queryKey: aprovKey,
+    queryFn: () => getAprovacaoDia(equipeId, data),
+    enabled: !!equipeId && !!data,
+  });
+
+  const pendenciasKey = ["apont", "pendencias-saida", equipeId] as const;
+  const { data: pendencias = [] } = useQuery({
+    queryKey: pendenciasKey,
+    queryFn: () => listPendenciasSaida(equipeId, 30),
+    enabled: !!equipeId,
+  });
+
+  const registrosPorFunc = useMemo(() => {
+    const m: Record<string, RegistroPonto[]> = {};
+    registros.forEach((r) => {
+      (m[r.funcionarioId] ??= []).push(r);
+    });
+    return m;
+  }, [registros]);
+
+  // Modal de captura
+  const [capturando, setCapturando] = useState<{
+    funcionario: Funcionario;
+    tipo: TipoBatida;
+  } | null>(null);
+
+  // Modal de lançamento manual
+  const [manualPara, setManualPara] = useState<Funcionario | null>(null);
+
+  // Aprovação do dia
+  const [confirmandoAprov, setConfirmandoAprov] = useState(false);
+
+  // Lightbox de foto da batida
+  const [vendoFoto, setVendoFoto] = useState<RegistroPonto | null>(null);
+
+  // Editar hora
+  const [editandoHora, setEditandoHora] = useState<RegistroPonto | null>(null);
+
+  // Excluir batida
+  const [excluindoBatida, setExcluindoBatida] = useState<RegistroPonto | null>(
+    null
+  );
+
+  // Pré-resolve signed URLs das fotos do dia (cache local)
+  const [fotosUrl, setFotosUrl] = useState<Record<string, string>>({});
+  useEffect(() => {
+    const paths = registros.map((r) => r.foto).filter(Boolean) as string[];
+    if (paths.length === 0) {
+      setFotosUrl({});
+      return;
+    }
+    let alive = true;
+    getFotoPontoUrls(paths).then((m) => {
+      if (alive) setFotosUrl(m);
+    });
+    return () => {
+      alive = false;
+    };
+  }, [registros]);
+
+  const congelado = !!aprovacao;
+
+  async function handleCapture(
+    dataUrl: string,
+    pos: GeolocationCoordinates | null
+  ) {
+    if (!capturando) return;
+    try {
+      await registrarBatida({
+        funcionarioId: capturando.funcionario.id,
+        tipoBatida: capturando.tipo,
+        data,
+        latitude: pos?.latitude ?? null,
+        longitude: pos?.longitude ?? null,
+        fotoDataUrl: dataUrl,
+        origem: "automatico",
+      });
+      qc.invalidateQueries({ queryKey: registrosKey });
+      qc.invalidateQueries({ queryKey: pendenciasKey });
+      setCapturando(null);
+    } catch (e) {
+      alert("Falha ao registrar: " + (e instanceof Error ? e.message : String(e)));
+    }
+  }
+
+  async function validarFace(dataUrl: string) {
+    if (!capturando) return { match: false, distancia: 1, threshold: 0.55 };
+    const refs = capturando.funcionario.fotosReferenciaFacial ?? [];
+    if (refs.length === 0) {
+      // Sem referência cadastrada: deixa passar mas alerta
+      return { match: true, distancia: 0, threshold: 0.55 };
+    }
+    const refsUrls = await getFotoUrls(refs);
+    return compararFace(dataUrl, Object.values(refsUrls));
+  }
+
+  if (obras.length === 0) {
+    return (
+      <p className="py-12 text-center text-sm text-[var(--color-fg-subtle)]">
+        Cadastre obras no módulo Medição antes de registrar ponto.
+      </p>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <Select
+          label="Obra"
+          options={obras.map((o) => ({ value: o.id, label: o.nome }))}
+          value={obraId}
+          onChange={(e) => {
+            setObraId(e.target.value);
+            setEquipeId("");
+          }}
+        />
+        <Select
+          label="Equipe"
+          options={equipes.map((eq) => ({ value: eq.id, label: eq.nome }))}
+          value={equipeId}
+          onChange={(e) => setEquipeId(e.target.value)}
+          disabled={!obraId}
+        />
+        <Input
+          label="Data"
+          type="date"
+          value={data}
+          onChange={(e) => setData(e.target.value)}
+        />
+      </div>
+
+      {equipeId && pendencias.length > 0 && (
+        <PendenciasSaida
+          pendencias={pendencias}
+          funcionarios={funcsDaEquipe}
+          onIrPara={(p) => {
+            setData(p.data);
+          }}
+          onLancarManual={(p) => {
+            const f = funcsDaEquipe.find((x) => x.id === p.funcionarioId);
+            if (f) {
+              setData(p.data);
+              setManualPara(f);
+            }
+          }}
+        />
+      )}
+
+      {!equipeId ? (
+        <p className="py-8 text-center text-sm text-[var(--color-fg-subtle)]">
+          Selecione obra e equipe.
+        </p>
+      ) : loadingRegs ? (
+        <p className="py-8 text-center text-sm text-[var(--color-fg-subtle)]">
+          Carregando...
+        </p>
+      ) : funcsDaEquipe.length === 0 ? (
+        <p className="py-8 text-center text-sm text-[var(--color-fg-subtle)]">
+          Nenhum funcionário ativo nesta equipe.
+        </p>
+      ) : (
+        <>
+          {congelado && (
+            <div className="rounded-lg border border-emerald-500/40 bg-emerald-500/10 px-4 py-3 text-sm flex items-center justify-between">
+              <span className="text-emerald-300">
+                ✓ Ponto deste dia aprovado em{" "}
+                {new Date(aprovacao!.aprovadoEm).toLocaleString("pt-BR")}
+              </span>
+              <button
+                onClick={async () => {
+                  if (
+                    !confirm(
+                      "Reabrir o ponto deste dia? Será removida a aprovação."
+                    )
+                  )
+                    return;
+                  await reabrirPontoDia(equipeId, data);
+                  qc.invalidateQueries({ queryKey: aprovKey });
+                }}
+                className="text-xs underline text-[var(--color-fg-muted)]"
+              >
+                Reabrir
+              </button>
+            </div>
+          )}
+
+          <div className="space-y-2">
+            {funcsDaEquipe.map((f) => {
+              const rs = registrosPorFunc[f.id] ?? [];
+              const status = statusDoFuncionario(rs);
+              const info = STATUS_INFO[status];
+              const ultima = rs[rs.length - 1];
+              return (
+                <article
+                  key={f.id}
+                  className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-1)] p-3"
+                >
+                  <header className="flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <Avatar funcionario={f} />
+                      <div className="min-w-0">
+                        <div className="font-medium text-[var(--color-fg)] truncate">
+                          {f.nome}
+                        </div>
+                        <div className="text-xs">
+                          <span className={info.cor}>
+                            {info.emoji} {info.label}
+                          </span>
+                          {ultima && (
+                            <span className="text-[var(--color-fg-subtle)] ml-2">
+                              · última batida{" "}
+                              {new Date(ultima.hora).toLocaleTimeString("pt-BR", {
+                                hour: "2-digit",
+                                minute: "2-digit",
+                              })}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </header>
+
+                  <BatidasList
+                    registros={rs}
+                    fotosUrl={fotosUrl}
+                    podeEditar={!congelado}
+                    onVerFoto={(r) => setVendoFoto(r)}
+                    onEditarHora={(r) => setEditandoHora(r)}
+                    onExcluir={(r) => setExcluindoBatida(r)}
+                    onAprovar={async (id) => {
+                      await aprovarBatidaManual(id);
+                      qc.invalidateQueries({ queryKey: registrosKey });
+                    }}
+                    onRejeitar={async (id) => {
+                      await rejeitarBatidaManual(id);
+                      qc.invalidateQueries({ queryKey: registrosKey });
+                    }}
+                  />
+
+                  {!congelado && (
+                    <AcoesFuncionario
+                      status={status}
+                      onCapturar={(tipo) => setCapturando({ funcionario: f, tipo })}
+                      onLancarManual={() => setManualPara(f)}
+                    />
+                  )}
+                </article>
+              );
+            })}
+          </div>
+
+          {!congelado && (
+            <div className="pt-3 border-t border-[var(--color-border)] flex justify-end">
+              <Button onClick={() => setConfirmandoAprov(true)}>
+                Aprovar ponto do dia
+              </Button>
+            </div>
+          )}
+        </>
+      )}
+
+      <CapturaFotoModal
+        open={capturando !== null}
+        title={
+          capturando
+            ? `${TIPO_BATIDA_LABEL[capturando.tipo]} — ${capturando.funcionario.nome}`
+            : ""
+        }
+        onCancel={() => setCapturando(null)}
+        onCapture={handleCapture}
+        validarFace={capturando ? validarFace : undefined}
+      />
+
+      <LancamentoManualModal
+        funcionario={manualPara}
+        data={data}
+        onClose={() => setManualPara(null)}
+        onSaved={() => {
+          qc.invalidateQueries({ queryKey: registrosKey });
+          setManualPara(null);
+        }}
+      />
+
+      <FotoBatidaModal
+        registro={vendoFoto}
+        url={vendoFoto?.foto ? fotosUrl[vendoFoto.foto] ?? null : null}
+        onClose={() => setVendoFoto(null)}
+      />
+
+      <EditarHoraModal
+        registro={editandoHora}
+        onClose={() => setEditandoHora(null)}
+        onSaved={() => {
+          qc.invalidateQueries({ queryKey: registrosKey });
+          setEditandoHora(null);
+        }}
+      />
+
+      <ConfirmDialog
+        open={excluindoBatida !== null}
+        onClose={() => setExcluindoBatida(null)}
+        onConfirm={async () => {
+          if (!excluindoBatida) return;
+          await excluirBatida(excluindoBatida.id);
+          qc.invalidateQueries({ queryKey: registrosKey });
+          setExcluindoBatida(null);
+        }}
+        title="Excluir batida"
+        message={
+          excluindoBatida
+            ? `Excluir a batida "${
+                TIPO_BATIDA_LABEL[excluindoBatida.tipoBatida]
+              }" registrada às ${new Date(
+                excluindoBatida.hora
+              ).toLocaleTimeString("pt-BR", {
+                hour: "2-digit",
+                minute: "2-digit",
+              })}? A foto também será removida.`
+            : ""
+        }
+      />
+
+      <ConfirmDialog
+        open={confirmandoAprov}
+        onClose={() => setConfirmandoAprov(false)}
+        onConfirm={async () => {
+          await aprovarPontoDia(equipeId, data);
+          qc.invalidateQueries({ queryKey: aprovKey });
+          setConfirmandoAprov(false);
+        }}
+        title="Aprovar ponto do dia"
+        message="Após aprovação os registros do dia ficam travados. Confirma?"
+      />
+    </div>
+  );
+}
+
+function PendenciasSaida({
+  pendencias,
+  funcionarios,
+  onIrPara,
+  onLancarManual,
+}: {
+  pendencias: { funcionarioId: string; data: string; entradaHora: string }[];
+  funcionarios: Funcionario[];
+  onIrPara: (p: { funcionarioId: string; data: string; entradaHora: string }) => void;
+  onLancarManual: (p: {
+    funcionarioId: string;
+    data: string;
+    entradaHora: string;
+  }) => void;
+}) {
+  const nome = useMemo(
+    () => Object.fromEntries(funcionarios.map((f) => [f.id, f.nome])),
+    [funcionarios]
+  );
+
+  return (
+    <section className="rounded-xl border border-amber-500/40 bg-amber-500/5 p-3">
+      <h3 className="text-xs font-semibold uppercase tracking-wider text-amber-300 mb-2">
+        Saídas pendentes ({pendencias.length})
+      </h3>
+      <ul className="divide-y divide-[var(--color-border)] text-sm">
+        {pendencias.map((p) => (
+          <li
+            key={`${p.funcionarioId}:${p.data}`}
+            className="py-2 flex items-center gap-3 flex-wrap"
+          >
+            <span className="font-mono text-xs text-[var(--color-fg-muted)]">
+              {p.data.split("-").reverse().join("/")}
+            </span>
+            <span className="font-medium text-[var(--color-fg)]">
+              {nome[p.funcionarioId] ?? "—"}
+            </span>
+            <span className="text-xs text-[var(--color-fg-muted)]">
+              entrou às{" "}
+              {new Date(p.entradaHora).toLocaleTimeString("pt-BR", {
+                hour: "2-digit",
+                minute: "2-digit",
+              })}{" "}
+              · sem saída final
+            </span>
+            <span className="ml-auto flex gap-1">
+              <button
+                onClick={() => onIrPara(p)}
+                className="text-xs px-2 py-1 rounded hover:bg-[var(--color-surface-2)] text-[var(--color-fg-muted)] hover:text-[var(--color-fg)]"
+              >
+                Abrir o dia
+              </button>
+              <button
+                onClick={() => onLancarManual(p)}
+                className="text-xs px-2 py-1 rounded hover:bg-[var(--color-surface-2)] text-[var(--color-accent)]"
+              >
+                Lançar saída
+              </button>
+            </span>
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}
+
+function Avatar({ funcionario }: { funcionario: Funcionario }) {
+  const [url, setUrl] = useState<string | null>(null);
+  useEffect(() => {
+    if (!funcionario.fotoPerfil) return;
+    let alive = true;
+    getFotoUrls([funcionario.fotoPerfil]).then((map) => {
+      if (alive && map[funcionario.fotoPerfil!])
+        setUrl(map[funcionario.fotoPerfil!]);
+    });
+    return () => {
+      alive = false;
+    };
+  }, [funcionario.fotoPerfil]);
+
+  if (url) {
+    return (
+      <img
+        src={url}
+        alt={funcionario.nome}
+        className="w-10 h-10 rounded-full object-cover border border-[var(--color-border)]"
+      />
+    );
+  }
+  return (
+    <div className="w-10 h-10 rounded-full bg-[var(--color-surface-2)] border border-[var(--color-border)] flex items-center justify-center text-xs text-[var(--color-fg-subtle)]">
+      {funcionario.nome.charAt(0).toUpperCase()}
+    </div>
+  );
+}
+
+function BatidasList({
+  registros,
+  fotosUrl,
+  podeEditar,
+  onVerFoto,
+  onEditarHora,
+  onExcluir,
+  onAprovar,
+  onRejeitar,
+}: {
+  registros: RegistroPonto[];
+  fotosUrl: Record<string, string>;
+  podeEditar: boolean;
+  onVerFoto: (r: RegistroPonto) => void;
+  onEditarHora: (r: RegistroPonto) => void;
+  onExcluir: (r: RegistroPonto) => void;
+  onAprovar: (id: string) => Promise<void>;
+  onRejeitar: (id: string) => Promise<void>;
+}) {
+  if (registros.length === 0) return null;
+  return (
+    <div className="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-1.5 text-xs">
+      {registros.map((r) => {
+        const url = r.foto ? fotosUrl[r.foto] : null;
+        return (
+          <div
+            key={r.id}
+            className="flex items-center gap-2 text-[var(--color-fg-muted)]"
+          >
+            {r.foto ? (
+              <button
+                type="button"
+                onClick={() => onVerFoto(r)}
+                title="Ver foto"
+                className="w-8 h-8 rounded border border-[var(--color-border)] overflow-hidden bg-[var(--color-surface-2)] flex-shrink-0 hover:ring-2 hover:ring-[var(--color-accent)]/50 transition"
+              >
+                {url ? (
+                  <img
+                    src={url}
+                    alt="batida"
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <span className="text-[10px]">📷</span>
+                )}
+              </button>
+            ) : (
+              <span className="w-8 h-8 rounded border border-dashed border-[var(--color-border)] flex items-center justify-center text-[10px] text-[var(--color-fg-subtle)]">
+                —
+              </span>
+            )}
+            <span className="font-mono">
+              {new Date(r.hora).toLocaleTimeString("pt-BR", {
+                hour: "2-digit",
+                minute: "2-digit",
+              })}
+            </span>
+            <span>{TIPO_BATIDA_LABEL[r.tipoBatida]}</span>
+            {r.origem === "manual" && (
+              <span
+                className={
+                  "px-1.5 py-0.5 rounded text-[10px] font-medium " +
+                  (r.statusAprovacao === "pendente_aprovacao"
+                    ? "bg-purple-500/20 text-purple-300"
+                    : r.statusAprovacao === "rejeitado"
+                    ? "bg-rose-500/20 text-rose-300"
+                    : "bg-emerald-500/20 text-emerald-300")
+                }
+              >
+                manual · {r.statusAprovacao.replace("_", " ")}
+              </span>
+            )}
+            {r.statusAprovacao === "pendente_aprovacao" && (
+              <>
+                <button
+                  onClick={() => onAprovar(r.id)}
+                  className="text-[10px] text-emerald-400 hover:underline"
+                >
+                  aprovar
+                </button>
+                <button
+                  onClick={() => onRejeitar(r.id)}
+                  className="text-[10px] text-rose-400 hover:underline"
+                >
+                  rejeitar
+                </button>
+              </>
+            )}
+            {podeEditar && (
+              <span className="ml-auto flex gap-1">
+                <button
+                  onClick={() => onEditarHora(r)}
+                  title="Alterar hora"
+                  className="text-[10px] text-[var(--color-fg-muted)] hover:text-[var(--color-accent)] px-1.5 py-0.5 rounded hover:bg-[var(--color-surface-2)]"
+                >
+                  ✎
+                </button>
+                <button
+                  onClick={() => onExcluir(r)}
+                  title="Excluir batida"
+                  className="text-[10px] text-[var(--color-fg-muted)] hover:text-[var(--color-danger)] px-1.5 py-0.5 rounded hover:bg-[var(--color-surface-2)]"
+                >
+                  ✕
+                </button>
+              </span>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function EditarHoraModal({
+  registro,
+  onClose,
+  onSaved,
+}: {
+  registro: RegistroPonto | null;
+  onClose: () => void;
+  onSaved: () => void;
+}) {
+  const [hora, setHora] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (registro) {
+      const d = new Date(registro.hora);
+      const hh = String(d.getHours()).padStart(2, "0");
+      const mm = String(d.getMinutes()).padStart(2, "0");
+      setHora(`${hh}:${mm}`);
+    }
+  }, [registro]);
+
+  return (
+    <Modal
+      open={registro !== null}
+      onClose={onClose}
+      title={
+        registro
+          ? `Alterar hora — ${TIPO_BATIDA_LABEL[registro.tipoBatida]}`
+          : ""
+      }
+    >
+      {registro && (
+        <form
+          onSubmit={async (e) => {
+            e.preventDefault();
+            if (!hora) return;
+            setSaving(true);
+            try {
+              const novaIso = new Date(`${registro.data}T${hora}:00`).toISOString();
+              await atualizarHoraBatida(registro.id, novaIso);
+              onSaved();
+            } catch (err) {
+              alert(
+                "Falha: " + (err instanceof Error ? err.message : String(err))
+              );
+            } finally {
+              setSaving(false);
+            }
+          }}
+          className="space-y-4"
+        >
+          <Input
+            label="Nova hora"
+            type="time"
+            value={hora}
+            onChange={(e) => setHora(e.target.value)}
+            required
+          />
+          <p className="text-xs text-[var(--color-fg-subtle)]">
+            Hora atual:{" "}
+            {new Date(registro.hora).toLocaleTimeString("pt-BR", {
+              hour: "2-digit",
+              minute: "2-digit",
+            })}
+            . A foto e o GPS originais são preservados.
+          </p>
+          <div className="flex justify-end gap-2 pt-2 border-t border-[var(--color-border)]">
+            <Button variant="secondary" type="button" onClick={onClose}>
+              Cancelar
+            </Button>
+            <Button type="submit" disabled={saving}>
+              {saving ? "Salvando..." : "Salvar"}
+            </Button>
+          </div>
+        </form>
+      )}
+    </Modal>
+  );
+}
+
+function FotoBatidaModal({
+  registro,
+  url,
+  onClose,
+}: {
+  registro: RegistroPonto | null;
+  url: string | null;
+  onClose: () => void;
+}) {
+  return (
+    <Modal
+      open={registro !== null}
+      onClose={onClose}
+      title={
+        registro
+          ? `${TIPO_BATIDA_LABEL[registro.tipoBatida]} · ${new Date(
+              registro.hora
+            ).toLocaleString("pt-BR")}`
+          : ""
+      }
+      size="lg"
+    >
+      {registro && (
+        <div className="space-y-3">
+          {url ? (
+            <img
+              src={url}
+              alt="foto da batida"
+              className="w-full max-h-[70vh] object-contain rounded-lg bg-black"
+            />
+          ) : (
+            <p className="text-sm text-[var(--color-fg-subtle)] text-center py-8">
+              Foto não disponível.
+            </p>
+          )}
+          <div className="text-xs text-[var(--color-fg-muted)] flex flex-wrap gap-x-4 gap-y-1">
+            {registro.latitude != null && registro.longitude != null && (
+              <span>
+                📍 {registro.latitude.toFixed(5)},{" "}
+                {registro.longitude.toFixed(5)}
+              </span>
+            )}
+            <span>
+              Origem: {registro.origem === "manual" ? "Manual" : "Automático"}
+            </span>
+            <span>Status: {registro.statusAprovacao.replace("_", " ")}</span>
+          </div>
+        </div>
+      )}
+    </Modal>
+  );
+}
+
+function AcoesFuncionario({
+  status,
+  onCapturar,
+  onLancarManual,
+}: {
+  status: StatusFunc;
+  onCapturar: (tipo: TipoBatida) => void;
+  onLancarManual: () => void;
+}) {
+  // Define quais batidas fazem sentido pelo estado atual
+  const podeEntrar = status === "aguardando";
+  const podeAlmoco = status === "presente";
+  const podeRetorno = status === "em_almoco";
+  const podeSair =
+    status === "presente" || status === "retornou" || status === "em_almoco";
+
+  return (
+    <div className="mt-3 flex flex-wrap gap-2">
+      {podeEntrar && (
+        <BotaoBatida onClick={() => onCapturar("entrada")} variant="primary">
+          Registrar entrada
+        </BotaoBatida>
+      )}
+      {podeAlmoco && (
+        <BotaoBatida onClick={() => onCapturar("saida_almoco")}>
+          Saída almoço
+        </BotaoBatida>
+      )}
+      {podeRetorno && (
+        <BotaoBatida onClick={() => onCapturar("retorno_almoco")}>
+          Retorno do almoço
+        </BotaoBatida>
+      )}
+      {podeSair && (
+        <BotaoBatida onClick={() => onCapturar("saida_final")}>
+          Saída final
+        </BotaoBatida>
+      )}
+      <BotaoBatida onClick={onLancarManual} variant="ghost">
+        Lançar manual
+      </BotaoBatida>
+    </div>
+  );
+}
+
+function BotaoBatida({
+  children,
+  onClick,
+  variant,
+}: {
+  children: React.ReactNode;
+  onClick: () => void;
+  variant?: "primary" | "ghost";
+}) {
+  const base =
+    "text-xs px-2.5 py-1.5 rounded-lg font-medium transition-colors";
+  const cls =
+    variant === "primary"
+      ? "bg-[var(--color-accent)] text-[var(--color-fg-on-accent)] hover:brightness-110"
+      : variant === "ghost"
+      ? "border border-[var(--color-border)] text-[var(--color-fg-muted)] hover:bg-[var(--color-surface-2)]"
+      : "bg-[var(--color-surface-2)] border border-[var(--color-border)] text-[var(--color-fg)] hover:border-[var(--color-border-strong)]";
+  return (
+    <button onClick={onClick} className={`${base} ${cls}`}>
+      {children}
+    </button>
+  );
+}
+
+function LancamentoManualModal({
+  funcionario,
+  data,
+  onClose,
+  onSaved,
+}: {
+  funcionario: Funcionario | null;
+  data: string;
+  onClose: () => void;
+  onSaved: () => void;
+}) {
+  const [tipo, setTipo] = useState<TipoBatida>("saida_final");
+  const [hora, setHora] = useState<string>("17:30");
+  const [motivo, setMotivo] = useState<string>("");
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (funcionario) {
+      setTipo("saida_final");
+      setHora("17:30");
+      setMotivo("");
+    }
+  }, [funcionario]);
+
+  return (
+    <Modal
+      open={funcionario !== null}
+      onClose={onClose}
+      title={funcionario ? `Lançar batida manual — ${funcionario.nome}` : ""}
+    >
+      {funcionario && (
+        <form
+          onSubmit={async (e) => {
+            e.preventDefault();
+            if (!motivo.trim()) {
+              alert("Justificativa é obrigatória.");
+              return;
+            }
+            setSaving(true);
+            try {
+              const horaIso = new Date(`${data}T${hora}:00`).toISOString();
+              await registrarBatida({
+                funcionarioId: funcionario.id,
+                data,
+                tipoBatida: tipo,
+                hora: horaIso,
+                latitude: null,
+                longitude: null,
+                origem: "manual",
+                motivoManual: motivo.trim(),
+                statusAprovacao: "pendente_aprovacao",
+              });
+              onSaved();
+            } catch (err) {
+              alert(
+                "Falha: " + (err instanceof Error ? err.message : String(err))
+              );
+            } finally {
+              setSaving(false);
+            }
+          }}
+          className="space-y-4"
+        >
+          <Select
+            label="Tipo de batida"
+            options={(
+              [
+                "entrada",
+                "saida_almoco",
+                "retorno_almoco",
+                "saida_final",
+              ] as TipoBatida[]
+            ).map((t) => ({ value: t, label: TIPO_BATIDA_LABEL[t] }))}
+            value={tipo}
+            onChange={(e) => setTipo(e.target.value as TipoBatida)}
+          />
+          <Input
+            label="Hora"
+            type="time"
+            value={hora}
+            onChange={(e) => setHora(e.target.value)}
+          />
+          <div>
+            <label className="block text-xs font-medium text-[var(--color-fg-muted)] mb-1.5 tracking-wide">
+              Justificativa <span className="text-[var(--color-danger)]">*</span>
+            </label>
+            <textarea
+              value={motivo}
+              onChange={(e) => setMotivo(e.target.value)}
+              rows={3}
+              className="w-full rounded-lg px-3 py-2 text-sm bg-[var(--color-surface-1)] border border-[var(--color-border)] focus:outline-none focus:border-[var(--color-accent)]"
+              placeholder="Ex: esqueceu de bater saída, GPS sem sinal, etc."
+            />
+          </div>
+          <p className="text-xs text-[var(--color-fg-subtle)]">
+            O lançamento ficará pendente até aprovação do supervisor.
+          </p>
+          <div className="flex justify-end gap-2 pt-2 border-t border-[var(--color-border)]">
+            <Button variant="secondary" type="button" onClick={onClose}>
+              Cancelar
+            </Button>
+            <Button type="submit" disabled={saving}>
+              {saving ? "Salvando..." : "Lançar"}
+            </Button>
+          </div>
+        </form>
+      )}
+    </Modal>
+  );
+}
