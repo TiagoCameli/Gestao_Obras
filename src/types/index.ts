@@ -313,6 +313,7 @@ export interface FiltrosFrete {
   motorista: string;
   insumoId: string;
   origem: string;
+  destino: string;
   dataInicio: string;
   dataFim: string;
   notaFiscal: string;

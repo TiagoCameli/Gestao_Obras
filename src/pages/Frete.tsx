@@ -124,6 +124,7 @@ export default function Frete() {
     motorista: '',
     insumoId: '',
     origem: '',
+    destino: '',
     dataInicio: '',
     dataFim: '',
     notaFiscal: '',
@@ -138,6 +139,12 @@ export default function Frete() {
   // Extract unique origens (pedreiras) from fretes
   const origens = useMemo(() => {
     const set = new Set(fretes.map((f) => f.origem?.trim()).filter(Boolean));
+    return Array.from(set).sort() as string[];
+  }, [fretes]);
+
+  // Extract unique destinos (locais de entrega) from fretes
+  const destinos = useMemo(() => {
+    const set = new Set(fretes.map((f) => f.destino?.trim()).filter(Boolean));
     return Array.from(set).sort() as string[];
   }, [fretes]);
 
@@ -435,9 +442,10 @@ export default function Frete() {
               { key: 'motorista', label: 'Motorista', value: filtros.motorista, onChange: (v) => setFiltros((f) => ({ ...f, motorista: v })), options: motoristas.map((m) => ({ value: m, label: m })), placeholder: 'Todos os motoristas', collapsed: true },
               { key: 'insumoId', label: 'Material', value: filtros.insumoId, onChange: (v) => setFiltros((f) => ({ ...f, insumoId: v })), options: insumosAtivos.map((i) => ({ value: i.id, label: i.nome })), placeholder: 'Todos os materiais', collapsed: true },
               { key: 'origem', label: 'Pedreira', value: filtros.origem, onChange: (v) => setFiltros((f) => ({ ...f, origem: v })), options: origens.map((o) => ({ value: o, label: o })), placeholder: 'Todas as pedreiras', collapsed: true },
+              { key: 'destino', label: 'Local de Entrega', value: filtros.destino, onChange: (v) => setFiltros((f) => ({ ...f, destino: v })), options: destinos.map((d) => ({ value: d, label: d })), placeholder: 'Todos os locais', collapsed: true },
             ]}
             onClearAll={() =>
-              setFiltros({ obraId: '', transportadora: '', motorista: '', insumoId: '', origem: '', dataInicio: '', dataFim: '', notaFiscal: '' })
+              setFiltros({ obraId: '', transportadora: '', motorista: '', insumoId: '', origem: '', destino: '', dataInicio: '', dataFim: '', notaFiscal: '' })
             }
           />
 

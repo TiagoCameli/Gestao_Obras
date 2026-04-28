@@ -96,6 +96,7 @@ export default function FreteList({
         }
         if (filtros.insumoId && f.insumoId !== filtros.insumoId) return false;
         if (filtros.origem && f.origem?.trim() !== filtros.origem) return false;
+        if (filtros.destino && f.destino?.trim() !== filtros.destino) return false;
         if (filtros.dataInicio && f.data < filtros.dataInicio) return false;
         if (filtros.dataFim && f.data > filtros.dataFim) return false;
         if (filtros.notaFiscal) {
