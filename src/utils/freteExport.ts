@@ -27,6 +27,7 @@ interface FiltrosExport {
   motorista: string;
   insumoId: string;
   origem: string;
+  destino: string;
   dataInicio: string;
   dataFim: string;
   notaFiscal: string;

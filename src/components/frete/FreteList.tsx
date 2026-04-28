@@ -61,7 +61,7 @@ interface FreteListProps {
   fretes: Frete[];
   obras: Obra[];
   insumos: Insumo[];
-  filtros: { obraId: string; transportadora: string; motorista: string; insumoId: string; origem: string; dataInicio: string; dataFim: string; notaFiscal: string };
+  filtros: { obraId: string; transportadora: string; motorista: string; insumoId: string; origem: string; destino: string; dataInicio: string; dataFim: string; notaFiscal: string };
   onEdit: (frete: Frete) => void;
   onDelete: (id: string) => void;
   onUpdateDataChegada?: (frete: Frete, dataChegada: string) => void;
