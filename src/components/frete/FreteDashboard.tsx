@@ -5,6 +5,7 @@ import { useInsumos } from '../../hooks/useInsumos';
 import { formatCurrency } from '../../utils/formatters';
 import Card from '../ui/Card';
 import FreteAnalyticsOverview from './FreteAnalyticsOverview';
+import MaterialAnalyticsOverview from './MaterialAnalyticsOverview';
 import type { CrossFilters } from './crossFilterTypes';
 
 function FilterMultiSelect({
@@ -259,12 +260,23 @@ export default function FreteDashboard({
       if (except !== 'mes' && crossFilters.mes && (a.data || '').slice(0, 7) !== crossFilters.mes) return false;
       return true;
     });
+  const applyCrossPedidos = (items: PedidoMaterial[], except?: keyof CrossFilters) =>
+    items.filter((p) => {
+      if (except !== 'fornecedorId' && crossFilters.fornecedorId && p.fornecedorId !== crossFilters.fornecedorId) return false;
+      if (except !== 'mes' && crossFilters.mes && (p.data || '').slice(0, 7) !== crossFilters.mes) return false;
+      // Material: pelo menos um item do pedido tem que casar com o filtro
+      if (except !== 'insumoId' && crossFilters.insumoId) {
+        const has = (p.itens || []).some((it) => it.insumoId === crossFilters.insumoId);
+        if (!has) return false;
+      }
+      return true;
+    });
 
   // Versões totalmente cross-filtradas (usadas por todas as tabelas/saldos abaixo)
   const fretesF = applyCrossFretes(fretesBase);
   const pagamentosF = applyCrossPag(pagamentosBase);
   const abastCarretaF = applyCrossAbast(abastCarretaBase);
-  const pedidosF = pedidosBase;
+  const pedidosF = applyCrossPedidos(pedidosBase);
 
   const obrasMap = new Map(obras.map((o) => [o.id, o.nome]));
   const { data: insumosData } = useInsumos();
@@ -700,6 +712,10 @@ export default function FreteDashboard({
       let label: string = value;
       if (dim === 'obraId') label = obrasMap.get(value) || value;
       else if (dim === 'insumoId') label = insumosMap.get(value) || value;
+      else if (dim === 'fornecedorId') {
+        const forn = fornecedores.find((f) => f.id === value);
+        label = forn?.nome || value;
+      }
       else if (dim === 'mes') {
         const [ano, mes] = value.split('-');
         const meses = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
@@ -711,6 +727,7 @@ export default function FreteDashboard({
       const dimLabels: Record<keyof CrossFilters, string> = {
         transportadora: 'Transportadora', obraId: 'Obra', insumoId: 'Material',
         origem: 'Pedreira', destino: 'Destino', mes: 'Mês', metodo: 'Método', pagoPor: 'Pago por',
+        fornecedorId: 'Fornecedor',
       };
       return { dim, value, label, dimLabel: dimLabels[dim] };
     });
@@ -892,6 +909,18 @@ export default function FreteDashboard({
         onToggle={toggleCross}
         applyCrossFretes={applyCrossFretes}
         applyCrossPag={applyCrossPag}
+      />
+
+      {/* ── Material Analytics: análise de compras de material ── */}
+      <MaterialAnalyticsOverview
+        pedidosBase={pedidosBase}
+        fretesBase={fretesBase}
+        insumosMap={insumosMap}
+        fornecedoresMap={new Map(fornecedores.map((f) => [f.id, f.nome]))}
+        crossFilters={crossFilters}
+        onToggle={toggleCross}
+        applyCrossPedidos={applyCrossPedidos}
+        applyCrossFretes={applyCrossFretes}
       />
 
       {/* Gasto por transportadora com saldo */}

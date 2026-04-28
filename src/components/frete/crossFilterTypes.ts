@@ -7,6 +7,7 @@ export interface CrossFilters {
   mes?: string; // YYYY-MM
   metodo?: string;
   pagoPor?: string;
+  fornecedorId?: string;
 }
 
 export type CrossDim = keyof CrossFilters;
@@ -20,4 +21,5 @@ export const CROSS_DIM_LABELS: Record<CrossDim, string> = {
   mes: 'Mês',
   metodo: 'Método',
   pagoPor: 'Pago por',
+  fornecedorId: 'Fornecedor',
 };
