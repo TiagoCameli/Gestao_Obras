@@ -13,6 +13,7 @@ import {
   Cell,
   Line,
   ComposedChart,
+  LabelList,
 } from 'recharts';
 import {
   Package,
@@ -194,14 +195,20 @@ export default function MaterialAnalyticsOverview({
       });
     });
     return Array.from(map.entries())
-      .map(([id, d]) => ({
-        id,
-        nome: insumosMap.get(id) || id,
-        valor: d.valor,
-        qtd: d.qtd,
-        precoMedio: d.qtd > 0 ? d.valor / d.qtd : 0,
-        ultimoPreco: d.ultimoPreco,
-      }))
+      .map(([id, d]) => {
+        const qtdLabel = d.qtd >= 1000
+          ? `${(d.qtd / 1000).toFixed(1)}k`
+          : d.qtd.toLocaleString('pt-BR', { maximumFractionDigits: 1 });
+        return {
+          id,
+          nome: insumosMap.get(id) || id,
+          valor: d.valor,
+          qtd: d.qtd,
+          precoMedio: d.qtd > 0 ? d.valor / d.qtd : 0,
+          ultimoPreco: d.ultimoPreco,
+          labelStr: `${formatCurrency(d.valor)} · ${qtdLabel}`,
+        };
+      })
       .sort((a, b) => b.valor - a.valor)
       .slice(0, 10);
   }, [pedidosPorMat, insumosMap]);
@@ -384,6 +391,12 @@ export default function MaterialAnalyticsOverview({
                   {topMateriais.map((d, i) => (
                     <Cell key={d.id} fill={fillFor(PALETTE[i % PALETTE.length], crossFilters.insumoId === d.id, !!crossFilters.insumoId)} />
                   ))}
+                  <LabelList
+                    dataKey="labelStr"
+                    position="right"
+                    offset={6}
+                    style={{ fill: 'var(--color-fg)', fontSize: 11, fontWeight: 600 }}
+                  />
                 </Bar>
               </BarChart>
             </ResponsiveContainer>
@@ -413,6 +426,32 @@ export default function MaterialAnalyticsOverview({
                   stroke="var(--color-surface-1)"
                   strokeWidth={2}
                   cursor="pointer"
+                  labelLine={false}
+                  label={(props) => {
+                    const cx = Number(props.cx ?? 0);
+                    const cy = Number(props.cy ?? 0);
+                    const midAngle = Number(props.midAngle ?? 0);
+                    const innerRadius = Number(props.innerRadius ?? 0);
+                    const outerRadius = Number(props.outerRadius ?? 0);
+                    const percent = Number(props.percent ?? 0);
+                    if (percent < 0.04) return null;
+                    const RAD = Math.PI / 180;
+                    const r = innerRadius + (outerRadius - innerRadius) * 0.55;
+                    const x = cx + r * Math.cos(-midAngle * RAD);
+                    const y = cy + r * Math.sin(-midAngle * RAD);
+                    return (
+                      <text
+                        x={x}
+                        y={y}
+                        fill="#fff"
+                        textAnchor="middle"
+                        dominantBaseline="central"
+                        style={{ fontSize: 11, fontWeight: 700, pointerEvents: 'none' }}
+                      >
+                        {(percent * 100).toFixed(0)}%
+                      </text>
+                    );
+                  }}
                   onClick={(e) => {
                     const id = (e as { id?: string }).id;
                     if (id && id !== '__outros') onToggle('insumoId', id);
