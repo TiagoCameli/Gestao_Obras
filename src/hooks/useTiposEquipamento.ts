@@ -24,3 +24,28 @@ export function useAdicionarTipoEquipamento() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['tipos_equipamento'] }),
   });
 }
+
+export function useAtualizarTipoEquipamento() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (tipo: TipoEquipamentoEntity) => {
+      const { error } = await supabase
+        .from('tipos_equipamento')
+        .update(tipoEquipamentoToDb(tipo))
+        .eq('id', tipo.id);
+      if (error) throw error;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['tipos_equipamento'] }),
+  });
+}
+
+export function useExcluirTipoEquipamento() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from('tipos_equipamento').delete().eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['tipos_equipamento'] }),
+  });
+}

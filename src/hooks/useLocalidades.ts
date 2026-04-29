@@ -24,3 +24,28 @@ export function useAdicionarLocalidade() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['localidades'] }),
   });
 }
+
+export function useAtualizarLocalidade() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (localidade: Localidade) => {
+      const { error } = await supabase
+        .from('localidades')
+        .update(localidadeToDb(localidade))
+        .eq('id', localidade.id);
+      if (error) throw error;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['localidades'] }),
+  });
+}
+
+export function useExcluirLocalidade() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from('localidades').delete().eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['localidades'] }),
+  });
+}

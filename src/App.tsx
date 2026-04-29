@@ -8,6 +8,9 @@ import ProtectedRoute from './components/auth/ProtectedRoute';
 import Dashboard from './pages/Dashboard';
 import ObrasPage from './pages/ObrasPage';
 import Obras from './pages/Obras';
+import CadastrosHub from './modules/cadastros/CadastrosHub';
+import EntityCadastroRoute from './modules/cadastros/EntityCadastroRoute';
+import EtapasPage from './modules/cadastros/EtapasPage';
 import Frete from './pages/Frete';
 import SaldoTransportadora from './pages/SaldoTransportadora';
 import Funcionarios from './pages/Funcionarios';
@@ -69,7 +72,10 @@ export default function App() {
             >
               <Route path="/" element={<HomeRedirect />} />
               <Route path="/obras" element={<ProtectedRoute modulo="obras"><ObrasPage /></ProtectedRoute>} />
-              <Route path="/cadastros" element={<ProtectedRoute modulo="cadastros"><Obras /></ProtectedRoute>} />
+              <Route path="/cadastros" element={<ProtectedRoute modulo="cadastros"><CadastrosHub /></ProtectedRoute>} />
+              <Route path="/cadastros/legado" element={<ProtectedRoute modulo="cadastros"><Obras /></ProtectedRoute>} />
+              <Route path="/cadastros/etapas" element={<ProtectedRoute modulo="cadastros"><EtapasPage /></ProtectedRoute>} />
+              <Route path="/cadastros/:slug" element={<ProtectedRoute modulo="cadastros"><EntityCadastroRoute /></ProtectedRoute>} />
               <Route path="/frete" element={<ProtectedRoute modulo="frete"><Frete /></ProtectedRoute>} />
               <Route path="/frete/saldo/:slug" element={<ProtectedRoute modulo="frete"><SaldoTransportadora /></ProtectedRoute>} />
               <Route path="/frota" element={<ProtectedRoute modulo="frota"><Frota /></ProtectedRoute>} />

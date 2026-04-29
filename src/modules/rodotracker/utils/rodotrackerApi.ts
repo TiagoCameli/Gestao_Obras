@@ -415,6 +415,32 @@ export async function listContractItems(obraId: string): Promise<ContractItem[]>
   return (data ?? []).map(rowToContract);
 }
 
+export async function insertContractItem(item: ContractItem): Promise<void> {
+  const userId = await currentUserId();
+  const { error } = await supabase
+    .from("rodotracker_contract_items")
+    .insert(contractToRow(item, userId));
+  throwIfError(error, "insertContractItem");
+}
+
+export async function updateContractItem(item: ContractItem): Promise<void> {
+  const userId = await currentUserId();
+  const { error } = await supabase
+    .from("rodotracker_contract_items")
+    .update(contractToRow(item, userId))
+    .eq("id", item.id);
+  throwIfError(error, "updateContractItem");
+}
+
+export async function deleteContractItem(id: string): Promise<void> {
+  await currentUserId();
+  const { error } = await supabase
+    .from("rodotracker_contract_items")
+    .delete()
+    .eq("id", id);
+  throwIfError(error, "deleteContractItem");
+}
+
 export async function replaceContractItems(
   obraId: string,
   items: ContractItem[]

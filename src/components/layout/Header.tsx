@@ -13,8 +13,14 @@ const links: { to: string; label: string; acao?: string }[] = [
   { to: '/apontamentos', label: 'Apontamentos', acao: 'ver_apontamentos' },
   { to: '/apontamento', label: 'Apontamento RH', acao: 'ver_apontamento_rh' },
   { to: '/medicao', label: 'Medição', acao: 'ver_medicao' },
-  { to: '/funcionarios', label: 'Usuários', acao: 'ver_funcionarios' },
 ];
+
+// Active match: exact for non-nested, prefix for /cadastros (so /cadastros/obras stays highlighted).
+function isActive(pathname: string, to: string): boolean {
+  if (to === '/') return pathname === '/';
+  if (to === '/cadastros') return pathname === '/cadastros' || pathname.startsWith('/cadastros/');
+  return pathname === to;
+}
 
 export default function Header() {
   const { pathname } = useLocation();
@@ -46,7 +52,7 @@ export default function Header() {
 
         <nav className="hidden md:flex items-center gap-1">
           {visibleLinks.map((link) => {
-            const active = pathname === link.to;
+            const active = isActive(pathname, link.to);
             return (
               <Link
                 key={link.to}
@@ -100,7 +106,7 @@ export default function Header() {
       {menuOpen && (
         <nav className="md:hidden border-t border-[var(--color-border)] px-3 py-2 space-y-0.5 bg-[var(--color-surface-1)]">
           {visibleLinks.map((link) => {
-            const active = pathname === link.to;
+            const active = isActive(pathname, link.to);
             return (
               <Link
                 key={link.to}

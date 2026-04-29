@@ -501,6 +501,12 @@ export function ActivityFormModal({
   const [autoKm, setAutoKm] = useState(false);
   /** Impede double-submit enquanto os uploads/queries de fotos e Supabase rodam. */
   const [isSaving, setIsSaving] = useState(false);
+  /** Erro detalhado do último save (mostrado num painel selecionável dentro do modal). */
+  const [saveError, setSaveError] = useState<{
+    title: string;
+    message: string;
+    raw: string;
+  } | null>(null);
 
   const [contractItems, setContractItems] = useState<ContractItem[]>([]);
   useEffect(() => {
@@ -717,6 +723,7 @@ export function ActivityFormModal({
       }
     }
 
+    setSaveError(null);
     setIsSaving(true);
     type PersistedFolder = {
       id: string;
@@ -728,12 +735,24 @@ export function ActivityFormModal({
     const photoFolders: PersistedFolder[] = [];
     const pdfsMeta = [] as { id: string; name: string; size: number }[];
     try {
+      // Mídia já persistida volta como signed URL (https://...) na hidratação;
+      // só precisa subir o que ainda é dataURL base64 (foto/PDF novos).
+      const isNewMedia = (data: string | undefined) =>
+        typeof data === "string" && data.startsWith("data:");
+
       // Uploads em paralelo — fotos, subpastas e PDFs disparam juntos.
       const persistFolder = async (folder: FolderData): Promise<PersistedFolder> => {
         const photoIds: string[] = [];
         await Promise.all(
           folder.photos.map(async (p) => {
-            await savePhoto(p.id, p.data);
+            if (isNewMedia(p.data)) {
+              try {
+                await savePhoto(p.id, p.data);
+              } catch (err) {
+                console.error("Falha no upload da foto", p.id, err);
+                throw err;
+              }
+            }
             photoIds.push(p.id);
             allPhotoIds.push(p.id);
           })
@@ -753,14 +772,43 @@ export function ActivityFormModal({
       await Promise.all([
         removedPdfIds.length > 0 ? deletePdfs(removedPdfIds) : Promise.resolve(),
         ...pdfs.map(async (p) => {
-          await savePdf(p.id, p.data);
+          if (isNewMedia(p.data)) {
+            try {
+              await savePdf(p.id, p.data);
+            } catch (err) {
+              console.error("Falha no upload do PDF", p.id, err);
+              throw err;
+            }
+          }
           pdfsMeta.push({ id: p.id, name: p.name, size: p.size });
         }),
       ]);
     } catch (e) {
       console.error("Falha ao salvar mídia:", e);
       setIsSaving(false);
-      alert("Falha ao salvar fotos/PDFs. Tente novamente.");
+      // Extrai o máximo de info possível: mensagem, status code, statusCode do supabase, error name.
+      const errAny = e as { message?: string; status?: number; statusCode?: number; name?: string; error?: string };
+      const message =
+        errAny?.message ||
+        errAny?.error ||
+        (e instanceof Error ? e.message : String(e)) ||
+        "Erro desconhecido";
+      const statusBits = [
+        errAny?.status ? `HTTP ${errAny.status}` : null,
+        errAny?.statusCode ? `code ${errAny.statusCode}` : null,
+        errAny?.name && errAny.name !== "Error" ? errAny.name : null,
+      ].filter(Boolean).join(" · ");
+      let raw: string;
+      try {
+        raw = JSON.stringify(e, Object.getOwnPropertyNames(e), 2);
+      } catch {
+        raw = String(e);
+      }
+      setSaveError({
+        title: "Falha ao salvar fotos/PDFs",
+        message: statusBits ? `${message}\n\n${statusBits}` : message,
+        raw,
+      });
       return;
     }
 
@@ -903,6 +951,92 @@ export function ActivityFormModal({
           className="space-y-5"
           style={{ padding: "28px 32px" }}
         >
+          {saveError && (
+            <div
+              role="alert"
+              style={{
+                padding: "14px 16px",
+                borderRadius: 12,
+                background: "rgba(217, 45, 32, 0.10)",
+                border: "1px solid rgba(217, 45, 32, 0.35)",
+                color: "#fda29b",
+              }}
+            >
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0 flex-1">
+                  <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 4 }}>
+                    {saveError.title}
+                  </div>
+                  <pre
+                    style={{
+                      fontSize: 12,
+                      lineHeight: 1.45,
+                      whiteSpace: "pre-wrap",
+                      wordBreak: "break-word",
+                      fontFamily: "var(--font-mono, ui-monospace)",
+                      margin: 0,
+                      userSelect: "text",
+                    }}
+                  >
+                    {saveError.message}
+                  </pre>
+                  <details style={{ marginTop: 8, fontSize: 11, opacity: 0.85 }}>
+                    <summary style={{ cursor: "pointer" }}>Detalhes técnicos</summary>
+                    <pre
+                      style={{
+                        marginTop: 6,
+                        padding: 8,
+                        background: "rgba(0,0,0,0.25)",
+                        borderRadius: 6,
+                        fontSize: 11,
+                        whiteSpace: "pre-wrap",
+                        wordBreak: "break-word",
+                        userSelect: "text",
+                        maxHeight: 200,
+                        overflow: "auto",
+                      }}
+                    >
+                      {saveError.raw}
+                    </pre>
+                  </details>
+                </div>
+                <div className="flex flex-col gap-1 shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      void navigator.clipboard?.writeText(`${saveError.title}\n${saveError.message}\n\n${saveError.raw}`);
+                    }}
+                    style={{
+                      fontSize: 11,
+                      padding: "4px 10px",
+                      borderRadius: 6,
+                      background: "rgba(255,255,255,0.06)",
+                      color: "#fda29b",
+                      border: "1px solid rgba(255,255,255,0.1)",
+                      cursor: "pointer",
+                    }}
+                  >
+                    Copiar
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setSaveError(null)}
+                    style={{
+                      fontSize: 11,
+                      padding: "4px 10px",
+                      borderRadius: 6,
+                      background: "transparent",
+                      color: "#fda29b",
+                      border: "1px solid rgba(255,255,255,0.1)",
+                      cursor: "pointer",
+                    }}
+                  >
+                    Fechar
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
           {/* Serviço — PRIMEIRA pergunta */}
           <div>
             <label className="block text-xs text-[#9198ad] uppercase tracking-wider mb-1">
