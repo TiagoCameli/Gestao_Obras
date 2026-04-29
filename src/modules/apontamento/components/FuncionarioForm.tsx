@@ -1,9 +1,8 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import Button from "../../../components/ui/Button";
 import Input from "../../../components/ui/Input";
 import Select from "../../../components/ui/Select";
 import {
-  calcularValorHora,
   formatarCpf,
   FUNCOES,
   isCpfValido,
@@ -68,9 +67,6 @@ export default function FuncionarioForm({
   const [tipoVinculo, setTipoVinculo] = useState<TipoVinculo>(
     initial?.tipoVinculo ?? "CLT"
   );
-  const [salarioBase, setSalarioBase] = useState<string>(
-    initial?.salarioBase != null ? String(initial.salarioBase) : ""
-  );
   const [dataAdmissao, setDataAdmissao] = useState(
     initial?.dataAdmissao ?? new Date().toISOString().slice(0, 10)
   );
@@ -124,15 +120,6 @@ export default function FuncionarioForm({
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-
-  const valorHoraCalc = useMemo(
-    () =>
-      calcularValorHora(
-        tipoVinculo,
-        salarioBase ? Number(salarioBase) : null
-      ),
-    [tipoVinculo, salarioBase]
-  );
 
   function validate(): boolean {
     const e: Record<string, string> = {};
@@ -192,9 +179,9 @@ export default function FuncionarioForm({
         fotosReferenciaFacial: finalPaths,
         funcao,
         tipoVinculo,
-        salarioBase: salarioBase ? Number(salarioBase) : null,
-        valorDiaria: null,
-        valorHora: valorHoraCalc,
+        salarioBase: initial?.salarioBase ?? null,
+        valorDiaria: initial?.valorDiaria ?? null,
+        valorHora: initial?.valorHora ?? null,
         obraId: initial?.obraId ?? null,
         equipeId: initial?.equipeId ?? null,
         encarregadoId: initial?.encarregadoId ?? null,
@@ -293,19 +280,6 @@ export default function FuncionarioForm({
             value={tipoVinculo}
             onChange={(e) => setTipoVinculo(e.target.value as TipoVinculo)}
             error={errors.tipoVinculo}
-          />
-          <Input
-            label="Salário base (R$)"
-            type="number"
-            step="0.01"
-            value={salarioBase}
-            onChange={(e) => setSalarioBase(e.target.value)}
-            error={errors.salarioBase}
-          />
-          <Input
-            label="Valor-hora (calculado: salário ÷ 220)"
-            value={valorHoraCalc != null ? `R$ ${valorHoraCalc.toFixed(4)}` : "—"}
-            readOnly
           />
         </Grid>
       </Section>
