@@ -101,7 +101,8 @@ export function isCpfValido(cpf: string): boolean {
   return calc(9) === parseInt(d[9]) && calc(10) === parseInt(d[10]);
 }
 
-export function formatarCpf(cpf: string): string {
+export function formatarCpf(cpf: string | null | undefined): string {
+  if (!cpf) return "";
   const d = cpf.replace(/\D/g, "").slice(0, 11);
   return d
     .replace(/(\d{3})(\d)/, "$1.$2")

@@ -13,11 +13,11 @@ function throwIfError(error: unknown, ctx: string): void {
 type FuncionarioRow = {
   id: string;
   nome: string;
-  cpf: string;
+  cpf: string | null;
   rg: string | null;
   pis: string | null;
   ctps: string | null;
-  data_nascimento: string;
+  data_nascimento: string | null;
   foto_perfil: string | null;
   fotos_referencia_facial: string[];
   funcao: string;
@@ -28,7 +28,7 @@ type FuncionarioRow = {
   obra_id: string | null;
   equipe_id: string | null;
   encarregado_id: string | null;
-  data_admissao: string;
+  data_admissao: string | null;
   data_demissao: string | null;
   status: string;
   contato_emergencia: string | null;
@@ -41,11 +41,11 @@ function rowToFuncionario(r: FuncionarioRow): Funcionario {
   return {
     id: r.id,
     nome: r.nome,
-    cpf: r.cpf,
+    cpf: r.cpf ?? "",
     rg: r.rg,
     pis: r.pis,
     ctps: r.ctps,
-    dataNascimento: r.data_nascimento,
+    dataNascimento: r.data_nascimento ?? "",
     fotoPerfil: r.foto_perfil,
     fotosReferenciaFacial: r.fotos_referencia_facial ?? [],
     funcao: r.funcao as Funcionario["funcao"],
@@ -56,7 +56,7 @@ function rowToFuncionario(r: FuncionarioRow): Funcionario {
     obraId: r.obra_id,
     equipeId: r.equipe_id,
     encarregadoId: r.encarregado_id,
-    dataAdmissao: r.data_admissao,
+    dataAdmissao: r.data_admissao ?? "",
     dataDemissao: r.data_demissao,
     status: r.status as Funcionario["status"],
     contatoEmergencia: r.contato_emergencia,
