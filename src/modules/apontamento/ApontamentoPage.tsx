@@ -7,6 +7,8 @@ import FuncionarioList from "./components/FuncionarioList";
 import AlocacaoTab from "./components/AlocacaoTab";
 import RegistroPontoTab from "./components/RegistroPontoTab";
 import ApontamentoServicoTab from "./components/ApontamentoServicoTab";
+import DashboardTab from "./components/DashboardTab";
+import HistoricoTab from "./components/HistoricoTab";
 import {
   useCreateFuncionario,
   useDeleteFuncionario,
@@ -15,10 +17,10 @@ import {
 } from "./hooks/useApontamentoData";
 import type { Funcionario } from "./types/funcionario";
 
-type Tab = "funcionarios" | "alocacao" | "ponto" | "servico";
+type Tab = "dashboard" | "funcionarios" | "alocacao" | "ponto" | "servico" | "historico";
 
 export default function ApontamentoPage() {
-  const [tab, setTab] = useState<Tab>("funcionarios");
+  const [tab, setTab] = useState<Tab>("dashboard");
   const { data: funcionarios = [], isLoading } = useFuncionarios();
   const create = useCreateFuncionario();
   const update = useUpdateFuncionario();
@@ -58,7 +60,10 @@ export default function ApontamentoPage() {
         )}
       </header>
 
-      <nav className="flex gap-1 border-b border-[var(--color-border)]">
+      <nav className="flex gap-1 border-b border-[var(--color-border)] overflow-x-auto">
+        <TabBtn active={tab === "dashboard"} onClick={() => setTab("dashboard")}>
+          Dashboard
+        </TabBtn>
         <TabBtn active={tab === "funcionarios"} onClick={() => setTab("funcionarios")}>
           Funcionários
         </TabBtn>
@@ -71,7 +76,12 @@ export default function ApontamentoPage() {
         <TabBtn active={tab === "servico"} onClick={() => setTab("servico")}>
           Apontamento por Serviço
         </TabBtn>
+        <TabBtn active={tab === "historico"} onClick={() => setTab("historico")}>
+          Histórico
+        </TabBtn>
       </nav>
+
+      {tab === "dashboard" && <DashboardTab />}
 
       {tab === "funcionarios" && (
         <>
@@ -94,6 +104,8 @@ export default function ApontamentoPage() {
       {tab === "ponto" && <RegistroPontoTab />}
 
       {tab === "servico" && <ApontamentoServicoTab />}
+
+      {tab === "historico" && <HistoricoTab />}
 
       <Modal
         open={modal.open}

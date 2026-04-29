@@ -108,6 +108,61 @@ export async function listApontamentosDoDia(
   return ((rows ?? []) as Row[]).map(rowToApont);
 }
 
+/**
+ * Lista apontamentos num intervalo, opcionalmente filtrando por
+ * obra/equipe/funcionário. Usado pelo Dashboard e pela aba Histórico.
+ */
+export interface FiltrosApontamentoServico {
+  dataInicio: string;
+  dataFim: string;
+  obraId?: string;
+  equipeId?: string;
+  funcionarioId?: string;
+  tipo?: TipoApontamento;
+}
+
+export async function listApontamentosServicoRange(
+  filtros: FiltrosApontamentoServico
+): Promise<ApontamentoServico[]> {
+  // Resolve a lista de funcionários a considerar (em função dos filtros).
+  let funcsQuery = supabase
+    .from("apont_funcionarios")
+    .select("id, obra_id, equipe_id");
+  if (filtros.funcionarioId) {
+    funcsQuery = funcsQuery.eq("id", filtros.funcionarioId);
+  } else {
+    if (filtros.equipeId) funcsQuery = funcsQuery.eq("equipe_id", filtros.equipeId);
+    if (filtros.obraId) funcsQuery = funcsQuery.eq("obra_id", filtros.obraId);
+  }
+  const { data: funcs, error: fe } = await funcsQuery;
+  throwIfError(fe, "listApontamentosRange:funcs");
+  const ids = (funcs ?? []).map((f) => (f as { id: string }).id);
+  if (ids.length === 0) return [];
+
+  let q = supabase
+    .from("apont_apontamentos_servico")
+    .select("*")
+    .in("funcionario_id", ids)
+    .gte("data", filtros.dataInicio)
+    .lte("data", filtros.dataFim);
+  if (filtros.tipo) q = q.eq("tipo", filtros.tipo);
+  q = q.order("data", { ascending: false }).order("created_at", { ascending: true });
+  const { data: rows, error } = await q;
+  throwIfError(error, "listApontamentosRange");
+  return ((rows ?? []) as Row[]).map(rowToApont);
+}
+
+/** Lista todos os serviços (independente de obra) — usado p/ rótulos no histórico. */
+export async function listTodosServicos(): Promise<Servico[]> {
+  const { data, error } = await supabase
+    .from("rodotracker_contract_items")
+    .select("id, code, name, unit");
+  throwIfError(error, "listTodosServicos");
+  return ((data ?? []) as { id: string; code: string | null; name: string; unit: string | null }[]).map(
+    (r) => ({ id: r.id, nome: r.name, codigo: r.code, unidade: r.unit })
+  );
+}
+
 /* ─── CRUD ─── */
 
 /** Uma linha de serviço no lançamento (1 serviço + horas). */

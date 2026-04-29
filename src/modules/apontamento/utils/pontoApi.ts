@@ -150,6 +150,48 @@ export async function listRegistrosDoDia(
   return ((rows ?? []) as Row[]).map(rowToRegistro);
 }
 
+/**
+ * Lista batidas dentro de um intervalo, com filtros opcionais por obra/equipe/funcionário.
+ * Usado pelo Dashboard e pela aba Histórico.
+ */
+export interface FiltrosPonto {
+  dataInicio: string; // YYYY-MM-DD
+  dataFim: string;
+  obraId?: string;
+  equipeId?: string;
+  funcionarioId?: string;
+}
+
+export async function listRegistrosPontoRange(
+  filtros: FiltrosPonto
+): Promise<RegistroPonto[]> {
+  // Resolve a lista de funcionários a considerar (em função dos filtros).
+  let funcsQuery = supabase
+    .from("apont_funcionarios")
+    .select("id, obra_id, equipe_id");
+  if (filtros.funcionarioId) {
+    funcsQuery = funcsQuery.eq("id", filtros.funcionarioId);
+  } else {
+    if (filtros.equipeId) funcsQuery = funcsQuery.eq("equipe_id", filtros.equipeId);
+    if (filtros.obraId) funcsQuery = funcsQuery.eq("obra_id", filtros.obraId);
+  }
+  const { data: funcs, error: fe } = await funcsQuery;
+  throwIfError(fe, "listRegistrosRange:funcs");
+  const ids = (funcs ?? []).map((f) => (f as { id: string }).id);
+  if (ids.length === 0) return [];
+
+  const { data: rows, error } = await supabase
+    .from("apont_registros_ponto")
+    .select("*")
+    .in("funcionario_id", ids)
+    .gte("data", filtros.dataInicio)
+    .lte("data", filtros.dataFim)
+    .order("data", { ascending: false })
+    .order("hora", { ascending: true });
+  throwIfError(error, "listRegistrosRange:batidas");
+  return ((rows ?? []) as Row[]).map(rowToRegistro);
+}
+
 interface NovaBatidaInput {
   funcionarioId: string;
   tipoBatida: TipoBatida;
