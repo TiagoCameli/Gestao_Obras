@@ -62,7 +62,7 @@ export default function FuncionarioForm({
     initial?.dataNascimento ?? ""
   );
   const [funcao, setFuncao] = useState<FuncaoFuncionario>(
-    initial?.funcao ?? "operador"
+    initial?.funcao ?? ""
   );
   const [tipoVinculo, setTipoVinculo] = useState<TipoVinculo>(
     initial?.tipoVinculo ?? "CLT"

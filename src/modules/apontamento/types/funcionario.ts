@@ -6,29 +6,36 @@ export type StatusFuncionario =
   | "afastado"
   | "demitido";
 
-export type FuncaoFuncionario =
-  | "encarregado"
-  | "operador"
-  | "motorista"
-  | "pedreiro"
-  | "servente"
-  | "topografo"
-  | "engenheiro"
-  | "mestre-de-obras"
-  | "apontador"
-  | "outros";
+/** Texto livre — usamos uma lista canônica padronizada (FUNCOES), mas
+ *  legados podem trazer valores antigos no banco. */
+export type FuncaoFuncionario = string;
 
+/** Lista canônica de funções (alfabética, sem abreviações, tudo maiúsculo). */
 export const FUNCOES: FuncaoFuncionario[] = [
-  "encarregado",
-  "operador",
-  "motorista",
-  "pedreiro",
-  "servente",
-  "topografo",
-  "engenheiro",
-  "mestre-de-obras",
-  "apontador",
-  "outros",
+  "ADMINISTRADOR DE CARTEIRA DE OBRAS",
+  "APONTADOR",
+  "AUXILIAR DE COZINHA",
+  "AUXILIAR DE ESCRITÓRIO",
+  "CONTRAMESTRE",
+  "COZINHEIRA",
+  "ENCARREGADO",
+  "ENGENHEIRO",
+  "LABORATORISTA",
+  "LOCAÇÃO DE CAMINHÕES",
+  "MESTRE DE OBRAS",
+  "MOTORISTA",
+  "MOTORISTA DE CAMINHÃO",
+  "MOTORISTA DE CARRETA",
+  "OPERADOR",
+  "OPERADOR DE ESCAVADEIRA",
+  "OPERADOR DE ESPARGIDOR",
+  "OPERADOR DE PÁ ESCAVADEIRA",
+  "PARE E SIGA",
+  "PEDREIRO",
+  "RASTELEIRO",
+  "SERVENTE DE OBRAS",
+  "TOPÓGRAFO",
+  "OUTROS",
 ];
 
 export interface Funcionario {
