@@ -40,6 +40,10 @@ export function useExcluirObra() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (id: string) => {
+      // Apaga a extensão de medição primeiro (segurança caso a FK CASCADE
+      // ainda não esteja configurada). Erros são ignorados se a linha não
+      // existir, supabase delete .eq() não falha quando vazio.
+      await supabase.from('rodotracker_obras').delete().eq('id', id);
       const { error } = await supabase.from('obras').delete().eq('id', id);
       if (error) throw error;
     },
@@ -50,6 +54,7 @@ export function useExcluirObra() {
       qc.invalidateQueries({ queryKey: ['abastecimentos'] });
       qc.invalidateQueries({ queryKey: ['entradas_combustivel'] });
       qc.invalidateQueries({ queryKey: ['depositos_material'] });
+      qc.invalidateQueries({ queryKey: ['rodotracker_contract_items'] });
     },
   });
 }

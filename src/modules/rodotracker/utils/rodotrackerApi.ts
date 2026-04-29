@@ -305,30 +305,135 @@ function contractToRow(
 }
 
 /* ─── Obras ─────────────────────────────────────────────────────────────── */
+/*
+ * Modelo unificado:
+ *   - `obras` (cadastros) = tabela mestre. Identidade da obra mora aqui.
+ *   - `rodotracker_obras` = extensão opcional 1-pra-1, mesma PK que obras.id,
+ *      contendo apenas os campos geo/contrato específicos da medição.
+ *
+ * `listObras` faz LEFT JOIN: toda obra do cadastros aparece, com campos geo
+ * vindos da extensão quando existir, ou defaults quando não. Quando o usuário
+ * salva uma obra na medição, criamos/atualizamos a extensão sob demanda.
+ */
+
+const DEFAULT_OBRA_GEO = {
+  tipoObra: "Manutenção de Rodovia" as Obra["tipoObra"],
+  rodovia: "",
+  lote: "",
+  trecho: "",
+  contrato: "",
+  kmInicial: null,
+  kmFinal: null,
+  centerLat: -15.79, // Brasília — fallback genérico
+  centerLng: -47.88,
+  zoom: 5,
+  startLat: null,
+  startLng: null,
+  endLat: null,
+  endLng: null,
+  routeGeoJson: null,
+  extensionKm: null,
+};
+
+type ObraMasterRow = {
+  id: string;
+  nome: string;
+  created_at?: string;
+  updated_at?: string;
+};
 
 export async function listObras(): Promise<Obra[]> {
-  const { data, error } = await supabase
+  // 1) Obras (mestre)
+  const { data: obrasMaster, error: errMaster } = await supabase
+    .from("obras")
+    .select("id, nome, created_at, updated_at");
+  throwIfError(errMaster, "listObras:master");
+
+  // 2) Extensões geo (rodotracker_obras)
+  const { data: ext, error: errExt } = await supabase
     .from("rodotracker_obras")
-    .select("*")
-    .order("created_at", { ascending: false });
-  throwIfError(error, "listObras");
-  return (data ?? []).map(rowToObra);
+    .select("*");
+  throwIfError(errExt, "listObras:ext");
+
+  const extById = new Map<string, ObraRow>();
+  for (const r of (ext ?? []) as ObraRow[]) extById.set(r.id, r);
+  const masterIds = new Set(((obrasMaster ?? []) as ObraMasterRow[]).map((m) => m.id));
+
+  // 2a) Obras do cadastros (master), com extensão geo se houver, ou defaults.
+  const fromMaster: Obra[] = ((obrasMaster ?? []) as ObraMasterRow[]).map((m) => {
+    const e = extById.get(m.id);
+    if (e) return rowToObra(e);
+    const createdAt = m.created_at ? Date.parse(m.created_at) : Date.now();
+    const updatedAt = m.updated_at ? Date.parse(m.updated_at) : Date.now();
+    return {
+      id: m.id,
+      name: m.nome,
+      ...DEFAULT_OBRA_GEO,
+      createdAt,
+      updatedAt,
+    };
+  });
+
+  // 2b) Pré-migração: rodotracker_obras "órfãos" (sem master correspondente)
+  // ainda aparecem para não sumir da Medição até o SQL ser aplicado.
+  // Pós-migração esta lista fica vazia.
+  const orphans: Obra[] = ((ext ?? []) as ObraRow[])
+    .filter((r) => !masterIds.has(r.id))
+    .map(rowToObra);
+
+  return [...fromMaster, ...orphans].sort((a, b) => b.updatedAt - a.updatedAt);
 }
 
+/**
+ * Cria/atualiza a obra. Garante que ambas as tabelas (master + extension)
+ * existam para o mesmo id. O nome canônico é gravado em `obras.nome` e
+ * espelhado em `rodotracker_obras.name` por compat.
+ */
 export async function upsertObra(o: Obra): Promise<void> {
   const userId = await currentUserId();
-  const { error } = await supabase
+
+  // Garante linha master
+  const { error: errMaster } = await supabase
+    .from("obras")
+    .upsert({
+      id: o.id,
+      nome: o.name,
+      // Campos opcionais do cadastros — preenche com defaults se for novo.
+      // Não sobrescreve se já existir (use ON CONFLICT do upsert).
+      endereco: o.contrato ?? "",
+      status: "em_andamento",
+      data_inicio: "",
+      data_previsao_fim: "",
+      responsavel: "",
+      orcamento: 0,
+      criado_por: userId,
+    }, { onConflict: "id", ignoreDuplicates: false });
+  throwIfError(errMaster, "upsertObra:master");
+
+  // Cria/atualiza a extensão geo
+  const { error: errExt } = await supabase
     .from("rodotracker_obras")
     .upsert(obraToRow(o, userId));
-  throwIfError(error, "upsertObra");
+  throwIfError(errExt, "upsertObra:ext");
 }
 
+/**
+ * Apaga a obra do cadastros (master) — cascade derruba a extensão e dados
+ * filhos por FK quando configurado. Mantemos o delete na extensão por
+ * segurança caso a FK ainda não esteja em vigor.
+ */
 export async function deleteObra(id: string): Promise<void> {
-  const { error } = await supabase
+  await currentUserId();
+  const { error: errExt } = await supabase
     .from("rodotracker_obras")
     .delete()
     .eq("id", id);
-  throwIfError(error, "deleteObra");
+  throwIfError(errExt, "deleteObra:ext");
+  const { error: errMaster } = await supabase
+    .from("obras")
+    .delete()
+    .eq("id", id);
+  throwIfError(errMaster, "deleteObra:master");
 }
 
 /* ─── Atividades ────────────────────────────────────────────────────────── */
