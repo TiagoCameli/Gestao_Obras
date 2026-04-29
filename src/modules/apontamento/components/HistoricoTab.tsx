@@ -1,13 +1,17 @@
 import { useMemo, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import ConfirmDialog from "../../../components/ui/ConfirmDialog";
+import { useAuth } from "../../../contexts/AuthContext";
 import {
   listRegistrosPontoRange,
+  excluirBatida,
   type RegistroPonto,
   type FiltrosPonto,
 } from "../utils/pontoApi";
 import {
   listApontamentosServicoRange,
   listTodosServicos,
+  excluirApontamentoServico,
   type ApontamentoServico,
   type FiltrosApontamentoServico,
   type Servico,
@@ -60,7 +64,42 @@ function fmtHora(iso: string): string {
 }
 
 export default function HistoricoTab() {
+  const qc = useQueryClient();
+  const { temAcao } = useAuth();
+  const canDelete = temAcao("excluir_apontamentos") || temAcao("editar_apontamentos");
+
   const [sub, setSub] = useState<SubTab>("ponto");
+  const [pendingDelete, setPendingDelete] = useState<
+    | { kind: "ponto"; id: string; resumo: string }
+    | { kind: "servico"; id: string; resumo: string }
+    | null
+  >(null);
+
+  const deletePontoM = useMutation({
+    mutationFn: (id: string) => excluirBatida(id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["apont", "hist", "ponto"] });
+      qc.invalidateQueries({ queryKey: ["apont", "dash", "ponto"] });
+    },
+  });
+  const deleteServM = useMutation({
+    mutationFn: (id: string) => excluirApontamentoServico(id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["apont", "hist", "servico"] });
+      qc.invalidateQueries({ queryKey: ["apont", "dash", "servico"] });
+    },
+  });
+
+  async function confirmDelete() {
+    if (!pendingDelete) return;
+    if (pendingDelete.kind === "ponto") {
+      await deletePontoM.mutateAsync(pendingDelete.id);
+    } else {
+      await deleteServM.mutateAsync(pendingDelete.id);
+    }
+    setPendingDelete(null);
+  }
+
   const [dataInicio, setDataInicio] = useState(isoDaysAgo(29));
   const [dataFim, setDataFim] = useState(todayIso());
   const [obraId, setObraId] = useState("");
@@ -259,6 +298,16 @@ export default function HistoricoTab() {
             registros={registrosFiltrados}
             funcsById={funcsById}
             isLoading={loadingPonto}
+            canDelete={canDelete}
+            onDelete={(r) => {
+              const f = funcsById.get(r.funcionarioId);
+              const tipo = TIPO_BATIDA_LABEL[r.tipoBatida] ?? r.tipoBatida;
+              setPendingDelete({
+                kind: "ponto",
+                id: r.id,
+                resumo: `${tipo} de ${f?.nome ?? "—"} em ${fmtData(r.data)} ${fmtHora(r.hora)}`,
+              });
+            }}
           />
         ) : (
           <ServicoTable
@@ -266,9 +315,32 @@ export default function HistoricoTab() {
             funcsById={funcsById}
             servicosById={servicosById}
             isLoading={loadingServ}
+            canDelete={canDelete}
+            onDelete={(a) => {
+              const f = funcsById.get(a.funcionarioId);
+              const s = a.servicoId ? servicosById.get(a.servicoId) : null;
+              const desc = a.tipo === "produtivo" ? (s?.nome ?? "—") : (a.motivoImprodutivo ?? "Improdutivo");
+              setPendingDelete({
+                kind: "servico",
+                id: a.id,
+                resumo: `${desc} de ${f?.nome ?? "—"} em ${fmtData(a.data)} (${(a.horas ?? 0).toFixed(2)}h)`,
+              });
+            }}
           />
         )}
       </div>
+
+      <ConfirmDialog
+        open={pendingDelete !== null}
+        onClose={() => setPendingDelete(null)}
+        onConfirm={confirmDelete}
+        title={pendingDelete?.kind === "ponto" ? "Excluir batida" : "Excluir apontamento"}
+        message={
+          pendingDelete
+            ? `Deseja excluir: ${pendingDelete.resumo}? Esta ação não pode ser desfeita.`
+            : ""
+        }
+      />
     </div>
   );
 }
@@ -277,10 +349,14 @@ function PontoTable({
   registros,
   funcsById,
   isLoading,
+  canDelete,
+  onDelete,
 }: {
   registros: RegistroPonto[];
   funcsById: Map<string, { nome: string; cpf: string }>;
   isLoading: boolean;
+  canDelete: boolean;
+  onDelete: (r: RegistroPonto) => void;
 }) {
   if (isLoading) {
     return <div className="p-12 text-center text-sm text-[var(--color-fg-muted)]">Carregando…</div>;
@@ -300,6 +376,7 @@ function PontoTable({
             <th className="px-4 py-3 text-left font-medium">Hora</th>
             <th className="px-4 py-3 text-left font-medium hidden md:table-cell">Origem</th>
             <th className="px-4 py-3 text-left font-medium">Status</th>
+            {canDelete && <th className="px-4 py-3 text-right font-medium" style={{ width: 60 }}>Ações</th>}
           </tr>
         </thead>
         <tbody className="divide-y divide-[var(--color-border)]">
@@ -318,6 +395,20 @@ function PontoTable({
                     {STATUS_LABEL[r.statusAprovacao] ?? r.statusAprovacao}
                   </span>
                 </td>
+                {canDelete && (
+                  <td className="px-4 py-3 text-right">
+                    <button
+                      type="button"
+                      onClick={() => onDelete(r)}
+                      aria-label="Excluir batida"
+                      className="w-8 h-8 inline-flex items-center justify-center rounded-md text-[var(--color-fg-muted)] hover:text-[var(--color-danger)] hover:bg-[var(--color-danger-soft)] transition-colors"
+                    >
+                      <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6h14z" />
+                      </svg>
+                    </button>
+                  </td>
+                )}
               </tr>
             );
           })}
@@ -332,11 +423,15 @@ function ServicoTable({
   funcsById,
   servicosById,
   isLoading,
+  canDelete,
+  onDelete,
 }: {
   apontamentos: ApontamentoServico[];
   funcsById: Map<string, { nome: string }>;
   servicosById: Map<string, Servico>;
   isLoading: boolean;
+  canDelete: boolean;
+  onDelete: (a: ApontamentoServico) => void;
 }) {
   if (isLoading) {
     return <div className="p-12 text-center text-sm text-[var(--color-fg-muted)]">Carregando…</div>;
@@ -356,6 +451,7 @@ function ServicoTable({
             <th className="px-4 py-3 text-right font-medium">Horas</th>
             <th className="px-4 py-3 text-left font-medium hidden lg:table-cell">Estaca</th>
             <th className="px-4 py-3 text-left font-medium hidden lg:table-cell">Lado</th>
+            {canDelete && <th className="px-4 py-3 text-right font-medium" style={{ width: 60 }}>Ações</th>}
           </tr>
         </thead>
         <tbody className="divide-y divide-[var(--color-border)]">
@@ -389,6 +485,20 @@ function ServicoTable({
                 <td className="px-4 py-3 text-[var(--color-fg-muted)] hidden lg:table-cell capitalize">
                   {a.lado ?? "-"}
                 </td>
+                {canDelete && (
+                  <td className="px-4 py-3 text-right">
+                    <button
+                      type="button"
+                      onClick={() => onDelete(a)}
+                      aria-label="Excluir apontamento"
+                      className="w-8 h-8 inline-flex items-center justify-center rounded-md text-[var(--color-fg-muted)] hover:text-[var(--color-danger)] hover:bg-[var(--color-danger-soft)] transition-colors"
+                    >
+                      <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6h14z" />
+                      </svg>
+                    </button>
+                  </td>
+                )}
               </tr>
             );
           })}

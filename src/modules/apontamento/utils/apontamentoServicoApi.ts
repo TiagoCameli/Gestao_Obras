@@ -236,3 +236,12 @@ export async function excluirLancamentoDoDia(
   throwIfError(error, "excluirLancamentoDoDia");
 }
 
+/** Apaga uma linha específica de apontamento de serviço (usado no Histórico). */
+export async function excluirApontamentoServico(id: string): Promise<void> {
+  const { error } = await supabase
+    .from("apont_apontamentos_servico")
+    .delete()
+    .eq("id", id);
+  throwIfError(error, "excluirApontamentoServico");
+}
+
