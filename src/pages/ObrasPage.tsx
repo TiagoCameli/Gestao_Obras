@@ -203,8 +203,7 @@ export default function ObrasPage() {
         <div className="space-y-4">
           {obrasFiltradas.map((obra) => {
             const itensObra = contractItems.filter((c) => c.obraId === obra.id);
-            const etapasLegacy = legacyEtapas.filter((e) => e.obraId === obra.id);
-            const totalLista = itensObra.length + etapasLegacy.length;
+            const totalLista = itensObra.length;
             const totalContrato = totalPorObra.get(obra.id);
             const valorExibido =
               totalContrato !== undefined && totalContrato > 0 ? totalContrato : obra.orcamento;
@@ -282,7 +281,7 @@ export default function ObrasPage() {
                     {itensObra.length > 0 && (
                       <div className="mb-4">
                         <p className="text-xs text-gray-500 mb-2">
-                          Itens do contrato (Medição) — {itensObra.length}
+                          Itens do contrato — {itensObra.length}
                         </p>
                         <div className="border border-gray-200 rounded-lg overflow-hidden">
                           <table className="w-full text-xs">
@@ -325,41 +324,7 @@ export default function ObrasPage() {
                       </div>
                     )}
 
-                    {etapasLegacy.length > 0 && (
-                      <div className="mb-4">
-                        <p className="text-xs text-gray-500 mb-2">
-                          Etapas (Cadastros legado) — {etapasLegacy.length}
-                        </p>
-                        <div className="border border-gray-200 rounded-lg overflow-hidden">
-                          <table className="w-full text-xs">
-                            <thead className="bg-emt-verde text-white">
-                              <tr>
-                                <th className="text-left px-3 py-1.5 font-medium uppercase text-xs">#</th>
-                                <th className="text-left px-3 py-1.5 font-medium uppercase text-xs">Etapa</th>
-                                <th className="text-left px-3 py-1.5 font-medium uppercase text-xs">Unidade</th>
-                                <th className="text-right px-3 py-1.5 font-medium uppercase text-xs">Qtd</th>
-                                <th className="text-right px-3 py-1.5 font-medium uppercase text-xs">Valor unit.</th>
-                                <th className="text-right px-3 py-1.5 font-medium uppercase text-xs">Total</th>
-                              </tr>
-                            </thead>
-                            <tbody className="divide-y divide-gray-100 bg-white">
-                              {etapasLegacy.map((etapa, i) => (
-                                <tr key={etapa.id}>
-                                  <td className="px-3 py-1.5 text-gray-400 font-mono">{i + 1}.</td>
-                                  <td className="px-3 py-1.5 text-gray-700 font-medium">{etapa.nome}</td>
-                                  <td className="px-3 py-1.5 text-gray-600">{etapa.unidade || '-'}</td>
-                                  <td className="px-3 py-1.5 text-right text-gray-600 tabular-nums">{etapa.quantidade ?? '-'}</td>
-                                  <td className="px-3 py-1.5 text-right text-gray-600 tabular-nums">{etapa.valorUnitario != null ? formatCurrency(etapa.valorUnitario) : '-'}</td>
-                                  <td className="px-3 py-1.5 text-right font-semibold text-gray-700 tabular-nums">{etapa.quantidade != null && etapa.valorUnitario != null ? formatCurrency(etapa.quantidade * etapa.valorUnitario) : '-'}</td>
-                                </tr>
-                              ))}
-                            </tbody>
-                          </table>
-                        </div>
-                      </div>
-                    )}
-
-                    {itensObra.length === 0 && etapasLegacy.length === 0 && (
+                    {itensObra.length === 0 && (
                       <p className="text-xs text-gray-500 italic">
                         Esta obra ainda não tem etapas, subetapas ou itens. Cadastre em Cadastros → Etapas de obra ou no contrato da Medição.
                       </p>
