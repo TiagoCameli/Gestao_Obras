@@ -145,7 +145,6 @@ export default function FuncionarioForm({
     if (!tipoVinculo) e.tipoVinculo = "Obrigatório";
     if (!salarioBase) e.salarioBase = "Obrigatório";
     if (!dataAdmissao) e.dataAdmissao = "Obrigatório";
-    if (fotos.length < 1) e.fotos = "Adicione pelo menos 1 foto do rosto";
     if (fotos.length > 5) e.fotos = "Máximo de 5 fotos";
     setErrors(e);
     return Object.keys(e).length === 0;
@@ -350,10 +349,11 @@ export default function FuncionarioForm({
         </Grid>
       </Section>
 
-      <Section title="Fotos do rosto">
+      <Section title="Fotos do rosto (opcional)">
         <p className="text-xs text-[var(--color-fg-muted)] mb-3">
-          Adicione de 1 a 5 fotos do rosto. A <strong>primeira</strong> será a
-          foto de perfil; as demais ajudam o reconhecimento facial.
+          Opcional — até 5 fotos. Se cadastrar, a <strong>primeira</strong> será a
+          foto de perfil e as demais ajudam o reconhecimento facial. Funcionários
+          sem foto cadastrada batem ponto sem captura/validação facial.
         </p>
 
         <div className="grid grid-cols-3 sm:grid-cols-5 gap-3">

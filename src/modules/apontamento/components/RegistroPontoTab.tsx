@@ -184,6 +184,68 @@ export default function RegistroPontoTab() {
     }
   }
 
+  /**
+   * Captura geolocalização (se o usuário permitir). Resolve em até 6s pra
+   * não travar o registro de ponto se o GPS demorar/falhar.
+   */
+  function pegarGeolocalizacao(): Promise<GeolocationCoordinates | null> {
+    return new Promise((resolve) => {
+      if (!navigator.geolocation) return resolve(null);
+      let done = false;
+      const timer = setTimeout(() => {
+        if (!done) {
+          done = true;
+          resolve(null);
+        }
+      }, 6000);
+      navigator.geolocation.getCurrentPosition(
+        (p) => {
+          if (done) return;
+          done = true;
+          clearTimeout(timer);
+          resolve(p.coords);
+        },
+        () => {
+          if (done) return;
+          done = true;
+          clearTimeout(timer);
+          resolve(null);
+        },
+        { timeout: 6000, maximumAge: 60_000 }
+      );
+    });
+  }
+
+  /**
+   * Inicia uma batida: se o funcionário tem foto cadastrada, abre o modal
+   * de captura facial; se não tem, registra direto (sem foto), pegando
+   * geolocalização em best-effort.
+   */
+  async function iniciarBatida(funcionario: Funcionario, tipo: TipoBatida) {
+    const temFoto =
+      (funcionario.fotosReferenciaFacial?.length ?? 0) > 0 ||
+      !!funcionario.fotoPerfil;
+    if (temFoto) {
+      setCapturando({ funcionario, tipo });
+      return;
+    }
+    try {
+      const pos = await pegarGeolocalizacao();
+      await registrarBatida({
+        funcionarioId: funcionario.id,
+        tipoBatida: tipo,
+        data,
+        latitude: pos?.latitude ?? null,
+        longitude: pos?.longitude ?? null,
+        origem: "automatico",
+      });
+      qc.invalidateQueries({ queryKey: registrosKey });
+      qc.invalidateQueries({ queryKey: pendenciasKey });
+    } catch (e) {
+      alert("Falha ao registrar: " + (e instanceof Error ? e.message : String(e)));
+    }
+  }
+
   async function validarFace(dataUrl: string) {
     if (!capturando) return { match: false, distancia: 1, threshold: 0.55 };
     const refs = capturando.funcionario.fotosReferenciaFacial ?? [];
@@ -341,7 +403,7 @@ export default function RegistroPontoTab() {
                   {!congelado && (
                     <AcoesFuncionario
                       status={status}
-                      onCapturar={(tipo) => setCapturando({ funcionario: f, tipo })}
+                      onCapturar={(tipo) => void iniciarBatida(f, tipo)}
                       onLancarManual={() => setManualPara(f)}
                     />
                   )}
