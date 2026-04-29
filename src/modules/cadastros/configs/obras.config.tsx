@@ -4,6 +4,7 @@ import {
   useAtualizarObra,
   useExcluirObra,
 } from '../../../hooks/useObras';
+import { useTotalContratadoPorObra } from '../../../hooks/useContractTotals';
 import type { Obra } from '../../../types';
 import type { EntityConfig } from '../types';
 import { parseStr, parseNumero, parseData, type ParsedRow } from '../../../components/ui/ImportExcelModal';
@@ -62,10 +63,24 @@ export const obrasConfig: EntityConfig<Obra> = {
     { key: 'responsavel', label: 'Responsável', hideOnMobile: true },
     {
       key: 'orcamento',
-      label: 'Orçamento',
+      label: 'Contrato',
       align: 'right',
       hideOnMobile: true,
-      render: (o) => formatCurrency(o.orcamento || 0),
+      // Lookup retorna o total contratado por obra, formatado em BRL.
+      // Quando a obra tem contract_items na medição, mostramos esse total
+      // (fonte canônica do contrato). Quando não tem, caímos no campo
+      // manual `orcamento` do cadastros.
+      useLookup: () => {
+        const { data } = useTotalContratadoPorObra();
+        const map = new Map<string, string>();
+        if (data) {
+          for (const [obraId, total] of data) {
+            map.set(obraId, formatCurrency(total));
+          }
+        }
+        return map;
+      },
+      render: (o, lookup) => lookup?.get(o.id) ?? formatCurrency(o.orcamento || 0),
     },
     {
       key: 'dataPrevisaoFim',
