@@ -338,39 +338,48 @@ const DEFAULT_OBRA_GEO = {
 type ObraMasterRow = {
   id: string;
   nome: string;
-  created_at?: string;
-  updated_at?: string;
 };
 
 export async function listObras(): Promise<Obra[]> {
-  // 1) Obras (mestre)
-  const { data: obrasMaster, error: errMaster } = await supabase
-    .from("obras")
-    .select("id, nome, created_at, updated_at");
-  throwIfError(errMaster, "listObras:master");
-
-  // 2) Extensões geo (rodotracker_obras)
+  // 1) Extensões geo (rodotracker_obras) — fonte canônica histórica.
+  // Se essa query falha, o módulo todo vai pro chão; mantemos throw aqui.
   const { data: ext, error: errExt } = await supabase
     .from("rodotracker_obras")
     .select("*");
   throwIfError(errExt, "listObras:ext");
 
+  // 2) Obras (mestre, do cadastros). Se essa query falhar (RLS, schema antigo,
+  // tabela ausente em outro projeto Supabase), NÃO derruba o módulo — apenas
+  // cai de volta pro comportamento legado de listar só rodotracker_obras.
+  let obrasMaster: ObraMasterRow[] = [];
+  try {
+    const { data, error } = await supabase
+      .from("obras")
+      .select("id, nome");
+    if (error) {
+      console.warn("[listObras] master query failed, falling back to legacy:", error);
+    } else {
+      obrasMaster = (data ?? []) as ObraMasterRow[];
+    }
+  } catch (e) {
+    console.warn("[listObras] master query threw, falling back to legacy:", e);
+  }
+
   const extById = new Map<string, ObraRow>();
   for (const r of (ext ?? []) as ObraRow[]) extById.set(r.id, r);
-  const masterIds = new Set(((obrasMaster ?? []) as ObraMasterRow[]).map((m) => m.id));
+  const masterIds = new Set(obrasMaster.map((m) => m.id));
 
   // 2a) Obras do cadastros (master), com extensão geo se houver, ou defaults.
-  const fromMaster: Obra[] = ((obrasMaster ?? []) as ObraMasterRow[]).map((m) => {
+  const fromMaster: Obra[] = obrasMaster.map((m) => {
     const e = extById.get(m.id);
     if (e) return rowToObra(e);
-    const createdAt = m.created_at ? Date.parse(m.created_at) : Date.now();
-    const updatedAt = m.updated_at ? Date.parse(m.updated_at) : Date.now();
+    const now = Date.now();
     return {
       id: m.id,
       name: m.nome,
       ...DEFAULT_OBRA_GEO,
-      createdAt,
-      updatedAt,
+      createdAt: now,
+      updatedAt: now,
     };
   });
 
