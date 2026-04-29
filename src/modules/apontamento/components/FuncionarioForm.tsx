@@ -136,15 +136,11 @@ export default function FuncionarioForm({
 
   function validate(): boolean {
     const e: Record<string, string> = {};
+    // Único campo obrigatório: nome. Os demais são opcionais — quando o
+    // usuário decide preencher CPF, validamos o formato.
     if (!nome.trim()) e.nome = "Obrigatório";
     const cpfDigits = cpf.replace(/\D/g, "");
-    if (!cpfDigits) e.cpf = "Obrigatório";
-    else if (!isCpfValido(cpfDigits)) e.cpf = "CPF inválido";
-    if (!dataNascimento) e.dataNascimento = "Obrigatório";
-    if (!funcao) e.funcao = "Obrigatório";
-    if (!tipoVinculo) e.tipoVinculo = "Obrigatório";
-    if (!salarioBase) e.salarioBase = "Obrigatório";
-    if (!dataAdmissao) e.dataAdmissao = "Obrigatório";
+    if (cpfDigits && !isCpfValido(cpfDigits)) e.cpf = "CPF inválido";
     if (fotos.length > 5) e.fotos = "Máximo de 5 fotos";
     setErrors(e);
     return Object.keys(e).length === 0;
@@ -156,12 +152,14 @@ export default function FuncionarioForm({
     const cpfDigits = cpf.replace(/\D/g, "");
     setSaving(true);
     try {
-      // checa CPF duplicado
-      const dup = await existeCpf(cpfDigits, initial?.id);
-      if (dup) {
-        setErrors((e) => ({ ...e, cpf: "CPF já cadastrado" }));
-        setSaving(false);
-        return;
+      // CPF é opcional — só checa duplicidade se foi preenchido.
+      if (cpfDigits) {
+        const dup = await existeCpf(cpfDigits, initial?.id);
+        if (dup) {
+          setErrors((e) => ({ ...e, cpf: "CPF já cadastrado" }));
+          setSaving(false);
+          return;
+        }
       }
 
       // Pré-gera id pra novos cadastros: assim conseguimos subir as fotos
@@ -260,7 +258,6 @@ export default function FuncionarioForm({
             label="CPF"
             value={formatarCpf(cpf)}
             onChange={(e) => setCpf(e.target.value.replace(/\D/g, ""))}
-            required
             maxLength={14}
             error={errors.cpf}
           />
@@ -276,7 +273,6 @@ export default function FuncionarioForm({
             type="date"
             value={dataNascimento}
             onChange={(e) => setDataNascimento(e.target.value)}
-            required
             error={errors.dataNascimento}
           />
         </Grid>
@@ -289,7 +285,6 @@ export default function FuncionarioForm({
             options={FUNCOES.map((f) => ({ value: f, label: f }))}
             value={funcao}
             onChange={(e) => setFuncao(e.target.value as FuncaoFuncionario)}
-            required
             error={errors.funcao}
           />
           <Select
@@ -297,7 +292,6 @@ export default function FuncionarioForm({
             options={VINCULO_OPTS}
             value={tipoVinculo}
             onChange={(e) => setTipoVinculo(e.target.value as TipoVinculo)}
-            required
             error={errors.tipoVinculo}
           />
           <Input
@@ -306,7 +300,6 @@ export default function FuncionarioForm({
             step="0.01"
             value={salarioBase}
             onChange={(e) => setSalarioBase(e.target.value)}
-            required
             error={errors.salarioBase}
           />
           <Input
@@ -324,7 +317,6 @@ export default function FuncionarioForm({
             type="date"
             value={dataAdmissao}
             onChange={(e) => setDataAdmissao(e.target.value)}
-            required
             error={errors.dataAdmissao}
           />
           <Input
@@ -338,7 +330,6 @@ export default function FuncionarioForm({
             options={STATUS_OPTS}
             value={status}
             onChange={(e) => setStatus(e.target.value as StatusFuncionario)}
-            required
           />
           <Input
             label="Contato de emergência"

@@ -72,14 +72,18 @@ function funcionarioToRow(
     updatedAt?: string;
   }
 ): Partial<FuncionarioRow> {
+  // Datas e CPF agora são opcionais no formulário — convertemos string vazia
+  // para null pra não barrar inserts em colunas DATE.
+  const emptyToNull = (s: string | null | undefined): string | null =>
+    s && s.trim() !== "" ? s : null;
   return {
     id: f.id || undefined,
     nome: f.nome,
-    cpf: f.cpf,
+    cpf: emptyToNull(f.cpf) ?? "",
     rg: f.rg ?? null,
     pis: f.pis ?? null,
     ctps: f.ctps ?? null,
-    data_nascimento: f.dataNascimento,
+    data_nascimento: emptyToNull(f.dataNascimento) as string,
     foto_perfil: f.fotoPerfil ?? null,
     fotos_referencia_facial: f.fotosReferenciaFacial ?? [],
     funcao: f.funcao,
@@ -90,7 +94,7 @@ function funcionarioToRow(
     obra_id: f.obraId ?? null,
     equipe_id: f.equipeId ?? null,
     encarregado_id: f.encarregadoId ?? null,
-    data_admissao: f.dataAdmissao,
+    data_admissao: emptyToNull(f.dataAdmissao) as string,
     data_demissao: f.dataDemissao ?? null,
     status: f.status,
     contato_emergencia: f.contatoEmergencia ?? null,
