@@ -432,7 +432,7 @@ export default function RegistroPontoTab() {
             };
 
             return (
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <section>
                   <h3 className="text-xs font-semibold uppercase tracking-wider text-[var(--color-fg-muted)] mb-2 flex items-center justify-between">
                     <span>Aguardando entrada</span>
@@ -445,7 +445,7 @@ export default function RegistroPontoTab() {
                       Todos os funcionários já registraram entrada.
                     </p>
                   ) : (
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-2">{aguardando.map(renderCard)}</div>
+                    <div className="space-y-2">{aguardando.map(renderCard)}</div>
                   )}
                 </section>
                 <section>
