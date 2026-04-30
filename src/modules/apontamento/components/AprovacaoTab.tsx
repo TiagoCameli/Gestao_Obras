@@ -404,6 +404,37 @@ export default function AprovacaoTab() {
                 const aps = apontPorFunc.get(f.id) ?? [];
                 const totalHoras = aps.reduce((s, a) => s + (a.horas ?? 0), 0);
 
+                // ─── Regras pra aprovar ────────────────────────────────
+                // 1. Tem que existir batida de ENTRADA.
+                // 2. Tem que existir batida de SAÍDA FINAL.
+                // 3. Soma de horas dos apontamentos por serviço >= horas
+                //    trabalhadas calculadas pelo ponto (com 0.01h tol.).
+                const entrada = rs.find((r) => r.tipoBatida === "entrada");
+                const saidaAlmoco = rs.find((r) => r.tipoBatida === "saida_almoco");
+                const retornoAlmoco = rs.find((r) => r.tipoBatida === "retorno_almoco");
+                const saidaFinal = rs.find((r) => r.tipoBatida === "saida_final");
+                let horasPonto = 0;
+                if (entrada && saidaFinal) {
+                  const ms = (a: RegistroPonto, b: RegistroPonto) =>
+                    new Date(b.hora).getTime() - new Date(a.hora).getTime();
+                  if (saidaAlmoco && retornoAlmoco) {
+                    horasPonto =
+                      (ms(entrada, saidaAlmoco) + ms(retornoAlmoco, saidaFinal)) /
+                      3_600_000;
+                  } else {
+                    horasPonto = ms(entrada, saidaFinal) / 3_600_000;
+                  }
+                }
+                const cobreHoras = horasPonto > 0 && totalHoras + 0.01 >= horasPonto;
+                const motivosBloqueio: string[] = [];
+                if (!entrada) motivosBloqueio.push("falta entrada");
+                if (!saidaFinal) motivosBloqueio.push("falta saída final");
+                if (entrada && saidaFinal && !cobreHoras)
+                  motivosBloqueio.push(
+                    `apontamento (${totalHoras.toFixed(1)} h) não cobre as ${horasPonto.toFixed(1)} h trabalhadas`
+                  );
+                const podeAprovar = motivosBloqueio.length === 0;
+
                 return (
                   <article
                     key={f.id}
@@ -450,18 +481,35 @@ export default function AprovacaoTab() {
                                 })
                           }
                           className={
-                            "inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md text-xs font-semibold transition-colors shrink-0 border " +
+                            "inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md text-xs font-semibold transition-colors shrink-0 border disabled:opacity-50 disabled:cursor-not-allowed " +
                             (aprovado
                               ? "bg-[var(--color-surface-1)] text-[var(--color-fg-muted)] border-[var(--color-border)] hover:text-[var(--color-danger)] hover:border-[var(--color-danger)]/40"
                               : "bg-[var(--color-accent)] text-[var(--color-fg-on-accent)] border-transparent hover:brightness-110")
                           }
-                          disabled={aprovarM.isPending || desaprovarM.isPending}
+                          disabled={
+                            aprovarM.isPending ||
+                            desaprovarM.isPending ||
+                            (!aprovado && !podeAprovar)
+                          }
+                          title={
+                            !aprovado && !podeAprovar
+                              ? `Não pode aprovar: ${motivosBloqueio.join(" · ")}`
+                              : undefined
+                          }
                         >
                           {aprovado ? <X className="w-3 h-3" /> : <Check className="w-3 h-3" />}
                           {aprovado ? "Reverter" : "Aprovar"}
                         </button>
                       )}
                     </header>
+
+                    {/* Aviso quando o card não pode ser aprovado ainda */}
+                    {!aprovado && !podeAprovar && canAprovar && (
+                      <div className="mb-3 rounded-md bg-[var(--color-warning-soft)] border border-[var(--color-warning)]/30 px-2.5 py-1.5 text-[10px] text-[var(--color-warning-fg)] flex items-start gap-1.5">
+                        <AlertCircle className="w-3 h-3 shrink-0 mt-0.5" />
+                        <span>{motivosBloqueio.join(" · ")}</span>
+                      </div>
+                    )}
 
                     {/* Registro de ponto */}
                     <div className="mb-3">
