@@ -12,7 +12,6 @@ import {
 } from "../hooks/useApontamentoData";
 import {
   aprovarBatidaManual,
-  aprovarPontoDia,
   atualizarHoraBatida,
   excluirBatida,
   getAprovacaoDia,
@@ -139,7 +138,6 @@ export default function RegistroPontoTab() {
   const [manualPara, setManualPara] = useState<Funcionario | null>(null);
 
   // Aprovação do dia
-  const [confirmandoAprov, setConfirmandoAprov] = useState(false);
 
   // Lightbox de foto da batida
   const [vendoFoto, setVendoFoto] = useState<RegistroPonto | null>(null);
@@ -422,15 +420,6 @@ export default function RegistroPontoTab() {
             })}
           </div>
 
-          {/* Aprovar ponto do dia é uma ação por equipe — só aparece quando
-              uma equipe específica está filtrada. */}
-          {equipeId && !congelado && (
-            <div className="pt-3 border-t border-[var(--color-border)] flex justify-end">
-              <Button onClick={() => setConfirmandoAprov(true)}>
-                Aprovar ponto do dia
-              </Button>
-            </div>
-          )}
         </>
       )}
 
@@ -495,17 +484,6 @@ export default function RegistroPontoTab() {
         }
       />
 
-      <ConfirmDialog
-        open={confirmandoAprov}
-        onClose={() => setConfirmandoAprov(false)}
-        onConfirm={async () => {
-          await aprovarPontoDia(equipeId, data);
-          qc.invalidateQueries({ queryKey: aprovKey });
-          setConfirmandoAprov(false);
-        }}
-        title="Aprovar ponto do dia"
-        message="Após aprovação os registros do dia ficam travados. Confirma?"
-      />
     </div>
   );
 }

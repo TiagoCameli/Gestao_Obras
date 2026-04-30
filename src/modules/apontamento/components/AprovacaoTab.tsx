@@ -708,7 +708,9 @@ function FotoMapaThumb({ registro }: { registro: RegistroPonto }) {
             title="Abrir no Google Maps"
           >
             <iframe
-              src={`https://www.google.com/maps?q=${registro.latitude},${registro.longitude}&z=17&output=embed`}
+              // t=k → camada de satélite. z=18 dá detalhe suficiente sem
+              // sair do contexto.
+              src={`https://www.google.com/maps?q=${registro.latitude},${registro.longitude}&z=18&t=k&output=embed`}
               className="w-full h-full pointer-events-none"
               loading="lazy"
               referrerPolicy="no-referrer-when-downgrade"
