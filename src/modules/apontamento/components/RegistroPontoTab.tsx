@@ -19,6 +19,7 @@ import {
   getFotoPontoUrls,
   listPendenciasSaida,
   listRegistrosDoDia,
+  listRegistrosPontoRange,
   reabrirPontoDia,
   registrarBatida,
   rejeitarBatidaManual,
@@ -82,19 +83,28 @@ export default function RegistroPontoTab() {
   const [data, setData] = useState<string>(hojeIso());
 
   const { data: funcionarios = [] } = useFuncionarios();
-  const funcsDaEquipe = useMemo(
-    () =>
-      funcionarios.filter(
-        (f) => f.equipeId === equipeId && f.status === "ativo"
-      ),
-    [funcionarios, equipeId]
-  );
+  // Lista de funcionários a exibir respeita os filtros aplicados. Quando
+  // nada está filtrado, mostra todos os ativos pra permitir registrar
+  // ponto sem precisar escolher obra/equipe primeiro.
+  const funcsDaEquipe = useMemo(() => {
+    let list = funcionarios.filter((f) => f.status === "ativo");
+    if (equipeId) list = list.filter((f) => f.equipeId === equipeId);
+    else if (obraId) list = list.filter((f) => f.obraId === obraId);
+    return list;
+  }, [funcionarios, equipeId, obraId]);
 
-  const registrosKey = ["apont", "registros", equipeId, data] as const;
+  const registrosKey = ["apont", "registros", obraId, equipeId, data] as const;
   const { data: registros = [], isLoading: loadingRegs } = useQuery({
     queryKey: registrosKey,
-    queryFn: () => listRegistrosDoDia(equipeId, data),
-    enabled: !!equipeId && !!data,
+    queryFn: () =>
+      equipeId
+        ? listRegistrosDoDia(equipeId, data)
+        : listRegistrosPontoRange({
+            dataInicio: data,
+            dataFim: data,
+            obraId: obraId || undefined,
+          }),
+    enabled: !!data,
   });
 
   const aprovKey = ["apont", "aprovacao-dia", equipeId, data] as const;
@@ -309,17 +319,17 @@ export default function RegistroPontoTab() {
         />
       )}
 
-      {!equipeId ? (
-        <p className="py-8 text-center text-sm text-[var(--color-fg-subtle)]">
-          Selecione obra e equipe.
-        </p>
-      ) : loadingRegs ? (
+      {loadingRegs ? (
         <p className="py-8 text-center text-sm text-[var(--color-fg-subtle)]">
           Carregando...
         </p>
       ) : funcsDaEquipe.length === 0 ? (
         <p className="py-8 text-center text-sm text-[var(--color-fg-subtle)]">
-          Nenhum funcionário ativo nesta equipe.
+          {equipeId
+            ? "Nenhum funcionário ativo nesta equipe."
+            : obraId
+              ? "Nenhum funcionário ativo nesta obra."
+              : "Nenhum funcionário ativo cadastrado."}
         </p>
       ) : (
         <>
@@ -412,7 +422,9 @@ export default function RegistroPontoTab() {
             })}
           </div>
 
-          {!congelado && (
+          {/* Aprovar ponto do dia é uma ação por equipe — só aparece quando
+              uma equipe específica está filtrada. */}
+          {equipeId && !congelado && (
             <div className="pt-3 border-t border-[var(--color-border)] flex justify-end">
               <Button onClick={() => setConfirmandoAprov(true)}>
                 Aprovar ponto do dia
