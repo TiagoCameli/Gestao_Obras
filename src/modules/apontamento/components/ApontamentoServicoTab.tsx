@@ -9,11 +9,13 @@ import {
   useFuncionarios,
   useObrasApont,
 } from "../hooks/useApontamentoData";
-import { listRegistrosDoDia, type RegistroPonto } from "../utils/pontoApi";
+import { listRegistrosDoDia, listRegistrosPontoRange, type RegistroPonto } from "../utils/pontoApi";
 import {
   excluirLancamentoDoDia,
   listApontamentosDoDia,
+  listApontamentosServicoRange,
   listServicosDaObra,
+  listTodosServicos,
   type ApontamentoServico,
 } from "../utils/apontamentoServicoApi";
 
@@ -65,32 +67,47 @@ export default function ApontamentoServicoTab() {
   const [data, setData] = useState<string>(hojeIso());
 
   const { data: funcionarios = [] } = useFuncionarios();
-  const funcsDaEquipe = useMemo(
-    () =>
-      funcionarios.filter(
-        (f) => f.equipeId === equipeId && f.status === "ativo"
-      ),
-    [funcionarios, equipeId]
-  );
+  // Quando nada está filtrado, lista todos os ativos. Com obra → filtra
+  // por obra direta; com equipe → filtra pela equipe (mantém o fluxo
+  // original de seleção em massa por equipe).
+  const funcsDaEquipe = useMemo(() => {
+    let list = funcionarios.filter((f) => f.status === "ativo");
+    if (equipeId) list = list.filter((f) => f.equipeId === equipeId);
+    else if (obraId) list = list.filter((f) => f.obraId === obraId);
+    return list;
+  }, [funcionarios, equipeId, obraId]);
   const funcIds = funcsDaEquipe.map((f) => f.id);
 
   const { data: servicos = [] } = useQuery({
-    queryKey: ["apont", "servicos-contrato", obraId] as const,
-    queryFn: () => listServicosDaObra(obraId),
-    enabled: !!obraId,
+    queryKey: ["apont", "servicos-contrato", obraId || "all"] as const,
+    queryFn: () => (obraId ? listServicosDaObra(obraId) : listTodosServicos()),
   });
 
   const { data: registros = [] } = useQuery({
-    queryKey: ["apont", "registros", equipeId, data] as const,
-    queryFn: () => listRegistrosDoDia(equipeId, data),
-    enabled: !!equipeId && !!data,
+    queryKey: ["apont", "registros", obraId, equipeId, data] as const,
+    queryFn: () =>
+      equipeId
+        ? listRegistrosDoDia(equipeId, data)
+        : listRegistrosPontoRange({
+            dataInicio: data,
+            dataFim: data,
+            obraId: obraId || undefined,
+          }),
+    enabled: !!data,
   });
 
-  const apontKey = ["apont", "apontamentos-servico", equipeId, data] as const;
+  const apontKey = ["apont", "apontamentos-servico", obraId, equipeId, data] as const;
   const { data: apontamentos = [] } = useQuery({
     queryKey: apontKey,
-    queryFn: () => listApontamentosDoDia(funcIds, data),
-    enabled: !!equipeId && !!data && funcIds.length > 0,
+    queryFn: () =>
+      equipeId
+        ? listApontamentosDoDia(funcIds, data)
+        : listApontamentosServicoRange({
+            dataInicio: data,
+            dataFim: data,
+            obraId: obraId || undefined,
+          }),
+    enabled: !!data,
   });
 
   // Funcionários que tiveram pelo menos uma batida no dia (não rejeitada)
@@ -222,13 +239,9 @@ export default function ApontamentoServicoTab() {
         />
       </div>
 
-      {!equipeId ? (
+      {funcsComPonto.length === 0 ? (
         <p className="py-8 text-center text-sm text-[var(--color-fg-subtle)]">
-          Selecione obra e equipe.
-        </p>
-      ) : funcsComPonto.length === 0 ? (
-        <p className="py-8 text-center text-sm text-[var(--color-fg-subtle)]">
-          Nenhum funcionário desta equipe tem ponto registrado em {data}.
+          Nenhum funcionário {equipeId ? "desta equipe" : obraId ? "desta obra" : ""} tem ponto registrado em {data}.
         </p>
       ) : (
         <>
