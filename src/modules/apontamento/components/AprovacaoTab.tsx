@@ -1,15 +1,21 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { ChevronLeft, ChevronRight, Check, X, AlertCircle, MapPin, Briefcase } from "lucide-react";
+import { ChevronLeft, ChevronRight, Check, X, AlertCircle, MapPin, Briefcase, Pencil } from "lucide-react";
+import Modal from "../../../components/ui/Modal";
+import Button from "../../../components/ui/Button";
+import Input from "../../../components/ui/Input";
 import { useAuth } from "../../../contexts/AuthContext";
 import { useObrasApont } from "../hooks/useApontamentoData";
 import {
+  atualizarHoraBatida,
+  getFotoPontoUrls,
   listRegistrosPontoRange,
   type RegistroPonto,
 } from "../utils/pontoApi";
 import {
   listApontamentosServicoRange,
   listTodosServicos,
+  listServicosDaObra,
   type ApontamentoServico,
   type Servico,
 } from "../utils/apontamentoServicoApi";
@@ -19,6 +25,7 @@ import {
   listAprovacoesRange,
   listFuncionariosParaAprovacao,
 } from "../utils/aprovacaoApi";
+import LancamentoServicoModal from "./LancamentoServicoModal";
 
 const TIPO_BATIDA_LABEL: Record<string, string> = {
   entrada: "Entrada",
@@ -82,6 +89,14 @@ export default function AprovacaoTab() {
   });
   const [selectedDay, setSelectedDay] = useState<string>(todayIso());
   const [obraId, setObraId] = useState<string>("");
+
+  // Inline edit state
+  const [editandoBatida, setEditandoBatida] = useState<RegistroPonto | null>(null);
+  const [editandoServicoFunc, setEditandoServicoFunc] = useState<{
+    funcionarioId: string;
+    nome: string;
+    iniciais: ApontamentoServico[];
+  } | null>(null);
 
   const { data: obras = [] } = useObrasApont();
 
@@ -462,28 +477,56 @@ export default function AprovacaoTab() {
                         <div className="grid grid-cols-2 gap-1.5">
                           {(["entrada", "saida_almoco", "retorno_almoco", "saida_final"] as const).map((tipo) => {
                             const r = rs.find((x) => x.tipoBatida === tipo);
-                            return (
+                            const cell = (
                               <div
-                                key={tipo}
                                 className={
-                                  "px-2 py-1.5 rounded text-[11px] " +
+                                  "px-2 py-1.5 rounded text-[11px] flex items-start justify-between gap-1 " +
                                   (r
                                     ? "bg-[var(--color-surface-2)] text-[var(--color-fg)]"
                                     : "bg-[var(--color-surface-2)]/50 text-[var(--color-fg-subtle)]")
                                 }
                               >
-                                <div className="text-[9px] uppercase tracking-wider text-[var(--color-fg-subtle)]">
-                                  {TIPO_BATIDA_LABEL[tipo]}
+                                <div className="min-w-0 flex-1">
+                                  <div className="text-[9px] uppercase tracking-wider text-[var(--color-fg-subtle)]">
+                                    {TIPO_BATIDA_LABEL[tipo]}
+                                  </div>
+                                  <div className="tabular-nums font-medium">
+                                    {r ? fmtHora(r.hora) : "—"}
+                                  </div>
                                 </div>
-                                <div className="tabular-nums font-medium">
-                                  {r ? fmtHora(r.hora) : "—"}
-                                </div>
+                                {r && canAprovar && (
+                                  <Pencil className="w-3 h-3 text-[var(--color-fg-subtle)] shrink-0 mt-0.5" />
+                                )}
                               </div>
                             );
+                            if (r && canAprovar) {
+                              return (
+                                <button
+                                  key={tipo}
+                                  type="button"
+                                  onClick={() => setEditandoBatida(r)}
+                                  className="text-left hover:brightness-125 transition-[filter]"
+                                >
+                                  {cell}
+                                </button>
+                              );
+                            }
+                            return <div key={tipo}>{cell}</div>;
                           })}
                         </div>
                       )}
                     </div>
+
+                    {/* Foto + mapa de cada batida que tem GPS/foto */}
+                    {rs.some((r) => r.foto || (r.latitude && r.longitude)) && (
+                      <div className="mb-3 grid grid-cols-2 gap-1.5">
+                        {rs
+                          .filter((r) => r.foto || (r.latitude && r.longitude))
+                          .map((r) => (
+                            <FotoMapaThumb key={r.id} registro={r} />
+                          ))}
+                      </div>
+                    )}
 
                     {/* Apontamento por serviço */}
                     <div>
@@ -492,8 +535,26 @@ export default function AprovacaoTab() {
                           <Briefcase className="w-3 h-3" />
                           Apontamento por serviço
                         </span>
-                        <span className="text-[var(--color-fg-muted)] tabular-nums normal-case tracking-normal">
-                          {totalHoras.toFixed(1)} h
+                        <span className="flex items-center gap-2 normal-case tracking-normal">
+                          <span className="text-[var(--color-fg-muted)] tabular-nums">
+                            {totalHoras.toFixed(1)} h
+                          </span>
+                          {canAprovar && (
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setEditandoServicoFunc({
+                                  funcionarioId: f.id,
+                                  nome: f.nome,
+                                  iniciais: aps,
+                                })
+                              }
+                              className="inline-flex items-center gap-1 text-[10px] font-semibold text-[var(--color-accent-fg)] hover:underline"
+                            >
+                              <Pencil className="w-2.5 h-2.5" />
+                              {aps.length === 0 ? "Lançar" : "Editar"}
+                            </button>
+                          )}
                         </span>
                       </p>
                       {aps.length === 0 ? (
@@ -542,7 +603,251 @@ export default function AprovacaoTab() {
           )}
         </div>
       </div>
+
+      {/* Modal: editar hora da batida + ver foto + mapa */}
+      <EditarBatidaModal
+        registro={editandoBatida}
+        onClose={() => setEditandoBatida(null)}
+        onSaved={() => {
+          setEditandoBatida(null);
+          qc.invalidateQueries({ queryKey: ["apont", "aprov-ponto"] });
+          qc.invalidateQueries({ queryKey: ["apont", "aprov-ponto-mes"] });
+        }}
+      />
+
+      {/* Modal: editar lançamento de serviço (reusa o LancamentoModal) */}
+      {editandoServicoFunc && (
+        <EditarServicoFuncWrapper
+          funcionarioId={editandoServicoFunc.funcionarioId}
+          nome={editandoServicoFunc.nome}
+          data={selectedDay}
+          iniciais={editandoServicoFunc.iniciais}
+          obraId={obraId}
+          horasDoFunc={
+            // Calcula horas do ponto pra esse funcionário no dia (mesma lógica do calc)
+            (() => {
+              const rs = registrosPorFunc.get(editandoServicoFunc.funcionarioId) ?? [];
+              const ok = rs.filter((r) => r.statusAprovacao !== "rejeitado");
+              const get = (t: RegistroPonto["tipoBatida"]) =>
+                ok.find((r) => r.tipoBatida === t);
+              const entrada = get("entrada");
+              if (!entrada) return 0;
+              const sa = get("saida_almoco");
+              const ra = get("retorno_almoco");
+              const sf = get("saida_final");
+              const ms = (a?: RegistroPonto, b?: RegistroPonto) =>
+                a && b
+                  ? new Date(b.hora).getTime() - new Date(a.hora).getTime()
+                  : 0;
+              if (sa && ra && sf)
+                return (ms(entrada, sa) + ms(ra, sf)) / 3_600_000;
+              if (sf) return ms(entrada, sf) / 3_600_000;
+              return 0;
+            })()
+          }
+          onClose={() => setEditandoServicoFunc(null)}
+          onSaved={() => {
+            setEditandoServicoFunc(null);
+            qc.invalidateQueries({ queryKey: ["apont", "aprov-servico"] });
+          }}
+        />
+      )}
     </div>
+  );
+}
+
+/* ─── Foto + mini-mapa de uma batida ──────────────────────────────────── */
+function FotoMapaThumb({ registro }: { registro: RegistroPonto }) {
+  const [fotoUrl, setFotoUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!registro.foto) return;
+    let alive = true;
+    getFotoPontoUrls([registro.foto]).then((m) => {
+      if (alive && registro.foto) setFotoUrl(m[registro.foto] ?? null);
+    });
+    return () => {
+      alive = false;
+    };
+  }, [registro.foto]);
+
+  const hasGps = registro.latitude != null && registro.longitude != null;
+  const tipoLabel = TIPO_BATIDA_LABEL[registro.tipoBatida] ?? registro.tipoBatida;
+
+  return (
+    <div className="rounded-md overflow-hidden border border-[var(--color-border)] bg-[var(--color-surface-2)]">
+      <div className="text-[9px] uppercase tracking-wider text-[var(--color-fg-subtle)] px-2 py-1 border-b border-[var(--color-border)]">
+        {tipoLabel} · {fmtHora(registro.hora)}
+      </div>
+      <div className="grid grid-cols-2">
+        {fotoUrl ? (
+          <a
+            href={fotoUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="block aspect-square bg-black"
+          >
+            <img
+              src={fotoUrl}
+              alt={`Foto ${tipoLabel}`}
+              className="w-full h-full object-cover"
+              loading="lazy"
+            />
+          </a>
+        ) : (
+          <div className="aspect-square flex items-center justify-center text-[10px] text-[var(--color-fg-subtle)]">
+            sem foto
+          </div>
+        )}
+        {hasGps ? (
+          <a
+            href={`https://www.google.com/maps?q=${registro.latitude},${registro.longitude}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="block aspect-square relative"
+            title="Abrir no Google Maps"
+          >
+            <iframe
+              src={`https://www.google.com/maps?q=${registro.latitude},${registro.longitude}&z=17&output=embed`}
+              className="w-full h-full pointer-events-none"
+              loading="lazy"
+              referrerPolicy="no-referrer-when-downgrade"
+              title={`Local ${tipoLabel}`}
+            />
+            <span className="absolute inset-0" aria-hidden />
+          </a>
+        ) : (
+          <div className="aspect-square flex items-center justify-center text-[10px] text-[var(--color-fg-subtle)]">
+            sem GPS
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/* ─── Editar hora de uma batida ───────────────────────────────────────── */
+function EditarBatidaModal({
+  registro,
+  onClose,
+  onSaved,
+}: {
+  registro: RegistroPonto | null;
+  onClose: () => void;
+  onSaved: () => void;
+}) {
+  const [hora, setHora] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [erro, setErro] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (registro) {
+      const d = new Date(registro.hora);
+      const hh = String(d.getHours()).padStart(2, "0");
+      const mm = String(d.getMinutes()).padStart(2, "0");
+      setHora(`${hh}:${mm}`);
+      setErro(null);
+    }
+  }, [registro]);
+
+  if (!registro) return null;
+
+  return (
+    <Modal
+      open={registro !== null}
+      onClose={onClose}
+      title={`Alterar hora — ${TIPO_BATIDA_LABEL[registro.tipoBatida]}`}
+    >
+      <form
+        onSubmit={async (e) => {
+          e.preventDefault();
+          if (!hora) return;
+          setSaving(true);
+          setErro(null);
+          try {
+            const novaIso = new Date(`${registro.data}T${hora}:00`).toISOString();
+            await atualizarHoraBatida(registro.id, novaIso);
+            onSaved();
+          } catch (err) {
+            setErro(err instanceof Error ? err.message : String(err));
+          } finally {
+            setSaving(false);
+          }
+        }}
+        className="space-y-4"
+      >
+        <Input
+          label="Nova hora"
+          type="time"
+          value={hora}
+          onChange={(e) => setHora(e.target.value)}
+          required
+        />
+        <p className="text-xs text-[var(--color-fg-subtle)]">
+          Hora atual:{" "}
+          {new Date(registro.hora).toLocaleTimeString("pt-BR", {
+            hour: "2-digit",
+            minute: "2-digit",
+          })}
+          . A foto e o GPS originais são preservados.
+        </p>
+        {erro && (
+          <div className="rounded-lg bg-[var(--color-danger)]/10 border border-[var(--color-danger)] text-[var(--color-danger)] text-sm px-3 py-2">
+            {erro}
+          </div>
+        )}
+        <div className="flex justify-end gap-2 pt-2 border-t border-[var(--color-border)]">
+          <Button type="button" variant="secondary" onClick={onClose}>
+            Cancelar
+          </Button>
+          <Button type="submit" disabled={saving}>
+            {saving ? "Salvando..." : "Salvar"}
+          </Button>
+        </div>
+      </form>
+    </Modal>
+  );
+}
+
+/* ─── Wrapper p/ editar serviço de um único funcionário ──────────────── */
+function EditarServicoFuncWrapper({
+  funcionarioId,
+  nome,
+  data,
+  iniciais,
+  obraId,
+  horasDoFunc,
+  onClose,
+  onSaved,
+}: {
+  funcionarioId: string;
+  nome: string;
+  data: string;
+  iniciais: ApontamentoServico[];
+  obraId: string;
+  horasDoFunc: number;
+  onClose: () => void;
+  onSaved: () => void;
+}) {
+  // Lista de serviços (itens de contrato) — obraId pra filtrar; se vazio,
+  // pega todos do banco (limite 1000).
+  const { data: servicos = [] } = useQuery({
+    queryKey: ["apont", "servicos", obraId || "all"],
+    queryFn: () => (obraId ? listServicosDaObra(obraId) : listTodosServicos()),
+  });
+
+  return (
+    <LancamentoServicoModal
+      open={true}
+      funcionarioIds={[funcionarioId]}
+      funcNome={{ [funcionarioId]: nome }}
+      servicos={servicos as Servico[]}
+      iniciais={iniciais}
+      data={data}
+      horasPorFunc={{ [funcionarioId]: horasDoFunc }}
+      onClose={onClose}
+      onSaved={onSaved}
+    />
   );
 }
 
