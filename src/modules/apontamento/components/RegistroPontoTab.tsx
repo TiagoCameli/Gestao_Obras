@@ -445,7 +445,7 @@ export default function RegistroPontoTab() {
                       Todos os funcionários já registraram entrada.
                     </p>
                   ) : (
-                    <div className="space-y-2">{aguardando.map(renderCard)}</div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-2">{aguardando.map(renderCard)}</div>
                   )}
                 </section>
                 <section>
