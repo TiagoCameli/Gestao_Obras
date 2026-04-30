@@ -41,7 +41,7 @@ const STATUS_OPTS: { value: StatusFuncionario; label: string }[] = [
 
 const VINCULO_OPTS: { value: TipoVinculo; label: string }[] = [
   { value: "CLT", label: "CLT" },
-  { value: "diarista", label: "Diarista" },
+  { value: "prestador_servico", label: "Prestador de serviço" },
   { value: "terceirizado", label: "Terceirizado" },
   { value: "MEI", label: "MEI" },
 ];

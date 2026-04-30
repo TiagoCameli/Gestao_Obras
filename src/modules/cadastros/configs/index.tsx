@@ -73,9 +73,9 @@ export const EXTERNAL_ENTITIES: ExternalEntity[] = [
     permission: 'ver_cadastros',
   },
   {
-    slug: 'funcionarios',
-    singular: 'Funcionário',
-    plural: 'Funcionários',
+    slug: 'usuarios',
+    singular: 'Usuário',
+    plural: 'Usuários',
     description: 'Cadastro de usuários, perfis e permissões.',
     category: 'pessoas',
     accent: 'purple',

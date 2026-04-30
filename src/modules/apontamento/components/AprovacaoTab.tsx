@@ -96,6 +96,14 @@ export default function AprovacaoTab() {
     queryFn: () => listAprovacoesRange(monthStart, monthEnd),
   });
 
+  // Batidas do mês inteiro: usadas pra determinar quem bateu ponto em cada
+  // dia. Cards e marcadores do calendário só consideram quem registrou.
+  const { data: registrosMes = [] } = useQuery({
+    queryKey: ["apont", "aprov-ponto-mes", monthStart, monthEnd],
+    queryFn: () =>
+      listRegistrosPontoRange({ dataInicio: monthStart, dataFim: monthEnd }),
+  });
+
   // Funcionários (filtrados por obra, se aplicável)
   const { data: funcionarios = [] } = useQuery({
     queryKey: ["apont", "aprov-funcs", obraId],
@@ -133,6 +141,17 @@ export default function AprovacaoTab() {
     }
     return m;
   }, [aprovacoesMes]);
+
+  // Quem bateu ponto em cada dia do mês (set de funcionarioIds).
+  const battersPorDia = useMemo(() => {
+    const m = new Map<string, Set<string>>();
+    for (const r of registrosMes) {
+      if (r.statusAprovacao === "rejeitado") continue;
+      if (!m.has(r.data)) m.set(r.data, new Set());
+      m.get(r.data)!.add(r.funcionarioId);
+    }
+    return m;
+  }, [registrosMes]);
 
   const registrosPorFunc = useMemo(() => {
     const m = new Map<string, RegistroPonto[]>();
@@ -175,10 +194,14 @@ export default function AprovacaoTab() {
     },
   });
 
-  // Funcionários do dia selecionado: TODOS os ativos (ou filtrados por obra),
-  // independentemente de terem ponto/serviço — ausentes também precisam aparecer
-  // como pendentes pra eventual aprovação ou justificativa.
+  // Cards do dia: somente funcionários que registraram ponto nesse dia.
+  // Quem não bateu ponto não aparece (= dia não-trabalhado, ausência etc.).
   const aprovadosDoDia = aprovadosNoMesPorDia.get(selectedDay) ?? new Set<string>();
+  const battersDoDia = battersPorDia.get(selectedDay) ?? new Set<string>();
+  const funcionariosDoDia = useMemo(
+    () => funcionarios.filter((f) => battersDoDia.has(f.id)),
+    [funcionarios, battersDoDia]
+  );
 
   function changeMonth(delta: number) {
     setView((v) => {
@@ -195,15 +218,24 @@ export default function AprovacaoTab() {
   for (let i = 0; i < offsetStart; i++) dayCells.push(null);
   for (let d = 1; d <= cal.daysInMonth; d++) dayCells.push(d);
 
-  // Estatística por dia (para colorir): total funcionários × aprovados
-  const totalFuncs = funcionarios.length;
-
-  function statusDoDia(day: number): "approved" | "partial" | "pending" | "future" {
+  // Coloração do calendário: considera somente quem bateu ponto no dia.
+  // - approved: todos os que bateram estão aprovados
+  // - partial:  alguns aprovados
+  // - pending:  ninguém aprovado, mas houve batidas
+  // - empty:    ninguém bateu ponto (sem marcador)
+  // - future:   data futura
+  function statusDoDia(day: number): "approved" | "partial" | "pending" | "empty" | "future" {
     const iso = dayIso(view.year, view.month, day);
     if (iso > todayIso()) return "future";
-    const aprovados = aprovadosNoMesPorDia.get(iso)?.size ?? 0;
-    if (totalFuncs > 0 && aprovados >= totalFuncs) return "approved";
-    if (aprovados > 0) return "partial";
+    const batters = battersPorDia.get(iso);
+    if (!batters || batters.size === 0) return "empty";
+    const aprovados = aprovadosNoMesPorDia.get(iso) ?? new Set<string>();
+    let aprovCount = 0;
+    for (const id of batters) {
+      if (aprovados.has(id)) aprovCount++;
+    }
+    if (aprovCount >= batters.size) return "approved";
+    if (aprovCount > 0) return "partial";
     return "pending";
   }
 
@@ -226,7 +258,8 @@ export default function AprovacaoTab() {
           </select>
         </Field>
         <div className="text-xs text-[var(--color-fg-subtle)] md:text-right">
-          {totalFuncs} {totalFuncs === 1 ? "funcionário ativo" : "funcionários ativos"}{" "}
+          {funcionarios.length}{" "}
+          {funcionarios.length === 1 ? "funcionário ativo" : "funcionários ativos"}{" "}
           {obraId ? "nesta obra" : "no total"}
         </div>
       </div>
@@ -292,7 +325,7 @@ export default function AprovacaoTab() {
                   }
                 >
                   {d}
-                  {!selected && status !== "future" && (
+                  {!selected && (status === "approved" || status === "partial" || status === "pending") && (
                     <span
                       className={
                         "absolute bottom-1 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full " +
@@ -323,17 +356,19 @@ export default function AprovacaoTab() {
               Dia {fmtData(selectedDay)}
             </h3>
             <span className="text-xs text-[var(--color-fg-subtle)]">
-              {aprovadosDoDia.size} de {totalFuncs} aprovados
+              {Array.from(battersDoDia).filter((id) => aprovadosDoDia.has(id)).length} de{" "}
+              {funcionariosDoDia.length} aprovados
             </span>
           </div>
 
-          {totalFuncs === 0 ? (
+          {funcionariosDoDia.length === 0 ? (
             <div className="rounded-xl border border-dashed border-[var(--color-border)] p-8 text-center text-sm text-[var(--color-fg-muted)]">
-              Sem funcionários ativos {obraId ? "nesta obra" : ""} para listar.
+              Nenhum funcionário registrou ponto neste dia
+              {obraId ? " (com o filtro de obra atual)" : ""}.
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              {funcionarios.map((f) => {
+              {funcionariosDoDia.map((f) => {
                 const aprovado = aprovadosDoDia.has(f.id);
                 const rs = (registrosPorFunc.get(f.id) ?? []).filter(
                   (r) => r.statusAprovacao !== "rejeitado"

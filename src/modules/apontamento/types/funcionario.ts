@@ -1,4 +1,15 @@
-export type TipoVinculo = "CLT" | "diarista" | "terceirizado" | "MEI";
+/**
+ * Tipos de vínculo. `diarista` é mantido como valor legado para registros
+ * antigos antes da migração 20260430_apont_diarista_to_prestador.sql, mas
+ * não deve mais ser usado em novos cadastros (substituído por
+ * `prestador_servico`).
+ */
+export type TipoVinculo =
+  | "CLT"
+  | "prestador_servico"
+  | "diarista"
+  | "terceirizado"
+  | "MEI";
 
 export type StatusFuncionario =
   | "ativo"
