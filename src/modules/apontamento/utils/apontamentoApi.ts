@@ -79,7 +79,7 @@ function funcionarioToRow(
   return {
     id: f.id || undefined,
     nome: f.nome,
-    cpf: emptyToNull(f.cpf) ?? "",
+    cpf: emptyToNull(f.cpf),
     rg: f.rg ?? null,
     pis: f.pis ?? null,
     ctps: f.ctps ?? null,
