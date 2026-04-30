@@ -165,7 +165,26 @@ export interface FiltrosPonto {
 export async function listRegistrosPontoRange(
   filtros: FiltrosPonto
 ): Promise<RegistroPonto[]> {
-  // Resolve a lista de funcionários a considerar (em função dos filtros).
+  // Caminho rápido: nenhum filtro de obra/equipe/funcionário → busca direta
+  // na tabela de batidas pelo período. Garante que TODOS os registros
+  // existentes apareçam, mesmo de funcionários que foram realocados ou
+  // não constam mais na lista filtrada de apont_funcionarios.
+  const semFiltrosDeFuncionario =
+    !filtros.funcionarioId && !filtros.equipeId && !filtros.obraId;
+
+  if (semFiltrosDeFuncionario) {
+    const { data: rows, error } = await supabase
+      .from("apont_registros_ponto")
+      .select("*")
+      .gte("data", filtros.dataInicio)
+      .lte("data", filtros.dataFim)
+      .order("data", { ascending: false })
+      .order("hora", { ascending: true });
+    throwIfError(error, "listRegistrosRange:all");
+    return ((rows ?? []) as Row[]).map(rowToRegistro);
+  }
+
+  // Caminho com filtros: resolve a lista de funcionários e busca por id.
   let funcsQuery = supabase
     .from("apont_funcionarios")
     .select("id, obra_id, equipe_id");

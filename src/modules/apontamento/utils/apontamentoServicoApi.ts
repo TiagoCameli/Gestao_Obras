@@ -124,7 +124,24 @@ export interface FiltrosApontamentoServico {
 export async function listApontamentosServicoRange(
   filtros: FiltrosApontamentoServico
 ): Promise<ApontamentoServico[]> {
-  // Resolve a lista de funcionários a considerar (em função dos filtros).
+  const semFiltrosDeFuncionario =
+    !filtros.funcionarioId && !filtros.equipeId && !filtros.obraId;
+
+  // Caminho rápido: só período → busca direta, todos os apontamentos do range.
+  if (semFiltrosDeFuncionario) {
+    let q = supabase
+      .from("apont_apontamentos_servico")
+      .select("*")
+      .gte("data", filtros.dataInicio)
+      .lte("data", filtros.dataFim);
+    if (filtros.tipo) q = q.eq("tipo", filtros.tipo);
+    q = q.order("data", { ascending: false }).order("created_at", { ascending: true });
+    const { data: rows, error } = await q;
+    throwIfError(error, "listApontamentosRange:all");
+    return ((rows ?? []) as Row[]).map(rowToApont);
+  }
+
+  // Com filtros de obra/equipe/funcionário: resolve lista de funcionários antes.
   let funcsQuery = supabase
     .from("apont_funcionarios")
     .select("id, obra_id, equipe_id");
