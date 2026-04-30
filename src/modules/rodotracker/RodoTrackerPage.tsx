@@ -30,7 +30,11 @@ function TrackerView({ obra, onBack }: { obra: Obra; onBack: () => void }) {
   } = useFilters(activities);
 
   const [isAdding, setIsAdding] = useState(false);
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  // No mobile, sidebar abre fechada por padrão pra dar mapa em tela cheia
+  // já no primeiro acesso. Em desktop, mantém aberta.
+  const [sidebarCollapsed, setSidebarCollapsed] = useState<boolean>(() =>
+    typeof window !== "undefined" ? window.innerWidth < 768 : false
+  );
   const [showPlanning, setShowPlanning] = useState(false);
   const [showMeasurement, setShowMeasurement] = useState(false);
   // Largura da sidebar — arrastável pelo handle na borda direita. Persistida
@@ -315,15 +319,16 @@ function TrackerView({ obra, onBack }: { obra: Obra; onBack: () => void }) {
         </div>
       )}
 
-      <div className="flex-1 h-[50vh] md:h-full order-1 md:order-2 relative">
+      <div className="flex-1 min-h-0 order-1 md:order-2 relative">
         {sidebarCollapsed && (
           <button
             onClick={() => setSidebarCollapsed(false)}
             className="absolute z-[1100] flex items-center gap-1.5 group"
             style={{
               top: 12, left: 12,
-              padding: "8px 12px",
-              background: "rgba(19, 23, 31, 0.82)",
+              padding: "10px 14px",
+              minHeight: 44,
+              background: "rgba(19, 23, 31, 0.88)",
               border: "1px solid var(--border-subtle)",
               borderRadius: "var(--r-md)",
               color: "var(--text-secondary)",
@@ -344,13 +349,26 @@ function TrackerView({ obra, onBack }: { obra: Obra; onBack: () => void }) {
             }}
             title="Expandir painel"
           >
-            <PanelLeftOpen className="h-4 w-4" />
+            <PanelLeftOpen className="h-[18px] w-[18px]" />
             <span
-              className="hidden sm:inline"
               style={{ fontSize: 11, fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase" }}
             >
               Atividades
             </span>
+            {filtered.length > 0 && (
+              <span
+                className="ml-1 inline-flex items-center justify-center text-[10px] font-bold tabular-nums"
+                style={{
+                  minWidth: 22, height: 18,
+                  padding: "0 6px",
+                  background: "var(--accent)",
+                  color: "var(--accent-ink)",
+                  borderRadius: 9,
+                }}
+              >
+                {filtered.length}
+              </span>
+            )}
           </button>
         )}
         <MapView

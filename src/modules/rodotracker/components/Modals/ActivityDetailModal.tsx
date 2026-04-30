@@ -132,26 +132,24 @@ export function ActivityDetailModal({ activity, contractItems = [], onEdit, onCl
 
   return (
     <div
-      className="fixed inset-0 z-[2000] flex items-center justify-center p-4 animate-fadeIn"
+      className="fixed inset-0 z-[2000] flex items-end sm:items-center justify-center p-0 sm:p-4 animate-fadeIn"
       style={{ background: "rgba(3,5,9,0.75)", backdropFilter: "blur(8px)" }}
       onClick={onClose}
     >
       <div
-        className="w-full max-w-lg max-h-[85vh] overflow-y-auto animate-slideUp"
+        className="w-full max-w-lg max-h-[92vh] sm:max-h-[85vh] overflow-y-auto animate-slideUp rounded-t-2xl sm:rounded-2xl"
         style={{
           background:
             "linear-gradient(180deg, rgba(255,255,255,0.025), transparent 30%), var(--bg-elevated)",
           border: "1px solid var(--border-subtle)",
-          borderRadius: "var(--r-2xl)",
           boxShadow: "var(--shadow-4)",
         }}
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
         <div
-          className="flex items-start justify-between sticky top-0 z-10"
+          className="flex items-start justify-between sticky top-0 z-10 px-4 sm:px-6 py-3 sm:py-[18px]"
           style={{
-            padding: "18px 24px",
             borderBottom: "1px solid var(--border-subtle)",
             background:
               "linear-gradient(180deg, rgba(24,29,40,0.95), rgba(24,29,40,0.82))",
@@ -274,7 +272,7 @@ export function ActivityDetailModal({ activity, contractItems = [], onEdit, onCl
           </div>
         </div>
 
-        <div className="p-5 space-y-5">
+        <div className="p-4 sm:p-5 space-y-4 sm:space-y-5">
           {/* Informações */}
           <section>
             <h3 className="text-xs uppercase tracking-wider text-[#5c6380] mb-3 flex items-center gap-1.5">

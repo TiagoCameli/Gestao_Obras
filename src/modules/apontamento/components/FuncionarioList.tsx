@@ -59,7 +59,6 @@ export default function FuncionarioList({
             <th className="px-4 py-3 font-medium">Vínculo</th>
             <th className="px-4 py-3 font-medium">Obra / Equipe</th>
             <th className="px-4 py-3 font-medium">Status</th>
-            <th className="px-4 py-3 font-medium">HE</th>
             <th className="px-4 py-3"></th>
           </tr>
         </thead>
@@ -100,19 +99,18 @@ export default function FuncionarioList({
                       {f.equipeId ? equipeNome[f.equipeId] : "sem equipe"}
                     </div>
                   </>
+                ) : f.equipeId ? (
+                  // Funcionário alocado a uma equipe sem obra atribuída.
+                  <>
+                    <div>{equipeNome[f.equipeId] ?? "—"}</div>
+                    <div className="text-[var(--color-fg-subtle)]">sem obra</div>
+                  </>
                 ) : (
                   <span className="text-amber-400">sem alocação</span>
                 )}
               </td>
               <td className="px-4 py-3">
                 <StatusBadge status={f.status} />
-              </td>
-              <td className="px-4 py-3">
-                {f.permiteHorasExtras ? (
-                  <span className="text-xs text-emerald-500">✓</span>
-                ) : (
-                  <span className="text-xs text-[var(--color-fg-subtle)]">—</span>
-                )}
               </td>
               <td className="px-4 py-3 text-right whitespace-nowrap">
                 <button

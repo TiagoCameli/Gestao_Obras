@@ -882,7 +882,7 @@ export function ActivityFormModal({
 
   return (
     <div
-      className="fixed inset-0 z-[2500] flex items-center justify-center p-4 animate-fadeIn"
+      className="fixed inset-0 z-[2500] flex items-end sm:items-center justify-center p-0 sm:p-4 animate-fadeIn"
       style={{
         background: "rgba(3,5,9,0.75)",
         backdropFilter: "blur(8px)",
@@ -895,19 +895,17 @@ export function ActivityFormModal({
       // mais (evita perda acidental do form enquanto o usuário preenche).
     >
       <div
-        className="w-full max-w-5xl max-h-[94vh] overflow-y-auto animate-slideUp"
+        className="w-full max-w-5xl max-h-[96vh] sm:max-h-[94vh] overflow-y-auto animate-slideUp rounded-t-2xl sm:rounded-2xl"
         style={{
           background:
             "linear-gradient(180deg, rgba(255,255,255,0.025), transparent 30%), var(--bg-elevated)",
           border: "1px solid var(--border-subtle)",
-          borderRadius: "var(--r-2xl)",
           boxShadow: "var(--shadow-4)",
         }}
       >
         <div
-          className="flex items-center justify-between sticky top-0 z-10"
+          className="flex items-center justify-between sticky top-0 z-10 px-4 sm:px-7 py-3 sm:py-[18px]"
           style={{
-            padding: "18px 28px",
             borderBottom: "1px solid var(--border-subtle)",
             background:
               "linear-gradient(180deg, rgba(24,29,40,0.95), rgba(24,29,40,0.8))",
@@ -948,8 +946,7 @@ export function ActivityFormModal({
 
         <form
           onSubmit={handleSubmit}
-          className="space-y-5"
-          style={{ padding: "28px 32px" }}
+          className="space-y-4 sm:space-y-5 px-4 sm:px-8 py-5 sm:py-7"
         >
           {saveError && (
             <div

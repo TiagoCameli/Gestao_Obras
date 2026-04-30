@@ -68,11 +68,21 @@ export function Sidebar({
       />
 
       {/* Header */}
-      <div className="shrink-0 relative" style={{ padding: "18px 20px 16px", borderBottom: "1px solid var(--border-subtle)" }}>
+      <div
+        className="shrink-0 relative px-4 sm:px-5 pt-4 pb-3 sm:pt-[18px] sm:pb-4"
+        style={{ borderBottom: "1px solid var(--border-subtle)" }}
+      >
+        {/* Pull-handle visual no mobile (indica que o painel é arrastável visualmente) */}
+        <div
+          className="md:hidden absolute left-1/2 -translate-x-1/2 rounded-full"
+          style={{ top: 6, width: 36, height: 4, background: "var(--border-strong, rgba(255,255,255,0.18))" }}
+          aria-hidden
+        />
+
         <button
           onClick={onBack}
           className="flex items-center gap-1.5 transition-colors"
-          style={{ fontSize: 11, color: "var(--text-muted)", marginBottom: 10, fontWeight: 500 }}
+          style={{ fontSize: 11, color: "var(--text-muted)", marginBottom: 10, fontWeight: 500, minHeight: 28 }}
           onMouseEnter={(e) => { e.currentTarget.style.color = "var(--accent)"; }}
           onMouseLeave={(e) => { e.currentTarget.style.color = "var(--text-muted)"; }}
         >
@@ -83,9 +93,10 @@ export function Sidebar({
         {onCollapse && (
           <button
             onClick={onCollapse}
-            className="absolute p-1.5 rounded-lg"
+            className="absolute rounded-lg flex items-center justify-center"
             style={{
-              top: 14, right: 14,
+              top: 12, right: 12,
+              width: 40, height: 40,
               color: "var(--text-muted)",
               background: "transparent",
               transition: "all 0.2s",
@@ -99,8 +110,9 @@ export function Sidebar({
               e.currentTarget.style.background = "transparent";
             }}
             title="Minimizar painel"
+            aria-label="Minimizar painel"
           >
-            <PanelLeftClose className="h-3.5 w-3.5" />
+            <PanelLeftClose className="h-4 w-4" />
           </button>
         )}
 

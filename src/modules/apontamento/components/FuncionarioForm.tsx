@@ -8,10 +8,18 @@ import {
   isCpfValido,
   type Funcionario,
   type FuncaoFuncionario,
+  type FuncionarioDocumento,
   type StatusFuncionario,
   type TipoVinculo,
 } from "../types/funcionario";
-import { existeCpf, getFotoUrls, uploadFoto } from "../utils/apontamentoApi";
+import {
+  deleteDocumentos,
+  existeCpf,
+  getDocumentoUrls,
+  getFotoUrls,
+  uploadDocumento,
+  uploadFoto,
+} from "../utils/apontamentoApi";
 
 interface Props {
   initial?: Funcionario | null;
@@ -77,10 +85,6 @@ export default function FuncionarioForm({
   const [contatoEmergencia, setContatoEmergencia] = useState(
     initial?.contatoEmergencia ?? ""
   );
-  const [permiteHorasExtras, setPermiteHorasExtras] = useState(
-    initial?.permiteHorasExtras ?? true
-  );
-
   // Galeria unificada: 1..5 fotos. A primeira é, automaticamente, a foto de
   // perfil (avatar) e também uma das referências faciais usadas no match.
   const [fotos, setFotos] = useState<FotoState[]>(() => {
@@ -97,6 +101,17 @@ export default function FuncionarioForm({
     return initialPaths.map((path) => ({ path }));
   });
 
+  // Documentos: misturamos persistidos (com `path`) e os ainda não enviados
+  // (com `pendingFile`). Os enviados ganham um signed URL pra download.
+  type DocState = {
+    item: FuncionarioDocumento;
+    pendingFile?: File;
+    downloadUrl?: string;
+  };
+  const [documentos, setDocumentos] = useState<DocState[]>(() =>
+    (initial?.documentos ?? []).map((d) => ({ item: d }))
+  );
+
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
 
@@ -112,6 +127,27 @@ export default function FuncionarioForm({
       setFotos((prev) =>
         prev.map((f) =>
           f.path && urls[f.path] ? { ...f, previewUrl: urls[f.path] } : f
+        )
+      );
+    });
+    return () => {
+      alive = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Hidrata signed URLs dos documentos persistidos.
+  useEffect(() => {
+    const paths = documentos
+      .filter((d) => !d.pendingFile && !d.downloadUrl)
+      .map((d) => d.item.path);
+    if (paths.length === 0) return;
+    let alive = true;
+    getDocumentoUrls(paths).then((urls) => {
+      if (!alive) return;
+      setDocumentos((prev) =>
+        prev.map((d) =>
+          d.pendingFile || d.downloadUrl ? d : { ...d, downloadUrl: urls[d.item.path] }
         )
       );
     });
@@ -167,6 +203,17 @@ export default function FuncionarioForm({
         }
       }
 
+      // Sobe documentos pendentes e monta a lista final.
+      const finalDocs: FuncionarioDocumento[] = [];
+      for (const d of documentos) {
+        if (d.pendingFile) {
+          const path = await uploadDocumento(funcionarioId, d.pendingFile);
+          finalDocs.push({ ...d.item, path });
+        } else {
+          finalDocs.push(d.item);
+        }
+      }
+
       const payload: Omit<Funcionario, "createdAt" | "updatedAt"> = {
         id: funcionarioId,
         nome: nome.trim(),
@@ -189,7 +236,8 @@ export default function FuncionarioForm({
         dataDemissao: dataDemissao || null,
         status,
         contatoEmergencia: contatoEmergencia || null,
-        permiteHorasExtras,
+        permiteHorasExtras: false,
+        documentos: finalDocs,
       };
       await onSubmit(payload);
       onSaved();
@@ -228,6 +276,45 @@ export default function FuncionarioForm({
       next.unshift(item);
       return next;
     });
+  }
+
+  function handleAdicionarDocumentos(e: React.ChangeEvent<HTMLInputElement>) {
+    const files = Array.from(e.target.files ?? []);
+    if (files.length === 0) return;
+    const novos: DocState[] = files.map((file) => ({
+      pendingFile: file,
+      item: {
+        id: crypto.randomUUID(),
+        nome: file.name,
+        path: "", // preenchido após upload no submit
+        size: file.size,
+        mimeType: file.type || "application/octet-stream",
+        uploadedAt: new Date().toISOString(),
+      },
+    }));
+    setDocumentos((prev) => [...prev, ...novos]);
+    e.target.value = "";
+  }
+
+  async function removerDocumento(id: string) {
+    const target = documentos.find((d) => d.item.id === id);
+    if (!target) return;
+    // Se já estava no storage, apaga o arquivo também.
+    if (!target.pendingFile && target.item.path) {
+      try {
+        await deleteDocumentos([target.item.path]);
+      } catch (e) {
+        console.warn("Falha ao apagar documento do storage:", e);
+      }
+    }
+    setDocumentos((prev) => prev.filter((d) => d.item.id !== id));
+  }
+
+  function formatBytes(n: number): string {
+    if (n < 1024) return `${n} B`;
+    if (n < 1024 * 1024) return `${(n / 1024).toFixed(1)} KB`;
+    if (n < 1024 * 1024 * 1024) return `${(n / 1024 / 1024).toFixed(1)} MB`;
+    return `${(n / 1024 / 1024 / 1024).toFixed(1)} GB`;
   }
 
   return (
@@ -393,19 +480,81 @@ export default function FuncionarioForm({
         )}
       </Section>
 
-      <Section title="Regras">
-        <label className="flex items-center gap-3 text-sm text-[var(--color-fg)]">
-          <input
-            type="checkbox"
-            checked={permiteHorasExtras}
-            onChange={(e) => setPermiteHorasExtras(e.target.checked)}
-            className="w-4 h-4"
-          />
-          Permite horas extras
+      <Section title="Documentos (opcional)">
+        <p className="text-xs text-[var(--color-fg-muted)] mb-3">
+          Anexe RG, CTPS, comprovantes ou qualquer outro arquivo. Sem
+          restrição de tipo. Os arquivos só são enviados quando você
+          salvar o cadastro.
+        </p>
+
+        <div className="flex items-center gap-2 mb-3">
+          <label
+            className="inline-flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer text-sm bg-[var(--color-surface-1)] border border-[var(--color-border)] hover:border-[var(--color-border-strong)] hover:bg-[var(--color-surface-2)] transition-colors"
+          >
+            <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M21.44 11.05 12.25 20.24a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" />
+            </svg>
+            Anexar arquivos
+            <input
+              type="file"
+              multiple
+              className="hidden"
+              onChange={handleAdicionarDocumentos}
+            />
+          </label>
           <span className="text-xs text-[var(--color-fg-subtle)]">
-            (se desligado, sistema não calcula HE mesmo em jornada estendida)
+            {documentos.length}{" "}
+            {documentos.length === 1 ? "arquivo" : "arquivos"}
           </span>
-        </label>
+        </div>
+
+        {documentos.length > 0 && (
+          <ul className="space-y-1.5">
+            {documentos.map((d) => {
+              const podeBaixar = !d.pendingFile && d.downloadUrl;
+              return (
+                <li
+                  key={d.item.id}
+                  className="flex items-center gap-3 px-3 py-2 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-1)]"
+                >
+                  <svg className="w-4 h-4 shrink-0 text-[var(--color-fg-subtle)]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                    <polyline points="14 2 14 8 20 8" />
+                  </svg>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm text-[var(--color-fg)] truncate">{d.item.nome}</p>
+                    <p className="text-[11px] text-[var(--color-fg-subtle)]">
+                      {formatBytes(d.item.size)}
+                      {d.pendingFile && (
+                        <span className="ml-2 text-[var(--color-warning-fg)]">
+                          • aguardando salvar
+                        </span>
+                      )}
+                    </p>
+                  </div>
+                  {podeBaixar && (
+                    <a
+                      href={d.downloadUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-xs px-2 py-1 rounded text-[var(--color-fg-muted)] hover:text-[var(--color-accent)] hover:bg-[var(--color-surface-2)] transition-colors"
+                      title="Abrir / baixar"
+                    >
+                      Abrir
+                    </a>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => removerDocumento(d.item.id)}
+                    className="text-xs px-2 py-1 rounded text-[var(--color-fg-muted)] hover:text-[var(--color-danger)] hover:bg-[var(--color-danger-soft)] transition-colors"
+                  >
+                    Remover
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+        )}
       </Section>
 
       <div className="flex justify-end gap-2 pt-2 border-t border-[var(--color-border)]">

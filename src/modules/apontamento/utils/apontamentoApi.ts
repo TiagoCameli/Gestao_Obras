@@ -33,6 +33,7 @@ type FuncionarioRow = {
   status: string;
   contato_emergencia: string | null;
   permite_horas_extras: boolean;
+  documentos: Funcionario["documentos"] | null;
   created_at: string;
   updated_at: string;
 };
@@ -61,6 +62,7 @@ function rowToFuncionario(r: FuncionarioRow): Funcionario {
     status: r.status as Funcionario["status"],
     contatoEmergencia: r.contato_emergencia,
     permiteHorasExtras: r.permite_horas_extras,
+    documentos: r.documentos ?? [],
     createdAt: r.created_at,
     updatedAt: r.updated_at,
   };
@@ -99,6 +101,7 @@ function funcionarioToRow(
     status: f.status,
     contato_emergencia: f.contatoEmergencia ?? null,
     permite_horas_extras: f.permiteHorasExtras,
+    documentos: (f.documentos ?? []) as unknown as Funcionario["documentos"] | null,
   };
 }
 
@@ -443,4 +446,50 @@ export async function deleteFotos(paths: string[]): Promise<void> {
   if (paths.length === 0) return;
   const { error } = await supabase.storage.from(FOTO_BUCKET).remove(paths);
   throwIfError(error, "deleteFotos");
+}
+
+/* ─── Storage de documentos do funcionário ──────────────────────────── */
+/* Aceita qualquer extensão. Reaproveita o bucket `apontamento-fotos` numa
+ * pasta `documentos/<funcionarioId>/...`. Mantém os metadados (nome, MIME,
+ * tamanho) na coluna `documentos` (jsonb) do banco. */
+
+export async function uploadDocumento(
+  funcionarioId: string,
+  file: File
+): Promise<string> {
+  // Sanitiza o nome para o path: remove acentos e caracteres especiais.
+  const safeName = file.name
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "")
+    .replace(/[^A-Za-z0-9._-]+/g, "_");
+  const path = `documentos/${funcionarioId}/${Date.now()}-${safeName}`;
+  const { error } = await supabase.storage
+    .from(FOTO_BUCKET)
+    .upload(path, file, {
+      upsert: false,
+      contentType: file.type || "application/octet-stream",
+    });
+  throwIfError(error, "uploadDocumento");
+  return path;
+}
+
+export async function getDocumentoUrls(
+  paths: string[]
+): Promise<Record<string, string>> {
+  if (paths.length === 0) return {};
+  const { data, error } = await supabase.storage
+    .from(FOTO_BUCKET)
+    .createSignedUrls(paths, 3600);
+  throwIfError(error, "getDocumentoUrls");
+  const out: Record<string, string> = {};
+  (data ?? []).forEach((d, i) => {
+    if (d?.signedUrl) out[paths[i]] = d.signedUrl;
+  });
+  return out;
+}
+
+export async function deleteDocumentos(paths: string[]): Promise<void> {
+  if (paths.length === 0) return;
+  const { error } = await supabase.storage.from(FOTO_BUCKET).remove(paths);
+  throwIfError(error, "deleteDocumentos");
 }

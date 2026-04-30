@@ -38,6 +38,15 @@ export const FUNCOES: FuncaoFuncionario[] = [
   "OUTROS",
 ];
 
+export interface FuncionarioDocumento {
+  id: string;
+  nome: string;        // nome original do arquivo
+  path: string;        // path no storage
+  size: number;        // bytes
+  mimeType: string;
+  uploadedAt: string;  // ISO timestamp
+}
+
 export interface Funcionario {
   id: string;
   nome: string;
@@ -61,6 +70,8 @@ export interface Funcionario {
   status: StatusFuncionario;
   contatoEmergencia?: string | null;
   permiteHorasExtras: boolean;
+  /** Documentos anexados (RG, CTPS, comprovantes, etc.). Aceita qualquer extensão. */
+  documentos?: FuncionarioDocumento[];
   createdAt: string;
   updatedAt: string;
 }

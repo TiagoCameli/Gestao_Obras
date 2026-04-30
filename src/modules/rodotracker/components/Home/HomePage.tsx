@@ -80,8 +80,8 @@ export function HomePage({ onOpenObra }: HomePageProps) {
       {/* ── Navbar ── */}
       <header className="anim-nav shrink-0 relative z-10 surface-glass" style={{ borderRadius: 0, borderLeft: "none", borderRight: "none", borderTop: "none" }}>
         <div
-          className="flex items-center justify-between"
-          style={{ height: 68, maxWidth: 1400, margin: "0 auto", paddingLeft: 32, paddingRight: 32 }}
+          className="flex items-center justify-between px-4 sm:px-8"
+          style={{ height: 64, maxWidth: 1400, margin: "0 auto" }}
         >
           <div className="flex items-center gap-3">
             <div
@@ -99,16 +99,17 @@ export function HomePage({ onOpenObra }: HomePageProps) {
               <span style={{ fontSize: 19, fontWeight: 700, letterSpacing: "-0.02em", color: "var(--text-primary)" }}>
                 Tre<span style={{ color: "var(--accent)" }}>chos</span>
               </span>
-              <span className="label-eyebrow font-mono" style={{ fontSize: 9 }}>v1.8</span>
+              <span className="label-eyebrow font-mono" style={{ fontSize: 9 }}>v2.0</span>
             </div>
           </div>
 
           <button
             onClick={() => { setEditObra(null); setShowForm(true); }}
             className="btn btn-primary shimmer-wrap"
+            aria-label="Nova obra"
           >
             <Plus className="h-4 w-4" />
-            Nova Obra
+            <span className="hidden sm:inline">Nova Obra</span>
           </button>
         </div>
 
@@ -122,16 +123,20 @@ export function HomePage({ onOpenObra }: HomePageProps) {
 
       {/* ── Content ── */}
       <div className="flex-1 overflow-y-auto relative z-10">
-        <div className="flex flex-col min-h-full" style={{ maxWidth: 1400, margin: "0 auto", padding: "40px 32px 48px" }}>
+        <div
+          className="flex flex-col min-h-full px-4 sm:px-8 pt-6 sm:pt-10 pb-10 sm:pb-12"
+          style={{ maxWidth: 1400, margin: "0 auto" }}
+        >
           {/* Hero */}
-          <div className="anim-stats" style={{ marginBottom: 32 }}>
+          <div className="anim-stats" style={{ marginBottom: 28 }}>
             <div className="flex items-center gap-2" style={{ marginBottom: 10 }}>
               <Sparkles className="h-3.5 w-3.5" style={{ color: "var(--accent)" }} />
               <span className="label-eyebrow">Operations Dashboard</span>
             </div>
             <h1
+              className="text-[22px] sm:text-[28px] md:text-[32px]"
               style={{
-                fontSize: 32, fontWeight: 700, letterSpacing: "-0.03em",
+                fontWeight: 700, letterSpacing: "-0.03em",
                 lineHeight: 1.1, color: "var(--text-primary)",
                 marginBottom: 8,
               }}
@@ -139,7 +144,7 @@ export function HomePage({ onOpenObra }: HomePageProps) {
               Do <span style={{ color: "var(--accent)" }}>campo</span> à{" "}
               <span style={{ color: "var(--accent)" }}>medição</span>, num fluxo só.
             </h1>
-            <p style={{ fontSize: 14, color: "var(--text-secondary)", maxWidth: 640, lineHeight: 1.55 }}>
+            <p className="text-[13px] sm:text-sm" style={{ color: "var(--text-secondary)", maxWidth: 640, lineHeight: 1.55 }}>
               Planeje o Gantt da obra, registre atividades em campo com fotos e coordenadas,
               e veja os quantitativos do contrato se atualizarem em tempo real na medição vigente.
             </p>

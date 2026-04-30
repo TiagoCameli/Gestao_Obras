@@ -112,16 +112,31 @@
   font-weight: 600;
 }
 
-/* Sidebar redimensionável — mobile stacked, desktop width controlada por
-   CSS variable (--rt-sidebar-w) injetada pelo React. */
+/* Sidebar redimensionável.
+   - Mobile (<768px): bottom drawer com 65vh, sobre o mapa, com sombra
+     superior e cantos arredondados na borda de cima. Aparece com slide-up.
+   - Desktop (>=768px): coluna fixa lateral com largura controlada por
+     CSS variable (--rt-sidebar-w) injetada pelo React. */
 .rt-sidebar-shell {
   width: 100%;
-  height: 50vh;
+  height: 65vh;
+  border-top-left-radius: 16px;
+  border-top-right-radius: 16px;
+  box-shadow: 0 -10px 30px -8px rgba(0, 0, 0, 0.55), 0 -2px 0 rgba(255, 255, 255, 0.04) inset;
+  overflow: hidden;
+  animation: rt-sidebar-slide-up 240ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+@keyframes rt-sidebar-slide-up {
+  from { transform: translateY(8%); opacity: 0.4; }
+  to   { transform: translateY(0);   opacity: 1; }
 }
 @media (min-width: 768px) {
   .rt-sidebar-shell {
     width: var(--rt-sidebar-w, 380px);
     height: 100%;
+    border-radius: 0;
+    box-shadow: none;
+    animation: none;
   }
 }
 
