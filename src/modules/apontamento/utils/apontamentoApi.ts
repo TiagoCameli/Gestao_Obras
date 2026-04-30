@@ -173,15 +173,39 @@ export async function existeCpf(
 
 /* ─── Obras (do módulo Medição: rodotracker_obras) ────────────────────── */
 
+/**
+ * Lista obras do cadastros (master `obras`) que estão em andamento
+ * ou em planejamento. Faz LEFT JOIN com `rodotracker_obras` para
+ * trazer lote/rodovia quando disponíveis.
+ */
 export async function listObras(): Promise<Obra[]> {
-  const { data, error } = await supabase
+  const { data: master, error: errM } = await supabase
+    .from("obras")
+    .select("id, nome, status")
+    .in("status", ["planejamento", "em_andamento"])
+    .order("nome");
+  throwIfError(errM, "listObras:master");
+
+  // Carrega geo das que tiverem extensão (todas, em batch)
+  const { data: ext, error: errE } = await supabase
     .from("rodotracker_obras")
-    .select("id, name, lote, rodovia")
-    .order("name");
-  throwIfError(error, "listObras");
-  return ((data ?? []) as { id: string; name: string; lote: string | null; rodovia: string | null }[]).map(
-    (r) => ({ id: r.id, nome: r.name, lote: r.lote, rodovia: r.rodovia })
-  );
+    .select("id, lote, rodovia");
+  throwIfError(errE, "listObras:ext");
+
+  const extById = new Map<string, { lote: string | null; rodovia: string | null }>();
+  for (const r of (ext ?? []) as { id: string; lote: string | null; rodovia: string | null }[]) {
+    extById.set(r.id, { lote: r.lote, rodovia: r.rodovia });
+  }
+
+  return ((master ?? []) as { id: string; nome: string; status: string }[]).map((m) => {
+    const e = extById.get(m.id);
+    return {
+      id: m.id,
+      nome: m.nome,
+      lote: e?.lote ?? null,
+      rodovia: e?.rodovia ?? null,
+    };
+  });
 }
 
 /* ─── Equipes ─────────────────────────────────────────────────────────── */
