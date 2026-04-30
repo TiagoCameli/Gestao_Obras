@@ -29,6 +29,10 @@ function EquipesView() {
   const { data: obras = [] } = useObrasApont();
   const { data: equipes = [] } = useEquipesApont();
   const { data: funcionarios = [] } = useFuncionarios();
+  // Filtro por obra: quando selecionado, lista só equipes que servem
+  // aquela obra (e os funcionários "sem alocação" cuja obra direta seja a
+  // mesma). Vazio = mostra tudo.
+  const [filtroObraId, setFiltroObraId] = useState<string>("");
 
   const createEq = useCreateEquipe();
   const updateEq = useUpdateEquipe();
@@ -62,7 +66,18 @@ function EquipesView() {
     return m;
   }, [funcsAtivos]);
 
-  const semEquipe = funcsPorEquipe._sem_equipe ?? [];
+  // Aplica filtro por obra. Para equipes: usa o array `obraIds` (M:N). Pra
+  // funcionários sem equipe: filtra pelo `obraId` direto que eles tenham.
+  const equipesFiltradas = useMemo(() => {
+    if (!filtroObraId) return equipes;
+    return equipes.filter((eq) => eq.obraIds.includes(filtroObraId));
+  }, [equipes, filtroObraId]);
+
+  const semEquipeBruta = funcsPorEquipe._sem_equipe ?? [];
+  const semEquipe = useMemo(() => {
+    if (!filtroObraId) return semEquipeBruta;
+    return semEquipeBruta.filter((f) => f.obraId === filtroObraId);
+  }, [semEquipeBruta, filtroObraId]);
 
   if (obras.length === 0) {
     return (
@@ -81,13 +96,32 @@ function EquipesView() {
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col md:flex-row md:items-end justify-between gap-3">
         <p className="text-sm text-[var(--color-fg-muted)]">
           Gerencie equipes por obra e aloque funcionários.
         </p>
-        <Button onClick={() => setModalEq({ open: true, edit: null })}>
-          Nova equipe
-        </Button>
+        <div className="flex flex-col sm:flex-row sm:items-end gap-3">
+          <div className="flex flex-col gap-1">
+            <label className="text-[10px] uppercase tracking-wider text-[var(--color-fg-subtle)] font-semibold">
+              Filtrar por obra
+            </label>
+            <select
+              value={filtroObraId}
+              onChange={(e) => setFiltroObraId(e.target.value)}
+              className="h-10 min-w-[220px] rounded-lg px-3 text-sm bg-[var(--color-surface-1)] text-[var(--color-fg)] border border-[var(--color-border)] focus:outline-none focus:border-[var(--color-accent)] focus:ring-2 focus:ring-[var(--color-ring)]"
+            >
+              <option value="">Todas as obras</option>
+              {obras.map((o) => (
+                <option key={o.id} value={o.id}>
+                  {o.nome}
+                </option>
+              ))}
+            </select>
+          </div>
+          <Button onClick={() => setModalEq({ open: true, edit: null })}>
+            Nova equipe
+          </Button>
+        </div>
       </div>
 
       {/* Funcionários sem equipe */}
@@ -119,13 +153,15 @@ function EquipesView() {
       )}
 
       {/* Equipes */}
-      {equipes.length === 0 ? (
+      {equipesFiltradas.length === 0 ? (
         <div className="py-8 text-center text-sm text-[var(--color-fg-subtle)]">
-          Nenhuma equipe ainda.
+          {filtroObraId
+            ? "Nenhuma equipe atende esta obra ainda."
+            : "Nenhuma equipe ainda."}
         </div>
       ) : (
         <div className="space-y-3">
-          {equipes.map((eq) => {
+          {equipesFiltradas.map((eq) => {
             const membros = funcsPorEquipe[eq.id] ?? [];
             const encarregado = membros.find((m) => m.id === eq.encarregadoId);
             return (
