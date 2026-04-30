@@ -221,12 +221,16 @@ export default function AprovacaoTab() {
   // Coloração do calendário: considera somente quem bateu ponto no dia.
   // - approved: todos os que bateram estão aprovados
   // - partial:  alguns aprovados
-  // - pending:  ninguém aprovado, mas houve batidas
+  // - overdue:  pendente E mais de 7 dias atrás (atraso crítico)
+  // - pending:  ninguém aprovado, mas houve batidas (≤ 7 dias)
   // - empty:    ninguém bateu ponto (sem marcador)
   // - future:   data futura
-  function statusDoDia(day: number): "approved" | "partial" | "pending" | "empty" | "future" {
+  function statusDoDia(
+    day: number
+  ): "approved" | "partial" | "overdue" | "pending" | "empty" | "future" {
     const iso = dayIso(view.year, view.month, day);
-    if (iso > todayIso()) return "future";
+    const todayIsoStr = todayIso();
+    if (iso > todayIsoStr) return "future";
     const batters = battersPorDia.get(iso);
     if (!batters || batters.size === 0) return "empty";
     const aprovados = aprovadosNoMesPorDia.get(iso) ?? new Set<string>();
@@ -236,6 +240,10 @@ export default function AprovacaoTab() {
     }
     if (aprovCount >= batters.size) return "approved";
     if (aprovCount > 0) return "partial";
+    // Pendente: verifica se já passou de 7 dias do registro até hoje.
+    const diffDias =
+      (Date.parse(todayIsoStr) - Date.parse(iso)) / (1000 * 60 * 60 * 24);
+    if (diffDias > 7) return "overdue";
     return "pending";
   }
 
@@ -319,13 +327,15 @@ export default function AprovacaoTab() {
                         ? "bg-[var(--color-success-soft)] text-[var(--color-success-fg)] hover:brightness-110"
                         : status === "partial"
                           ? "bg-[var(--color-warning-soft)] text-[var(--color-warning-fg)] hover:brightness-110"
-                          : status === "future"
-                            ? "text-[var(--color-fg-subtle)] hover:bg-[var(--color-surface-2)]"
-                            : "text-[var(--color-fg-muted)] hover:bg-[var(--color-surface-2)]")
+                          : status === "overdue"
+                            ? "bg-purple-500/15 text-purple-300 hover:brightness-110"
+                            : status === "future"
+                              ? "text-[var(--color-fg-subtle)] hover:bg-[var(--color-surface-2)]"
+                              : "text-[var(--color-fg-muted)] hover:bg-[var(--color-surface-2)]")
                   }
                 >
                   {d}
-                  {!selected && (status === "approved" || status === "partial" || status === "pending") && (
+                  {!selected && (status === "approved" || status === "partial" || status === "pending" || status === "overdue") && (
                     <span
                       className={
                         "absolute bottom-1 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full " +
@@ -333,7 +343,9 @@ export default function AprovacaoTab() {
                           ? "bg-[var(--color-success)]"
                           : status === "partial"
                             ? "bg-[var(--color-warning)]"
-                            : "bg-[var(--color-danger)]")
+                            : status === "overdue"
+                              ? "bg-purple-500"
+                              : "bg-[var(--color-danger)]")
                       }
                     />
                   )}
@@ -346,6 +358,7 @@ export default function AprovacaoTab() {
             <Legend color="var(--color-success)" label="Aprovado" />
             <Legend color="var(--color-warning)" label="Parcial" />
             <Legend color="var(--color-danger)" label="Pendente" />
+            <Legend color="rgb(168 85 247)" label="Atraso > 7d" />
           </div>
         </div>
 
