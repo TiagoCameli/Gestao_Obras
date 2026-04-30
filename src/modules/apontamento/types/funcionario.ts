@@ -76,7 +76,10 @@ export interface Obra {
 export interface Equipe {
   id: string;
   nome: string;
-  obraId: string;
+  /** Obras servidas pela equipe (M:N via apont_equipe_obras). */
+  obraIds: string[];
+  /** Compat: obra "principal" — primeira de obraIds, ou null se equipe sem obra. */
+  obraId: string | null;
   encarregadoId?: string | null;
   ativo: boolean;
 }

@@ -10,6 +10,7 @@ import {
   updateEquipe,
   deleteEquipe,
   alocarFuncionarios,
+  transferirEquipeObra,
 } from "../utils/apontamentoApi";
 import type { Equipe, Funcionario } from "../types/funcionario";
 
@@ -63,9 +64,32 @@ export function useDeleteFuncionario() {
 export function useCreateEquipe() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (e: Omit<Equipe, "id" | "ativo"> & { ativo?: boolean }) =>
-      createEquipe(e),
+    mutationFn: (
+      e: Omit<Equipe, "id" | "ativo" | "obraId"> & { ativo?: boolean }
+    ) => createEquipe(e),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["apont", "equipes"] }),
+  });
+}
+
+export function useTransferirEquipeObra() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (args: {
+      equipeId: string;
+      obraOrigemId: string;
+      obraDestinoId: string;
+      removerOrigem?: boolean;
+    }) =>
+      transferirEquipeObra(
+        args.equipeId,
+        args.obraOrigemId,
+        args.obraDestinoId,
+        args.removerOrigem ?? true
+      ),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["apont", "equipes"] });
+      qc.invalidateQueries({ queryKey: KEY.funcionarios });
+    },
   });
 }
 

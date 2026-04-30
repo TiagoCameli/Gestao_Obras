@@ -189,55 +189,100 @@ export async function listObras(): Promise<Obra[]> {
 type EquipeRow = {
   id: string;
   nome: string;
-  obra_id: string;
+  obra_id: string | null;
   encarregado_id: string | null;
   ativo: boolean;
 };
 
-function rowToEquipe(r: EquipeRow): Equipe {
-  return {
-    id: r.id,
-    nome: r.nome,
-    obraId: r.obra_id,
-    encarregadoId: r.encarregado_id,
-    ativo: r.ativo,
-  };
-}
+type EquipeObraRow = { equipe_id: string; obra_id: string };
 
+/** Lista equipes; quando `obraId` é passado, devolve só as que servem essa obra. */
 export async function listEquipes(obraId?: string): Promise<Equipe[]> {
-  let q = supabase
+  // 1) Carrega todas as equipes (master)
+  const { data: equipes, error: errE } = await supabase
     .from("apont_equipes")
     .select("id, nome, obra_id, encarregado_id, ativo")
     .order("nome");
-  if (obraId) q = q.eq("obra_id", obraId);
-  const { data, error } = await q;
-  throwIfError(error, "listEquipes");
-  return ((data ?? []) as EquipeRow[]).map(rowToEquipe);
+  throwIfError(errE, "listEquipes:master");
+
+  // 2) Carrega o vínculo equipe ↔ obras
+  const { data: vinc, error: errV } = await supabase
+    .from("apont_equipe_obras")
+    .select("equipe_id, obra_id");
+  throwIfError(errV, "listEquipes:obras");
+
+  const obrasPorEquipe = new Map<string, string[]>();
+  for (const v of (vinc ?? []) as EquipeObraRow[]) {
+    const arr = obrasPorEquipe.get(v.equipe_id) ?? [];
+    arr.push(v.obra_id);
+    obrasPorEquipe.set(v.equipe_id, arr);
+  }
+
+  // 3) Compõe + filtra
+  return ((equipes ?? []) as EquipeRow[])
+    .map((r): Equipe => {
+      const obraIds = obrasPorEquipe.get(r.id) ?? (r.obra_id ? [r.obra_id] : []);
+      return {
+        id: r.id,
+        nome: r.nome,
+        obraIds,
+        obraId: obraIds[0] ?? r.obra_id ?? null,
+        encarregadoId: r.encarregado_id,
+        ativo: r.ativo,
+      };
+    })
+    .filter((e) => !obraId || e.obraIds.includes(obraId));
+}
+
+async function syncEquipeObras(equipeId: string, obraIds: string[]): Promise<void> {
+  // Remove tudo e re-insere — payload é pequeno (poucas obras por equipe).
+  const { error: delErr } = await supabase
+    .from("apont_equipe_obras")
+    .delete()
+    .eq("equipe_id", equipeId);
+  throwIfError(delErr, "syncEquipeObras:delete");
+  if (obraIds.length === 0) return;
+  const rows = obraIds.map((oid) => ({ equipe_id: equipeId, obra_id: oid }));
+  const { error: insErr } = await supabase.from("apont_equipe_obras").insert(rows);
+  throwIfError(insErr, "syncEquipeObras:insert");
 }
 
 export async function createEquipe(
-  e: Omit<Equipe, "id" | "ativo"> & { ativo?: boolean }
+  e: Omit<Equipe, "id" | "ativo" | "obraId"> & { ativo?: boolean }
 ): Promise<Equipe> {
+  const obraIds = e.obraIds ?? [];
+  const obraPrincipal = obraIds[0] ?? null;
   const { data, error } = await supabase
     .from("apont_equipes")
     .insert({
       nome: e.nome,
-      obra_id: e.obraId,
+      obra_id: obraPrincipal,
       encarregado_id: e.encarregadoId ?? null,
       ativo: e.ativo ?? true,
     })
     .select("id, nome, obra_id, encarregado_id, ativo")
     .single();
   throwIfError(error, "createEquipe");
-  return rowToEquipe(data as EquipeRow);
+  const row = data as EquipeRow;
+  await syncEquipeObras(row.id, obraIds);
+  return {
+    id: row.id,
+    nome: row.nome,
+    obraIds,
+    obraId: obraPrincipal,
+    encarregadoId: row.encarregado_id,
+    ativo: row.ativo,
+  };
 }
 
 export async function updateEquipe(e: Equipe): Promise<Equipe> {
+  const obraIds = e.obraIds ?? [];
+  const obraPrincipal = obraIds[0] ?? null;
   const { data, error } = await supabase
     .from("apont_equipes")
     .update({
       nome: e.nome,
-      obra_id: e.obraId,
+      obra_id: obraPrincipal,
       encarregado_id: e.encarregadoId ?? null,
       ativo: e.ativo,
     })
@@ -245,12 +290,66 @@ export async function updateEquipe(e: Equipe): Promise<Equipe> {
     .select("id, nome, obra_id, encarregado_id, ativo")
     .single();
   throwIfError(error, "updateEquipe");
-  return rowToEquipe(data as EquipeRow);
+  const row = data as EquipeRow;
+  await syncEquipeObras(row.id, obraIds);
+  return {
+    id: row.id,
+    nome: row.nome,
+    obraIds,
+    obraId: obraPrincipal,
+    encarregadoId: row.encarregado_id,
+    ativo: row.ativo,
+  };
 }
 
 export async function deleteEquipe(id: string): Promise<void> {
+  // CASCADE de apont_equipe_obras já apaga os vínculos automaticamente.
   const { error } = await supabase.from("apont_equipes").delete().eq("id", id);
   throwIfError(error, "deleteEquipe");
+}
+
+/**
+ * Transfere uma equipe de uma obra para outra.
+ *  - Se a equipe não estiver na origem, retorna sem alterar nada.
+ *  - Adiciona a obra de destino ao conjunto se ainda não estiver.
+ *  - Quando `removerOrigem` (default: true), remove a obra de origem.
+ *  - Atualiza também os funcionários da equipe que estão alocados na origem.
+ */
+export async function transferirEquipeObra(
+  equipeId: string,
+  obraOrigemId: string,
+  obraDestinoId: string,
+  removerOrigem: boolean = true
+): Promise<void> {
+  // Adiciona destino (idempotente)
+  const { error: insErr } = await supabase
+    .from("apont_equipe_obras")
+    .upsert({ equipe_id: equipeId, obra_id: obraDestinoId }, { onConflict: "equipe_id,obra_id" });
+  throwIfError(insErr, "transferirEquipeObra:insert");
+
+  if (removerOrigem) {
+    const { error: delErr } = await supabase
+      .from("apont_equipe_obras")
+      .delete()
+      .eq("equipe_id", equipeId)
+      .eq("obra_id", obraOrigemId);
+    throwIfError(delErr, "transferirEquipeObra:delete");
+  }
+
+  // Atualiza obra "principal" da equipe = destino
+  const { error: updEqErr } = await supabase
+    .from("apont_equipes")
+    .update({ obra_id: obraDestinoId })
+    .eq("id", equipeId);
+  throwIfError(updEqErr, "transferirEquipeObra:equipe");
+
+  // Move funcionários alocados na obra de origem para a obra de destino.
+  const { error: updFuncErr } = await supabase
+    .from("apont_funcionarios")
+    .update({ obra_id: obraDestinoId })
+    .eq("equipe_id", equipeId)
+    .eq("obra_id", obraOrigemId);
+  throwIfError(updFuncErr, "transferirEquipeObra:funcionarios");
 }
 
 /* ─── Alocação de funcionários a equipe ──────────────────────────────── */

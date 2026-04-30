@@ -12,6 +12,7 @@ import {
   useEquipesApont,
   useFuncionarios,
   useObrasApont,
+  useTransferirEquipeObra,
   useUpdateEquipe,
 } from "../hooks/useApontamentoData";
 import type { Equipe, Funcionario, Obra } from "../types/funcionario";
@@ -33,6 +34,7 @@ function EquipesView() {
   const updateEq = useUpdateEquipe();
   const removeEq = useDeleteEquipe();
   const alocar = useAlocarFuncionarios();
+  const transferirEq = useTransferirEquipeObra();
 
   const [modalEq, setModalEq] = useState<{
     open: boolean;
@@ -40,6 +42,7 @@ function EquipesView() {
   }>({ open: false, edit: null });
   const [deleteEqId, setDeleteEqId] = useState<string | null>(null);
   const [alocandoEquipe, setAlocandoEquipe] = useState<Equipe | null>(null);
+  const [transferindoEquipe, setTransferindoEquipe] = useState<Equipe | null>(null);
 
   const obraNome = useMemo(
     () => Object.fromEntries(obras.map((o) => [o.id, o.nome])),
@@ -131,22 +134,45 @@ function EquipesView() {
                 className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-1)] p-4"
               >
                 <header className="flex items-start justify-between gap-3 mb-3">
-                  <div>
+                  <div className="min-w-0 flex-1">
                     <h4 className="text-base font-semibold text-[var(--color-fg)]">
                       {eq.nome}
                     </h4>
                     <p className="text-xs text-[var(--color-fg-muted)]">
-                      Obra: {obraNome[eq.obraId] ?? "—"} · {membros.length}{" "}
+                      {membros.length}{" "}
                       {membros.length === 1 ? "membro" : "membros"}
                       {encarregado && ` · Encarregado: ${encarregado.nome}`}
                     </p>
+                    {eq.obraIds.length === 0 ? (
+                      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium bg-[var(--color-warning-soft)] text-[var(--color-warning-fg)] mt-1.5">
+                        Sem obra atribuída
+                      </span>
+                    ) : (
+                      <div className="flex flex-wrap gap-1 mt-1.5">
+                        {eq.obraIds.map((oid) => (
+                          <span
+                            key={oid}
+                            className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium bg-[var(--color-accent-soft)] text-[var(--color-accent-fg)]"
+                          >
+                            {obraNome[oid] ?? oid.slice(0, 8)}
+                          </span>
+                        ))}
+                      </div>
+                    )}
                   </div>
-                  <div className="flex gap-1">
+                  <div className="flex gap-1 shrink-0">
                     <button
                       onClick={() => setAlocandoEquipe(eq)}
                       className="text-xs px-2 py-1 rounded hover:bg-[var(--color-surface-2)] text-[var(--color-accent)]"
                     >
                       Alocar
+                    </button>
+                    <button
+                      onClick={() => setTransferindoEquipe(eq)}
+                      className="text-xs px-2 py-1 rounded hover:bg-[var(--color-surface-2)] text-[var(--color-info-fg)]"
+                      disabled={eq.obraIds.length === 0}
+                    >
+                      Transferir
                     </button>
                     <button
                       onClick={() => setModalEq({ open: true, edit: eq })}
@@ -254,6 +280,29 @@ function EquipesView() {
         )}
       </Modal>
 
+      <Modal
+        open={transferindoEquipe !== null}
+        onClose={() => setTransferindoEquipe(null)}
+        title={`Transferir equipe — ${transferindoEquipe?.nome ?? ""}`}
+      >
+        {transferindoEquipe && (
+          <TransferirEquipeForm
+            equipe={transferindoEquipe}
+            obras={obras}
+            onCancel={() => setTransferindoEquipe(null)}
+            onConfirm={async ({ obraOrigemId, obraDestinoId, removerOrigem }) => {
+              await transferirEq.mutateAsync({
+                equipeId: transferindoEquipe.id,
+                obraOrigemId,
+                obraDestinoId,
+                removerOrigem,
+              });
+              setTransferindoEquipe(null);
+            }}
+          />
+        )}
+      </Modal>
+
       <ConfirmDialog
         open={deleteEqId !== null}
         onClose={() => setDeleteEqId(null)}
@@ -278,23 +327,29 @@ function EquipeForm({
 }: {
   initial: Equipe | null;
   obras: Obra[];
-  onSubmit: (e: Omit<Equipe, "id" | "ativo">) => Promise<void>;
+  onSubmit: (e: Omit<Equipe, "id" | "ativo" | "obraId">) => Promise<void>;
   onCancel: () => void;
 }) {
   const [nome, setNome] = useState(initial?.nome ?? "");
-  const [obraId, setObraId] = useState(initial?.obraId ?? "");
+  const [obraIds, setObraIds] = useState<string[]>(initial?.obraIds ?? []);
   const [saving, setSaving] = useState(false);
+
+  function toggleObra(id: string) {
+    setObraIds((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+    );
+  }
 
   return (
     <form
       onSubmit={async (e) => {
         e.preventDefault();
-        if (!nome.trim() || !obraId) return;
+        if (!nome.trim()) return;
         setSaving(true);
         try {
           await onSubmit({
             nome: nome.trim(),
-            obraId,
+            obraIds,
             encarregadoId: initial?.encarregadoId ?? null,
           });
         } catch (err) {
@@ -312,19 +367,140 @@ function EquipeForm({
         required
         placeholder="Ex: Frente A — CBUQ"
       />
-      <Select
-        label="Obra"
-        options={obras.map((o) => ({ value: o.id, label: o.nome }))}
-        value={obraId}
-        onChange={(e) => setObraId(e.target.value)}
-        required
-      />
+
+      <div>
+        <label className="block text-xs font-medium text-[var(--color-fg-muted)] mb-1.5 tracking-wide">
+          Obras servidas pela equipe
+        </label>
+        <p className="text-[11px] text-[var(--color-fg-subtle)] mb-2">
+          Marque uma ou mais. Equipe pode atender múltiplas obras simultaneamente.
+        </p>
+        <div className="flex flex-wrap gap-1.5">
+          {obras.map((o) => {
+            const active = obraIds.includes(o.id);
+            return (
+              <button
+                key={o.id}
+                type="button"
+                onClick={() => toggleObra(o.id)}
+                className={
+                  "px-3 py-1.5 rounded-full text-xs font-medium border transition-colors " +
+                  (active
+                    ? "bg-[var(--color-accent-soft)] text-[var(--color-accent-fg)] border-[var(--color-accent)]/40"
+                    : "bg-[var(--color-surface-1)] text-[var(--color-fg-muted)] border-[var(--color-border)] hover:border-[var(--color-border-strong)]")
+                }
+              >
+                {active && (
+                  <svg className="w-3 h-3 inline-block mr-1" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                    <polyline points="20 6 9 17 4 12" />
+                  </svg>
+                )}
+                {o.nome}
+              </button>
+            );
+          })}
+        </div>
+        {obraIds.length === 0 && (
+          <p className="text-[11px] text-[var(--color-warning-fg)] mt-2">
+            Equipe sem obra atribuída — pode ser salva, mas não aparecerá nos
+            filtros de Registro de Ponto / Apontamento até atribuir uma obra.
+          </p>
+        )}
+      </div>
+
       <div className="flex justify-end gap-2 pt-2 border-t border-[var(--color-border)]">
         <Button type="button" variant="secondary" onClick={onCancel}>
           Cancelar
         </Button>
         <Button type="submit" disabled={saving}>
           {saving ? "Salvando..." : "Salvar"}
+        </Button>
+      </div>
+    </form>
+  );
+}
+
+function TransferirEquipeForm({
+  equipe,
+  obras,
+  onConfirm,
+  onCancel,
+}: {
+  equipe: Equipe;
+  obras: Obra[];
+  onConfirm: (args: {
+    obraOrigemId: string;
+    obraDestinoId: string;
+    removerOrigem: boolean;
+  }) => Promise<void>;
+  onCancel: () => void;
+}) {
+  const [obraOrigemId, setObraOrigemId] = useState<string>(equipe.obraIds[0] ?? "");
+  const [obraDestinoId, setObraDestinoId] = useState<string>("");
+  const [removerOrigem, setRemoverOrigem] = useState(true);
+  const [saving, setSaving] = useState(false);
+
+  const obraNome = useMemo(
+    () => Object.fromEntries(obras.map((o) => [o.id, o.nome])),
+    [obras]
+  );
+  const obrasDestino = useMemo(
+    () => obras.filter((o) => o.id !== obraOrigemId),
+    [obras, obraOrigemId]
+  );
+
+  const valido = !!obraOrigemId && !!obraDestinoId && obraOrigemId !== obraDestinoId;
+
+  return (
+    <form
+      onSubmit={async (e) => {
+        e.preventDefault();
+        if (!valido) return;
+        setSaving(true);
+        try {
+          await onConfirm({ obraOrigemId, obraDestinoId, removerOrigem });
+        } finally {
+          setSaving(false);
+        }
+      }}
+      className="space-y-4"
+    >
+      <p className="text-sm text-[var(--color-fg-muted)]">
+        Transferir <strong className="text-[var(--color-fg)]">{equipe.nome}</strong>:
+      </p>
+      <Select
+        label="De (obra de origem)"
+        options={equipe.obraIds.map((oid) => ({
+          value: oid,
+          label: obraNome[oid] ?? oid,
+        }))}
+        value={obraOrigemId}
+        onChange={(e) => setObraOrigemId(e.target.value)}
+        required
+      />
+      <Select
+        label="Para (obra de destino)"
+        options={obrasDestino.map((o) => ({ value: o.id, label: o.nome }))}
+        value={obraDestinoId}
+        onChange={(e) => setObraDestinoId(e.target.value)}
+        required
+      />
+      <label className="flex items-center gap-2 text-sm text-[var(--color-fg-muted)] cursor-pointer">
+        <input
+          type="checkbox"
+          checked={removerOrigem}
+          onChange={(e) => setRemoverOrigem(e.target.checked)}
+          className="accent-[var(--color-accent)]"
+        />
+        Remover obra de origem (transferência exclusiva). Desmarque para
+        adicionar destino sem desfazer a origem.
+      </label>
+      <div className="flex justify-end gap-2 pt-2 border-t border-[var(--color-border)]">
+        <Button type="button" variant="secondary" onClick={onCancel}>
+          Cancelar
+        </Button>
+        <Button type="submit" disabled={!valido || saving}>
+          {saving ? "Transferindo..." : "Confirmar transferência"}
         </Button>
       </div>
     </form>
@@ -508,7 +684,7 @@ function FuncBadge({
                   >
                     {eq.nome}{" "}
                     <span className="text-[var(--color-fg-subtle)]">
-                      ({obraNome?.[eq.obraId] ?? "—"})
+                      ({eq.obraIds.length > 0 ? eq.obraIds.map((oid) => obraNome?.[oid] ?? "—").join(", ") : "—"})
                     </span>
                   </button>
                 ))
