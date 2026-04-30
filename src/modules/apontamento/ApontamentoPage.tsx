@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useCallback, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import Button from "../../components/ui/Button";
 import Modal from "../../components/ui/Modal";
 import ConfirmDialog from "../../components/ui/ConfirmDialog";
@@ -20,12 +21,20 @@ import {
 import type { Funcionario } from "./types/funcionario";
 
 type Tab = "dashboard" | "funcionarios" | "alocacao" | "ponto" | "servico" | "aprovacao" | "historico";
+const VALID_TABS: Tab[] = ["dashboard", "funcionarios", "alocacao", "ponto", "servico", "aprovacao", "historico"];
 
 export default function ApontamentoPage() {
   const { temAcao } = useAuth();
   const canVerAprovacao = temAcao("ver_aprovacoes_rh");
 
-  const [tab, setTab] = useState<Tab>("dashboard");
+  // Persiste a aba ativa em ?tab= pra sobreviver a refresh / link direto.
+  const [searchParams, setSearchParams] = useSearchParams();
+  const tabParam = searchParams.get("tab") as Tab | null;
+  const tab: Tab = tabParam && VALID_TABS.includes(tabParam) ? tabParam : "dashboard";
+  const setTab = useCallback(
+    (t: Tab) => setSearchParams({ tab: t }, { replace: true }),
+    [setSearchParams]
+  );
   const { data: funcionarios = [], isLoading } = useFuncionarios();
   const create = useCreateFuncionario();
   const update = useUpdateFuncionario();

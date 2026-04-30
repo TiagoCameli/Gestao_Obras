@@ -96,11 +96,11 @@
   --color-surface-1:  #11141A;
   --color-surface-2:  #161A21;
   --color-surface-3:  #1E232C;
-  --color-border:     rgba(255, 255, 255, 0.08);
-  --color-border-strong: rgba(255, 255, 255, 0.14);
-  --color-fg:         #EDEFF3;
-  --color-fg-muted:   #9BA3AF;
-  --color-fg-subtle:  #6B7280;
+  --color-border:     rgba(255, 255, 255, 0.10);
+  --color-border-strong: rgba(255, 255, 255, 0.18);
+  --color-fg:         #F2F4F8;
+  --color-fg-muted:   #B0B7C3;
+  --color-fg-subtle:  #858DA0;
   --color-fg-on-accent: #FFFFFF;
   --color-accent:       #3AA368;
   --color-accent-hover: #46BE7B;
@@ -140,6 +140,7 @@
    BASE
    ============================================================ */
 html, body, #root { height: 100%; }
+html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
 
 body {
   background-color: var(--color-bg);
@@ -147,11 +148,24 @@ body {
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  font-feature-settings: "cv02","cv03","cv04","cv11";
+  text-rendering: optimizeLegibility;
+  /* Inter variable: ativa alternates Linear (cv02/03/04) + single-storey "a" (cv11),
+     kerning, contextual alts e o stylistic set 1. Mantém ligaduras de leitura. */
+  font-feature-settings: "cv02","cv03","cv04","cv11","kern","calt","ss01";
+  font-variant-ligatures: common-ligatures contextual;
   letter-spacing: -0.005em;
 }
 
-h1, h2, h3, h4 { letter-spacing: -0.02em; color: var(--color-fg); }
+h1, h2, h3, h4 {
+  letter-spacing: -0.02em;
+  color: var(--color-fg);
+  text-wrap: balance;
+}
+
+/* Tabular nums só em onde o markup explicitar (.tabular-nums / .font-mono).
+   Inter por padrão usa proportional figures. */
+.tabular-nums { font-variant-numeric: tabular-nums; }
+.font-mono { font-feature-settings: "zero", "ss01", "tnum"; }
 
 ::selection {
   background-color: color-mix(in srgb, var(--color-accent) 45%, transparent);
