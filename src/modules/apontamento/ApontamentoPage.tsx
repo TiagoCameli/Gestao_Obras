@@ -9,6 +9,8 @@ import RegistroPontoTab from "./components/RegistroPontoTab";
 import ApontamentoServicoTab from "./components/ApontamentoServicoTab";
 import DashboardTab from "./components/DashboardTab";
 import HistoricoTab from "./components/HistoricoTab";
+import AprovacaoTab from "./components/AprovacaoTab";
+import { useAuth } from "../../contexts/AuthContext";
 import {
   useCreateFuncionario,
   useDeleteFuncionario,
@@ -17,9 +19,12 @@ import {
 } from "./hooks/useApontamentoData";
 import type { Funcionario } from "./types/funcionario";
 
-type Tab = "dashboard" | "funcionarios" | "alocacao" | "ponto" | "servico" | "historico";
+type Tab = "dashboard" | "funcionarios" | "alocacao" | "ponto" | "servico" | "aprovacao" | "historico";
 
 export default function ApontamentoPage() {
+  const { temAcao } = useAuth();
+  const canVerAprovacao = temAcao("ver_aprovacoes_rh");
+
   const [tab, setTab] = useState<Tab>("dashboard");
   const { data: funcionarios = [], isLoading } = useFuncionarios();
   const create = useCreateFuncionario();
@@ -76,6 +81,11 @@ export default function ApontamentoPage() {
         <TabBtn active={tab === "servico"} onClick={() => setTab("servico")}>
           Apontamento por Serviço
         </TabBtn>
+        {canVerAprovacao && (
+          <TabBtn active={tab === "aprovacao"} onClick={() => setTab("aprovacao")}>
+            Aprovação
+          </TabBtn>
+        )}
         <TabBtn active={tab === "historico"} onClick={() => setTab("historico")}>
           Histórico
         </TabBtn>
@@ -104,6 +114,8 @@ export default function ApontamentoPage() {
       {tab === "ponto" && <RegistroPontoTab />}
 
       {tab === "servico" && <ApontamentoServicoTab />}
+
+      {tab === "aprovacao" && canVerAprovacao && <AprovacaoTab />}
 
       {tab === "historico" && <HistoricoTab />}
 
