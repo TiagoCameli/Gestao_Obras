@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import type { Funcionario } from "../types/funcionario";
+import type { Funcionario, StatusFuncionario } from "../types/funcionario";
 import { formatarCpf } from "../types/funcionario";
 import { getFotoUrls } from "../utils/apontamentoApi";
 import { useEquipesApont, useObrasApont } from "../hooks/useApontamentoData";
@@ -10,6 +10,21 @@ interface Props {
   onDelete: (id: string) => void;
 }
 
+const STATUS_OPTS: { value: StatusFuncionario | ""; label: string }[] = [
+  { value: "", label: "Todos os status" },
+  { value: "ativo", label: "Ativo" },
+  { value: "inativo", label: "Inativo" },
+  { value: "afastado", label: "Afastado" },
+  { value: "demitido", label: "Demitido" },
+];
+
+function normalize(s: string): string {
+  return s
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "")
+    .toLowerCase();
+}
+
 export default function FuncionarioList({
   funcionarios,
   onEdit,
@@ -17,6 +32,28 @@ export default function FuncionarioList({
 }: Props) {
   const { data: obras = [] } = useObrasApont();
   const { data: equipes = [] } = useEquipesApont();
+
+  // Filtros
+  const [filtroNome, setFiltroNome] = useState("");
+  const [filtroFuncao, setFiltroFuncao] = useState("");
+  const [filtroCpf, setFiltroCpf] = useState("");
+  const [filtroStatus, setFiltroStatus] = useState<StatusFuncionario | "">("");
+
+  const funcionariosFiltrados = useMemo(() => {
+    const nq = normalize(filtroNome.trim());
+    const fq = normalize(filtroFuncao.trim());
+    const cpfDigits = filtroCpf.replace(/\D/g, "");
+    return funcionarios.filter((f) => {
+      if (nq && !normalize(f.nome).includes(nq)) return false;
+      if (fq && !normalize(f.funcao).includes(fq)) return false;
+      if (cpfDigits && !(f.cpf ?? "").replace(/\D/g, "").includes(cpfDigits)) return false;
+      if (filtroStatus && f.status !== filtroStatus) return false;
+      return true;
+    });
+  }, [funcionarios, filtroNome, filtroFuncao, filtroCpf, filtroStatus]);
+
+  const filtroAtivo =
+    !!filtroNome.trim() || !!filtroFuncao.trim() || !!filtroCpf.replace(/\D/g, "") || !!filtroStatus;
   const obraNome = useMemo(
     () => Object.fromEntries(obras.map((o) => [o.id, o.nome])),
     [obras]
@@ -49,6 +86,73 @@ export default function FuncionarioList({
   }
 
   return (
+    <div className="space-y-3">
+      {/* Filtros */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+        <FilterField label="Nome">
+          <input
+            type="text"
+            value={filtroNome}
+            onChange={(e) => setFiltroNome(e.target.value)}
+            placeholder="Buscar nome..."
+            className={inputCls}
+          />
+        </FilterField>
+        <FilterField label="Função">
+          <input
+            type="text"
+            value={filtroFuncao}
+            onChange={(e) => setFiltroFuncao(e.target.value)}
+            placeholder="Ex: motorista, encarregado..."
+            className={inputCls}
+          />
+        </FilterField>
+        <FilterField label="CPF">
+          <input
+            type="text"
+            value={filtroCpf}
+            onChange={(e) => setFiltroCpf(e.target.value)}
+            placeholder="000.000.000-00"
+            className={inputCls}
+            inputMode="numeric"
+          />
+        </FilterField>
+        <FilterField label="Status">
+          <select
+            value={filtroStatus}
+            onChange={(e) => setFiltroStatus(e.target.value as StatusFuncionario | "")}
+            className={inputCls}
+          >
+            {STATUS_OPTS.map((s) => (
+              <option key={s.value || "all"} value={s.value}>
+                {s.label}
+              </option>
+            ))}
+          </select>
+        </FilterField>
+      </div>
+
+      <div className="flex items-center justify-between text-xs text-[var(--color-fg-subtle)]">
+        <span>
+          {funcionariosFiltrados.length} de {funcionarios.length}{" "}
+          {funcionarios.length === 1 ? "funcionário" : "funcionários"}
+        </span>
+        {filtroAtivo && (
+          <button
+            type="button"
+            onClick={() => {
+              setFiltroNome("");
+              setFiltroFuncao("");
+              setFiltroCpf("");
+              setFiltroStatus("");
+            }}
+            className="text-[var(--color-fg-muted)] hover:text-[var(--color-fg)] underline underline-offset-2"
+          >
+            Limpar filtros
+          </button>
+        )}
+      </div>
+
     <div className="overflow-x-auto rounded-xl border border-[var(--color-border)]">
       <table className="w-full text-sm">
         <thead className="bg-[var(--color-surface-2)] text-[var(--color-fg-muted)]">
@@ -63,7 +167,13 @@ export default function FuncionarioList({
           </tr>
         </thead>
         <tbody>
-          {funcionarios.map((f) => (
+          {funcionariosFiltrados.length === 0 ? (
+            <tr>
+              <td colSpan={7} className="px-4 py-8 text-center text-sm text-[var(--color-fg-muted)]">
+                Nenhum funcionário corresponde aos filtros aplicados.
+              </td>
+            </tr>
+          ) : funcionariosFiltrados.map((f) => (
             <tr
               key={f.id}
               className="border-t border-[var(--color-border)] hover:bg-[var(--color-surface-2)]/50"
@@ -130,6 +240,23 @@ export default function FuncionarioList({
           ))}
         </tbody>
       </table>
+    </div>
+    </div>
+  );
+}
+
+const inputCls =
+  "h-10 w-full rounded-lg px-3 text-sm bg-[var(--color-surface-1)] text-[var(--color-fg)] " +
+  "border border-[var(--color-border)] focus:outline-none focus:border-[var(--color-accent)] " +
+  "focus:ring-2 focus:ring-[var(--color-ring)]";
+
+function FilterField({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div className="flex flex-col gap-1">
+      <label className="text-[10px] uppercase tracking-wider text-[var(--color-fg-subtle)] font-semibold">
+        {label}
+      </label>
+      {children}
     </div>
   );
 }
