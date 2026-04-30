@@ -523,7 +523,7 @@ export default function AprovacaoTab() {
                         </p>
                       ) : (
                         <div className="grid grid-cols-2 gap-1.5">
-                          {(["entrada", "saida_almoco", "retorno_almoco", "saida_final"] as const).map((tipo) => {
+                          {(["entrada", "saida_final"] as const).map((tipo) => {
                             const r = rs.find((x) => x.tipoBatida === tipo);
                             const cell = (
                               <div
