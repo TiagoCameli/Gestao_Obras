@@ -355,8 +355,20 @@ export default function RegistroPontoTab() {
             </div>
           )}
 
-          <div className="space-y-2">
-            {funcsDaEquipe.map((f) => {
+          {(() => {
+            // Divide o painel em duas colunas:
+            //  - Esquerda: ainda não bateram entrada
+            //  - Direita: já com entrada (qualquer estado adiante)
+            const aguardando = funcsDaEquipe.filter((f) => {
+              const rs = registrosPorFunc[f.id] ?? [];
+              return statusDoFuncionario(rs) === "aguardando";
+            });
+            const comEntrada = funcsDaEquipe.filter((f) => {
+              const rs = registrosPorFunc[f.id] ?? [];
+              return statusDoFuncionario(rs) !== "aguardando";
+            });
+
+            const renderCard = (f: Funcionario) => {
               const rs = registrosPorFunc[f.id] ?? [];
               const status = statusDoFuncionario(rs);
               const info = STATUS_INFO[status];
@@ -417,8 +429,43 @@ export default function RegistroPontoTab() {
                   )}
                 </article>
               );
-            })}
-          </div>
+            };
+
+            return (
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                <section>
+                  <h3 className="text-xs font-semibold uppercase tracking-wider text-[var(--color-fg-muted)] mb-2 flex items-center justify-between">
+                    <span>Aguardando entrada</span>
+                    <span className="text-[10px] tabular-nums px-1.5 py-0.5 rounded-full bg-[var(--color-info-soft)] text-[var(--color-info-fg)]">
+                      {aguardando.length}
+                    </span>
+                  </h3>
+                  {aguardando.length === 0 ? (
+                    <p className="rounded-xl border border-dashed border-[var(--color-border)] py-6 text-center text-xs text-[var(--color-fg-subtle)]">
+                      Todos os funcionários já registraram entrada.
+                    </p>
+                  ) : (
+                    <div className="space-y-2">{aguardando.map(renderCard)}</div>
+                  )}
+                </section>
+                <section>
+                  <h3 className="text-xs font-semibold uppercase tracking-wider text-[var(--color-fg-muted)] mb-2 flex items-center justify-between">
+                    <span>Com entrada registrada</span>
+                    <span className="text-[10px] tabular-nums px-1.5 py-0.5 rounded-full bg-[var(--color-success-soft)] text-[var(--color-success-fg)]">
+                      {comEntrada.length}
+                    </span>
+                  </h3>
+                  {comEntrada.length === 0 ? (
+                    <p className="rounded-xl border border-dashed border-[var(--color-border)] py-6 text-center text-xs text-[var(--color-fg-subtle)]">
+                      Ninguém registrou entrada ainda.
+                    </p>
+                  ) : (
+                    <div className="space-y-2">{comEntrada.map(renderCard)}</div>
+                  )}
+                </section>
+              </div>
+            );
+          })()}
 
         </>
       )}
