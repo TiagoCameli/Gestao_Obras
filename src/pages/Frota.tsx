@@ -1,5 +1,6 @@
 import { useState, useMemo, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
+import { useUrlState } from '../hooks/useUrlState';
 import type { Equipamento, TipoEquipamento } from '../types';
 import { useEquipamentos, useAdicionarEquipamento, useAtualizarEquipamento } from '../hooks/useEquipamentos';
 import { useEmpresas } from '../hooks/useEmpresas';
@@ -41,13 +42,19 @@ export default function Frota() {
     [setSearchParams]
   );
 
-  const [busca, setBusca] = useState('');
-  const [buscaPatrimonio, setBuscaPatrimonio] = useState('');
-  const [filtroEmpresa, setFiltroEmpresa] = useState('');
-  const [categoriaFiltro, setCategoriaFiltro] = useState<TipoEquipamento | ''>('');
-  const [modoVisualizacao, setModoVisualizacao] = useState<ModoVisualizacao>('grid');
+  const [busca, setBusca] = useUrlState('busca');
+  const [buscaPatrimonio, setBuscaPatrimonio] = useUrlState('patrimonio');
+  const [filtroEmpresa, setFiltroEmpresa] = useUrlState('empresa');
+  const [categoriaRaw, setCategoriaRaw] = useUrlState('categoria');
+  const categoriaFiltro = categoriaRaw as TipoEquipamento | '';
+  const setCategoriaFiltro = (v: TipoEquipamento | '') => setCategoriaRaw(v);
+  const [modoRaw, setModoRaw] = useUrlState('view', 'grid');
+  const modoVisualizacao = (modoRaw as ModoVisualizacao) || 'grid';
+  const setModoVisualizacao = (v: ModoVisualizacao) => setModoRaw(v);
   const [equipamentoSelecionado, setEquipamentoSelecionado] = useState<Equipamento | null>(null);
-  const [filtroAtivo, setFiltroAtivo] = useState<FiltroAtivo>('todos');
+  const [filtroAtivoRaw, setFiltroAtivoRaw] = useUrlState('ativo', 'todos');
+  const filtroAtivo = (filtroAtivoRaw as FiltroAtivo) || 'todos';
+  const setFiltroAtivo = (v: FiltroAtivo) => setFiltroAtivoRaw(v);
   const [modalNovoOpen, setModalNovoOpen] = useState(false);
   const [editandoEquip, setEditandoEquip] = useState<Equipamento | null>(null);
 

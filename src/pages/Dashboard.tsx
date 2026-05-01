@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { useUrlState, useUrlStateList } from '../hooks/useUrlState';
 import {
   BarChart,
   Bar,
@@ -59,8 +60,8 @@ export default function Dashboard() {
   const { data: insumos = [] } = useInsumos();
 
   // ALL hooks must be called before any early return
-  const [filtroObraId, setFiltroObraId] = useState('');
-  const [filtroEtapaIds, setFiltroEtapaIds] = useState<string[]>([]);
+  const [filtroObraId, setFiltroObraId] = useUrlState('obra');
+  const [filtroEtapaIds, setFiltroEtapaIds] = useUrlStateList('etapas');
   const [etapasDropdownOpen, setEtapasDropdownOpen] = useState(false);
 
   const etapaIdsSet = useMemo(() => new Set(filtroEtapaIds), [filtroEtapaIds]);
@@ -142,8 +143,10 @@ export default function Dashboard() {
   const temFiltro = filtroObraId !== '' || filtroEtapaIds.length > 0;
 
   function toggleEtapa(id: string) {
-    setFiltroEtapaIds((prev) =>
-      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+    setFiltroEtapaIds(
+      filtroEtapaIds.includes(id)
+        ? filtroEtapaIds.filter((x) => x !== id)
+        : [...filtroEtapaIds, id]
     );
   }
 

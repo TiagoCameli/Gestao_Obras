@@ -1,5 +1,6 @@
 import { useCallback, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
+import { useUrlState } from '../hooks/useUrlState';
 import type { Apontamento, TipoApontamento, StatusApontamento } from '../types';
 import { useApontamentos, useAdicionarApontamento, useAdicionarApontamentosLote, useAtualizarApontamento, useExcluirApontamento } from '../hooks/useApontamentos';
 import { useObras } from '../hooks/useObras';
@@ -44,7 +45,9 @@ export default function Apontamentos() {
   const setTab = useCallback((t: Tab) => setSearchParams({ tab: t }, { replace: true }), [setSearchParams]);
 
   type SubPainel = 'equipamentos' | 'colaboradores' | 'diaristas';
-  const [subPainel, setSubPainel] = useState<SubPainel>('equipamentos');
+  const [subPainelRaw, setSubPainelRaw] = useUrlState('painel', 'equipamentos');
+  const subPainel = (subPainelRaw as SubPainel) || 'equipamentos';
+  const setSubPainel = (v: SubPainel) => setSubPainelRaw(v);
 
   // Data
   const { data: apontamentos = [], isLoading } = useApontamentos();
