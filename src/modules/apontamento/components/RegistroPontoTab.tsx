@@ -77,7 +77,9 @@ export default function RegistroPontoTab() {
   const qc = useQueryClient();
   const { data: obras = [] } = useObrasApont();
   const [obraId, setObraId] = useState<string>("");
-  const { data: equipes = [] } = useEquipesApont(obraId || undefined);
+  // Carrega TODAS as equipes — o filtro de equipe é independente do
+  // de obra. O usuário pode escolher equipe sem obra, ou misturar.
+  const { data: equipes = [] } = useEquipesApont(undefined);
   const [equipeId, setEquipeId] = useState<string>("");
   const [data, setData] = useState<string>(hojeIso());
 
@@ -88,7 +90,7 @@ export default function RegistroPontoTab() {
   const funcsDaEquipe = useMemo(() => {
     let list = funcionarios.filter((f) => f.status === "ativo");
     if (equipeId) list = list.filter((f) => f.equipeId === equipeId);
-    else if (obraId) list = list.filter((f) => f.obraId === obraId);
+    if (obraId) list = list.filter((f) => f.obraId === obraId);
     return list;
   }, [funcionarios, equipeId, obraId]);
 
@@ -280,17 +282,13 @@ export default function RegistroPontoTab() {
           label="Obra"
           options={obras.map((o) => ({ value: o.id, label: o.nome }))}
           value={obraId}
-          onChange={(e) => {
-            setObraId(e.target.value);
-            setEquipeId("");
-          }}
+          onChange={(e) => setObraId(e.target.value)}
         />
         <Select
           label="Equipe"
           options={equipes.map((eq) => ({ value: eq.id, label: eq.nome }))}
           value={equipeId}
           onChange={(e) => setEquipeId(e.target.value)}
-          disabled={!obraId}
         />
         <Input
           label="Data"
