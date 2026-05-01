@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import Button from "../../../components/ui/Button";
 import Select from "../../../components/ui/Select";
@@ -25,7 +25,12 @@ import {
   type RegistroPonto,
   type TipoBatida,
 } from "../utils/pontoApi";
-import { compararFace, precomputeReferences, preloadFaceModels } from "../utils/faceRecognition";
+import {
+  compararFace,
+  identifyFace,
+  precomputeReferences,
+  preloadFaceModels,
+} from "../utils/faceRecognition";
 import { getFotoUrls } from "../utils/apontamentoApi";
 import CapturaFotoModal from "./CapturaFotoModal";
 import type { Funcionario } from "../types/funcionario";
@@ -132,6 +137,11 @@ export default function RegistroPontoTab() {
     });
     return m;
   }, [registros]);
+
+  // Modal de captura rápida — identifica o funcionário pela face e bate
+  // o próximo tipo de batida (entrada → saída_almoço → retorno → final).
+  const [quickOpen, setQuickOpen] = useState(false);
+  const matchedRef = useRef<{ funcionario: Funcionario; tipo: TipoBatida } | null>(null);
 
   // Modal de captura
   const [capturando, setCapturando] = useState<{
@@ -296,6 +306,101 @@ export default function RegistroPontoTab() {
     return compararFace(dataUrl, Object.values(refsUrls));
   }
 
+  /** Próximo tipo de batida que falta no dia (ou null se já bateu todas). */
+  function nextTipoBatida(rs: RegistroPonto[]): TipoBatida | null {
+    const tipos = new Set(
+      rs.filter((r) => r.statusAprovacao !== "rejeitado").map((r) => r.tipoBatida)
+    );
+    if (!tipos.has("entrada")) return "entrada";
+    if (!tipos.has("saida_almoco")) return "saida_almoco";
+    if (!tipos.has("retorno_almoco")) return "retorno_almoco";
+    if (!tipos.has("saida_final")) return "saida_final";
+    return null;
+  }
+
+  /** Pré-computa descritores de TODOS os funcionários ativos com foto. */
+  useEffect(() => {
+    if (!quickOpen) return;
+    let alive = true;
+    (async () => {
+      try {
+        const candidatos = funcsDaEquipe.filter(
+          (f) => (f.fotosReferenciaFacial?.length ?? 0) > 0
+        );
+        const todasUrls: string[] = [];
+        for (const f of candidatos) {
+          const urls = await getFotoUrls(f.fotosReferenciaFacial!);
+          todasUrls.push(...Object.values(urls));
+        }
+        if (!alive) return;
+        await precomputeReferences(todasUrls);
+      } catch {
+        /* silencioso — quickValidarFace tenta de novo no clique */
+      }
+    })();
+    return () => { alive = false; };
+  }, [quickOpen, funcsDaEquipe]);
+
+  /** Identifica o funcionário pela face e prepara a próxima batida. */
+  async function quickValidarFace(dataUrl: string) {
+    matchedRef.current = null;
+    const elegiveis = funcsDaEquipe.filter(
+      (f) => (f.fotosReferenciaFacial?.length ?? 0) > 0
+    );
+    if (elegiveis.length === 0) {
+      return { match: false, distancia: 1, threshold: 0.55 };
+    }
+    const candidatos = await Promise.all(
+      elegiveis.map(async (f) => {
+        const urls = await getFotoUrls(f.fotosReferenciaFacial!);
+        return { id: f.id, urls: Object.values(urls) };
+      })
+    );
+    const res = await identifyFace(dataUrl, candidatos);
+    if (!res.match || !res.candidatoId) {
+      return { match: false, distancia: res.distancia, threshold: res.threshold };
+    }
+    const func = funcsDaEquipe.find((f) => f.id === res.candidatoId);
+    if (!func) {
+      return { match: false, distancia: res.distancia, threshold: res.threshold };
+    }
+    const tipo = nextTipoBatida(registrosPorFunc[func.id] ?? []);
+    if (!tipo) {
+      alert(`${func.nome} já registrou todas as batidas hoje.`);
+      return { match: false, distancia: res.distancia, threshold: res.threshold };
+    }
+    matchedRef.current = { funcionario: func, tipo };
+    return { match: true, distancia: res.distancia, threshold: res.threshold };
+  }
+
+  async function quickHandleCapture(
+    dataUrl: string,
+    pos: GeolocationCoordinates | null
+  ) {
+    const m = matchedRef.current;
+    if (!m) return;
+    try {
+      await registrarBatida({
+        funcionarioId: m.funcionario.id,
+        tipoBatida: m.tipo,
+        data,
+        latitude: pos?.latitude ?? null,
+        longitude: pos?.longitude ?? null,
+        fotoDataUrl: dataUrl,
+        origem: "automatico",
+      });
+      qc.invalidateQueries({ queryKey: registrosKey });
+      qc.invalidateQueries({ queryKey: pendenciasKey });
+      alert(
+        `✅ ${m.funcionario.nome} — ${TIPO_BATIDA_LABEL[m.tipo]} registrada.`
+      );
+      matchedRef.current = null;
+      setQuickOpen(false);
+    } catch (e) {
+      alert("Falha ao registrar: " + (e instanceof Error ? e.message : String(e)));
+    }
+  }
+
   if (obras.length === 0) {
     return (
       <p className="py-12 text-center text-sm text-[var(--color-fg-subtle)]">
@@ -306,6 +411,25 @@ export default function RegistroPontoTab() {
 
   return (
     <div className="space-y-4">
+      <div className="flex items-center justify-between gap-3 flex-wrap">
+        <div>
+          <h3 className="text-sm font-semibold tracking-tight text-[var(--color-fg)]">
+            Reconhecimento facial
+          </h3>
+          <p className="text-[11px] text-[var(--color-fg-subtle)] mt-0.5">
+            Identifica automaticamente o funcionário e bate o próximo ponto.
+          </p>
+        </div>
+        <Button
+          onClick={() => {
+            matchedRef.current = null;
+            setQuickOpen(true);
+          }}
+        >
+          📷 Bater ponto rápido
+        </Button>
+      </div>
+
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
         <Select
           label="Obra"
@@ -514,6 +638,17 @@ export default function RegistroPontoTab() {
         onCancel={() => setCapturando(null)}
         onCapture={handleCapture}
         validarFace={capturando ? validarFace : undefined}
+      />
+
+      <CapturaFotoModal
+        open={quickOpen}
+        title="Bater ponto — reconhecer rosto"
+        onCancel={() => {
+          matchedRef.current = null;
+          setQuickOpen(false);
+        }}
+        onCapture={quickHandleCapture}
+        validarFace={quickValidarFace}
       />
 
       <LancamentoManualModal

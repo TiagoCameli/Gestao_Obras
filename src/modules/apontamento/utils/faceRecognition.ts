@@ -113,3 +113,57 @@ export async function compararFace(
   }
   return { match: melhor < THRESHOLD, distancia: melhor, threshold: THRESHOLD };
 }
+
+export interface CandidatoFace {
+  id: string;
+  urls: string[];
+}
+
+export interface IdentifyResult {
+  match: boolean;
+  candidatoId: string | null;
+  distancia: number;
+  threshold: number;
+}
+
+/**
+ * Identifica o melhor candidato entre vários funcionários, comparando o
+ * frame do teste contra as fotos de referência de cada um. Retorna o ID
+ * do candidato com menor distância média mínima abaixo do threshold.
+ */
+export async function identifyFace(
+  testeDataUrlOuUrl: string,
+  candidatos: CandidatoFace[]
+): Promise<IdentifyResult> {
+  await preloadFaceModels();
+  const todasUrls = candidatos.flatMap((c) => c.urls);
+  const [teste] = await Promise.all([
+    descritorDaImagem(testeDataUrlOuUrl),
+    precomputeReferences(todasUrls),
+  ]);
+  if (!teste) {
+    return { match: false, candidatoId: null, distancia: 1, threshold: THRESHOLD };
+  }
+
+  let melhorId: string | null = null;
+  let melhorDist = Infinity;
+  for (const c of candidatos) {
+    let menor = Infinity;
+    for (const url of c.urls) {
+      const d = REF_CACHE.get(url);
+      if (!d) continue;
+      const dist = faceapi.euclideanDistance(teste, d);
+      if (dist < menor) menor = dist;
+    }
+    if (menor < melhorDist) {
+      melhorDist = menor;
+      melhorId = c.id;
+    }
+  }
+  return {
+    match: melhorDist < THRESHOLD,
+    candidatoId: melhorId,
+    distancia: melhorDist,
+    threshold: THRESHOLD,
+  };
+}
