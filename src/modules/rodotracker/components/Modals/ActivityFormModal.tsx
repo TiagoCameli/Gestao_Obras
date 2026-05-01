@@ -458,7 +458,10 @@ export function ActivityFormModal({
   const [serviceName, setServiceName] = useState(editActivity?.serviceName ?? "");
   const [date, setDate] = useState(editActivity?.date ?? todayISO());
   const [dateEnd, setDateEnd] = useState<string>(editActivity?.dateEnd ?? "");
-  const [pickTarget, setPickTarget] = useState<"start" | "end">("start");
+  const [pickTarget, setPickTarget] = useState<"start" | "end" | "extra">("start");
+  const [extraPoints, setExtraPoints] = useState<[number, number][]>(
+    editActivity?.extraPoints ?? []
+  );
   const [medicao, setMedicao] = useState<string>(
     editActivity?.medicao !== null && editActivity?.medicao !== undefined
       ? String(editActivity.medicao)
@@ -566,13 +569,18 @@ export function ActivityFormModal({
   // `pickTarget` corrente SEM re-disparar o efeito quando o usuário só
   // alterna entre os botões de pick. O efeito só roda quando as coords
   // (initialLat/initialLng) realmente mudam, ou seja, depois de um pick.
-  const pickTargetRef = useRef<"start" | "end">(pickTarget);
+  const pickTargetRef = useRef<"start" | "end" | "extra">(pickTarget);
   pickTargetRef.current = pickTarget;
   useEffect(() => {
     if (!hasMapCoords) return;
     if (pickTargetRef.current === "end") {
       setLatEnd(initialLat);
       setLngEnd(initialLng);
+    } else if (pickTargetRef.current === "extra") {
+      setExtraPoints((prev) => [...prev, [initialLat, initialLng]]);
+      // Volta o alvo padrão pra que próximos picks (ou drag do pin
+      // principal) não dupliquem como extra.
+      setPickTarget("start");
     } else {
       setLat(initialLat);
       setLng(initialLng);
@@ -894,6 +902,10 @@ export function ActivityFormModal({
       trocaSolo: tsData,
       cbuq: cbuqData,
       sinalizacaoVertical: sinalData,
+      extraPoints:
+        service === "Sinalização" && extraPoints.length > 0
+          ? extraPoints
+          : undefined,
       date,
       dateEnd: segment ? dateEnd || undefined : undefined,
       medicao: medicao ? parseInt(medicao, 10) : null,
@@ -1195,6 +1207,58 @@ export function ActivityFormModal({
                   <div className="w-2 h-2 rounded-full bg-[#22c55e]" />
                   Localização marcada no mapa
                 </div>
+              )}
+            </div>
+          )}
+
+          {/* Locais extras — exclusivo Sinalização (várias placas no mesmo registro) */}
+          {service === "Sinalização" && (
+            <div className="rounded-xl border border-[#a855f7]/25 bg-[#a855f7]/[0.04] p-4">
+              <div className="flex items-center justify-between mb-3">
+                <div>
+                  <h3 className="text-sm font-semibold tracking-tight text-[#d8b4fe]">
+                    Locais marcados
+                  </h3>
+                  <p className="text-[11px] text-[#9198ad] mt-0.5">
+                    Use o pin principal acima para o 1º local. Adicione outros
+                    locais abaixo — cada um vira um pin no mapa nesta atividade.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => { setPickTarget("extra"); onPickOnMap(); }}
+                  className="text-xs font-semibold px-2.5 py-1.5 rounded-md border border-[#a855f7]/40 text-[#d8b4fe] hover:bg-[#a855f7]/10 transition-colors"
+                >
+                  + Adicionar local no mapa
+                </button>
+              </div>
+
+              {extraPoints.length === 0 ? (
+                <p className="text-[11px] text-[#5c6380] italic">
+                  Nenhum local extra adicionado.
+                </p>
+              ) : (
+                <ul className="space-y-1.5">
+                  {extraPoints.map((pt, idx) => (
+                    <li
+                      key={`${idx}-${pt[0]}-${pt[1]}`}
+                      className="flex items-center justify-between gap-3 text-xs bg-[#0f1117] border border-[#2e3345] rounded-md px-3 py-2"
+                    >
+                      <span className="font-mono text-[#e8eaf0] tabular-nums">
+                        #{idx + 2} · {pt[0].toFixed(6)}, {pt[1].toFixed(6)}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setExtraPoints((prev) => prev.filter((_, i) => i !== idx))
+                        }
+                        className="text-[#f97066] hover:underline text-[11px]"
+                      >
+                        Remover
+                      </button>
+                    </li>
+                  ))}
+                </ul>
               )}
             </div>
           )}

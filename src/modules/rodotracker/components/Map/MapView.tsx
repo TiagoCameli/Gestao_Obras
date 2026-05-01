@@ -1324,6 +1324,23 @@ export function MapView({
           />
         ))}
 
+        {/* Pontos extras — Sinalização: 1 pin adicional por local cadastrado. */}
+        {activities.flatMap((a) =>
+          (a.extraPoints ?? []).map((pt, idx) => (
+            <ActivityMarker
+              key={`${a.id}-extra-${idx}`}
+              activity={a}
+              positionOverride={pt}
+              pinned={pinnedActivityId === a.id}
+              selected={selectedActivityId === a.id}
+              onPin={() => setPinnedActivityId(a.id)}
+              onClosePin={() => setPinnedActivityId(null)}
+              onSelect={onSelectActivity}
+              onStreetView={handleStreetViewFromActivity}
+            />
+          ))
+        )}
+
         {tempMarker && (
           <CircleMarker
             center={tempMarker}

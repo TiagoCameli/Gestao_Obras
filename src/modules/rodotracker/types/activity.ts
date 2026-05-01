@@ -182,6 +182,11 @@ export interface Activity {
   /** Data final — usada apenas para atividades com intervalo (CBUQ). */
   dateEnd?: string;
   medicao: number | null;
+  /**
+   * Pontos extras no mapa, além de (lat, lng). Usado em "Sinalização"
+   * pra marcar várias placas/sinalizações no mesmo registro.
+   */
+  extraPoints?: [number, number][];
   /** Para CBUQ: km inicial. Para atividades pontuais: km único. */
   km: string;
   /** Km final — usado apenas para atividades com intervalo (CBUQ). */
