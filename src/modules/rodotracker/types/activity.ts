@@ -5,6 +5,7 @@ export type ServiceType =
   | "Paliativo"
   | "Drenagem / Dreno"
   | "Sinalização"
+  | "Sinalização Vertical"
   | "Roçada"
   | "Limpeza de Dispositivos"
   | "Tapa-Buraco"
@@ -17,6 +18,7 @@ export const SERVICE_TYPES: ServiceType[] = [
   "Paliativo",
   "Drenagem / Dreno",
   "Sinalização",
+  "Sinalização Vertical",
   "Roçada",
   "Limpeza de Dispositivos",
   "Tapa-Buraco",
