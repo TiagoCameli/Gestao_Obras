@@ -1417,7 +1417,7 @@ export function ActivityFormModal({
               <div className="space-y-2">
                 {sinalLinhas.map((l, idx) => {
                   const opts = contractItems
-                    .filter((ci) => ci.code)
+                    .filter((ci) => ci.code && ci.code.trim().startsWith("03.15."))
                     .map((ci) => ({
                       value: ci.code as string,
                       label: `${ci.code} — ${ci.name}${ci.unit ? ` (${ci.unit})` : ""}`,
@@ -1444,8 +1444,8 @@ export function ActivityFormModal({
                           options={opts}
                           placeholder={
                             opts.length === 0
-                              ? "Nenhum item no contrato"
-                              : "Buscar item de contrato..."
+                              ? "Nenhum item 03.15.x no contrato"
+                              : "Buscar item 03.15.x..."
                           }
                         />
                       </div>
