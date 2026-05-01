@@ -867,7 +867,7 @@ export function ActivityFormModal({
 
     // Compute Sinalização Vertical contributions
     let sinalData: Activity["sinalizacaoVertical"] | undefined;
-    if (service === "Sinalização Vertical") {
+    if (service === "Sinalização") {
       const contributions: Record<string, number> = {};
       for (const l of sinalLinhas) {
         if (!l.code) continue;
@@ -1381,8 +1381,8 @@ export function ActivityFormModal({
             <CbuqForm data={cbuq} onChange={setCbuq} contractItems={contractItems} />
           )}
 
-          {/* Quantitativos — exclusivo Sinalização Vertical */}
-          {service === "Sinalização Vertical" && (
+          {/* Quantitativos — exclusivo Sinalização */}
+          {service === "Sinalização" && (
             <div
               className="rounded-xl border p-4"
               style={{
