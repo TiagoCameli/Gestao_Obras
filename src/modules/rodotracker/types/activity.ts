@@ -5,6 +5,7 @@ export type ServiceType =
   | "Paliativo"
   | "Drenagem / Dreno"
   | "Sinalização"
+  | "Conserva"
   | "Roçada"
   | "Limpeza de Dispositivos"
   | "Tapa-Buraco"
@@ -17,6 +18,7 @@ export const SERVICE_TYPES: ServiceType[] = [
   "Paliativo",
   "Drenagem / Dreno",
   "Sinalização",
+  "Conserva",
   "Roçada",
   "Limpeza de Dispositivos",
   "Tapa-Buraco",
@@ -165,6 +167,19 @@ export interface SinalizacaoVerticalData {
   contributions: Record<string, number>;
 }
 
+/** Dados da atividade Conserva: serviço contínuo (mês inteiro, beira da
+ *  pista, sem localização exata). Medido sempre contra o item 01.01. */
+export interface ConservaData {
+  medicaoNumber: number;
+  /** Quantidade do serviço — sempre contribui para o código 01.01. */
+  quantidade: number;
+  /** {"01.01": quantidade} — espelha o formato usado pelos demais. */
+  contributions: Record<string, number>;
+}
+
+/** Código fixo do contrato usado pela atividade Conserva. */
+export const CONSERVA_CODE = "01.01";
+
 export interface Activity {
   id: string;
   lat: number;
@@ -177,6 +192,7 @@ export interface Activity {
   trocaSolo?: TrocaSoloData;
   cbuq?: CbuqData;
   sinalizacaoVertical?: SinalizacaoVerticalData;
+  conserva?: ConservaData;
   /** Para serviços com período, esta é a data inicial. */
   date: string;
   /** Data final — usada apenas para atividades com intervalo (CBUQ). */

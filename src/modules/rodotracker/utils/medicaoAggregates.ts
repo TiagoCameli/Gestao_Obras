@@ -40,6 +40,12 @@ export function buildContribsByCodeAndMedicao(activities: Activity[]): ContribMa
         add(code, m, qty);
       }
     }
+    if (a.conserva?.contributions) {
+      const m = a.conserva.medicaoNumber;
+      for (const [code, qty] of Object.entries(a.conserva.contributions)) {
+        add(code, m, qty);
+      }
+    }
   }
 
   return byCode;

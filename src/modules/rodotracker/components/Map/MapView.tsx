@@ -1299,7 +1299,7 @@ export function MapView({
           );
         })}
 
-        {activities.map((a) => (
+        {activities.filter((a) => a.service !== "Conserva").map((a) => (
           <ActivityMarker
             key={a.id}
             activity={a}

@@ -3,8 +3,8 @@ import { X, Save, MapPin, RotateCcw, RectangleHorizontal, Loader2 } from "lucide
 import { MapContainer, TileLayer, Polygon, Marker, Tooltip, useMapEvents, useMap } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
-import type { Activity, ContractItem, Quantity, ServiceType, LadoPista, AreaRect, Obra, TrocaSoloData, CbuqData } from "../../types/activity";
-import { SERVICE_TYPES, LADO_PISTA_OPTIONS, SERVICES_WITH_AREA, isSegmentService } from "../../types/activity";
+import type { Activity, ContractItem, Quantity, ServiceType, LadoPista, AreaRect, Obra, TrocaSoloData, CbuqData, ConservaData } from "../../types/activity";
+import { SERVICE_TYPES, LADO_PISTA_OPTIONS, SERVICES_WITH_AREA, isSegmentService, CONSERVA_CODE } from "../../types/activity";
 import { calcTrocaSolo } from "../../utils/trocaSoloCalc";
 import { calcCbuq } from "../../utils/cbuqCalc";
 import { loadContractItems } from "../../utils/storage";
@@ -508,6 +508,11 @@ export function ActivityFormModal({
       qtyStr: String(qty),
     }));
   });
+  // Conserva: única qtd, sempre lançada no item 01.01 do contrato.
+  const [conservaQtyStr, setConservaQtyStr] = useState<string>(() => {
+    const q = editActivity?.conserva?.quantidade;
+    return q !== undefined && q !== null ? String(q) : "";
+  });
   const [quantities, setQuantities] = useState<Quantity[]>(
     editActivity?.quantities?.length
       ? editActivity.quantities
@@ -890,11 +895,30 @@ export function ActivityFormModal({
       };
     }
 
+    // Compute Conserva contributions — sempre amarrado ao item 01.01.
+    let conservaData: ConservaData | undefined;
+    if (service === "Conserva") {
+      const q = parseFloat(conservaQtyStr);
+      const qty = Number.isFinite(q) && q > 0 ? q : 0;
+      const medNum = medicao ? parseInt(medicao, 10) : NaN;
+      conservaData = {
+        medicaoNumber: Number.isFinite(medNum) && medNum > 0 ? medNum : 1,
+        quantidade: qty,
+        contributions: qty > 0 ? { [CONSERVA_CODE]: qty } : {},
+      };
+    }
+
     const segment = isSegmentService(service);
+    // Conserva não tem ponto fixo — usa o centro da obra como representativo
+    // pra satisfazer NOT NULL na coluna lat/lng. O marker fica oculto no mapa.
+    const isConserva = service === "Conserva";
+    const finalLat = isConserva && (lat === 0 || !Number.isFinite(lat)) ? (obra?.centerLat ?? 0) : lat;
+    const finalLng = isConserva && (lng === 0 || !Number.isFinite(lng)) ? (obra?.centerLng ?? 0) : lng;
+
     const activity: Activity = {
       id: editActivity?.id ?? generateId(),
-      lat,
-      lng,
+      lat: finalLat,
+      lng: finalLng,
       latEnd: segment ? latEnd : undefined,
       lngEnd: segment ? lngEnd : undefined,
       service,
@@ -902,6 +926,7 @@ export function ActivityFormModal({
       trocaSolo: tsData,
       cbuq: cbuqData,
       sinalizacaoVertical: sinalData,
+      conserva: conservaData,
       extraPoints:
         service === "Sinalização" && extraPoints.length > 0
           ? extraPoints
@@ -1108,8 +1133,8 @@ export function ActivityFormModal({
             </div>
           </div>
 
-          {/* Localização — ponto único ou trecho (CBUQ) */}
-          {isSegmentService(service) ? (
+          {/* Localização — ponto único ou trecho (CBUQ); oculta para Conserva */}
+          {service !== "Conserva" && (isSegmentService(service) ? (
             <div>
               <label className="block text-xs text-[#9198ad] uppercase tracking-wider mb-2">
                 Trecho do serviço
@@ -1208,6 +1233,20 @@ export function ActivityFormModal({
                   Localização marcada no mapa
                 </div>
               )}
+            </div>
+          ))}
+
+          {/* Aviso para Conserva — sem localização exata */}
+          {service === "Conserva" && (
+            <div className="rounded-xl border border-[#84cc16]/25 bg-[#84cc16]/[0.04] p-4">
+              <h3 className="text-sm font-semibold tracking-tight text-[#bef264]">
+                Atividade contínua
+              </h3>
+              <p className="text-[11px] text-[#9198ad] mt-1">
+                Conserva é executada o mês inteiro nas bordas da pista, sem
+                localização exata. Não aparece como pin no mapa — entra
+                apenas na medição via item <span className="font-mono">{CONSERVA_CODE}</span>.
+              </p>
             </div>
           )}
 
@@ -1345,8 +1384,8 @@ export function ActivityFormModal({
             </div>
           )}
 
-          {/* KM — simples ou intervalo (CBUQ) */}
-          {isSegmentService(service) ? (
+          {/* KM — simples ou intervalo (CBUQ); oculto em Conserva */}
+          {service !== "Conserva" && (isSegmentService(service) ? (
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="block text-xs text-[#9198ad] uppercase tracking-wider mb-1">
@@ -1394,10 +1433,10 @@ export function ActivityFormModal({
                 className={`w-full bg-[#0f1117] border rounded-lg px-3 py-2 text-sm font-mono text-[#e8eaf0] placeholder:text-[#5c6380] focus:outline-none focus:border-[#f59e0b] transition-colors ${autoKm ? "border-[#22c55e]/30" : "border-[#2e3345]"}`}
               />
             </div>
-          )}
+          ))}
 
-          {/* Lado da Pista — oculto em CBUQ (sempre "Pista Toda") */}
-          {!isSegmentService(service) && (
+          {/* Lado da Pista — oculto em CBUQ (sempre "Pista Toda") e Conserva */}
+          {!isSegmentService(service) && service !== "Conserva" && (
             <div>
               <label className="block text-xs text-[#9198ad] uppercase tracking-wider mb-2">
                 Lado da Pista
@@ -1583,6 +1622,61 @@ export function ActivityFormModal({
               })()}
             </div>
           )}
+
+          {/* Quantitativo — exclusivo Conserva (item 01.01) */}
+          {service === "Conserva" && (() => {
+            const item = contractItems.find(
+              (ci) => ci.code && ci.code.trim() === CONSERVA_CODE
+            );
+            const q = parseFloat(conservaQtyStr);
+            const qty = Number.isFinite(q) && q > 0 ? q : 0;
+            const valor = qty * (item?.unitPrice ?? 0);
+            return (
+              <div className="rounded-xl border border-[#84cc16]/25 bg-[#84cc16]/[0.04] p-4">
+                <div className="mb-3">
+                  <h3 className="text-sm font-semibold tracking-tight text-[#bef264]">
+                    Quantitativo — item {CONSERVA_CODE}
+                  </h3>
+                  <p className="text-[11px] text-[#9198ad] mt-0.5">
+                    {item
+                      ? `${item.name}${item.unit ? ` (${item.unit})` : ""}`
+                      : `Item ${CONSERVA_CODE} não encontrado no contrato.`}
+                    {" "}Entra na medição <span className="font-mono">{medicao || "—"}</span>.
+                  </p>
+                </div>
+                <div className="rounded-lg border border-[#2e3345] bg-[#0f1117] p-3 grid grid-cols-1 md:grid-cols-[1fr_180px] gap-3 items-end">
+                  <div>
+                    <label className="block text-[10px] text-[#9198ad] uppercase tracking-wider mb-1">
+                      Quantidade {item?.unit ? `(${item.unit})` : ""}
+                    </label>
+                    <input
+                      type="number"
+                      step="any"
+                      min="0"
+                      value={conservaQtyStr}
+                      onChange={(e) => setConservaQtyStr(e.target.value)}
+                      placeholder="0"
+                      className="w-full bg-[#0f1117] border border-[#2e3345] rounded-md px-3 py-2 text-sm text-[#e8eaf0] focus:outline-none focus:border-[#84cc16] transition-colors tabular-nums"
+                    />
+                  </div>
+                  <div>
+                    <div className="text-[10px] text-[#9198ad] uppercase tracking-wider mb-1">
+                      Valor a creditar
+                    </div>
+                    <div
+                      className="font-mono tabular-nums text-right text-base font-semibold"
+                      style={{ color: valor > 0 ? "#bef264" : "#5c6380" }}
+                    >
+                      {valor.toLocaleString("pt-BR", {
+                        style: "currency",
+                        currency: "BRL",
+                      })}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            );
+          })()}
 
           {/* Descrição */}
           <div>

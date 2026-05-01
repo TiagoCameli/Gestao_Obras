@@ -121,6 +121,7 @@ type ActivityRow = {
   troca_solo: Activity["trocaSolo"] | null;
   cbuq: Activity["cbuq"] | null;
   sinalizacao_vertical: Activity["sinalizacaoVertical"] | null;
+  conserva: Activity["conserva"] | null;
   extra_points: [number, number][] | null;
   date: string;
   date_end: string | null;
@@ -150,6 +151,7 @@ function rowToActivity(r: ActivityRow): Activity {
     trocaSolo: r.troca_solo ?? undefined,
     cbuq: r.cbuq ?? undefined,
     sinalizacaoVertical: r.sinalizacao_vertical ?? undefined,
+    conserva: r.conserva ?? undefined,
     extraPoints: r.extra_points ?? undefined,
     date: r.date,
     dateEnd: r.date_end ?? undefined,
@@ -186,6 +188,7 @@ function activityToRow(
     troca_solo: a.trocaSolo ?? null,
     cbuq: a.cbuq ?? null,
     sinalizacao_vertical: a.sinalizacaoVertical ?? null,
+    conserva: a.conserva ?? null,
     extra_points: a.extraPoints ?? null,
     date: a.date,
     date_end: a.dateEnd ?? null,
