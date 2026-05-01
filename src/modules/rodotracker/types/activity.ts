@@ -152,6 +152,8 @@ export interface TrocaSoloData {
   comprimento: number;
   largura: number;
   espessura: number;
+  /** Medidas da capa asfáltica (em metros). Tipicamente maior que a TS. */
+  capaAsfaltica?: { comprimento: number; largura: number; espessura: number };
   /** Drenos associados ao trecho (podem ser zero, um ou vários). */
   drenos: { comprimento: number; largura: number; espessura: number }[];
   /** Quantidades geradas pelas fórmulas — {codigo do contrato → qtd}. */

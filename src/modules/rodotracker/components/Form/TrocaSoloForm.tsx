@@ -149,6 +149,58 @@ export function TrocaSoloForm({ data, onChange, contractItems = [] }: TrocaSoloF
         </div>
       </div>
 
+      {/* Medidas da Capa Asfáltica */}
+      <div style={{ marginBottom: 14 }}>
+        <label className="label-eyebrow flex items-center gap-1.5" style={{ marginBottom: 6 }}>
+          <Ruler className="h-3 w-3" />
+          <span>Medidas da capa asfáltica (m) *</span>
+        </label>
+        <div className="grid grid-cols-3 gap-2">
+          <NumInput
+            label="Comprimento"
+            value={data.capaAsfaltica?.comprimento ?? 0}
+            onChange={(v) =>
+              onChange({
+                ...data,
+                capaAsfaltica: {
+                  comprimento: v,
+                  largura: data.capaAsfaltica?.largura ?? 0,
+                  espessura: data.capaAsfaltica?.espessura ?? 0,
+                },
+              })
+            }
+          />
+          <NumInput
+            label="Largura"
+            value={data.capaAsfaltica?.largura ?? 0}
+            onChange={(v) =>
+              onChange({
+                ...data,
+                capaAsfaltica: {
+                  comprimento: data.capaAsfaltica?.comprimento ?? 0,
+                  largura: v,
+                  espessura: data.capaAsfaltica?.espessura ?? 0,
+                },
+              })
+            }
+          />
+          <NumInput
+            label="Espessura"
+            value={data.capaAsfaltica?.espessura ?? 0}
+            onChange={(v) =>
+              onChange({
+                ...data,
+                capaAsfaltica: {
+                  comprimento: data.capaAsfaltica?.comprimento ?? 0,
+                  largura: data.capaAsfaltica?.largura ?? 0,
+                  espessura: v,
+                },
+              })
+            }
+          />
+        </div>
+      </div>
+
       {/* Dreno toggle + list */}
       <div style={{ marginBottom: 14 }}>
         <label
