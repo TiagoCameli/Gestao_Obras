@@ -120,6 +120,7 @@ type ActivityRow = {
   service_name: string | null;
   troca_solo: Activity["trocaSolo"] | null;
   cbuq: Activity["cbuq"] | null;
+  sinalizacao_vertical: Activity["sinalizacaoVertical"] | null;
   date: string;
   date_end: string | null;
   medicao: number | null;
@@ -147,6 +148,7 @@ function rowToActivity(r: ActivityRow): Activity {
     serviceName: r.service_name ?? undefined,
     trocaSolo: r.troca_solo ?? undefined,
     cbuq: r.cbuq ?? undefined,
+    sinalizacaoVertical: r.sinalizacao_vertical ?? undefined,
     date: r.date,
     dateEnd: r.date_end ?? undefined,
     medicao: r.medicao,
@@ -181,6 +183,7 @@ function activityToRow(
     service_name: a.serviceName ?? null,
     troca_solo: a.trocaSolo ?? null,
     cbuq: a.cbuq ?? null,
+    sinalizacao_vertical: a.sinalizacaoVertical ?? null,
     date: a.date,
     date_end: a.dateEnd ?? null,
     medicao: a.medicao,

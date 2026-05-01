@@ -158,6 +158,15 @@ export interface TrocaSoloData {
   contributions: Record<string, number>;
 }
 
+/** Dados da atividade Sinalização Vertical: linhas avulsas de quantitativos
+ *  por item de contrato. As contributions seguem o mesmo formato usado por
+ *  cbuq/trocaSolo (code → qty) e entram na agregação da medição. */
+export interface SinalizacaoVerticalData {
+  medicaoNumber: number;
+  /** Quantidades manuais por item de contrato — {codigo → qtd}. */
+  contributions: Record<string, number>;
+}
+
 export interface Activity {
   id: string;
   lat: number;
@@ -169,6 +178,7 @@ export interface Activity {
   serviceName?: string;
   trocaSolo?: TrocaSoloData;
   cbuq?: CbuqData;
+  sinalizacaoVertical?: SinalizacaoVerticalData;
   /** Para serviços com período, esta é a data inicial. */
   date: string;
   /** Data final — usada apenas para atividades com intervalo (CBUQ). */

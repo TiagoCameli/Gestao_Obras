@@ -10,6 +10,7 @@ import { calcCbuq } from "../../utils/cbuqCalc";
 import { loadContractItems } from "../../utils/storage";
 import { TrocaSoloForm } from "../Form/TrocaSoloForm";
 import { CbuqForm } from "../Form/CbuqForm";
+import FilterCombobox from "../../../../components/ui/FilterCombobox";
 import { serviceColors } from "../../utils/colors";
 import { generateId, todayISO } from "../../utils/format";
 import { calcKmAlongRoute } from "../../utils/route";
@@ -490,6 +491,20 @@ export function ActivityFormModal({
       contributions: stored.contributions ?? {},
     };
   });
+  // Linhas de quantitativos para Sinalização Vertical: cada linha tem o
+  // codigo do item de contrato + qtd inserida pelo operador.
+  type SinalLinha = { uid: string; code: string; qtyStr: string };
+  const [sinalLinhas, setSinalLinhas] = useState<SinalLinha[]>(() => {
+    const stored = editActivity?.sinalizacaoVertical?.contributions;
+    if (!stored || Object.keys(stored).length === 0) {
+      return [{ uid: generateId(), code: "", qtyStr: "" }];
+    }
+    return Object.entries(stored).map(([code, qty]) => ({
+      uid: generateId(),
+      code,
+      qtyStr: String(qty),
+    }));
+  });
   const [quantities, setQuantities] = useState<Quantity[]>(
     editActivity?.quantities?.length
       ? editActivity.quantities
@@ -850,6 +865,23 @@ export function ActivityFormModal({
       };
     }
 
+    // Compute Sinalização Vertical contributions
+    let sinalData: Activity["sinalizacaoVertical"] | undefined;
+    if (service === "Sinalização Vertical") {
+      const contributions: Record<string, number> = {};
+      for (const l of sinalLinhas) {
+        if (!l.code) continue;
+        const q = parseFloat(l.qtyStr);
+        if (!Number.isFinite(q) || q <= 0) continue;
+        contributions[l.code] = (contributions[l.code] ?? 0) + q;
+      }
+      const medNum = medicao ? parseInt(medicao, 10) : NaN;
+      sinalData = {
+        medicaoNumber: Number.isFinite(medNum) && medNum > 0 ? medNum : 1,
+        contributions,
+      };
+    }
+
     const segment = isSegmentService(service);
     const activity: Activity = {
       id: editActivity?.id ?? generateId(),
@@ -861,6 +893,7 @@ export function ActivityFormModal({
       serviceName: serviceName.trim() || undefined,
       trocaSolo: tsData,
       cbuq: cbuqData,
+      sinalizacaoVertical: sinalData,
       date,
       dateEnd: segment ? dateEnd || undefined : undefined,
       medicao: medicao ? parseInt(medicao, 10) : null,
@@ -1346,6 +1379,145 @@ export function ActivityFormModal({
           {/* Cargas de CBUQ — exclusivo Correção de Defeito (CBUQ) */}
           {isSegmentService(service) && (
             <CbuqForm data={cbuq} onChange={setCbuq} contractItems={contractItems} />
+          )}
+
+          {/* Quantitativos — exclusivo Sinalização Vertical */}
+          {service === "Sinalização Vertical" && (
+            <div
+              className="rounded-xl border p-4"
+              style={{
+                background: "rgba(168,85,247,0.04)",
+                borderColor: "rgba(168,85,247,0.25)",
+              }}
+            >
+              <div className="flex items-center justify-between mb-3">
+                <div>
+                  <h3 className="text-sm font-semibold tracking-tight" style={{ color: "#d8b4fe" }}>
+                    Quantitativos
+                  </h3>
+                  <p className="text-[11px] text-[#9198ad] mt-0.5">
+                    Vincule itens do contrato com as quantidades a creditar nesta atividade.
+                    O valor entra na medição <span className="font-mono">{medicao || "—"}</span>.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() =>
+                    setSinalLinhas((prev) => [
+                      ...prev,
+                      { uid: generateId(), code: "", qtyStr: "" },
+                    ])
+                  }
+                  className="text-xs font-semibold px-2.5 py-1.5 rounded-md border border-[#a855f7]/40 text-[#d8b4fe] hover:bg-[#a855f7]/10 transition-colors"
+                >
+                  + Adicionar item
+                </button>
+              </div>
+
+              <div className="space-y-2">
+                {sinalLinhas.map((l, idx) => {
+                  const opts = contractItems
+                    .filter((ci) => ci.code)
+                    .map((ci) => ({
+                      value: ci.code as string,
+                      label: `${ci.code} — ${ci.name}${ci.unit ? ` (${ci.unit})` : ""}`,
+                    }));
+                  const selected = contractItems.find((ci) => ci.code === l.code);
+                  return (
+                    <div
+                      key={l.uid}
+                      className="rounded-lg border border-[#2e3345] bg-[#0f1117] p-3 grid grid-cols-1 md:grid-cols-[1fr_140px_auto] gap-2 items-end"
+                    >
+                      <div>
+                        <label className="block text-[10px] text-[#9198ad] uppercase tracking-wider mb-1">
+                          Item de contrato #{idx + 1}
+                        </label>
+                        <FilterCombobox
+                          value={l.code}
+                          onChange={(v) =>
+                            setSinalLinhas((prev) =>
+                              prev.map((x) =>
+                                x.uid === l.uid ? { ...x, code: v } : x
+                              )
+                            )
+                          }
+                          options={opts}
+                          placeholder={
+                            opts.length === 0
+                              ? "Nenhum item no contrato"
+                              : "Buscar item de contrato..."
+                          }
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[10px] text-[#9198ad] uppercase tracking-wider mb-1">
+                          Quantidade {selected?.unit ? `(${selected.unit})` : ""}
+                        </label>
+                        <input
+                          type="number"
+                          step="any"
+                          min="0"
+                          value={l.qtyStr}
+                          onChange={(e) =>
+                            setSinalLinhas((prev) =>
+                              prev.map((x) =>
+                                x.uid === l.uid ? { ...x, qtyStr: e.target.value } : x
+                              )
+                            )
+                          }
+                          placeholder="0"
+                          className="w-full bg-[#0f1117] border border-[#2e3345] rounded-md px-3 py-2 text-sm text-[#e8eaf0] focus:outline-none focus:border-[#a855f7] transition-colors tabular-nums"
+                        />
+                      </div>
+                      {sinalLinhas.length > 1 && (
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setSinalLinhas((prev) => prev.filter((x) => x.uid !== l.uid))
+                          }
+                          className="text-xs text-[#f97066] hover:underline self-end pb-2"
+                        >
+                          Remover
+                        </button>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Total preview */}
+              {(() => {
+                const totals = sinalLinhas.reduce<{
+                  count: number;
+                  valor: number;
+                }>(
+                  (acc, l) => {
+                    const q = parseFloat(l.qtyStr);
+                    if (!l.code || !Number.isFinite(q) || q <= 0) return acc;
+                    const ci = contractItems.find((c) => c.code === l.code);
+                    acc.count += 1;
+                    acc.valor += q * (ci?.unitPrice ?? 0);
+                    return acc;
+                  },
+                  { count: 0, valor: 0 }
+                );
+                return (
+                  <div className="mt-3 pt-3 border-t border-[#2e3345] flex items-center justify-between text-xs">
+                    <span className="text-[#9198ad]">
+                      {totals.count}{" "}
+                      {totals.count === 1 ? "linha válida" : "linhas válidas"}
+                    </span>
+                    <span className="font-mono text-[#d8b4fe]">
+                      Valor a creditar:{" "}
+                      {totals.valor.toLocaleString("pt-BR", {
+                        style: "currency",
+                        currency: "BRL",
+                      })}
+                    </span>
+                  </div>
+                );
+              })()}
+            </div>
           )}
 
           {/* Descrição */}
