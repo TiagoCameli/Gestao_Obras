@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import Button from "../../../components/ui/Button";
 import Modal from "../../../components/ui/Modal";
+import { preloadFaceModels } from "../utils/faceRecognition";
 
 interface Props {
   open: boolean;
@@ -40,6 +41,10 @@ export default function CapturaFotoModal({
     if (!open) return;
     setError(null);
     setMatchInfo(null);
+
+    // Modelos do face-api carregam em paralelo enquanto o usuário se
+    // posiciona — chega no clique de Capturar sem espera adicional.
+    if (validarFace) preloadFaceModels().catch(() => {});
 
     // GPS obrigatório (seção 4.5 da spec)
     if (!navigator.geolocation) {

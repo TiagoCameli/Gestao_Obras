@@ -25,7 +25,7 @@ import {
   type RegistroPonto,
   type TipoBatida,
 } from "../utils/pontoApi";
-import { compararFace } from "../utils/faceRecognition";
+import { compararFace, precomputeReferences, preloadFaceModels } from "../utils/faceRecognition";
 import { getFotoUrls } from "../utils/apontamentoApi";
 import CapturaFotoModal from "./CapturaFotoModal";
 import type { Funcionario } from "../types/funcionario";
@@ -170,6 +170,32 @@ export default function RegistroPontoTab() {
   }, [registros]);
 
   const congelado = !!aprovacao;
+
+  // Carrega os modelos de face-api em background no primeiro render —
+  // evita que o usuário pague o download de ~200 KB no clique de Capturar.
+  useEffect(() => {
+    preloadFaceModels().catch(() => { /* sem rede: cai pra fallback no validarFace */ });
+  }, []);
+
+  // Quando o modal de captura abre, pré-computa em paralelo os descritores
+  // das fotos de referência do funcionário. Assim, ao apertar Capturar,
+  // a única coisa a calcular é o descritor do frame atual.
+  useEffect(() => {
+    if (!capturando) return;
+    const refs = capturando.funcionario.fotosReferenciaFacial ?? [];
+    if (refs.length === 0) return;
+    let alive = true;
+    (async () => {
+      try {
+        const urls = await getFotoUrls(refs);
+        if (!alive) return;
+        await precomputeReferences(Object.values(urls));
+      } catch {
+        // silencioso — validarFace tenta de novo no clique
+      }
+    })();
+    return () => { alive = false; };
+  }, [capturando]);
 
   async function handleCapture(
     dataUrl: string,

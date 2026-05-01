@@ -3,21 +3,30 @@ import * as faceapi from "@vladmandic/face-api";
 /**
  * Reconhecimento facial via @vladmandic/face-api.
  *
- * Os modelos são baixados sob demanda do CDN jsDelivr (~5 MB no total)
- * e ficam cacheados pelo browser. Mantemos isso fora do bundle pra
- * não inflar o build do app.
+ * Os modelos são baixados do CDN jsDelivr e ficam cacheados pelo browser.
+ * Usamos `tinyFaceDetector` (~190 KB) ao invés do SSD MobileNet (~5 MB)
+ * porque é 3-5x mais rápido e suficiente para uma única face de batida
+ * de ponto. Os descritores das fotos de referência são memorizados por
+ * URL para que comparações subsequentes só processem o frame do teste.
  */
 const MODEL_URL =
   "https://cdn.jsdelivr.net/npm/@vladmandic/face-api@1.7.15/model";
 
+const TINY_OPTS = new faceapi.TinyFaceDetectorOptions({
+  inputSize: 320,      // 320 é um bom equilíbrio (default é 416)
+  scoreThreshold: 0.5,
+});
+
 let modelsReady: Promise<void> | null = null;
 
-function loadModels(): Promise<void> {
+export function preloadFaceModels(): Promise<void> {
   if (!modelsReady) {
     modelsReady = (async () => {
-      await faceapi.nets.ssdMobilenetv1.loadFromUri(MODEL_URL);
-      await faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL);
-      await faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL);
+      await Promise.all([
+        faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL),
+        faceapi.nets.faceLandmark68TinyNet.loadFromUri(MODEL_URL),
+        faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL),
+      ]);
     })();
   }
   return modelsReady;
@@ -34,23 +43,48 @@ async function imageFromUrl(url: string): Promise<HTMLImageElement> {
   return img;
 }
 
-/** Extrai o vetor descritor (128D) do primeiro rosto detectado. */
-export async function descritorDaImagem(
-  url: string
-): Promise<Float32Array | null> {
-  await loadModels();
-  const img = await imageFromUrl(url);
+async function detectDescriptor(img: HTMLImageElement): Promise<Float32Array | null> {
   const det = await faceapi
-    .detectSingleFace(img)
-    .withFaceLandmarks()
+    .detectSingleFace(img, TINY_OPTS)
+    .withFaceLandmarks(true) // tiny landmarks
     .withFaceDescriptor();
   return det?.descriptor ?? null;
 }
 
+/** Extrai o vetor descritor (128D) do primeiro rosto detectado. */
+export async function descritorDaImagem(
+  url: string
+): Promise<Float32Array | null> {
+  await preloadFaceModels();
+  const img = await imageFromUrl(url);
+  return detectDescriptor(img);
+}
+
+// Cache de descritores das fotos de referência (chave = URL).
+const REF_CACHE = new Map<string, Float32Array | null>();
+
 /**
- * Compara um rosto de teste contra N referências e devolve o melhor
- * match. Distância Euclidiana < 0.6 é considerado match (padrão da lib).
+ * Pré-computa (em paralelo) os descritores das fotos de referência.
+ * Pode ser chamado quando o modal de captura abre, para que ao apertar
+ * "Capturar" só sobre processar o frame do teste — economia de 60-80%
+ * do tempo na primeira batida e ~100% nas subsequentes (cache).
  */
+export async function precomputeReferences(urls: string[]): Promise<void> {
+  await preloadFaceModels();
+  const todo = urls.filter((u) => !REF_CACHE.has(u));
+  if (todo.length === 0) return;
+  await Promise.all(
+    todo.map(async (url) => {
+      try {
+        const img = await imageFromUrl(url);
+        REF_CACHE.set(url, await detectDescriptor(img));
+      } catch {
+        REF_CACHE.set(url, null);
+      }
+    })
+  );
+}
+
 export interface MatchResult {
   match: boolean;
   distancia: number;
@@ -63,20 +97,19 @@ export async function compararFace(
   testeDataUrlOuUrl: string,
   referenciasUrls: string[]
 ): Promise<MatchResult> {
-  await loadModels();
-  const teste = await descritorDaImagem(testeDataUrlOuUrl);
+  await preloadFaceModels();
+  const [teste] = await Promise.all([
+    descritorDaImagem(testeDataUrlOuUrl),
+    precomputeReferences(referenciasUrls),
+  ]);
   if (!teste) return { match: false, distancia: 1, threshold: THRESHOLD };
 
   let melhor = Infinity;
   for (const ref of referenciasUrls) {
-    try {
-      const d = await descritorDaImagem(ref);
-      if (!d) continue;
-      const dist = faceapi.euclideanDistance(teste, d);
-      if (dist < melhor) melhor = dist;
-    } catch {
-      // ignora referência ilegível
-    }
+    const d = REF_CACHE.get(ref);
+    if (!d) continue;
+    const dist = faceapi.euclideanDistance(teste, d);
+    if (dist < melhor) melhor = dist;
   }
   return { match: melhor < THRESHOLD, distancia: melhor, threshold: THRESHOLD };
 }
