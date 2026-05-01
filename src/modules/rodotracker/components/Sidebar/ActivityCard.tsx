@@ -31,6 +31,7 @@ export function ActivityCard({ activity, contractItems = [], onClick, onDelete }
 
   const ts = activity.trocaSolo;
   const cbuq = activity.cbuq;
+  const sinal = activity.sinalizacaoVertical;
   const priceByCode = (() => {
     const m = new Map<string, number>();
     for (const ci of contractItems) {
@@ -49,6 +50,13 @@ export function ActivityCard({ activity, contractItems = [], onClick, onDelete }
   };
   const tsTotal = contribValue(ts?.contributions);
   const cbuqTotal = contribValue(cbuq?.contributions);
+  const sinalTotal = contribValue(sinal?.contributions);
+  const sinalQtyTotal = sinal?.contributions
+    ? Object.values(sinal.contributions).reduce((s, q) => s + (q || 0), 0)
+    : 0;
+  const sinalItensCount = sinal?.contributions
+    ? Object.keys(sinal.contributions).length
+    : 0;
   const cbuqPesoTotal = (cbuq?.cargas ?? []).reduce((s, c) => s + (c.pesoT || 0), 0);
   const cbuqVolumeTotal = cbuqPesoTotal / 2.3840021874474;
 
@@ -346,6 +354,60 @@ export function ActivityCard({ activity, contractItems = [], onClick, onDelete }
                 style={{ fontSize: 12, fontWeight: 700, color: "var(--success)" }}
               >
                 {BRL_FMT.format(tsTotal)}
+              </span>
+            </div>
+          )}
+        </div>
+      ) : sinal && sinalItensCount > 0 ? (
+        <div
+          style={{
+            paddingTop: 6,
+            marginTop: 4,
+            borderTop: "1px dashed var(--border-hair)",
+          }}
+        >
+          <div
+            className="grid gap-x-3 gap-y-0.5 font-mono"
+            style={{
+              gridTemplateColumns: "auto 1fr",
+              fontSize: 10,
+              color: "var(--text-muted)",
+            }}
+          >
+            <span style={{ color: "var(--text-muted)" }}>Itens</span>
+            <span style={{ color: "var(--text-secondary)", textAlign: "right" }}>
+              {sinalItensCount}
+            </span>
+            <span style={{ color: "var(--text-muted)" }}>Qtd total</span>
+            <span style={{ color: "#c084fc", textAlign: "right", fontWeight: 600 }}>
+              {MEAS_FMT.format(sinalQtyTotal)}
+            </span>
+          </div>
+          {sinalTotal > 0 && (
+            <div
+              className="flex items-center justify-between"
+              style={{
+                marginTop: 6,
+                paddingTop: 6,
+                borderTop: "1px dashed var(--border-hair)",
+              }}
+            >
+              <span
+                style={{
+                  fontSize: 9,
+                  fontWeight: 700,
+                  letterSpacing: "0.1em",
+                  textTransform: "uppercase",
+                  color: "var(--text-muted)",
+                }}
+              >
+                Valor total
+              </span>
+              <span
+                className="font-mono"
+                style={{ fontSize: 12, fontWeight: 700, color: "var(--success)" }}
+              >
+                {BRL_FMT.format(sinalTotal)}
               </span>
             </div>
           )}
