@@ -82,6 +82,7 @@ export default function RegistroPontoTab() {
   const { data: equipes = [] } = useEquipesApont(undefined);
   const [equipeId, setEquipeId] = useState<string>("");
   const [data, setData] = useState<string>(hojeIso());
+  const [busca, setBusca] = useState<string>("");
 
   const { data: funcionarios = [] } = useFuncionarios();
   // Lista de funcionários a exibir respeita os filtros aplicados. Quando
@@ -91,8 +92,10 @@ export default function RegistroPontoTab() {
     let list = funcionarios.filter((f) => f.status === "ativo");
     if (equipeId) list = list.filter((f) => f.equipeId === equipeId);
     if (obraId) list = list.filter((f) => f.obraId === obraId);
+    const q = busca.trim().toLowerCase();
+    if (q) list = list.filter((f) => f.nome.toLowerCase().includes(q));
     return list;
-  }, [funcionarios, equipeId, obraId]);
+  }, [funcionarios, equipeId, obraId, busca]);
 
   const registrosKey = ["apont", "registros", obraId, equipeId, data] as const;
   const { data: registros = [], isLoading: loadingRegs } = useQuery({
@@ -303,7 +306,7 @@ export default function RegistroPontoTab() {
 
   return (
     <div className="space-y-4">
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
         <Select
           label="Obra"
           options={obras.map((o) => ({ value: o.id, label: o.nome }))}
@@ -321,6 +324,13 @@ export default function RegistroPontoTab() {
           type="date"
           value={data}
           onChange={(e) => setData(e.target.value)}
+        />
+        <Input
+          label="Buscar nome"
+          type="search"
+          placeholder="Digite o nome..."
+          value={busca}
+          onChange={(e) => setBusca(e.target.value)}
         />
       </div>
 
