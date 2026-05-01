@@ -99,7 +99,7 @@ export function HomePage({ onOpenObra }: HomePageProps) {
               <span style={{ fontSize: 19, fontWeight: 700, letterSpacing: "-0.02em", color: "var(--text-primary)" }}>
                 Tre<span style={{ color: "var(--accent)" }}>chos</span>
               </span>
-              <span className="label-eyebrow font-mono" style={{ fontSize: 9 }}>v2.2</span>
+              <span className="label-eyebrow font-mono" style={{ fontSize: 9 }}>v2.3</span>
             </div>
           </div>
 
