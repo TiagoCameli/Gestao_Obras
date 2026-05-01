@@ -62,7 +62,7 @@ export default function ApontamentoServicoTab() {
   const qc = useQueryClient();
   const { data: obras = [] } = useObrasApont();
   const [obraId, setObraId] = useState<string>("");
-  const { data: equipes = [] } = useEquipesApont(obraId || undefined);
+  const { data: equipes = [] } = useEquipesApont(undefined);
   const [equipeId, setEquipeId] = useState<string>("");
   const [data, setData] = useState<string>(hojeIso());
 
@@ -214,7 +214,6 @@ export default function ApontamentoServicoTab() {
           value={obraId}
           onChange={(e) => {
             setObraId(e.target.value);
-            setEquipeId("");
             setSelecionados(new Set());
           }}
         />
@@ -226,7 +225,6 @@ export default function ApontamentoServicoTab() {
             setEquipeId(e.target.value);
             setSelecionados(new Set());
           }}
-          disabled={!obraId}
         />
         <Input
           label="Data"

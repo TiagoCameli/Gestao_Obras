@@ -47,7 +47,7 @@ export default function DashboardTab() {
   const { dataInicio, dataFim } = rangeBounds(range);
 
   const { data: obras = [] } = useObrasApont();
-  const { data: equipes = [] } = useEquipesApont(obraId || undefined);
+  const { data: equipes = [] } = useEquipesApont(undefined);
   const { data: funcionarios = [] } = useFuncionarios();
   const { data: servicos = [] } = useQuery({
     queryKey: ["apont", "servicos-todos"],
@@ -194,7 +194,7 @@ export default function DashboardTab() {
         <Field label="Obra">
           <select
             value={obraId}
-            onChange={(e) => { setObraId(e.target.value); setEquipeId(""); }}
+            onChange={(e) => setObraId(e.target.value)}
             className={inputCls}
           >
             <option value="">Todas</option>
@@ -208,7 +208,6 @@ export default function DashboardTab() {
             value={equipeId}
             onChange={(e) => setEquipeId(e.target.value)}
             className={inputCls}
-            disabled={!obraId}
           >
             <option value="">Todas</option>
             {equipes.map((e) => (

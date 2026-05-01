@@ -108,7 +108,7 @@ export default function HistoricoTab() {
   const [busca, setBusca] = useState("");
 
   const { data: obras = [] } = useObrasApont();
-  const { data: equipes = [] } = useEquipesApont(obraId || undefined);
+  const { data: equipes = [] } = useEquipesApont(undefined);
   const { data: funcionarios = [] } = useFuncionarios();
   const { data: servicos = [] } = useQuery({
     queryKey: ["apont", "servicos-todos"],
@@ -235,7 +235,7 @@ export default function HistoricoTab() {
           <input type="date" value={dataFim} onChange={(e) => setDataFim(e.target.value)} className={inputCls} />
         </Field>
         <Field label="Obra">
-          <select value={obraId} onChange={(e) => { setObraId(e.target.value); setEquipeId(""); }} className={inputCls}>
+          <select value={obraId} onChange={(e) => setObraId(e.target.value)} className={inputCls}>
             <option value="">Todas</option>
             {obras.map((o) => (
               <option key={o.id} value={o.id}>{o.nome}</option>
@@ -243,7 +243,7 @@ export default function HistoricoTab() {
           </select>
         </Field>
         <Field label="Equipe">
-          <select value={equipeId} onChange={(e) => setEquipeId(e.target.value)} className={inputCls} disabled={!obraId}>
+          <select value={equipeId} onChange={(e) => setEquipeId(e.target.value)} className={inputCls}>
             <option value="">Todas</option>
             {equipes.map((e) => (
               <option key={e.id} value={e.id}>{e.nome}</option>
