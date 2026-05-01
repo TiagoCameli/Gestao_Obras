@@ -706,7 +706,8 @@ export function ActivityFormModal({
     e.preventDefault();
     if (isSaving) return; // guarda contra double-click / Enter duplo
 
-    if (lat === 0 && lng === 0) {
+    // Conserva não tem localização exata — pular validação de coords.
+    if (service !== "Conserva" && lat === 0 && lng === 0) {
       alert("Informe as coordenadas iniciais ou marque a localização no mapa.");
       return;
     }
