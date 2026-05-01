@@ -1253,10 +1253,10 @@ export function ActivityFormModal({
 
           {/* Locais extras — exclusivo Sinalização (várias placas no mesmo registro) */}
           {service === "Sinalização" && (
-            <div className="rounded-xl border border-[#a855f7]/25 bg-[#a855f7]/[0.04] p-4">
+            <div className="rounded-xl border border-[#eab308]/25 bg-[#eab308]/[0.04] p-4">
               <div className="flex items-center justify-between mb-3">
                 <div>
-                  <h3 className="text-sm font-semibold tracking-tight text-[#d8b4fe]">
+                  <h3 className="text-sm font-semibold tracking-tight text-[#fde68a]">
                     Locais marcados
                   </h3>
                   <p className="text-[11px] text-[#9198ad] mt-0.5">
@@ -1267,7 +1267,7 @@ export function ActivityFormModal({
                 <button
                   type="button"
                   onClick={() => { setPickTarget("extra"); onPickOnMap(); }}
-                  className="text-xs font-semibold px-2.5 py-1.5 rounded-md border border-[#a855f7]/40 text-[#d8b4fe] hover:bg-[#a855f7]/10 transition-colors"
+                  className="text-xs font-semibold px-2.5 py-1.5 rounded-md border border-[#eab308]/40 text-[#fde68a] hover:bg-[#eab308]/10 transition-colors"
                 >
                   + Adicionar local no mapa
                 </button>
@@ -1496,7 +1496,7 @@ export function ActivityFormModal({
             >
               <div className="flex items-center justify-between mb-3">
                 <div>
-                  <h3 className="text-sm font-semibold tracking-tight" style={{ color: "#d8b4fe" }}>
+                  <h3 className="text-sm font-semibold tracking-tight" style={{ color: "#fde68a" }}>
                     Quantitativos
                   </h3>
                   <p className="text-[11px] text-[#9198ad] mt-0.5">
@@ -1512,7 +1512,7 @@ export function ActivityFormModal({
                       { uid: generateId(), code: "", qtyStr: "" },
                     ])
                   }
-                  className="text-xs font-semibold px-2.5 py-1.5 rounded-md border border-[#a855f7]/40 text-[#d8b4fe] hover:bg-[#a855f7]/10 transition-colors"
+                  className="text-xs font-semibold px-2.5 py-1.5 rounded-md border border-[#eab308]/40 text-[#fde68a] hover:bg-[#eab308]/10 transition-colors"
                 >
                   + Adicionar item
                 </button>
@@ -1570,7 +1570,7 @@ export function ActivityFormModal({
                             )
                           }
                           placeholder="0"
-                          className="w-full bg-[#0f1117] border border-[#2e3345] rounded-md px-3 py-2 text-sm text-[#e8eaf0] focus:outline-none focus:border-[#a855f7] transition-colors tabular-nums"
+                          className="w-full bg-[#0f1117] border border-[#2e3345] rounded-md px-3 py-2 text-sm text-[#e8eaf0] focus:outline-none focus:border-[#eab308] transition-colors tabular-nums"
                         />
                       </div>
                       {sinalLinhas.length > 1 && (
@@ -1611,7 +1611,7 @@ export function ActivityFormModal({
                       {totals.count}{" "}
                       {totals.count === 1 ? "linha válida" : "linhas válidas"}
                     </span>
-                    <span className="font-mono text-[#d8b4fe]">
+                    <span className="font-mono text-[#fde68a]">
                       Valor a creditar:{" "}
                       {totals.valor.toLocaleString("pt-BR", {
                         style: "currency",

@@ -435,7 +435,7 @@ export function ActivityCard({ activity, contractItems = [], onClick, onDelete }
               {sinalItensCount}
             </span>
             <span style={{ color: "var(--text-muted)" }}>Qtd total</span>
-            <span style={{ color: "#c084fc", textAlign: "right", fontWeight: 600 }}>
+            <span style={{ color: "#eab308", textAlign: "right", fontWeight: 600 }}>
               {MEAS_FMT.format(sinalQtyTotal)}
             </span>
           </div>
