@@ -139,9 +139,11 @@ export default function RegistroPontoTab() {
     return m;
   }, [registros]);
 
-  // Modal de captura rápida — identifica o funcionário pela face e bate
-  // o próximo tipo de batida (entrada → saída_almoço → retorno → final).
+  // Modal de captura rápida — o usuário escolhe o tipo de batida
+  // (entrada / saída almoço / retorno / saída final) e o sistema
+  // identifica o funcionário pela face.
   const [quickOpen, setQuickOpen] = useState(false);
+  const [quickTipo, setQuickTipo] = useState<TipoBatida | null>(null);
   const matchedRef = useRef<{ funcionario: Funcionario; tipo: TipoBatida } | null>(null);
 
   // Modal de captura
@@ -308,18 +310,6 @@ export default function RegistroPontoTab() {
     return compararFace(dataUrl, Object.values(refsUrls));
   }
 
-  /** Próximo tipo de batida que falta no dia (ou null se já bateu todas). */
-  function nextTipoBatida(rs: RegistroPonto[]): TipoBatida | null {
-    const tipos = new Set(
-      rs.filter((r) => r.statusAprovacao !== "rejeitado").map((r) => r.tipoBatida)
-    );
-    if (!tipos.has("entrada")) return "entrada";
-    if (!tipos.has("saida_almoco")) return "saida_almoco";
-    if (!tipos.has("retorno_almoco")) return "retorno_almoco";
-    if (!tipos.has("saida_final")) return "saida_final";
-    return null;
-  }
-
   /** Pré-computa descritores de TODOS os funcionários ativos com foto. */
   useEffect(() => {
     if (!quickOpen) return;
@@ -343,9 +333,12 @@ export default function RegistroPontoTab() {
     return () => { alive = false; };
   }, [quickOpen, funcsDaEquipe]);
 
-  /** Identifica o funcionário pela face e prepara a próxima batida. */
+  /** Identifica o funcionário pela face e prepara a batida do tipo escolhido. */
   async function quickValidarFace(dataUrl: string) {
     matchedRef.current = null;
+    if (!quickTipo) {
+      return { match: false, distancia: 1, threshold: 0.55 };
+    }
     const elegiveis = funcsDaEquipe.filter(
       (f) => (f.fotosReferenciaFacial?.length ?? 0) > 0
     );
@@ -366,12 +359,16 @@ export default function RegistroPontoTab() {
     if (!func) {
       return { match: false, distancia: res.distancia, threshold: res.threshold };
     }
-    const tipo = nextTipoBatida(registrosPorFunc[func.id] ?? []);
-    if (!tipo) {
-      alert(`${func.nome} já registrou todas as batidas hoje.`);
+    const jaBatidos = new Set(
+      (registrosPorFunc[func.id] ?? [])
+        .filter((r) => r.statusAprovacao !== "rejeitado")
+        .map((r) => r.tipoBatida)
+    );
+    if (jaBatidos.has(quickTipo)) {
+      alert(`${func.nome} já registrou ${TIPO_BATIDA_LABEL[quickTipo]} hoje.`);
       return { match: false, distancia: res.distancia, threshold: res.threshold };
     }
-    matchedRef.current = { funcionario: func, tipo };
+    matchedRef.current = { funcionario: func, tipo: quickTipo };
     return { match: true, distancia: res.distancia, threshold: res.threshold };
   }
 
@@ -398,6 +395,7 @@ export default function RegistroPontoTab() {
       );
       matchedRef.current = null;
       setQuickOpen(false);
+      setQuickTipo(null);
     } catch (e) {
       alert("Falha ao registrar: " + (e instanceof Error ? e.message : String(e)));
     }
@@ -413,23 +411,57 @@ export default function RegistroPontoTab() {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between gap-3 flex-wrap">
+      <div className="space-y-3">
         <div>
           <h3 className="text-sm font-semibold tracking-tight text-[var(--color-fg)]">
-            Reconhecimento facial
+            Bater ponto rápido
           </h3>
           <p className="text-[11px] text-[var(--color-fg-subtle)] mt-0.5">
-            Identifica automaticamente o funcionário e bate o próximo ponto.
+            Toque no tipo de batida — o sistema reconhece o rosto automaticamente.
           </p>
         </div>
-        <Button
-          onClick={() => {
-            matchedRef.current = null;
-            setQuickOpen(true);
-          }}
-        >
-          📷 Bater ponto rápido
-        </Button>
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+          <BotaoPontoRapido
+            label="Entrada"
+            emoji="🟢"
+            color="emerald"
+            onClick={() => {
+              matchedRef.current = null;
+              setQuickTipo("entrada");
+              setQuickOpen(true);
+            }}
+          />
+          <BotaoPontoRapido
+            label="Saída p/ almoço"
+            emoji="🍽️"
+            color="amber"
+            onClick={() => {
+              matchedRef.current = null;
+              setQuickTipo("saida_almoco");
+              setQuickOpen(true);
+            }}
+          />
+          <BotaoPontoRapido
+            label="Retorno do almoço"
+            emoji="🔁"
+            color="orange"
+            onClick={() => {
+              matchedRef.current = null;
+              setQuickTipo("retorno_almoco");
+              setQuickOpen(true);
+            }}
+          />
+          <BotaoPontoRapido
+            label="Saída final"
+            emoji="🏁"
+            color="rose"
+            onClick={() => {
+              matchedRef.current = null;
+              setQuickTipo("saida_final");
+              setQuickOpen(true);
+            }}
+          />
+        </div>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
@@ -645,10 +677,15 @@ export default function RegistroPontoTab() {
 
       <CapturaFotoModal
         open={quickOpen}
-        title="Bater ponto — reconhecer rosto"
+        title={
+          quickTipo
+            ? `${TIPO_BATIDA_LABEL[quickTipo]} — reconhecer rosto`
+            : "Bater ponto — reconhecer rosto"
+        }
         onCancel={() => {
           matchedRef.current = null;
           setQuickOpen(false);
+          setQuickTipo(null);
         }}
         onCapture={quickHandleCapture}
         validarFace={quickValidarFace}
@@ -1104,6 +1141,49 @@ function AcoesFuncionario({
         Marcar falta
       </BotaoBatida>
     </div>
+  );
+}
+
+function BotaoPontoRapido({
+  label,
+  emoji,
+  color,
+  onClick,
+}: {
+  label: string;
+  emoji: string;
+  color: "emerald" | "amber" | "orange" | "rose";
+  onClick: () => void;
+}) {
+  const palette: Record<typeof color, string> = {
+    emerald:
+      "border-emerald-500/40 bg-emerald-500/10 hover:bg-emerald-500/20 active:bg-emerald-500/30 text-emerald-200",
+    amber:
+      "border-amber-500/40 bg-amber-500/10 hover:bg-amber-500/20 active:bg-amber-500/30 text-amber-200",
+    orange:
+      "border-orange-500/40 bg-orange-500/10 hover:bg-orange-500/20 active:bg-orange-500/30 text-orange-200",
+    rose:
+      "border-rose-500/40 bg-rose-500/10 hover:bg-rose-500/20 active:bg-rose-500/30 text-rose-200",
+  };
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={
+        "w-full min-h-[112px] sm:min-h-[120px] rounded-2xl border-2 " +
+        "flex flex-col items-center justify-center gap-2 " +
+        "px-4 py-5 transition-colors active:scale-[0.98] " +
+        "shadow-sm " +
+        palette[color]
+      }
+    >
+      <span className="text-3xl sm:text-4xl leading-none" aria-hidden>
+        {emoji}
+      </span>
+      <span className="text-base sm:text-lg font-semibold tracking-tight text-center">
+        {label}
+      </span>
+    </button>
   );
 }
 
