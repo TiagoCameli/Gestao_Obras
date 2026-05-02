@@ -387,6 +387,7 @@ export default function HistoricoTab() {
             ? `Deseja excluir: ${pendingDelete.resumo}? Esta ação não pode ser desfeita.`
             : ""
         }
+        requirePassword={false}
       />
     </div>
   );

@@ -453,6 +453,7 @@ export default function ApontamentoServicoTab() {
               } em ${data}?`
             : ""
         }
+        requirePassword={false}
       />
     </div>
   );

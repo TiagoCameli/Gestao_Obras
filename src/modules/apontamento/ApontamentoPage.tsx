@@ -151,6 +151,7 @@ export default function ApontamentoPage() {
         }}
         title="Excluir funcionário"
         message="Tem certeza que deseja excluir este funcionário? Esta ação não pode ser desfeita."
+        requirePassword={false}
       />
     </div>
   );

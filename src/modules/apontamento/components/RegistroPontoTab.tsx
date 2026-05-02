@@ -708,6 +708,7 @@ export default function RegistroPontoTab() {
               })}? A foto também será removida.`
             : ""
         }
+        requirePassword={false}
       />
 
     </div>

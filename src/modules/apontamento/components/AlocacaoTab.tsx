@@ -350,6 +350,7 @@ function EquipesView() {
         }}
         title="Excluir equipe"
         message="Funcionários da equipe ficarão sem alocação. Confirma?"
+        requirePassword={false}
       />
     </div>
   );
