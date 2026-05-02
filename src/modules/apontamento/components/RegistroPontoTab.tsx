@@ -33,6 +33,7 @@ import {
 } from "../utils/faceRecognition";
 import { getFotoUrls } from "../utils/apontamentoApi";
 import CapturaFotoModal from "./CapturaFotoModal";
+import MarcarFaltaModal from "./MarcarFaltaModal";
 import type { Funcionario } from "../types/funcionario";
 
 const TIPO_BATIDA_LABEL: Record<TipoBatida, string> = {
@@ -151,6 +152,7 @@ export default function RegistroPontoTab() {
 
   // Modal de lançamento manual
   const [manualPara, setManualPara] = useState<Funcionario | null>(null);
+  const [marcandoFalta, setMarcandoFalta] = useState<Funcionario | null>(null);
 
   // Aprovação do dia
 
@@ -583,6 +585,7 @@ export default function RegistroPontoTab() {
                       status={status}
                       onCapturar={(tipo) => void iniciarBatida(f, tipo)}
                       onLancarManual={() => setManualPara(f)}
+                      onMarcarFalta={() => setMarcandoFalta(f)}
                     />
                   )}
                 </article>
@@ -659,6 +662,13 @@ export default function RegistroPontoTab() {
           qc.invalidateQueries({ queryKey: registrosKey });
           setManualPara(null);
         }}
+      />
+
+      <MarcarFaltaModal
+        open={marcandoFalta !== null}
+        funcionario={marcandoFalta}
+        dataSugerida={data}
+        onClose={() => setMarcandoFalta(null)}
       />
 
       <FotoBatidaModal
@@ -1050,10 +1060,12 @@ function AcoesFuncionario({
   status,
   onCapturar,
   onLancarManual,
+  onMarcarFalta,
 }: {
   status: StatusFunc;
   onCapturar: (tipo: TipoBatida) => void;
   onLancarManual: () => void;
+  onMarcarFalta: () => void;
 }) {
   // Define quais batidas fazem sentido pelo estado atual
   const podeEntrar = status === "aguardando";
@@ -1086,6 +1098,9 @@ function AcoesFuncionario({
       )}
       <BotaoBatida onClick={onLancarManual} variant="ghost">
         Lançar manual
+      </BotaoBatida>
+      <BotaoBatida onClick={onMarcarFalta} variant="ghost">
+        Marcar falta
       </BotaoBatida>
     </div>
   );

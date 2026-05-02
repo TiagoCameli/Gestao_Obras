@@ -21,8 +21,14 @@ import {
   useObrasApont,
   useEquipesApont,
 } from "../hooks/useApontamentoData";
+import {
+  listAusencias,
+  removerAusencia,
+  TIPO_AUSENCIA_LABEL,
+  type Ausencia,
+} from "../utils/ausenciaApi";
 
-type SubTab = "ponto" | "servico";
+type SubTab = "ponto" | "servico" | "ausencias";
 
 const TIPO_BATIDA_LABEL: Record<string, string> = {
   entrada: "Entrada",
@@ -143,6 +149,20 @@ export default function HistoricoTab() {
     queryFn: () => listApontamentosServicoRange(baseFilters as FiltrosApontamentoServico),
     enabled: sub === "servico",
   });
+  const { data: ausencias = [], isLoading: loadingAus } = useQuery({
+    queryKey: ["apont", "ausencias", baseFilters],
+    queryFn: () =>
+      listAusencias({
+        funcionarioId: baseFilters.funcionarioId,
+        inicio: baseFilters.dataInicio,
+        fim: baseFilters.dataFim,
+      }),
+    enabled: sub === "ausencias",
+  });
+  const removerAus = useMutation({
+    mutationFn: (id: string) => removerAusencia(id),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["apont", "ausencias"] }),
+  });
 
   const registrosFiltrados = useMemo(() => {
     if (!busca) return registros;
@@ -224,6 +244,9 @@ export default function HistoricoTab() {
         <SubBtn active={sub === "servico"} onClick={() => setSub("servico")}>
           Apontamento por Serviço
         </SubBtn>
+        <SubBtn active={sub === "ausencias"} onClick={() => setSub("ausencias")}>
+          Faltas / Ausências
+        </SubBtn>
       </div>
 
       {/* Filtros */}
@@ -273,9 +296,11 @@ export default function HistoricoTab() {
 
       <div className="flex items-center justify-between">
         <p className="text-xs text-[var(--color-fg-subtle)]">
-          {sub === "ponto" ? registrosFiltrados.length : apontamentosFiltrados.length}{" "}
-          {sub === "ponto" ? "batida" : "lançamento"}
-          {(sub === "ponto" ? registrosFiltrados.length : apontamentosFiltrados.length) !== 1 ? "s" : ""}
+          {sub === "ponto"
+            ? `${registrosFiltrados.length} batida${registrosFiltrados.length !== 1 ? "s" : ""}`
+            : sub === "servico"
+            ? `${apontamentosFiltrados.length} lançamento${apontamentosFiltrados.length !== 1 ? "s" : ""}`
+            : `${ausencias.length} registro${ausencias.length !== 1 ? "s" : ""} de ausência`}
         </p>
         <button
           type="button"
@@ -309,7 +334,7 @@ export default function HistoricoTab() {
               });
             }}
           />
-        ) : (
+        ) : sub === "servico" ? (
           <ServicoTable
             apontamentos={apontamentosFiltrados}
             funcsById={funcsById}
@@ -325,6 +350,28 @@ export default function HistoricoTab() {
                 id: a.id,
                 resumo: `${desc} de ${f?.nome ?? "—"} em ${fmtData(a.data)} (${(a.horas ?? 0).toFixed(2)}h)`,
               });
+            }}
+          />
+        ) : (
+          <AusenciaTable
+            ausencias={ausencias}
+            funcsById={funcsById}
+            isLoading={loadingAus}
+            canDelete={canDelete}
+            onDelete={(a) => {
+              const f = funcsById.get(a.funcionarioId);
+              const tipoLabel = TIPO_AUSENCIA_LABEL[a.tipo];
+              const periodo =
+                a.dataInicio === a.dataFim
+                  ? fmtData(a.dataInicio)
+                  : `${fmtData(a.dataInicio)} → ${fmtData(a.dataFim)}`;
+              if (
+                window.confirm(
+                  `Remover: ${tipoLabel} de ${f?.nome ?? "—"} (${periodo})?`
+                )
+              ) {
+                removerAus.mutate(a.id);
+              }
             }}
           />
         )}
@@ -512,6 +559,70 @@ const inputCls =
   "h-10 w-full rounded-lg px-3 text-sm bg-[var(--color-surface-1)] text-[var(--color-fg)] " +
   "border border-[var(--color-border)] focus:outline-none focus:border-[var(--color-accent)] " +
   "focus:ring-2 focus:ring-[var(--color-ring)] disabled:opacity-50";
+
+function AusenciaTable({
+  ausencias,
+  funcsById,
+  isLoading,
+  canDelete,
+  onDelete,
+}: {
+  ausencias: Ausencia[];
+  funcsById: Map<string, { nome: string }>;
+  isLoading: boolean;
+  canDelete: boolean;
+  onDelete: (a: Ausencia) => void;
+}) {
+  if (isLoading) {
+    return <div className="p-12 text-center text-sm text-[var(--color-fg-muted)]">Carregando…</div>;
+  }
+  if (ausencias.length === 0) {
+    return <div className="p-12 text-center text-sm text-[var(--color-fg-muted)]">Nenhuma ausência no período.</div>;
+  }
+  return (
+    <div className="overflow-x-auto">
+      <table className="w-full text-sm">
+        <thead>
+          <tr className="bg-[var(--color-surface-2)] text-[var(--color-fg-muted)] text-xs uppercase tracking-wider">
+            <th className="px-4 py-3 text-left font-medium">Período</th>
+            <th className="px-4 py-3 text-left font-medium">Funcionário</th>
+            <th className="px-4 py-3 text-left font-medium">Tipo</th>
+            <th className="px-4 py-3 text-left font-medium">Observação</th>
+            {canDelete && <th className="px-4 py-3 text-right font-medium" style={{ width: 60 }}>Ações</th>}
+          </tr>
+        </thead>
+        <tbody>
+          {ausencias.map((a) => {
+            const f = funcsById.get(a.funcionarioId);
+            const periodo =
+              a.dataInicio === a.dataFim
+                ? fmtData(a.dataInicio)
+                : `${fmtData(a.dataInicio)} → ${fmtData(a.dataFim)}`;
+            return (
+              <tr key={a.id} className="border-t border-[var(--color-border)] hover:bg-[var(--color-surface-2)]/40">
+                <td className="px-4 py-2.5 font-mono text-xs">{periodo}</td>
+                <td className="px-4 py-2.5">{f?.nome ?? "—"}</td>
+                <td className="px-4 py-2.5 text-xs">{TIPO_AUSENCIA_LABEL[a.tipo]}</td>
+                <td className="px-4 py-2.5 text-xs text-[var(--color-fg-muted)]">{a.observacao ?? "—"}</td>
+                {canDelete && (
+                  <td className="px-4 py-2.5 text-right">
+                    <button
+                      type="button"
+                      onClick={() => onDelete(a)}
+                      className="text-[var(--color-danger)] hover:underline text-xs"
+                    >
+                      Remover
+                    </button>
+                  </td>
+                )}
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
+  );
+}
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
