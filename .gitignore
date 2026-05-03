@@ -26,3 +26,11 @@ dist-ssr
 
 # Supabase CLI temp metadata
 supabase/.temp/
+
+# Pacote de seed (dados ficam no Supabase)
+manutencao-app/
+
+# Pacote de seed (dados ficam no Supabase)
+manutencao-app/
+.env
+.env.local

@@ -22,6 +22,7 @@ import NotFound from './pages/NotFound';
 import MigrarDados from './pages/MigrarDados';
 import RodoTrackerPage from './modules/rodotracker/RodoTrackerPage';
 import ApontamentoPage from './modules/apontamento/ApontamentoPage';
+import { manutencaoRoutes } from './modules/manutencao/routes';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -82,6 +83,7 @@ export default function App() {
               <Route path="/funcionarios" element={<ProtectedRoute modulo="funcionarios"><Funcionarios /></ProtectedRoute>} />
               <Route path="/apontamentos" element={<ProtectedRoute modulo="apontamentos"><Apontamentos /></ProtectedRoute>} />
               <Route path="/apontamento" element={<ProtectedRoute modulo="apontamento_rh"><ApontamentoPage /></ProtectedRoute>} />
+              {manutencaoRoutes}
               <Route path="/migrar-dados" element={<MigrarDados />} />
               <Route path="/acesso-negado" element={<AcessoNegado />} />
               <Route path="*" element={<NotFound />} />

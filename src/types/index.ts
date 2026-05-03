@@ -218,7 +218,7 @@ export interface FiltrosInsumos {
 
 export type CargoFuncionario = 'Administrador' | 'Gerente' | 'Gerente Financeiro' | 'Gerente de Compras' | 'Supervisor' | 'Operador' | 'Financeiro' | 'Apontador' | 'Engenheiro Civil Sênior' | 'Engenheiro Civil';
 
-export type ModuloPermissao = 'dashboard' | 'cadastros' | 'frete' | 'frota' | 'funcionarios' | 'apontamentos';
+export type ModuloPermissao = 'dashboard' | 'cadastros' | 'frete' | 'frota' | 'funcionarios' | 'apontamentos' | 'manutencao';
 
 export type AcaoPermissao = 'visualizar' | 'criar' | 'editar' | 'excluir' | 'exportar' | 'ajustar_filtros';
 
