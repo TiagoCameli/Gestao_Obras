@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import {
   BarChart,
   Bar,
@@ -14,9 +14,11 @@ import {
   Pie,
   Cell,
 } from 'recharts';
-import type { Abastecimento, Deposito, EntradaCombustivel, TransferenciaCombustivel, EtapaObra, Obra } from '../../types';
+import type { Abastecimento, Deposito, EntradaCombustivel, TransferenciaCombustivel, EtapaObra, Obra, TipoConsumidorSaida } from '../../types';
 import { useInsumos } from '../../hooks/useInsumos';
 import { useEquipamentos } from '../../hooks/useEquipamentos';
+// Hook novo Fase 3 — fonte canônica de saídas pós-Fase 2.
+import { useSaidasCombustivel } from '../../hooks/useSaidasCombustivel';
 import { formatCurrency } from '../../utils/formatters';
 
 const card = 'bg-white dark:bg-slate-800 rounded-xl shadow-md px-6 py-5';
@@ -35,9 +37,9 @@ interface DashboardProps {
 }
 
 export default function CombustivelDashboard({
-  abastecimentos,
+  abastecimentos: _abastLegacy,        // ignorado — substituído por useSaidasCombustivel + filtro
   todasEntradas,
-  todosAbastecimentos,
+  todosAbastecimentos: _todosAbastLegacy,  // idem
   transferencias,
   obras,
   etapas,
@@ -49,6 +51,52 @@ export default function CombustivelDashboard({
   const insumosMap = new Map((insumosData ?? []).map((i) => [i.id, i.nome]));
   const { data: equipamentosData } = useEquipamentos();
   const equipMap = new Map((equipamentosData ?? []).map((eq) => [eq.id, eq.nome]));
+
+  // === Toggle "Tipo de Consumidor" (Fase 4 / Item 8) ===
+  // Afeta TODOS os KPIs e gráficos abaixo. 'todos' = soma equipamento + carreta.
+  type FiltroTipo = 'todos' | TipoConsumidorSaida;
+  const [filtroTipo, setFiltroTipo] = useState<FiltroTipo>('todos');
+
+  // Lê saidas_combustivel direto (Fase 3) e converte pro shape legado
+  // Abastecimento (mantém o resto do componente intocado). Filtro
+  // aplicado tipo_consumidor → 'todos'/'equipamento_proprio'/'carreta_transportadora'.
+  const { data: todasSaidas = [] } = useSaidasCombustivel();
+  const todosAbastecimentos = useMemo<Abastecimento[]>(() => {
+    return todasSaidas
+      .filter((s) => filtroTipo === 'todos' || s.tipoConsumidor === filtroTipo)
+      .map((s) => ({
+        id: s.id,
+        dataHora: s.data,
+        tipoCombustivel: s.tipoCombustivel ?? '',
+        quantidadeLitros: s.litros,
+        valorTotal: s.valorTotal,
+        obraId: s.obraId ?? '',
+        etapaId: s.etapaId ?? '',
+        alocacoes: s.alocacoes ?? [],
+        depositoId: s.tanqueId ?? '',
+        equipamentoId: (s.equipamentoId === 'desconhecido' ? '' : (s.equipamentoId ?? '')),
+        veiculo: '',
+        fotosUrls: s.fotoUrls ?? [],
+        observacoes: s.observacoes ?? '',
+        criadoPor: s.createdBy ?? '',
+        origemCombustivel: s.origem,
+        fornecedor: '',
+        pago: s.pago ?? false,
+        dataPagamento: s.pagoEm ?? '',
+        pagoPor: '',
+      }));
+  }, [todasSaidas, filtroTipo]);
+  // Filtros adicionais (período/obra) já são aplicados upstream pelo
+  // FrotaCombustivelContainer na prop `abastecimentos` legada — mas como
+  // ignoramos essa prop, aplicamos diretamente aqui. Por enquanto sem
+  // filtros de período/obra (Item 8 escopo: só toggle tipo). Se virar dor,
+  // adiciona depois.
+  const abastecimentos = todosAbastecimentos;
+
+  // Counts por tipo pra exibir nos chips do toggle
+  const countTodos = todasSaidas.length;
+  const countEquip = useMemo(() => todasSaidas.filter((s) => s.tipoConsumidor === 'equipamento_proprio').length, [todasSaidas]);
+  const countCarreta = useMemo(() => todasSaidas.filter((s) => s.tipoConsumidor === 'carreta_transportadora').length, [todasSaidas]);
 
   // === KPIs ===
   const totalValorSaidas = abastecimentos.reduce((s, a) => s + a.valorTotal, 0);
@@ -225,6 +273,35 @@ export default function CombustivelDashboard({
 
   return (
     <div className="space-y-6">
+      {/* ── Toggle Tipo de Consumidor (Fase 4 / Item 8) ── */}
+      <div className="flex items-center gap-2 flex-wrap">
+        <span className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+          Tipo de Consumidor
+        </span>
+        {([
+          { key: 'todos' as FiltroTipo, label: 'Todos', count: countTodos },
+          { key: 'equipamento_proprio' as FiltroTipo, label: 'Equipamento', count: countEquip },
+          { key: 'carreta_transportadora' as FiltroTipo, label: 'Carreta', count: countCarreta },
+        ]).map((opt) => {
+          const ativo = filtroTipo === opt.key;
+          return (
+            <button
+              key={opt.key}
+              type="button"
+              onClick={() => setFiltroTipo(opt.key)}
+              className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${
+                ativo
+                  ? 'bg-emt-verde text-white'
+                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              }`}
+            >
+              {opt.label}
+              <span className="ml-1.5 opacity-70">({opt.count})</span>
+            </button>
+          );
+        })}
+      </div>
+
       {/* ── SEÇÃO 1: KPIs ── */}
       <p className={sectionTitle}>Resumo Geral</p>
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">

@@ -2,6 +2,8 @@ import { Fragment, useState, useRef, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import type { Frete, PagamentoFrete, AbastecimentoCarreta, Obra, PedidoMaterial, Fornecedor } from '../../types';
 import { useInsumos } from '../../hooks/useInsumos';
+// Fonte canônica de saldos (Fase 2 — view validada ≤ R$ 0,01 vs lógica legada).
+import { useTodosSaldosTransportadora } from '../../hooks/useTransportadoraSaldo';
 import { formatCurrency } from '../../utils/formatters';
 import Card from '../ui/Card';
 import FreteAnalyticsOverview from './FreteAnalyticsOverview';
@@ -291,52 +293,50 @@ export default function FreteDashboard({
   // ── Totais ──
   const totalFretes = fretesF.reduce((sum, f) => sum + f.valorTotal, 0);
 
-  // ── Saldo Areacre ──
+  // ── Saldos via view transportadora_saldos (Fase 4 / Commit 6) ──
+  // Substitui o cálculo inline antigo que replicava a fórmula em TS.
+  // View já validada na Fase 2 (≤ R$ 0,01 vs lógica legada). Cards de
+  // saldo refletem estado contábil REAL agora (não respeitam cross-filter
+  // de período/obra do dashboard — saldo é acumulado, não filtrado).
+  // Triggers da Fase 1c mantêm a view atualizada em tempo real.
+  const { data: saldosView = [] } = useTodosSaldosTransportadora();
+  const saldoByNome = useMemo(() => {
+    const m = new Map<string, typeof saldosView[number]>();
+    for (const s of saldosView) m.set(s.nome.trim().toLowerCase(), s);
+    return m;
+  }, [saldosView]);
+  // KPI novo: saldo a receber das transportadoras (soma de débitos de
+  // combustível em aberto, ainda não abatidos via pagamento).
+  const debitoCombustivelTotalView = useMemo(
+    () => saldosView.reduce((s, x) => s + x.debitoCombustivelTotal, 0),
+    [saldosView]
+  );
+
+  const sAreacre = saldoByNome.get('areacre');
+  const sTriunfo = saldoByNome.get('transportadora triunfo');
+  const sAndrade = saldoByNome.get('andrade transporte');
+  const sEtam = saldoByNome.get('etam construtora');
+  // EMT TRANSPORTES consolidado (Amazonia Agroindustria já foi normalizada na Fase 1a).
+  const sEmtTransportes = saldoByNome.get('emt transportes');
+
+  const saldoAreacre = sAreacre?.saldo ?? 0;
+  const saldoTriunfo = sTriunfo?.saldo ?? 0;
+  const saldoAndrade = sAndrade?.saldo ?? 0;
+  const saldoEtam = sEtam?.saldo ?? 0;
+  const saldoEmtTransportes = sEmtTransportes?.saldo ?? 0;
+
+  // Total abast carreta (todas transp) — usado em gráficos cross-filtrados
+  // mais abaixo. Mantém cálculo inline pra respeitar período/obra.
   const totalAbastCarreta = abastCarretaF.reduce((s, a) => s + a.valorTotal, 0);
-  const fretesAreacre = fretesF.filter((f) => f.transportadora === 'Areacre').reduce((s, f) => s + f.valorTotal, 0);
-  const pagosParaAreacre = pagamentosF.filter((p) => p.transportadora === 'Areacre' && p.pagoPor?.trim() !== 'Areacre').reduce((s, p) => s + p.valor, 0);
-  const saldoAreacre = fretesAreacre - pagosParaAreacre + totalAbastCarreta;
 
-  // ── Saldo Triunfo ──
-  const TRIUNFO = 'Transportadora Triunfo';
-  const fretesTriunfo = fretesF.filter((f) => f.transportadora === TRIUNFO).reduce((s, f) => s + f.valorTotal, 0);
-  const pagosParaTriunfo = pagamentosF.filter((p) => p.transportadora === TRIUNFO).reduce((s, p) => s + p.valor, 0);
-  const abastTriunfo = abastCarretaF.filter((a) => a.transportadora === TRIUNFO).reduce((s, a) => s + a.valorTotal, 0);
-  const saldoTriunfo = fretesTriunfo - pagosParaTriunfo - abastTriunfo;
-
-  // ── Pagamentos EMT Construtora ──
+  // pagosPelaEmt continua sendo telemetria (não é saldo de transportadora).
+  // Calculado client-side a partir dos pagamentos cross-filtrados.
   const EMT = 'EMT Construtora';
   const pagamentosEmt = pagamentosF.filter((p) => p.pagoPor?.trim() === EMT);
   const pagosPelaEmt = pagamentosEmt.reduce((s, p) => s + p.valor, 0);
 
-  // ── Saldo ETAM Construtora ──
-  const ETAM = 'ETAM Construtora';
-  const fretesEtam = fretesF.filter((f) => f.transportadora === ETAM).reduce((s, f) => s + f.valorTotal, 0);
-  const pagosPelaEtam = pagamentosF.filter((p) => p.pagoPor?.trim() === ETAM).reduce((s, p) => s + p.valor, 0);
-  const pagosParaEtam = pagamentosF.filter((p) => p.transportadora === ETAM).reduce((s, p) => s + p.valor, 0);
-  const saldoEtam = fretesEtam + pagosPelaEtam - pagosParaEtam;
-
-  // ── Saldo EMT Transportes (consolidado: Amazonia Agroindustria + EMT Transportes) ──
-  // Comparação normalizada (trim + lowercase) pra não errar por causa de
-  // espaços invisíveis ou diferença de caixa na string da transportadora.
-  const isEmtConsolidado = (s: string | undefined | null) => {
-    const v = (s ?? '').trim().toLowerCase();
-    return v === 'emt transportes' || v === 'amazonia agroindustria';
-  };
-  const fretesEmtTransportes = fretesF.filter((f) => isEmtConsolidado(f.transportadora)).reduce((s, f) => s + f.valorTotal, 0);
-  const pagosParaEmtTransportes = pagamentosF.filter((p) => isEmtConsolidado(p.transportadora)).reduce((s, p) => s + p.valor, 0);
-  const abastEmtTransportes = abastCarretaF.filter((a) => isEmtConsolidado(a.transportadora)).reduce((s, a) => s + a.valorTotal, 0);
-  const pagosPelaEmtConsolidado = pagamentosF.filter((p) => isEmtConsolidado(p.pagoPor)).reduce((s, p) => s + p.valor, 0);
-  const saldoEmtTransportes = fretesEmtTransportes - pagosParaEmtTransportes - abastEmtTransportes + pagosPelaEmtConsolidado;
-
-  // ── Saldo Andrade Transporte ──
-  const ANDRADE = 'Andrade Transporte';
-  const fretesAndrade = fretesF.filter((f) => f.transportadora === ANDRADE).reduce((s, f) => s + f.valorTotal, 0);
-  const pagosParaAndrade = pagamentosF.filter((p) => p.transportadora === ANDRADE).reduce((s, p) => s + p.valor, 0);
-  const abastAndrade = abastCarretaF.filter((a) => a.transportadora === ANDRADE).reduce((s, a) => s + a.valorTotal, 0);
-  const saldoAndrade = fretesAndrade - pagosParaAndrade - abastAndrade;
-
   // ── A Pagar EMT ──
+  // Soma dos saldos das 5 transportadoras (representa o passivo EMT).
   const aPagarEmt = saldoAreacre + saldoTriunfo + saldoEtam + saldoAndrade + saldoEmtTransportes;
 
   // ── Gasto por transportadora ──
@@ -843,15 +843,18 @@ export default function FreteDashboard({
         </Card>
       </div>
 
-      {/* Cards resumo - fileira 2 — clicáveis, abrem relatório detalhado */}
+      {/* Cards resumo - fileira 2 — clicáveis, abrem relatório detalhado.
+          Breakdowns refletem campos agregados da view transportadora_saldos
+          (Crédito Frete / Pago / Débito Combustível). Não respeitam
+          cross-filter de período/obra — saldo é sempre o estado atual. */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
         <SaldoCard
           titulo="Saldo Areacre"
           saldo={saldoAreacre}
           linhas={[
-            { label: 'Fretes', valor: `${formatCurrency(fretesAreacre)}` },
-            { label: 'Pago p/ Areacre', valor: `−${formatCurrency(pagosParaAreacre)}` },
-            { label: 'Abastecimentos', valor: `+${formatCurrency(totalAbastCarreta)}` },
+            { label: 'Crédito Frete', valor: `+${formatCurrency(sAreacre?.creditoFreteTotal ?? 0)}` },
+            { label: 'Pago Frete', valor: `−${formatCurrency(sAreacre?.pagoFreteTotal ?? 0)}` },
+            // Areacre é dona de tanque — recebe crédito de carretas, não débito.
           ]}
           onClick={() => goSaldo('areacre')}
         />
@@ -859,9 +862,9 @@ export default function FreteDashboard({
           titulo="Saldo Triunfo"
           saldo={saldoTriunfo}
           linhas={[
-            { label: 'Fretes', valor: `${formatCurrency(fretesTriunfo)}` },
-            { label: 'Pago p/ Triunfo', valor: `−${formatCurrency(pagosParaTriunfo)}` },
-            { label: 'Abastecimentos', valor: `−${formatCurrency(abastTriunfo)}` },
+            { label: 'Crédito Frete', valor: `+${formatCurrency(sTriunfo?.creditoFreteTotal ?? 0)}` },
+            { label: 'Pago Frete', valor: `−${formatCurrency(sTriunfo?.pagoFreteTotal ?? 0)}` },
+            { label: 'Débito Combustível', valor: `−${formatCurrency(sTriunfo?.debitoCombustivelTotal ?? 0)}` },
           ]}
           onClick={() => goSaldo('triunfo')}
         />
@@ -869,9 +872,9 @@ export default function FreteDashboard({
           titulo="Saldo Andrade Transporte"
           saldo={saldoAndrade}
           linhas={[
-            { label: 'Fretes', valor: `${formatCurrency(fretesAndrade)}` },
-            { label: 'Pago p/ Andrade', valor: `−${formatCurrency(pagosParaAndrade)}` },
-            { label: 'Abastecimentos', valor: `−${formatCurrency(abastAndrade)}` },
+            { label: 'Crédito Frete', valor: `+${formatCurrency(sAndrade?.creditoFreteTotal ?? 0)}` },
+            { label: 'Pago Frete', valor: `−${formatCurrency(sAndrade?.pagoFreteTotal ?? 0)}` },
+            { label: 'Débito Combustível', valor: `−${formatCurrency(sAndrade?.debitoCombustivelTotal ?? 0)}` },
           ]}
           onClick={() => goSaldo('andrade')}
         />
@@ -879,9 +882,9 @@ export default function FreteDashboard({
           titulo="Saldo ETAM"
           saldo={saldoEtam}
           linhas={[
-            { label: 'Total Fretes', valor: `${formatCurrency(fretesEtam)}` },
-            { label: 'Pago pela Etam', valor: `+${formatCurrency(pagosPelaEtam)}` },
-            { label: 'Pago p/ Etam', valor: `−${formatCurrency(pagosParaEtam)}` },
+            { label: 'Crédito Frete', valor: `+${formatCurrency(sEtam?.creditoFreteTotal ?? 0)}` },
+            { label: 'Pago Frete', valor: `−${formatCurrency(sEtam?.pagoFreteTotal ?? 0)}` },
+            // ETAM tem saldo = pagosPelaEtam − pagosParaEtam (ajuste manual).
           ]}
           onClick={() => goSaldo('etam')}
         />
@@ -889,13 +892,25 @@ export default function FreteDashboard({
           titulo="Saldo EMT TRANSPORTES"
           saldo={saldoEmtTransportes}
           linhas={[
-            { label: 'Fretes', valor: `${formatCurrency(fretesEmtTransportes)}` },
-            { label: 'Pago p/ EMT TRANSPORTES', valor: `−${formatCurrency(pagosParaEmtTransportes)}` },
-            { label: 'Abastecimentos', valor: `−${formatCurrency(abastEmtTransportes)}` },
-            { label: 'Pago pela EMT TRANSPORTES', valor: `+${formatCurrency(pagosPelaEmtConsolidado)}` },
+            { label: 'Crédito Frete', valor: `+${formatCurrency(sEmtTransportes?.creditoFreteTotal ?? 0)}` },
+            { label: 'Pago Frete', valor: `−${formatCurrency(sEmtTransportes?.pagoFreteTotal ?? 0)}` },
+            { label: 'Débito Combustível', valor: `−${formatCurrency(sEmtTransportes?.debitoCombustivelTotal ?? 0)}` },
           ]}
           onClick={() => goSaldo('emt-transportes')}
         />
+      </div>
+
+      {/* KPI novo (Item 7): saldo a receber das transportadoras (combustível) */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <Card>
+          <p className="text-sm text-gray-500">Saldo a Receber (Combustível)</p>
+          <p className="text-2xl font-bold mt-1 text-amber-700">
+            {formatCurrency(debitoCombustivelTotalView)}
+          </p>
+          <p className="text-xs text-gray-400 mt-1">
+            Soma dos débitos de combustível das transportadoras (incluindo já abatidos no histórico).
+          </p>
+        </Card>
       </div>
 
       {/* ── Analytics Overview: KPIs + gráficos interativos ── */}
