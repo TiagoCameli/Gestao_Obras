@@ -1,0 +1,33 @@
+{
+  "id": "task-cat-315cl-diaria",
+  "modeloId": "cat-315cl",
+  "title": "Inspecao diaria pre-turno Caterpillar 315CL",
+  "intervalHours": 10,
+  "intervalKm": null,
+  "intervalDays": 1,
+  "priority": "alta",
+  "parts": [],
+  "fluids": [
+    {
+      "fluidoId": "cat-deo-uls-15w40-ck4",
+      "complementoEstimadoL": 0.5,
+      "tipo": "complemento"
+    },
+    {
+      "fluidoId": "cat-hydo-advanced-10",
+      "complementoEstimadoL": 1.0,
+      "tipo": "complemento"
+    },
+    {
+      "fluidoId": "cat-elc-coolant",
+      "complementoEstimadoL": 0.5,
+      "tipo": "complemento"
+    }
+  ],
+  "description": "Checagens visuais e niveis antes de cada turno: nivel de oleo motor, nivel de fluido hidraulico, nivel do reservatorio de combustivel, nivel do liquido de arrefecimento, vazamentos sob a maquina, estado dos pneus/esteiras, funcionamento de luzes/alarmes/buzina, limpeza do filtro de ar (indicador de obstrucao). Anotar leitura do horimetro.",
+  "procedimento": [],
+  "sinais_alerta": [],
+  "criterios_aceite": [],
+  "sistemas_afetados": [],
+  "ativo": true
+}

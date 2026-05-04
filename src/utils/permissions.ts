@@ -7,7 +7,6 @@ export const MODULOS: { valor: ModuloPermissao; label: string }[] = [
   { valor: 'frota', label: 'Frota' },
   { valor: 'funcionarios', label: 'Usuários' },
   { valor: 'apontamentos', label: 'Apontamentos' },
-  { valor: 'manutencao', label: 'Manutenção' },
 ];
 
 export const ACOES: { valor: AcaoPermissao; label: string }[] = [
@@ -47,7 +46,6 @@ export const PERFIL_ADMINISTRADOR: PermissoesFuncionario = {
   frota: TODAS,
   funcionarios: TODAS,
   apontamentos: TODAS,
-  manutencao: TODAS,
 };
 
 export const PERFIL_GERENTE: PermissoesFuncionario = {
@@ -57,7 +55,6 @@ export const PERFIL_GERENTE: PermissoesFuncionario = {
   frota: V,
   funcionarios: VCE,
   apontamentos: VCEEX,
-  manutencao: VCE,
 };
 
 export const PERFIL_SUPERVISOR: PermissoesFuncionario = {
@@ -67,7 +64,6 @@ export const PERFIL_SUPERVISOR: PermissoesFuncionario = {
   frota: V,
   funcionarios: V,
   apontamentos: VCE,
-  manutencao: VCE,
 };
 
 export const PERFIL_OPERADOR: PermissoesFuncionario = {
@@ -77,7 +73,6 @@ export const PERFIL_OPERADOR: PermissoesFuncionario = {
   frota: V,
   funcionarios: NENHUMA,
   apontamentos: V,
-  manutencao: V,
 };
 
 export const PERFIL_FINANCEIRO: PermissoesFuncionario = {
@@ -87,7 +82,6 @@ export const PERFIL_FINANCEIRO: PermissoesFuncionario = {
   frota: V,
   funcionarios: V,
   apontamentos: V,
-  manutencao: V,
 };
 
 export const PERFIL_APONTADOR: PermissoesFuncionario = {
@@ -97,7 +91,6 @@ export const PERFIL_APONTADOR: PermissoesFuncionario = {
   frota: V,
   funcionarios: NENHUMA,
   apontamentos: VCEEX,
-  manutencao: V,
 };
 
 export const PERFIL_GERENTE_FINANCEIRO: PermissoesFuncionario = {
@@ -107,7 +100,6 @@ export const PERFIL_GERENTE_FINANCEIRO: PermissoesFuncionario = {
   frota: V,
   funcionarios: V,
   apontamentos: V,
-  manutencao: V,
 };
 
 export const PERFIL_GERENTE_COMPRAS: PermissoesFuncionario = {
@@ -117,7 +109,6 @@ export const PERFIL_GERENTE_COMPRAS: PermissoesFuncionario = {
   frota: V,
   funcionarios: V,
   apontamentos: V,
-  manutencao: V,
 };
 
 export const PERFIL_ENGENHEIRO_CIVIL_SENIOR: PermissoesFuncionario = {
@@ -127,7 +118,6 @@ export const PERFIL_ENGENHEIRO_CIVIL_SENIOR: PermissoesFuncionario = {
   frota: V,
   funcionarios: V,
   apontamentos: VCE,
-  manutencao: VCE,
 };
 
 export const PERFIL_ENGENHEIRO_CIVIL: PermissoesFuncionario = {
@@ -137,7 +127,6 @@ export const PERFIL_ENGENHEIRO_CIVIL: PermissoesFuncionario = {
   frota: V,
   funcionarios: NENHUMA,
   apontamentos: VCE,
-  manutencao: V,
 };
 
 export const PERFIS_PADRAO: Record<CargoFuncionario, PermissoesFuncionario> = {
@@ -238,9 +227,6 @@ export const ACOES_PLATAFORMA: AcaoPlataforma[] = [
   { chave: 'excluir_os', label: 'Excluir Ordem de Serviço', grupo: 'Manutenção' },
   { chave: 'aprovar_os', label: 'Aprovar Ordem de Serviço', grupo: 'Manutenção' },
   { chave: 'ver_custos', label: 'Visualizar custos de manutenção', grupo: 'Manutenção' },
-  { chave: 'executar_manutencao', label: 'Executar manutenção em campo (registrar)', grupo: 'Manutenção' },
-  { chave: 'editar_manutencao', label: 'Editar registros e agendamentos de manutenção', grupo: 'Manutenção' },
-  { chave: 'gerenciar_catalogo_manutencao', label: 'Gerenciar catálogo (modelos, tarefas, peças, fluidos)', grupo: 'Manutenção' },
 
   // Apontamentos (legado — clock in/out por etapa de obra)
   { chave: 'ver_apontamentos', label: 'Visualizar apontamentos', grupo: 'Apontamentos' },
@@ -308,6 +294,5 @@ export function permissoesVazias(): PermissoesFuncionario {
     frota: [],
     funcionarios: [],
     apontamentos: [],
-    manutencao: [],
   };
 }

@@ -1,0 +1,53 @@
+{
+  "id": "task-cat-140k-2000h",
+  "modeloId": "cat-140k",
+  "title": "Manutencao 2000h (bienal) - Refrigerante, correias e revisao geral Caterpillar 140K",
+  "intervalHours": 2000,
+  "intervalKm": null,
+  "intervalDays": 730,
+  "priority": "critica",
+  "parts": [
+    {
+      "partNumber": "correia poly-V (alternador)",
+      "type": "correia",
+      "quantity": 1,
+      "obs": "verificar PN no manual"
+    },
+    {
+      "partNumber": "correia A/C",
+      "type": "correia",
+      "quantity": 1,
+      "obs": "verificar PN no manual"
+    },
+    {
+      "partNumber": "termostato",
+      "type": "arrefecimento",
+      "quantity": 1,
+      "obs": "preventivo bienal"
+    },
+    {
+      "partNumber": "tampa do radiador",
+      "type": "arrefecimento",
+      "quantity": 1,
+      "obs": "preventivo bienal"
+    }
+  ],
+  "fluids": [
+    {
+      "fluidoId": "cat-elc-coolant",
+      "consumoEstimadoL": 53,
+      "tipo": "troca_total"
+    },
+    {
+      "fluidoId": "cat-prime-grease",
+      "consumoEstimadoKg": 1.0,
+      "tipo": "consumo"
+    }
+  ],
+  "description": "Manutencao bienal de fundo. Drenagem completa e flush do sistema de arrefecimento com substituicao do liquido refrigerante (53 L). Substituicao preventiva do termostato e tampa do radiador. Substituicao das correias do motor (consultar PNs no manual). Inspecao detalhada de mangueiras de radiador. Inspecao de baterias - substituir se >2 anos. Teste de bicos injetores. Inspecao de buchas/pinos de articulacao. Aproveitar parada para revisao geral profunda (incluir tudo da 1000h).",
+  "procedimento": [],
+  "sinais_alerta": [],
+  "criterios_aceite": [],
+  "sistemas_afetados": [],
+  "ativo": true
+}

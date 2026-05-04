@@ -1,0 +1,50 @@
+{
+  "id": "cat-d6m",
+  "fabricante": "Caterpillar",
+  "modelo_nome": "D6M",
+  "familia": "Trator de Esteira",
+  "tipo_equipamento_codigo": "TRE",
+  "ano_inicio_producao": 1996,
+  "ano_fim_producao": 2003,
+  "prefixos_serie": ["LMP", "4HS", "9PN"],
+  "motor": {
+    "catModel": "Cat 3306C (Tier 1)",
+    "displacementL": 10.5,
+    "netPowerKW": 119,
+    "netPowerHP": 160,
+    "cylinders": 6,
+    "configuration": "in-line",
+    "injectionType": "Direta turboalimentada (mecânica)"
+  },
+  "capacidades": {
+    "fuelTankL": 320,
+    "engineCrankcaseL": 30,
+    "hydraulicSystemTotalL": 75,
+    "hydraulicTankL": 50,
+    "transmissionL": 80,
+    "finalDriveEachL": 13,
+    "rollerFrameL": 18,
+    "coolantSystemL": 50
+  },
+  "fluidos_recomendados": [
+    { "system": "motor", "fluidoId": "cat-deo-uls-15w40-ck4" },
+    { "system": "hidraulico", "fluidoId": "cat-hydo-advanced-10" },
+    { "system": "transmissao", "fluidoId": "cat-tdto-sae30" },
+    { "system": "final_drive", "fluidoId": "cat-fdao-sae50" },
+    { "system": "roller_frame", "fluidoId": "cat-fdao-sae50" },
+    { "system": "arrefecimento", "fluidoId": "cat-elc-coolant" },
+    { "system": "graxa_geral", "fluidoId": "cat-prime-grease" }
+  ],
+  "filtros": [
+    { "filterType": "oleo_motor", "partNumber": "1R-0739", "quantity": 1 },
+    { "filterType": "combustivel_primario", "partNumber": "1R-0750", "quantity": 1 },
+    { "filterType": "combustivel_secundario", "partNumber": "1R-0762", "quantity": 1 },
+    { "filterType": "ar_primario", "partNumber": "7W-5495", "quantity": 1 },
+    { "filterType": "ar_secundario", "partNumber": "7W-5317", "quantity": 1 },
+    { "filterType": "hidraulico_retorno", "partNumber": "9T-9054", "quantity": 1 },
+    { "filterType": "transmissao", "partNumber": "9Y-4509", "quantity": 1 }
+  ],
+  "problemas_conhecidos": "Trator de esteira de 18 toneladas, fora de produção há ~20 anos. Equipamento na frota EMT (TRE-002) está INATIVO. Pontos críticos para retorno: motor 3306C é robusto e tolera longo período parado, mas turbocompressor exige inspeção (eixos travam por oxidação). Sistema hidráulico planetário é simples e durável - drenar oleo, substituir filtros e está pronto. Esteiras (sapatas, elos, pinos, rodas-guia, rolos): inspeção detalhada de desgaste - se elos passaram do ponto critico (50% bushings), substituicao de tren de esteira completa custa R$150-250k. Final drives (reducao final) - vedacoes endurecem em maquina parada, vazam oleo - substituir vedacoes antes de retomar operacao. Caixa de transmissao Power Shift planetária - contaminacao acumulada precisa flush completo. Caixa torque converter - diagnosticar funcionamento antes de carga real.",
+  "manual_referencia": "OMM SEBU6839 / Service Manual SENR9420",
+  "ativo": true
+}

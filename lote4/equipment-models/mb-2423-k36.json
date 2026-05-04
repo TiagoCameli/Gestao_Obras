@@ -1,0 +1,50 @@
+{
+  "id": "mb-2423-k36",
+  "fabricante": "Mercedes-Benz",
+  "modelo_nome": "2423 K/36",
+  "familia": "Caminhão Basculante 6x4",
+  "tipo_equipamento_codigo": "CB",
+  "ano_inicio_producao": 2002,
+  "ano_fim_producao": 2011,
+  "prefixos_serie": ["9BM693", "9BM693386"],
+  "motor": {
+    "catModel": "Mercedes-Benz OM-906 LA (Euro III)",
+    "displacementL": 6.4,
+    "netPowerKW": 170,
+    "netPowerHP": 231,
+    "cylinders": 6,
+    "configuration": "in-line",
+    "injectionType": "Bomba unitária EUP, eletrônica"
+  },
+  "capacidades": {
+    "fuelTankL": 275,
+    "engineCrankcaseL": 24,
+    "transmissionL": 12,
+    "axleFrontL": 11,
+    "axleRearMiddleL": 27,
+    "axleRearTandemL": 27,
+    "powerSteeringL": 3,
+    "hydraulicTipperL": 50,
+    "coolantSystemL": 33,
+    "pbtKg": 23000
+  },
+  "fluidos_recomendados": [
+    { "system": "motor", "fluidoId": "mb-228.5-15w40-acea-e7" },
+    { "system": "transmissao", "fluidoId": "mb-235.4-sae80w90-gl4" },
+    { "system": "eixos_diferenciais", "fluidoId": "mb-235.0-sae85w90-gl5" },
+    { "system": "direcao_hidraulica", "fluidoId": "mb-345.0-atf-dexron-iii" },
+    { "system": "hidraulico_basculante", "fluidoId": "generico-iso-vg-46" },
+    { "system": "arrefecimento", "fluidoId": "mb-325.5-coolant-organico" },
+    { "system": "graxa_geral", "fluidoId": "generico-graxa-ep2-litio" }
+  ],
+  "filtros": [
+    { "filterType": "oleo_motor", "partNumber": "OM906 - W930/9 (Mann) / A0001802609 (MB)", "quantity": 1 },
+    { "filterType": "combustivel_primario", "partNumber": "WK950/3 (Mann) / A0000901651 (MB)", "quantity": 1 },
+    { "filterType": "combustivel_secundario", "partNumber": "PreLine 270 separador agua", "quantity": 1 },
+    { "filterType": "ar_primario", "partNumber": "C25710 (Mann)", "quantity": 1 },
+    { "filterType": "ar_secundario", "partNumber": "CF1430 (Mann)", "quantity": 1 },
+    { "filterType": "secador_ar", "partNumber": "TB1374x (Mann) / A0004291095 (MB)", "quantity": 1 }
+  ],
+  "problemas_conhecidos": "Caminhão basculante 6x4, PBT 23 toneladas, plataforma Atron/Axor antigos. Frota EMT: CB-001, CB-002, CB-003 (3 unidades). Pontos vitais: motor OM-906 LA é confiavel mas sensivel a diesel sujo - separador de agua precisa drenagem semanal. Bomba unitaria EUP eletronica - bicos injetores caros (~R$2-3k cada), 6 unidades. Caçamba basculante: cilindros hidraulicos de 2 estagios, vazamentos nos vedantes são comuns - inspeção semanal; bomba PTO da basculante usa fluido ISO 46. Eixos traseiros tandem (Mercedes HL2/2): diferencial inter-eixo sensivel a oleo errado - usar APENAS GL-5 SAE 85W90. Freios pneumaticos com camara de mola: regulagem trimestral; lonas duram 80-120k km dependendo do uso. Sistema de ar comprimido com secador (APU) - cartucho dessecante trocado a cada 24.000 km. Cabine antiga sem ar-condicionado de fabrica em alguns chassis - manutenção manual de ventilação e janelas.",
+  "manual_referencia": "Manual de Serviço MB 9BM693 / GA 906 Drives Components"
+}

@@ -1,0 +1,48 @@
+{
+  "id": "cat-315cl",
+  "fabricante": "Caterpillar",
+  "modelo_nome": "315CL",
+  "familia": "Escavadeira Hidráulica de Pequeno Porte",
+  "tipo_equipamento_codigo": "EH",
+  "ano_inicio_producao": 1996,
+  "ano_fim_producao": 2005,
+  "prefixos_serie": ["YMO", "9NW", "AYM", "9PR"],
+  "motor": {
+    "catModel": "Cat 3046 / 3046T (Tier 1)",
+    "displacementL": 4.4,
+    "netPowerKW": 73,
+    "netPowerHP": 98,
+    "cylinders": 4,
+    "configuration": "in-line",
+    "injectionType": "Direta turboalimentada (mecânica)"
+  },
+  "capacidades": {
+    "fuelTankL": 310,
+    "engineCrankcaseL": 16,
+    "hydraulicSystemTotalL": 220,
+    "hydraulicTankL": 130,
+    "swingDriveL": 6,
+    "finalDriveEachL": 5,
+    "coolantSystemL": 22
+  },
+  "fluidos_recomendados": [
+    { "system": "motor", "fluidoId": "cat-deo-uls-15w40-ck4" },
+    { "system": "hidraulico", "fluidoId": "cat-hydo-advanced-10" },
+    { "system": "swing_drive", "fluidoId": "cat-fdao-sae50" },
+    { "system": "final_drive", "fluidoId": "cat-fdao-sae50" },
+    { "system": "arrefecimento", "fluidoId": "cat-elc-coolant" },
+    { "system": "graxa_geral", "fluidoId": "cat-prime-grease" }
+  ],
+  "filtros": [
+    { "filterType": "oleo_motor", "partNumber": "9N-7898", "quantity": 1 },
+    { "filterType": "combustivel_primario", "partNumber": "1R-0762", "quantity": 1 },
+    { "filterType": "combustivel_secundario", "partNumber": "1R-0750", "quantity": 1 },
+    { "filterType": "ar_primario", "partNumber": "6I-2503", "quantity": 1 },
+    { "filterType": "ar_secundario", "partNumber": "6I-2502", "quantity": 1 },
+    { "filterType": "hidraulico_retorno", "partNumber": "1R-0719", "quantity": 1 },
+    { "filterType": "piloto_hidraulico", "partNumber": "126-1813", "quantity": 1 }
+  ],
+  "problemas_conhecidos": "Escavadeira de 15 toneladas, fora de produção há mais de 20 anos. Equipamento na frota EMT (EH-004) está INATIVA. Pontos críticos para retorno operacional: motor 3046 mecânico tolera diesel comum mas exige bicos calibrados (testar em bancada antes de retomar operação). Sistema hidráulico CLSS (Cat) - bombas axiais sensiveis a contaminação após longo período parado: drenar todo o oleo, lavar tanque, substituir TODOS os filtros antes de ligar. Anel de giro (swing bearing) é o maior risco em maquinas paradas - graxa endurece e oxida; lubrificar com 6kg de graxa nova antes de operar. Vedações de cilindros costumam vazar após retomada. Atenção: peças aftermarket são caras - revisão completa pode custar R$80-120k em maquina parada há 5+ anos.",
+  "manual_referencia": "OMM SEBU6850 / Service Manual SENR1000",
+  "ativo": true
+}

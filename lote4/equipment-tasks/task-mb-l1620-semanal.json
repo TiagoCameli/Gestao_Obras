@@ -1,0 +1,28 @@
+{
+  "id": "task-mb-l1620-semanal",
+  "modeloId": "mb-l1620",
+  "title": "Inspecao semanal pre-viagem Mercedes-Benz L 1620",
+  "intervalHours": null,
+  "intervalKm": null,
+  "intervalDays": 7,
+  "priority": "alta",
+  "parts": [],
+  "fluids": [
+    {
+      "fluidoId": "mb-228.5-15w40-acea-e7",
+      "complementoEstimadoL": 1.0,
+      "tipo": "complemento"
+    },
+    {
+      "fluidoId": "mb-325.5-coolant-organico",
+      "complementoEstimadoL": 0.5,
+      "tipo": "complemento"
+    }
+  ],
+  "description": "Checagens semanais antes de cada viagem/turno: nivel de oleo motor (vareta), nivel de oleo da direcao hidraulica, nivel do liquido de arrefecimento, nivel do reservatorio de combustivel, nivel de oleo da transmissao, calibragem e estado dos pneus (pressao + desgaste irregular), freios (curso do pedal, ar comprimido, vazamentos), luzes (frente, lateral, traseira, freio, seta, ré), buzina, limpadores, bateria (terminais), drenagem do reservatorio de ar comprimido, vazamentos no chassi e diferenciais. Anotar leitura do odometro.",
+  "procedimento": [],
+  "sinais_alerta": [],
+  "criterios_aceite": [],
+  "sistemas_afetados": [],
+  "ativo": true
+}

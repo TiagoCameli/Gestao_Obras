@@ -1,0 +1,74 @@
+{
+  "id": "task-cat-cb10-1000h",
+  "modeloId": "cat-cb10",
+  "title": "Manutencao 1000h (anual) - Hidraulico e fluidos finais Caterpillar CB10",
+  "intervalHours": 1000,
+  "intervalKm": null,
+  "intervalDays": 365,
+  "priority": "critica",
+  "parts": [
+    {
+      "partNumber": "326-1641",
+      "type": "oleo_motor",
+      "quantity": 1
+    },
+    {
+      "partNumber": "326-1644",
+      "type": "combustivel_primario",
+      "quantity": 1
+    },
+    {
+      "partNumber": "360-8958",
+      "type": "combustivel_secundario",
+      "quantity": 1
+    },
+    {
+      "partNumber": "367-9747",
+      "type": "ar_primario",
+      "quantity": 1
+    },
+    {
+      "partNumber": "367-9748",
+      "type": "ar_secundario",
+      "quantity": 1
+    },
+    {
+      "partNumber": "453-9268",
+      "type": "hidraulico_retorno",
+      "quantity": 1
+    }
+  ],
+  "fluids": [
+    {
+      "fluidoId": "cat-deo-uls-15w40-ck4",
+      "consumoEstimadoL": 8,
+      "tipo": "troca_total"
+    },
+    {
+      "fluidoId": "cat-hydo-advanced-10",
+      "consumoEstimadoL": 35,
+      "tipo": "troca_total"
+    },
+    {
+      "fluidoId": "cat-tdto-sae30",
+      "consumoEstimadoL": 2.8,
+      "tipo": "troca_total"
+    },
+    {
+      "fluidoId": "cat-tdto-sae30",
+      "consumoEstimadoL": 8,
+      "tipo": "troca_total"
+    },
+    {
+      "fluidoId": "cat-prime-grease",
+      "consumoEstimadoKg": 1.5,
+      "tipo": "consumo"
+    }
+  ],
+  "description": "Manutencao anual completa. Substituicao do oleo do motor (8 L) e filtro. Substituicao do oleo hidraulico do sistema completo (35 L) e filtros. Substituicao dos filtros primario e secundario de combustivel. Substituicao dos filtros de ar primario e secundario. Trocar oleo dos propulsores dos tambores (1.4 L cada). Trocar oleo dos excentricos (4 L cada). Inspecao geral do sistema eletrico. Inspecao da estrutura, soldas, articulacoes. Lubrificacao geral completa. Teste funcional de pressoes hidraulicas.",
+  "procedimento": [],
+  "sinais_alerta": [],
+  "criterios_aceite": [],
+  "sistemas_afetados": [],
+  "ativo": true
+}

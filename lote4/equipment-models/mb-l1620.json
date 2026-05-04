@@ -1,0 +1,49 @@
+{
+  "id": "mb-l1620",
+  "fabricante": "Mercedes-Benz",
+  "modelo_nome": "L 1620",
+  "familia": "Caminhão Médio-Pesado 4x2 (chassis para implementos)",
+  "tipo_equipamento_codigo": "CM",
+  "ano_inicio_producao": 1996,
+  "ano_fim_producao": 2011,
+  "prefixos_serie": ["9BM695", "9BM6953", "9BM6953016"],
+  "motor": {
+    "catModel": "Mercedes-Benz OM-366 LA (Euro II/III)",
+    "displacementL": 5.96,
+    "netPowerKW": 154,
+    "netPowerHP": 209,
+    "cylinders": 6,
+    "configuration": "in-line",
+    "injectionType": "Bomba injetora rotativa, mecânica"
+  },
+  "capacidades": {
+    "fuelTankL": 275,
+    "engineCrankcaseL": 24,
+    "transmissionL": 8,
+    "axleFrontL": 10,
+    "axleRearL": 19,
+    "powerSteeringL": 3,
+    "hydraulicMunckL": 80,
+    "coolantSystemL": 28,
+    "pbtKg": 16000
+  },
+  "fluidos_recomendados": [
+    { "system": "motor", "fluidoId": "mb-228.5-15w40-acea-e7" },
+    { "system": "transmissao", "fluidoId": "mb-235.4-sae80w90-gl4" },
+    { "system": "eixos_diferenciais", "fluidoId": "mb-235.0-sae85w90-gl5" },
+    { "system": "direcao_hidraulica", "fluidoId": "mb-345.0-atf-dexron-iii" },
+    { "system": "hidraulico_munck", "fluidoId": "generico-iso-vg-46" },
+    { "system": "arrefecimento", "fluidoId": "mb-325.5-coolant-organico" },
+    { "system": "graxa_geral", "fluidoId": "generico-graxa-ep2-litio" }
+  ],
+  "filtros": [
+    { "filterType": "oleo_motor", "partNumber": "W930/9 (Mann) / A0011843225 (MB)", "quantity": 1 },
+    { "filterType": "combustivel_primario", "partNumber": "WK815/2 (Mann)", "quantity": 1 },
+    { "filterType": "combustivel_secundario", "partNumber": "WK842/2 (Mann)", "quantity": 1 },
+    { "filterType": "ar_primario", "partNumber": "C25710 (Mann)", "quantity": 1 },
+    { "filterType": "ar_secundario", "partNumber": "CF1430 (Mann)", "quantity": 1 },
+    { "filterType": "secador_ar", "partNumber": "TB1374x (Mann)", "quantity": 1 }
+  ],
+  "problemas_conhecidos": "Caminhão 4x2 médio-pesado, plataforma chassi cabine para implementos diversos - na frota EMT carrega Munck (CM-001). Motor OM-366 LA: legendaria confiabilidade, mecanico (sem eletronica) - tolera diesel comum mas exige bicos calibrados a cada 150-200k km. Bomba injetora rotativa (Bosch VE) - se descalibrar o motor perde potencia gradualmente. Transmissão G3-65 ou G4-95 (manual 5/6 marchas) - sincronizadores duram 400-500k km. Eixo traseiro Mercedes HL2 com diferencial hipoide - bloqueio mecanico em alguns chassis. MUNCK Hyva/PH/Madal: hidraulico e estrutura sao manutenção SEPARADA do chassi - mangueiras de alta pressao (bar 250+) precisam inspeção semanal; pinos articulacao dos braços graxa diaria. Implemento Munck possui sua propria documentação - registrar carga de patrimonio à parte do caminhão. Atenção segurança: NR-12 exige inspeção anual com laudo de engenheiro mecanico para Munck.",
+  "manual_referencia": "Manual de Serviço MB L 1620 / Bw 366"
+}

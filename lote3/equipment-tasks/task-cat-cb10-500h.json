@@ -1,0 +1,44 @@
+{
+  "id": "task-cat-cb10-500h",
+  "modeloId": "cat-cb10",
+  "title": "Manutencao 500h - Troca oleo motor + filtros combustivel Caterpillar CB10",
+  "intervalHours": 500,
+  "intervalKm": null,
+  "intervalDays": null,
+  "priority": "alta",
+  "parts": [
+    {
+      "partNumber": "326-1641",
+      "type": "oleo_motor",
+      "quantity": 1
+    },
+    {
+      "partNumber": "326-1644",
+      "type": "combustivel_primario",
+      "quantity": 1
+    },
+    {
+      "partNumber": "360-8958",
+      "type": "combustivel_secundario",
+      "quantity": 1
+    }
+  ],
+  "fluids": [
+    {
+      "fluidoId": "cat-deo-uls-15w40-ck4",
+      "consumoEstimadoL": 8,
+      "tipo": "troca_total"
+    },
+    {
+      "fluidoId": "cat-prime-grease",
+      "consumoEstimadoKg": 0.5,
+      "tipo": "consumo"
+    }
+  ],
+  "description": "Substituicao do oleo do motor (8 L) e filtro de oleo. Substituicao dos filtros primario e secundario de combustivel. Drenagem de agua e sedimentos do tanque de combustivel. Verificacao de mangueiras, conexoes e abracadeiras. Inspecao do sistema de admissao de ar. Lubrificacao geral.",
+  "procedimento": [],
+  "sinais_alerta": [],
+  "criterios_aceite": [],
+  "sistemas_afetados": [],
+  "ativo": true
+}

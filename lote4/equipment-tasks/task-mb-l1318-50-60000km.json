@@ -1,0 +1,69 @@
+{
+  "id": "task-mb-l1318-50-60000km",
+  "modeloId": "mb-l1318-50",
+  "title": "Manutencao 60.000 km / 24 meses - Transmissao + diferenciais Mercedes-Benz L 1318/50",
+  "intervalHours": null,
+  "intervalKm": 60000,
+  "intervalDays": 730,
+  "priority": "alta",
+  "parts": [
+    {
+      "partNumber": "W930/9 (Mann)",
+      "type": "oleo_motor",
+      "quantity": 1
+    },
+    {
+      "partNumber": "WK815/2 (Mann)",
+      "type": "combustivel_primario",
+      "quantity": 1
+    },
+    {
+      "partNumber": "WK842/2 (Mann)",
+      "type": "combustivel_secundario",
+      "quantity": 1
+    },
+    {
+      "partNumber": "C25710 (Mann)",
+      "type": "ar_primario",
+      "quantity": 1
+    },
+    {
+      "partNumber": "CF1430 (Mann)",
+      "type": "ar_secundario",
+      "quantity": 1
+    }
+  ],
+  "fluids": [
+    {
+      "fluidoId": "mb-228.5-15w40-acea-e7",
+      "consumoEstimadoL": 24,
+      "tipo": "troca_total"
+    },
+    {
+      "fluidoId": "mb-235.4-sae80w90-gl4",
+      "consumoEstimadoL": 8,
+      "tipo": "troca_total"
+    },
+    {
+      "fluidoId": "mb-235.0-sae85w90-gl5",
+      "consumoEstimadoL": 21,
+      "tipo": "troca_total"
+    },
+    {
+      "fluidoId": "mb-345.0-atf-dexron-iii",
+      "consumoEstimadoL": 2.5,
+      "tipo": "troca_total"
+    },
+    {
+      "fluidoId": "generico-graxa-ep2-litio",
+      "consumoEstimadoKg": 1.0,
+      "tipo": "consumo"
+    }
+  ],
+  "description": "Revisao bienal completa. Substituicao do oleo do motor (24 L) + filtro. Troca dos filtros de combustivel e ar. Troca do oleo da transmissao (8 L). Troca do oleo dos diferenciais (eixo dianteiro 8 L + traseiro(s) 13 L cada x 1). Troca do fluido da direcao hidraulica (2.5 L). Inspecao detalhada do sistema de freios - regulagem completa, substituir lonas/pastilhas se necessario. Inspecao da embreagem - regulagem do curso do pedal. Inspecao da suspensao - feixes, balsas, amortecedores, parafusos centro. Inspecao do cardan - cruzetas, rolamentos, alinhamento.",
+  "procedimento": [],
+  "sinais_alerta": [],
+  "criterios_aceite": [],
+  "sistemas_afetados": [],
+  "ativo": true
+}

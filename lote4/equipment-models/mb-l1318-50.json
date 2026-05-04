@@ -1,0 +1,47 @@
+{
+  "id": "mb-l1318-50",
+  "fabricante": "Mercedes-Benz",
+  "modelo_nome": "L 1318/50",
+  "familia": "Caminhão Médio 4x2 (chassis para Pipa)",
+  "tipo_equipamento_codigo": "CP",
+  "ano_inicio_producao": 1995,
+  "ano_fim_producao": 2008,
+  "prefixos_serie": ["9BM699", "9BM6994", "9BM69940006"],
+  "motor": {
+    "catModel": "Mercedes-Benz OM-366 LA (Euro I/II)",
+    "displacementL": 5.96,
+    "netPowerKW": 130,
+    "netPowerHP": 177,
+    "cylinders": 6,
+    "configuration": "in-line",
+    "injectionType": "Bomba injetora rotativa, mecânica"
+  },
+  "capacidades": {
+    "fuelTankL": 200,
+    "engineCrankcaseL": 24,
+    "transmissionL": 8,
+    "axleFrontL": 8,
+    "axleRearL": 13,
+    "powerSteeringL": 2.5,
+    "coolantSystemL": 28,
+    "pbtKg": 13000,
+    "pipaTankL": 8000
+  },
+  "fluidos_recomendados": [
+    { "system": "motor", "fluidoId": "mb-228.5-15w40-acea-e7" },
+    { "system": "transmissao", "fluidoId": "mb-235.4-sae80w90-gl4" },
+    { "system": "eixos_diferenciais", "fluidoId": "mb-235.0-sae85w90-gl5" },
+    { "system": "direcao_hidraulica", "fluidoId": "mb-345.0-atf-dexron-iii" },
+    { "system": "arrefecimento", "fluidoId": "mb-325.5-coolant-organico" },
+    { "system": "graxa_geral", "fluidoId": "generico-graxa-ep2-litio" }
+  ],
+  "filtros": [
+    { "filterType": "oleo_motor", "partNumber": "W930/9 (Mann)", "quantity": 1 },
+    { "filterType": "combustivel_primario", "partNumber": "WK815/2 (Mann)", "quantity": 1 },
+    { "filterType": "combustivel_secundario", "partNumber": "WK842/2 (Mann)", "quantity": 1 },
+    { "filterType": "ar_primario", "partNumber": "C25710 (Mann)", "quantity": 1 },
+    { "filterType": "ar_secundario", "partNumber": "CF1430 (Mann)", "quantity": 1 }
+  ],
+  "problemas_conhecidos": "Caminhão pipa MB de 13 toneladas, plataforma L 1318/50 (motor 177 hp, distancia entre eixos 5,0m) - geração 1990s. Frota EMT: CP-002 (placa MZO-4486). Motor OM-366 LA versão menor - menos potencia que o do L 1620 mas mesma confiabilidade legendária. Sistema de PIPA (tanque + bomba): pipa de 8.000L em aço carbono ou inox - inspecao anual de soldas mandatória; bomba de transferencia (geralmente Hyva/Pulsato/Sigma) acionada por PTO da transmissao - oleo da bomba trocado a cada 1.000h de uso da bomba (diferente do horimetro do caminhao). Mangueiras de descarga de agua: borracha NBR para servico potavel - inspeção mensal de fissuras. Tanque pipa com chicanas internas para evitar instabilidade na curva - estanqueidade testada anualmente. Caminhão antigo (~25 anos), atenção a pontos de oxidação no chassi e suspensão dianteira - inspeção visual semanal.",
+  "manual_referencia": "Manual de Serviço MB L 1318 / Bw 366"
+}

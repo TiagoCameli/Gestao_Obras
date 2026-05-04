@@ -1,0 +1,30 @@
+{
+  "id": "task-cat-cb10-250h",
+  "modeloId": "cat-cb10",
+  "title": "Manutencao 250h - Lubrificacao geral e amostra de oleo Caterpillar CB10",
+  "intervalHours": 250,
+  "intervalKm": null,
+  "intervalDays": null,
+  "priority": "media",
+  "parts": [
+    {
+      "partNumber": "367-9747",
+      "type": "ar_primario",
+      "quantity": 1,
+      "obs": "trocar somente se indicador acionado"
+    }
+  ],
+  "fluids": [
+    {
+      "fluidoId": "cat-prime-grease",
+      "consumoEstimadoKg": 0.5,
+      "tipo": "consumo"
+    }
+  ],
+  "description": "Lubrificacao geral de todos os pinos articulados (lanca, braco, conexoes), engraxar todos os pontos de graxa do equipamento (consultar mapa de graxas no manual). Substituir filtro de ar primario se obstrucao indicada (caso contrario apenas limpar). Coletar amostra de oleo motor para analise S.O.S. Verificar tensao das correias do motor.",
+  "procedimento": [],
+  "sinais_alerta": [],
+  "criterios_aceite": [],
+  "sistemas_afetados": [],
+  "ativo": true
+}

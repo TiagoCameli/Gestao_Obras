@@ -4,9 +4,7 @@ import { useUrlState } from '../hooks/useUrlState';
 import type { Equipamento, TipoEquipamento } from '../types';
 import { useEquipamentos, useAdicionarEquipamento, useAtualizarEquipamento } from '../hooks/useEquipamentos';
 import { useEmpresas } from '../hooks/useEmpresas';
-import { usePlanosManutencao, useHistoricoMedicoes } from '../hooks/useManutencao';
 import { useAuth } from '../contexts/AuthContext';
-import { contarAlertasEquipamento } from '../utils/manutencao';
 import Modal from '../components/ui/Modal';
 import Button from '../components/ui/Button';
 import FrotaStats from '../components/frota/FrotaStats';
@@ -15,26 +13,23 @@ import FrotaGrid from '../components/frota/FrotaGrid';
 import FrotaList from '../components/frota/FrotaList';
 import FrotaDetalhe from '../components/frota/FrotaDetalhe';
 import EquipamentoFormFrota from '../components/frota/EquipamentoFormFrota';
-import ManutencaoContainer from '../components/frota/manutencao/ManutencaoContainer';
 import FrotaCombustivelContainer from '../components/frota/combustivel/FrotaCombustivelContainer';
 import { exportarFrotaPDF, exportarFrotaExcel } from '../utils/frotaExport';
 
-type MainTab = 'equipamentos' | 'manutencao' | 'combustivel';
+type MainTab = 'equipamentos' | 'combustivel';
 type ModoVisualizacao = 'grid' | 'lista';
 type FiltroAtivo = 'todos' | 'ativos' | 'inativos';
 
 export default function Frota() {
   const { data: equipamentos = [], isLoading } = useEquipamentos();
   const { data: empresas = [] } = useEmpresas();
-  const { data: planos = [] } = usePlanosManutencao();
-  const { data: medicoes = [] } = useHistoricoMedicoes();
   const { temAcao, usuario } = useAuth();
   const adicionarMutation = useAdicionarEquipamento();
   const atualizarMutation = useAtualizarEquipamento();
 
   // Main tab via URL
   const [searchParams, setSearchParams] = useSearchParams();
-  const validTabs: MainTab[] = ['equipamentos', 'manutencao', 'combustivel'];
+  const validTabs: MainTab[] = ['equipamentos', 'combustivel'];
   const tabParam = searchParams.get('tab') as MainTab | null;
   const mainTab: MainTab = tabParam && validTabs.includes(tabParam) ? tabParam : 'equipamentos';
   const setMainTab = useCallback(
@@ -61,15 +56,7 @@ export default function Frota() {
   const canCreate = temAcao('criar_cadastros');
   const canEdit = temAcao('editar_cadastros');
 
-  // Alertas map for badges
-  const alertasMap = useMemo(() => {
-    const map = new Map<string, number>();
-    for (const eq of equipamentos) {
-      const count = contarAlertasEquipamento(eq.id, planos, medicoes);
-      if (count > 0) map.set(eq.id, count);
-    }
-    return map;
-  }, [equipamentos, planos, medicoes]);
+  const alertasMap = useMemo(() => new Map<string, number>(), []);
 
   const handleAdicionarEquipamento = useCallback(async (eq: Equipamento) => {
     await adicionarMutation.mutateAsync({ ...eq, criadoPor: usuario?.nome || '' });
@@ -119,7 +106,6 @@ export default function Frota() {
 
   const mainTabs: { key: MainTab; label: string }[] = [
     { key: 'equipamentos', label: 'Equipamentos' },
-    { key: 'manutencao', label: 'Manutenção' },
     { key: 'combustivel', label: 'Combustível' },
   ];
 
@@ -371,8 +357,6 @@ export default function Frota() {
           </Modal>
         </>
       )}
-
-      {mainTab === 'manutencao' && <ManutencaoContainer />}
 
       {mainTab === 'combustivel' && <FrotaCombustivelContainer />}
     </div>

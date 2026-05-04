@@ -1,0 +1,47 @@
+{
+  "id": "cat-cb10",
+  "fabricante": "Caterpillar",
+  "modelo_nome": "CB10",
+  "familia": "Rolo Compactador Tandem Vibratório (Chapa)",
+  "tipo_equipamento_codigo": "RC",
+  "ano_inicio_producao": 2014,
+  "ano_fim_producao": null,
+  "prefixos_serie": ["L5B", "M5B", "CB10"],
+  "motor": {
+    "catModel": "Cat C2.2 (Tier 4 Final / Stage IIIB)",
+    "displacementL": 2.2,
+    "netPowerKW": 36.4,
+    "netPowerHP": 49,
+    "cylinders": 4,
+    "configuration": "in-line",
+    "injectionType": "Direta turboalimentada"
+  },
+  "capacidades": {
+    "fuelTankL": 65,
+    "engineCrankcaseL": 8,
+    "hydraulicSystemTotalL": 35,
+    "hydraulicTankL": 22,
+    "drumDriveEachL": 1.4,
+    "vibratorEccentricEachL": 4,
+    "coolantSystemL": 8
+  },
+  "fluidos_recomendados": [
+    { "system": "motor", "fluidoId": "cat-deo-uls-15w40-ck4" },
+    { "system": "hidraulico", "fluidoId": "cat-hydo-advanced-10" },
+    { "system": "drum_drive", "fluidoId": "cat-tdto-sae30" },
+    { "system": "vibrator_eccentric", "fluidoId": "cat-tdto-sae30" },
+    { "system": "arrefecimento", "fluidoId": "cat-elc-coolant" },
+    { "system": "graxa_geral", "fluidoId": "cat-prime-grease" }
+  ],
+  "filtros": [
+    { "filterType": "oleo_motor", "partNumber": "326-1641", "quantity": 1 },
+    { "filterType": "combustivel_primario", "partNumber": "326-1644", "quantity": 1 },
+    { "filterType": "combustivel_secundario", "partNumber": "360-8958", "quantity": 1 },
+    { "filterType": "ar_primario", "partNumber": "367-9747", "quantity": 1 },
+    { "filterType": "ar_secundario", "partNumber": "367-9748", "quantity": 1 },
+    { "filterType": "hidraulico_retorno", "partNumber": "453-9268", "quantity": 1 }
+  ],
+  "problemas_conhecidos": "Rolo tandem (dois tambores) compacto, 2,5-3,5 toneladas, para acabamento de pavimentação asfaltica e pequenas obras. Pontos vitais: rolamentos do tambor vibratório (substituição preventiva a cada 4.000-5.000h, R$8-15k); excêntricos do vibrador exigem oleo limpo - particula causa falha catastrofica. NUNCA operar vibração com tambor parado por mais de 30 segundos. Sistema de aspersão de agua (anti-aderência asfalto): bicos entopem com diesel/sujeira - limpeza diária; tanque deve ser drenado completamente ao fim de cada turno em climas frios para evitar congelamento. Articulação central tem juntas que desgastam - lubrificação rigorosa a cada 50h.",
+  "manual_referencia": "OMM SEBU8501 / Service Manual KENR8530",
+  "ativo": true
+}

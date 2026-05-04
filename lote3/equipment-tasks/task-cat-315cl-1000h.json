@@ -1,0 +1,79 @@
+{
+  "id": "task-cat-315cl-1000h",
+  "modeloId": "cat-315cl",
+  "title": "Manutencao 1000h (anual) - Hidraulico e fluidos finais Caterpillar 315CL",
+  "intervalHours": 1000,
+  "intervalKm": null,
+  "intervalDays": 365,
+  "priority": "critica",
+  "parts": [
+    {
+      "partNumber": "9N-7898",
+      "type": "oleo_motor",
+      "quantity": 1
+    },
+    {
+      "partNumber": "1R-0762",
+      "type": "combustivel_primario",
+      "quantity": 1
+    },
+    {
+      "partNumber": "1R-0750",
+      "type": "combustivel_secundario",
+      "quantity": 1
+    },
+    {
+      "partNumber": "6I-2503",
+      "type": "ar_primario",
+      "quantity": 1
+    },
+    {
+      "partNumber": "6I-2502",
+      "type": "ar_secundario",
+      "quantity": 1
+    },
+    {
+      "partNumber": "1R-0719",
+      "type": "hidraulico_retorno",
+      "quantity": 1
+    },
+    {
+      "partNumber": "126-1813",
+      "type": "piloto_hidraulico",
+      "quantity": 1
+    }
+  ],
+  "fluids": [
+    {
+      "fluidoId": "cat-deo-uls-15w40-ck4",
+      "consumoEstimadoL": 16,
+      "tipo": "troca_total"
+    },
+    {
+      "fluidoId": "cat-hydo-advanced-10",
+      "consumoEstimadoL": 220,
+      "tipo": "troca_total"
+    },
+    {
+      "fluidoId": "cat-fdao-sae50",
+      "consumoEstimadoL": 6,
+      "tipo": "troca_total"
+    },
+    {
+      "fluidoId": "cat-fdao-sae50",
+      "consumoEstimadoL": 10,
+      "tipo": "troca_total"
+    },
+    {
+      "fluidoId": "cat-prime-grease",
+      "consumoEstimadoKg": 1.5,
+      "tipo": "consumo"
+    }
+  ],
+  "description": "Manutencao anual completa. Substituicao do oleo do motor (16 L) e filtro. Substituicao do oleo hidraulico do sistema completo (220 L) e filtros. Substituicao dos filtros primario e secundario de combustivel. Substituicao dos filtros de ar primario e secundario. Trocar oleo do swing (6 L). Trocar oleo das reducoes finais (5 L cada). Inspecao geral do sistema eletrico. Inspecao da estrutura, soldas, articulacoes. Lubrificacao geral completa. Teste funcional de pressoes hidraulicas.",
+  "procedimento": [],
+  "sinais_alerta": [],
+  "criterios_aceite": [],
+  "sistemas_afetados": [],
+  "ativo": true
+}

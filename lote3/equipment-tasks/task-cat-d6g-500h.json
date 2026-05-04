@@ -1,0 +1,44 @@
+{
+  "id": "task-cat-d6g-500h",
+  "modeloId": "cat-d6g",
+  "title": "Manutencao 500h - Troca oleo motor + filtros combustivel Caterpillar D6G",
+  "intervalHours": 500,
+  "intervalKm": null,
+  "intervalDays": null,
+  "priority": "alta",
+  "parts": [
+    {
+      "partNumber": "1R-0739",
+      "type": "oleo_motor",
+      "quantity": 1
+    },
+    {
+      "partNumber": "1R-0750",
+      "type": "combustivel_primario",
+      "quantity": 1
+    },
+    {
+      "partNumber": "1R-0762",
+      "type": "combustivel_secundario",
+      "quantity": 1
+    }
+  ],
+  "fluids": [
+    {
+      "fluidoId": "cat-deo-uls-15w40-ck4",
+      "consumoEstimadoL": 30,
+      "tipo": "troca_total"
+    },
+    {
+      "fluidoId": "cat-prime-grease",
+      "consumoEstimadoKg": 0.5,
+      "tipo": "consumo"
+    }
+  ],
+  "description": "Substituicao do oleo do motor (30 L) e filtro de oleo. Substituicao dos filtros primario e secundario de combustivel. Drenagem de agua e sedimentos do tanque de combustivel. Verificacao de mangueiras, conexoes e abracadeiras. Inspecao do sistema de admissao de ar. Lubrificacao geral.",
+  "procedimento": [],
+  "sinais_alerta": [],
+  "criterios_aceite": [],
+  "sistemas_afetados": [],
+  "ativo": true
+}

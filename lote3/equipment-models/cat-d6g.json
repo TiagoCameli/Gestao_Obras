@@ -1,0 +1,50 @@
+{
+  "id": "cat-d6g",
+  "fabricante": "Caterpillar",
+  "modelo_nome": "D6G",
+  "familia": "Trator de Esteira",
+  "tipo_equipamento_codigo": "TRE",
+  "ano_inicio_producao": 1985,
+  "ano_fim_producao": 1996,
+  "prefixos_serie": ["3XJ", "5LG", "8MJ", "9KK"],
+  "motor": {
+    "catModel": "Cat 3306 / 3306B (sem certificação Tier)",
+    "displacementL": 10.5,
+    "netPowerKW": 104,
+    "netPowerHP": 140,
+    "cylinders": 6,
+    "configuration": "in-line",
+    "injectionType": "Direta naturalmente aspirada / turboalimentada (mecânica)"
+  },
+  "capacidades": {
+    "fuelTankL": 295,
+    "engineCrankcaseL": 30,
+    "hydraulicSystemTotalL": 70,
+    "hydraulicTankL": 45,
+    "transmissionL": 75,
+    "finalDriveEachL": 13,
+    "rollerFrameL": 18,
+    "coolantSystemL": 48
+  },
+  "fluidos_recomendados": [
+    { "system": "motor", "fluidoId": "cat-deo-uls-15w40-ck4" },
+    { "system": "hidraulico", "fluidoId": "cat-hydo-advanced-10" },
+    { "system": "transmissao", "fluidoId": "cat-tdto-sae30" },
+    { "system": "final_drive", "fluidoId": "cat-fdao-sae50" },
+    { "system": "roller_frame", "fluidoId": "cat-fdao-sae50" },
+    { "system": "arrefecimento", "fluidoId": "cat-elc-coolant" },
+    { "system": "graxa_geral", "fluidoId": "cat-prime-grease" }
+  ],
+  "filtros": [
+    { "filterType": "oleo_motor", "partNumber": "1R-0739", "quantity": 1 },
+    { "filterType": "combustivel_primario", "partNumber": "1R-0750", "quantity": 1 },
+    { "filterType": "combustivel_secundario", "partNumber": "1R-0762", "quantity": 1 },
+    { "filterType": "ar_primario", "partNumber": "7W-5495", "quantity": 1 },
+    { "filterType": "ar_secundario", "partNumber": "7W-5317", "quantity": 1 },
+    { "filterType": "hidraulico_retorno", "partNumber": "9T-9054", "quantity": 1 },
+    { "filterType": "transmissao", "partNumber": "9Y-4509", "quantity": 1 }
+  ],
+  "problemas_conhecidos": "Trator de esteira legacy (1985-1996), o mais antigo da frota - praticamente sem eletronica. Equipamento INATIVO (TRE-003). Pontos críticos para retorno: arquitetura totalmente mecânica (sem ECM, sem sensores) - motor 3306 sem turbo é praticamente indestrutivel se manutenção for feita corretamente; bomba injetora rotativa (Bosch ou Delphi) precisa calibração após periodo parado. Sistema hidraulico de baixa pressao (~140 bar, padrao da época) - bombas de engrenagens são tolerantes a contaminação mas exigem oleo limpo. Esteira: tendencia a desgaste irregular após longo periodo parado em terreno mole - alinhamento e tensionamento sao criticos. Atencao: peças originais Cat estão cada vez mais escassas - mercado paralelo (peças usadas, equivalentes asiáticos) é muitas vezes a unica opção viavel. Filtros e fluidos modernos (Cat HYDO Advanced, ELC) compativeis e recomendados sobre os fluidos originais da época.",
+  "manual_referencia": "OMM SEBU5803 / Service Manual SENR3130",
+  "ativo": true
+}

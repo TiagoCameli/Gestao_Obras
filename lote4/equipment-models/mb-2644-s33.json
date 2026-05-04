@@ -1,0 +1,49 @@
+{
+  "id": "mb-2644-s33",
+  "fabricante": "Mercedes-Benz",
+  "modelo_nome": "2644 S/33",
+  "familia": "Caminhão Cavalo Mecânico 6x4",
+  "tipo_equipamento_codigo": "CS",
+  "ano_inicio_producao": 2008,
+  "ano_fim_producao": 2018,
+  "prefixos_serie": ["9BM958", "9BM9584", "9BM958451"],
+  "motor": {
+    "catModel": "Mercedes-Benz OM-457 LA (Euro III/V)",
+    "displacementL": 11.97,
+    "netPowerKW": 320,
+    "netPowerHP": 435,
+    "cylinders": 6,
+    "configuration": "in-line",
+    "injectionType": "Bomba unitária PLD, eletrônica"
+  },
+  "capacidades": {
+    "fuelTankL": 400,
+    "engineCrankcaseL": 32,
+    "transmissionL": 11.5,
+    "axleFrontL": 13,
+    "axleRearMiddleL": 18,
+    "axleRearTandemL": 18,
+    "powerSteeringL": 3.5,
+    "coolantSystemL": 35,
+    "pbtKg": 26000,
+    "pbtcKg": 74000
+  },
+  "fluidos_recomendados": [
+    { "system": "motor", "fluidoId": "mb-228.5-15w40-acea-e7" },
+    { "system": "transmissao", "fluidoId": "mb-235.4-sae80w90-gl4" },
+    { "system": "eixos_diferenciais", "fluidoId": "mb-235.0-sae85w90-gl5" },
+    { "system": "direcao_hidraulica", "fluidoId": "mb-345.0-atf-dexron-iii" },
+    { "system": "arrefecimento", "fluidoId": "mb-325.5-coolant-organico" },
+    { "system": "graxa_geral", "fluidoId": "generico-graxa-ep2-litio" }
+  ],
+  "filtros": [
+    { "filterType": "oleo_motor", "partNumber": "OM457 - W11102/12 (Mann) / A0001802109 (MB)", "quantity": 1 },
+    { "filterType": "combustivel_primario", "partNumber": "WK1080/7x (Mann)", "quantity": 1 },
+    { "filterType": "combustivel_secundario", "partNumber": "PreLine 420 separador agua", "quantity": 1 },
+    { "filterType": "ar_primario", "partNumber": "C271100 (Mann) / A5410940004 (MB)", "quantity": 1 },
+    { "filterType": "ar_secundario", "partNumber": "CF1300 (Mann)", "quantity": 1 },
+    { "filterType": "secador_ar", "partNumber": "TB1374x (Mann)", "quantity": 1 }
+  ],
+  "problemas_conhecidos": "Cavalo mecânico 6x4 pesado, PBT 26t / PBTC 74t. Frota EMT: CS-001 (DAF XF 530 substituiu este na frota). Motor OM-457 LA: aspirado mecanicamente turbo + intercooler, robusto - 1.5 milhão de km com manutenção correta. Bomba PLD eletronica - bicos injetores ~R$3-4k cada (6 unidades). Transmissão Mercedes G230-12 (manual) - sincronizadores são ponto de desgaste após 600k km; embreagem dupla 430mm dura 200-300k km com motorista bom. Eixos HL7 (cavalo) com bloqueio inter-eixo e roda - usar oleo GL-5 correto. Sistema de freio motor (Telma ou retarder hidraulico em alguns) - manutenção especifica por sistema. Quinta-roda (sela): graxa especifica de molibdenio mensal; alinhamento da sela criticamente importante para vida util do chassi. Suspensão: feixes parabolicos no eixo dianteiro, balsa nos traseiros - parafusos de centro inspecionados a cada 30k km.",
+  "manual_referencia": "Manual de Serviço MB Actros / Axor 9BM958 / Bw 457"
+}

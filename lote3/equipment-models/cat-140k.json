@@ -1,0 +1,52 @@
+{
+  "id": "cat-140k",
+  "fabricante": "Caterpillar",
+  "modelo_nome": "140K",
+  "familia": "Motoniveladora",
+  "tipo_equipamento_codigo": "MN",
+  "ano_inicio_producao": 2008,
+  "ano_fim_producao": 2018,
+  "prefixos_serie": ["B9D", "JPA", "JLM", "SZN", "ZNL"],
+  "motor": {
+    "catModel": "Cat C7.1 ACERT (Tier 3 / Tier 4i)",
+    "displacementL": 7.1,
+    "netPowerKW": 138,
+    "netPowerHP": 185,
+    "cylinders": 6,
+    "configuration": "in-line",
+    "injectionType": "Common Rail eletrônica HEUI/MEUI"
+  },
+  "capacidades": {
+    "fuelTankL": 410,
+    "engineCrankcaseL": 27,
+    "hydraulicSystemTotalL": 95,
+    "hydraulicTankL": 60,
+    "transmissionL": 53,
+    "tandemEachL": 75,
+    "circleDriveL": 10,
+    "coolantSystemL": 53,
+    "defTankL": 11
+  },
+  "fluidos_recomendados": [
+    { "system": "motor", "fluidoId": "cat-deo-uls-15w40-ck4" },
+    { "system": "hidraulico", "fluidoId": "cat-hydo-advanced-10" },
+    { "system": "transmissao", "fluidoId": "cat-tdto-sae30" },
+    { "system": "tandem", "fluidoId": "cat-fdao-sae50" },
+    { "system": "circle_drive", "fluidoId": "cat-fdao-sae50" },
+    { "system": "arrefecimento", "fluidoId": "cat-elc-coolant" },
+    { "system": "graxa_geral", "fluidoId": "cat-prime-grease" },
+    { "system": "def_arla32", "fluidoId": "arla-32-iso-22241" }
+  ],
+  "filtros": [
+    { "filterType": "oleo_motor", "partNumber": "326-1644", "quantity": 1 },
+    { "filterType": "combustivel_primario", "partNumber": "1R-0762", "quantity": 1 },
+    { "filterType": "combustivel_secundario", "partNumber": "326-1641", "quantity": 1 },
+    { "filterType": "ar_primario", "partNumber": "308-7305", "quantity": 1 },
+    { "filterType": "ar_secundario", "partNumber": "326-1643", "quantity": 1 },
+    { "filterType": "hidraulico_retorno", "partNumber": "1R-0719", "quantity": 1 },
+    { "filterType": "transmissao", "partNumber": "1R-0749", "quantity": 1 }
+  ],
+  "problemas_conhecidos": "Motoniveladora de 16 toneladas, sucessora da 12H. Equipamento da Construtora Colorado. Pontos críticos: lâmina (moldboard) e circulo de giro - desgaste do circulo é caro (R$30-50k), graxa correta nos pontos da lamina diariamente. Sistema hidráulico Load Sensing - bombas de pistão axial (HMU) sensíveis a contaminação; trocar filtros rigorosamente. Tandems (caixas dos eixos traseiros): trabalham com oleo banhando correntes - vazamentos nos retentores são comuns após 8.000h. Caixa de transmissão Direct Drive 8F/6R: sincronizadores duram 12.000-15.000h, custo de troca R$80-120k. Motor C7.1 ACERT: sistema HEUI/MEUI exige diesel S10 e aditivo no oleo motor (aditivo errado mata bombas de injeção). Cabine pressurizada com ar-condicionado - filtros AC trocados a cada 1000h.",
+  "manual_referencia": "OMM SEBU8348 / Service Manual KENR8410",
+  "ativo": true
+}

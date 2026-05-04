@@ -1,0 +1,54 @@
+{
+  "id": "task-mb-l1318-50-30000km",
+  "modeloId": "mb-l1318-50",
+  "title": "Manutencao 30.000 km / 12 meses - Filtros completos Mercedes-Benz L 1318/50",
+  "intervalHours": null,
+  "intervalKm": 30000,
+  "intervalDays": 365,
+  "priority": "alta",
+  "parts": [
+    {
+      "partNumber": "W930/9 (Mann)",
+      "type": "oleo_motor",
+      "quantity": 1
+    },
+    {
+      "partNumber": "WK815/2 (Mann)",
+      "type": "combustivel_primario",
+      "quantity": 1
+    },
+    {
+      "partNumber": "WK842/2 (Mann)",
+      "type": "combustivel_secundario",
+      "quantity": 1
+    },
+    {
+      "partNumber": "C25710 (Mann)",
+      "type": "ar_primario",
+      "quantity": 1
+    },
+    {
+      "partNumber": "CF1430 (Mann)",
+      "type": "ar_secundario",
+      "quantity": 1
+    }
+  ],
+  "fluids": [
+    {
+      "fluidoId": "mb-228.5-15w40-acea-e7",
+      "consumoEstimadoL": 24,
+      "tipo": "troca_total"
+    },
+    {
+      "fluidoId": "generico-graxa-ep2-litio",
+      "consumoEstimadoKg": 0.5,
+      "tipo": "consumo"
+    }
+  ],
+  "description": "Manutencao anual. Substituicao do oleo do motor (24 L) e filtro. Substituicao dos filtros primario e secundario de combustivel. Substituicao dos filtros de ar primario e secundario. Substituicao do cartucho do secador de ar (sistema pneumatico de freios). Drenagem de agua dos reservatorios de ar comprimido. Inspecao do sistema de freios: lonas/pastilhas, tambores/discos, camara de mola. Verificacao da regulagem das valvulas do motor (consultar manual). Lubrificacao de pivos da direcao, terminais e cardan.",
+  "procedimento": [],
+  "sinais_alerta": [],
+  "criterios_aceite": [],
+  "sistemas_afetados": [],
+  "ativo": true
+}

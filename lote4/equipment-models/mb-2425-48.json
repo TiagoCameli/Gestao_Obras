@@ -1,0 +1,50 @@
+{
+  "id": "mb-2425-48",
+  "fabricante": "Mercedes-Benz",
+  "modelo_nome": "2425/48",
+  "familia": "Caminhão Basculante 6x4",
+  "tipo_equipamento_codigo": "CB",
+  "ano_inicio_producao": 2009,
+  "ano_fim_producao": 2014,
+  "prefixos_serie": ["9BM958", "9BM9580949", "9BM958094"],
+  "motor": {
+    "catModel": "Mercedes-Benz OM-906 LA (Euro III/V) / OM-924 LA",
+    "displacementL": 6.4,
+    "netPowerKW": 178,
+    "netPowerHP": 245,
+    "cylinders": 6,
+    "configuration": "in-line",
+    "injectionType": "Bomba unitária EUP, eletrônica"
+  },
+  "capacidades": {
+    "fuelTankL": 275,
+    "engineCrankcaseL": 24,
+    "transmissionL": 12,
+    "axleFrontL": 11,
+    "axleRearMiddleL": 27,
+    "axleRearTandemL": 27,
+    "powerSteeringL": 3,
+    "hydraulicTipperL": 50,
+    "coolantSystemL": 33,
+    "pbtKg": 24000
+  },
+  "fluidos_recomendados": [
+    { "system": "motor", "fluidoId": "mb-228.5-15w40-acea-e7" },
+    { "system": "transmissao", "fluidoId": "mb-235.4-sae80w90-gl4" },
+    { "system": "eixos_diferenciais", "fluidoId": "mb-235.0-sae85w90-gl5" },
+    { "system": "direcao_hidraulica", "fluidoId": "mb-345.0-atf-dexron-iii" },
+    { "system": "hidraulico_basculante", "fluidoId": "generico-iso-vg-46" },
+    { "system": "arrefecimento", "fluidoId": "mb-325.5-coolant-organico" },
+    { "system": "graxa_geral", "fluidoId": "generico-graxa-ep2-litio" }
+  ],
+  "filtros": [
+    { "filterType": "oleo_motor", "partNumber": "W930/9 (Mann) / A0001802609 (MB)", "quantity": 1 },
+    { "filterType": "combustivel_primario", "partNumber": "WK950/3 (Mann) / A0000901651 (MB)", "quantity": 1 },
+    { "filterType": "combustivel_secundario", "partNumber": "PreLine 270 separador agua", "quantity": 1 },
+    { "filterType": "ar_primario", "partNumber": "C25710 (Mann)", "quantity": 1 },
+    { "filterType": "ar_secundario", "partNumber": "CF1430 (Mann)", "quantity": 1 },
+    { "filterType": "secador_ar", "partNumber": "TB1374x (Mann)", "quantity": 1 }
+  ],
+  "problemas_conhecidos": "Caminhão basculante 6x4, PBT 24 toneladas, evolução do 2423 com cabine Atego/Axor mais nova e potencia +14 hp. Frota EMT: CB-004, CB-005, CB-006 (3 unidades). Praticamente identico ao 2423 K/36 em termos de manutencao - mesmos filtros, mesmos fluidos, mesmos pontos críticos. Diferenças: chassis 9BM958 mais robusto que 9BM693; modelos pos-2012 podem ter motor OM-924 LA (4 cilindros, 4.8L) em vez do OM-906 - VERIFICAR placa do motor antes de pedir peças. Caçamba basculante: idem 2423. Sistema PMS (Mercedes Power Management System) requer scanner para diagnostico de avarias eletronicas. Cabine: ar-condicionado mais comum nesta geração - manutenção do compressor (R$1500) a cada 60.000 km.",
+  "manual_referencia": "Manual de Serviço MB 9BM958 / Bw 906 / Bw 924"
+}

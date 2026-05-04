@@ -12,7 +12,6 @@ const links: { to: string; label: string; acao?: string }[] = [
   { to: '/frota', label: 'Frota', acao: 'ver_frota' },
   { to: '/apontamentos', label: 'Apontamentos', acao: 'ver_apontamentos' },
   { to: '/apontamento', label: 'Apontamento RH', acao: 'ver_apontamento_rh' },
-  { to: '/manutencao', label: 'Manutenção', acao: 'ver_manutencao' },
   { to: '/medicao', label: 'Medição', acao: 'ver_medicao' },
 ];
 

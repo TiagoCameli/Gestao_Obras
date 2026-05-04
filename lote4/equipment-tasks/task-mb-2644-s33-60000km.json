@@ -1,0 +1,74 @@
+{
+  "id": "task-mb-2644-s33-60000km",
+  "modeloId": "mb-2644-s33",
+  "title": "Manutencao 60.000 km / 24 meses - Transmissao + diferenciais Mercedes-Benz 2644 S/33",
+  "intervalHours": null,
+  "intervalKm": 60000,
+  "intervalDays": 730,
+  "priority": "alta",
+  "parts": [
+    {
+      "partNumber": "W11102/12 (Mann) / A0001802109",
+      "type": "oleo_motor",
+      "quantity": 1
+    },
+    {
+      "partNumber": "WK1080/7x (Mann)",
+      "type": "combustivel_primario",
+      "quantity": 1
+    },
+    {
+      "partNumber": "PreLine 420",
+      "type": "combustivel_secundario",
+      "quantity": 1
+    },
+    {
+      "partNumber": "C271100 (Mann)",
+      "type": "ar_primario",
+      "quantity": 1
+    },
+    {
+      "partNumber": "CF1300 (Mann)",
+      "type": "ar_secundario",
+      "quantity": 1
+    },
+    {
+      "partNumber": "TB1374x (Mann)",
+      "type": "secador_ar",
+      "quantity": 1
+    }
+  ],
+  "fluids": [
+    {
+      "fluidoId": "mb-228.5-15w40-acea-e7",
+      "consumoEstimadoL": 32,
+      "tipo": "troca_total"
+    },
+    {
+      "fluidoId": "mb-235.4-sae80w90-gl4",
+      "consumoEstimadoL": 11.5,
+      "tipo": "troca_total"
+    },
+    {
+      "fluidoId": "mb-235.0-sae85w90-gl5",
+      "consumoEstimadoL": 49,
+      "tipo": "troca_total"
+    },
+    {
+      "fluidoId": "mb-345.0-atf-dexron-iii",
+      "consumoEstimadoL": 3.5,
+      "tipo": "troca_total"
+    },
+    {
+      "fluidoId": "generico-graxa-ep2-litio",
+      "consumoEstimadoKg": 1.0,
+      "tipo": "consumo"
+    }
+  ],
+  "description": "Revisao bienal completa. Substituicao do oleo do motor (32 L) + filtro. Troca dos filtros de combustivel e ar. Troca do oleo da transmissao (11.5 L). Troca do oleo dos diferenciais (eixo dianteiro 13 L + traseiro(s) 18 L cada x 2). Troca do fluido da direcao hidraulica (3.5 L). Inspecao detalhada do sistema de freios - regulagem completa, substituir lonas/pastilhas se necessario. Inspecao da embreagem - regulagem do curso do pedal. Inspecao da suspensao - feixes, balsas, amortecedores, parafusos centro. Inspecao do cardan - cruzetas, rolamentos, alinhamento.",
+  "procedimento": [],
+  "sinais_alerta": [],
+  "criterios_aceite": [],
+  "sistemas_afetados": [],
+  "ativo": true
+}

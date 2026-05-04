@@ -1,0 +1,107 @@
+{
+  "id": "task-mb-2425-48-120000km",
+  "modeloId": "mb-2425-48",
+  "title": "Manutencao 120.000 km / 48 meses - Refrigerante, embreagem e revisao geral Mercedes-Benz 2425/48",
+  "intervalHours": null,
+  "intervalKm": 120000,
+  "intervalDays": 1460,
+  "priority": "critica",
+  "parts": [
+    {
+      "partNumber": "W930/9 (Mann)",
+      "type": "oleo_motor",
+      "quantity": 1
+    },
+    {
+      "partNumber": "WK950/3 (Mann)",
+      "type": "combustivel_primario",
+      "quantity": 1
+    },
+    {
+      "partNumber": "PreLine 270",
+      "type": "combustivel_secundario",
+      "quantity": 1
+    },
+    {
+      "partNumber": "C25710 (Mann)",
+      "type": "ar_primario",
+      "quantity": 1
+    },
+    {
+      "partNumber": "CF1430 (Mann)",
+      "type": "ar_secundario",
+      "quantity": 1
+    },
+    {
+      "partNumber": "termostato",
+      "type": "arrefecimento",
+      "quantity": 1,
+      "obs": "verificar PN no manual"
+    },
+    {
+      "partNumber": "valvulas + retentores",
+      "type": "motor",
+      "quantity": 1,
+      "obs": "preventivo geral"
+    },
+    {
+      "partNumber": "correia poly-V",
+      "type": "correia",
+      "quantity": 1
+    },
+    {
+      "partNumber": "kit embreagem",
+      "type": "transmissao",
+      "quantity": 1,
+      "obs": "preventivo se km elevada"
+    },
+    {
+      "partNumber": "TB1374x (Mann)",
+      "type": "secador_ar",
+      "quantity": 1
+    }
+  ],
+  "fluids": [
+    {
+      "fluidoId": "mb-228.5-15w40-acea-e7",
+      "consumoEstimadoL": 24,
+      "tipo": "troca_total"
+    },
+    {
+      "fluidoId": "mb-235.4-sae80w90-gl4",
+      "consumoEstimadoL": 12,
+      "tipo": "troca_total"
+    },
+    {
+      "fluidoId": "mb-235.0-sae85w90-gl5",
+      "consumoEstimadoL": 65,
+      "tipo": "troca_total"
+    },
+    {
+      "fluidoId": "mb-345.0-atf-dexron-iii",
+      "consumoEstimadoL": 3,
+      "tipo": "troca_total"
+    },
+    {
+      "fluidoId": "mb-325.5-coolant-organico",
+      "consumoEstimadoL": 33,
+      "tipo": "troca_total"
+    },
+    {
+      "fluidoId": "generico-graxa-ep2-litio",
+      "consumoEstimadoKg": 2.0,
+      "tipo": "consumo"
+    },
+    {
+      "fluidoId": "generico-iso-vg-46",
+      "consumoEstimadoL": 50,
+      "tipo": "troca_total"
+    }
+  ],
+  "description": "Revisao geral profunda (a cada 4 anos / 120 mil km). Substituicao do oleo motor (24 L) + filtro. Troca de TODOS os fluidos: transmissao (12 L), diferenciais, direcao, refrigerante (33 L com flush completo). Trocar oleo do sistema hidraulico operacional (basculante) - 50 L. Substituicao preventiva do termostato e tampa do radiador. Regulagem das valvulas do motor (mandatorio). Substituicao da correia poly-V e tensores. REVISAO DA EMBREAGEM (se nao foi feita antes) - kit completo: disco + plato + rolamento. REVISAO DOS FREIOS - tambores/discos retificados ou substituidos. Lonas/pastilhas novas. Inspecao de bicos injetores - testar em bancada e calibrar. Inspecao da bateria - substituir se >3 anos. Inspecao da suspensao traseira - feixes parabolicos / balsa - reapertar parafusos centro. Aproveitar parada para revisao detalhada do chassi (oxidacao, soldas, fixacoes).",
+  "procedimento": [],
+  "sinais_alerta": [],
+  "criterios_aceite": [],
+  "sistemas_afetados": [],
+  "ativo": true
+}

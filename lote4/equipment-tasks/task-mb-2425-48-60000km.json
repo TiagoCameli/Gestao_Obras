@@ -1,0 +1,79 @@
+{
+  "id": "task-mb-2425-48-60000km",
+  "modeloId": "mb-2425-48",
+  "title": "Manutencao 60.000 km / 24 meses - Transmissao + diferenciais Mercedes-Benz 2425/48",
+  "intervalHours": null,
+  "intervalKm": 60000,
+  "intervalDays": 730,
+  "priority": "alta",
+  "parts": [
+    {
+      "partNumber": "W930/9 (Mann)",
+      "type": "oleo_motor",
+      "quantity": 1
+    },
+    {
+      "partNumber": "WK950/3 (Mann)",
+      "type": "combustivel_primario",
+      "quantity": 1
+    },
+    {
+      "partNumber": "PreLine 270",
+      "type": "combustivel_secundario",
+      "quantity": 1
+    },
+    {
+      "partNumber": "C25710 (Mann)",
+      "type": "ar_primario",
+      "quantity": 1
+    },
+    {
+      "partNumber": "CF1430 (Mann)",
+      "type": "ar_secundario",
+      "quantity": 1
+    },
+    {
+      "partNumber": "TB1374x (Mann)",
+      "type": "secador_ar",
+      "quantity": 1
+    }
+  ],
+  "fluids": [
+    {
+      "fluidoId": "mb-228.5-15w40-acea-e7",
+      "consumoEstimadoL": 24,
+      "tipo": "troca_total"
+    },
+    {
+      "fluidoId": "mb-235.4-sae80w90-gl4",
+      "consumoEstimadoL": 12,
+      "tipo": "troca_total"
+    },
+    {
+      "fluidoId": "mb-235.0-sae85w90-gl5",
+      "consumoEstimadoL": 65,
+      "tipo": "troca_total"
+    },
+    {
+      "fluidoId": "mb-345.0-atf-dexron-iii",
+      "consumoEstimadoL": 3,
+      "tipo": "troca_total"
+    },
+    {
+      "fluidoId": "generico-graxa-ep2-litio",
+      "consumoEstimadoKg": 1.0,
+      "tipo": "consumo"
+    },
+    {
+      "fluidoId": "generico-iso-vg-46",
+      "consumoEstimadoL": 50,
+      "tipo": "troca_total"
+    }
+  ],
+  "description": "Revisao bienal completa. Substituicao do oleo do motor (24 L) + filtro. Troca dos filtros de combustivel e ar. Troca do oleo da transmissao (12 L). Troca do oleo dos diferenciais (eixo dianteiro 11 L + traseiro(s) 27 L cada x 2). Troca do fluido da direcao hidraulica (3 L). Trocar oleo do sistema hidraulico operacional (basculante) - 50 L. Inspecao detalhada do sistema de freios - regulagem completa, substituir lonas/pastilhas se necessario. Inspecao da embreagem - regulagem do curso do pedal. Inspecao da suspensao - feixes, balsas, amortecedores, parafusos centro. Inspecao do cardan - cruzetas, rolamentos, alinhamento.",
+  "procedimento": [],
+  "sinais_alerta": [],
+  "criterios_aceite": [],
+  "sistemas_afetados": [],
+  "ativo": true
+}
