@@ -1,5 +1,6 @@
 import { useState, useCallback, useMemo } from 'react';
 import type {
+  Abastecimento,
   EntradaCombustivel,
   TransferenciaCombustivel,
   Deposito,
@@ -9,7 +10,6 @@ import type {
 import { useObras } from '../../../hooks/useObras';
 import { useEtapas } from '../../../hooks/useEtapas';
 import { useDepositos, useAdicionarDeposito, useAtualizarDeposito, useExcluirDeposito } from '../../../hooks/useDepositos';
-import { useAbastecimentos } from '../../../hooks/useAbastecimentos';
 // Hooks novos (Fase 3) — saídas via tabela unificada saidas_combustivel
 import { useSaidasCombustivel, useAdicionarSaidaCombustivel, useAtualizarSaidaCombustivel, useExcluirSaidaCombustivel } from '../../../hooks/useSaidasCombustivel';
 import { useEntradasCombustivel, useAdicionarEntradaCombustivel, useAtualizarEntradaCombustivel, useExcluirEntradaCombustivel } from '../../../hooks/useEntradasCombustivel';
@@ -63,11 +63,35 @@ export default function FrotaCombustivelContainer() {
   //   Triggers do DB bloqueiam INSERT em externos — filtro UI evita 4xx.
   const { data: depositosTodos = [] } = useDepositos({ incluirExternos: true });
   const { data: depositosOperacionais = [] } = useDepositos();
-  // Compat shim ainda alimenta CombustivelDashboard + ExportarPDFModal
-  // (esses dois migram pra useSaidasCombustivel no Commit 6 de dashboards).
-  const { data: todosAbastecimentos = [] } = useAbastecimentos();
-  // Saídas via tabela unificada (Fase 3)
+  // Saídas via tabela unificada (Fase 3) — fonte canônica.
   const { data: todasSaidas = [] } = useSaidasCombustivel();
+  // Adapter inline pro shape Abastecimento legado (CombustivelDashboard
+  // ignora via _abastLegacy; ExportarPDFModal ainda consome). Será removido
+  // quando ExportarPDFModal migrar pra SaidaCombustivel (Commit 5).
+  const todosAbastecimentos: Abastecimento[] = useMemo(
+    () => todasSaidas.map((s) => ({
+      id: s.id,
+      dataHora: s.data,
+      tipoCombustivel: s.tipoCombustivel ?? '',
+      quantidadeLitros: s.litros,
+      valorTotal: s.valorTotal,
+      obraId: s.obraId ?? '',
+      etapaId: s.etapaId ?? '',
+      alocacoes: s.alocacoes ?? [],
+      depositoId: s.tanqueId ?? '',
+      equipamentoId: (s.equipamentoId === 'desconhecido' ? '' : (s.equipamentoId ?? '')),
+      veiculo: '',
+      fotosUrls: s.fotoUrls ?? [],
+      observacoes: s.observacoes ?? '',
+      criadoPor: s.createdBy ?? '',
+      origemCombustivel: s.origem,
+      fornecedor: '',
+      pago: s.pago ?? false,
+      dataPagamento: s.pagoEm ?? '',
+      pagoPor: '',
+    })),
+    [todasSaidas]
+  );
   const { data: todasEntradas = [] } = useEntradasCombustivel();
   const { data: todasTransferencias = [] } = useTransferenciasCombustivel();
   const { data: todosEquipamentos = [] } = useEquipamentos();
