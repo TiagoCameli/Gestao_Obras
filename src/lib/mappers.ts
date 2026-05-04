@@ -2,7 +2,6 @@ import type {
   Obra,
   EtapaObra,
   Deposito,
-  Abastecimento,
   EntradaCombustivel,
   Equipamento,
   Insumo,
@@ -19,7 +18,6 @@ import type {
   Localidade,
   Frete,
   PagamentoFrete,
-  AbastecimentoCarreta,
   Funcionario,
   PerfilPermissao,
   AuditLogEntry,
@@ -137,55 +135,6 @@ export function depositoToDb(d: Deposito) {
 }
 
 // ── Abastecimentos ──
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export function dbToAbastecimento(row: any): Abastecimento {
-  return {
-    id: row.id,
-    dataHora: row.data_hora,
-    tipoCombustivel: row.tipo_combustivel,
-    quantidadeLitros: Number(row.quantidade_litros),
-    valorTotal: Number(row.valor_total),
-    obraId: row.obra_id,
-    etapaId: row.etapa_id,
-    alocacoes: row.alocacoes ?? [],
-    depositoId: row.deposito_id ?? '',
-    equipamentoId: row.equipamento_id ?? '',
-    veiculo: row.veiculo ?? '',
-    fotosUrls: row.fotos_urls ?? [],
-    observacoes: row.observacoes,
-    criadoPor: row.criado_por ?? '',
-    origemCombustivel: row.origem_combustivel ?? 'tanque',
-    fornecedor: row.fornecedor ?? '',
-    pago: row.pago ?? false,
-    dataPagamento: row.data_pagamento ?? '',
-    pagoPor: row.pago_por ?? '',
-  };
-}
-
-export function abastecimentoToDb(a: Abastecimento) {
-  return {
-    id: a.id,
-    data_hora: a.dataHora,
-    tipo_combustivel: a.tipoCombustivel,
-    quantidade_litros: a.quantidadeLitros,
-    valor_total: a.valorTotal,
-    obra_id: a.obraId,
-    etapa_id: a.etapaId,
-    alocacoes: a.alocacoes ?? [],
-    deposito_id: a.depositoId || null,
-    equipamento_id: a.equipamentoId || null,
-    veiculo: a.veiculo,
-    fotos_urls: a.fotosUrls ?? [],
-    observacoes: a.observacoes,
-    criado_por: a.criadoPor,
-    origem_combustivel: a.origemCombustivel ?? 'tanque',
-    fornecedor: a.fornecedor ?? '',
-    pago: a.pago ?? false,
-    data_pagamento: a.dataPagamento ?? '',
-    pago_por: a.pagoPor ?? '',
-  };
-}
 
 // ── Entradas Combustivel ──
 
@@ -667,45 +616,6 @@ export function pagamentoFreteToDb(p: PagamentoFrete) {
     pago_por: p.pagoPor,
     observacoes: p.observacoes,
     criado_por: p.criadoPor,
-  };
-}
-
-// ── Abastecimentos Carreta ──
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export function dbToAbastecimentoCarreta(row: any): AbastecimentoCarreta {
-  return {
-    id: row.id,
-    data: row.data,
-    transportadora: row.transportadora,
-    placaCarreta: row.placa_carreta,
-    mesReferencia: row.mes_referencia ?? '',
-    tipoCombustivel: row.tipo_combustivel,
-    quantidadeLitros: Number(row.quantidade_litros),
-    valorUnidade: Number(row.valor_unidade),
-    valorTotal: Number(row.valor_total),
-    observacoes: row.observacoes,
-    categoria: row.categoria === 'emt' ? 'emt' : 'transterra',
-    taxaLitro: Number(row.taxa_litro ?? 0),
-    criadoPor: row.criado_por ?? '',
-  };
-}
-
-export function abastecimentoCarretaToDb(a: AbastecimentoCarreta) {
-  return {
-    id: a.id,
-    data: a.data,
-    transportadora: a.transportadora,
-    placa_carreta: a.placaCarreta,
-    mes_referencia: a.mesReferencia,
-    tipo_combustivel: a.tipoCombustivel,
-    quantidade_litros: a.quantidadeLitros,
-    valor_unidade: a.valorUnidade,
-    valor_total: a.valorTotal,
-    observacoes: a.observacoes,
-    categoria: a.categoria ?? 'transterra',
-    taxa_litro: a.taxaLitro ?? 0,
-    criado_por: a.criadoPor,
   };
 }
 
