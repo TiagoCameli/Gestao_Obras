@@ -19,7 +19,6 @@ import Combustivel from './pages/Combustivel';
 import Login from './pages/Login';
 import AcessoNegado from './pages/AcessoNegado';
 import NotFound from './pages/NotFound';
-import MigrarDados from './pages/MigrarDados';
 import RodoTrackerPage from './modules/rodotracker/RodoTrackerPage';
 import ApontamentoPage from './modules/apontamento/ApontamentoPage';
 
@@ -82,7 +81,6 @@ export default function App() {
               <Route path="/funcionarios" element={<ProtectedRoute modulo="funcionarios"><Funcionarios /></ProtectedRoute>} />
               <Route path="/apontamentos" element={<ProtectedRoute modulo="apontamentos"><Apontamentos /></ProtectedRoute>} />
               <Route path="/apontamento" element={<ProtectedRoute modulo="apontamento_rh"><ApontamentoPage /></ProtectedRoute>} />
-              <Route path="/migrar-dados" element={<MigrarDados />} />
               <Route path="/acesso-negado" element={<AcessoNegado />} />
               <Route path="*" element={<NotFound />} />
             </Route>
