@@ -371,6 +371,107 @@ export interface PagamentoFrete {
 
 export type CategoriaAbastecimentoCarreta = 'transterra' | 'emt';
 
+// === Saidas de Combustível (modelo unificado pós-Fase 1c/2) ===
+//
+// Substitui Abastecimento + AbastecimentoCarreta após backfill da Fase 2.
+// Tipos legados ficam vivos durante Fase 3-4 via compat shim em
+// useAbastecimentos/useAbastecimentosCarreta. Drop dos legados na Fase 5.
+
+export type TipoConsumidorSaida = 'equipamento_proprio' | 'carreta_transportadora';
+
+export interface SaidaCombustivel {
+  id: string;
+  data: string;                                    // ISO timestamptz
+  origem: OrigemCombustivel;
+  tipoConsumidor: TipoConsumidorSaida;
+
+  /** FK depositos.id. NULL quando origem != 'tanque'. */
+  tanqueId: string | null;
+  /** FK equipamentos.id. NOT NULL quando tipoConsumidor='equipamento_proprio'.
+   *  Sentinel 'desconhecido' usado pra abast legados sem identificação
+   *  (ver tech-debt #8). */
+  equipamentoId: string | null;
+  /** FK fornecedores.id. NOT NULL quando tipoConsumidor='carreta_transportadora'. */
+  transportadoraId: string | null;
+  placa: string | null;
+  motoristaId: string | null;
+
+  obraId: string | null;
+  etapaId: string | null;
+  alocacoes: AlocacaoEtapa[] | null;
+
+  tipoCombustivel: string;                         // FK soft pra insumos.id
+  litros: number;
+  precoMedioTanqueSnapshot: number | null;
+  taxaLitro: number;
+  precoUnitario: number;
+  valorTotal: number;
+
+  fotoUrls: string[] | null;
+  observacoes: string | null;
+
+  pago: boolean | null;
+  pagoEm: string | null;                           // ISO timestamptz
+
+  /** FK transportadora_movimentos.id criado pela trigger (rastro).
+   *  NULL quando tipoConsumidor='equipamento_proprio'. */
+  movimentoId: string | null;
+
+  createdAt: string;
+  updatedAt: string;
+  createdBy: string | null;
+}
+
+// === Conta-corrente das Transportadoras ===
+
+export type TipoMovimentoTransportadora =
+  | 'credito_frete'
+  | 'debito_pagamento_frete'
+  | 'credito_abastecimento_transterra'
+  | 'debito_abastecimento_transterra'
+  | 'debito_abastecimento_emt'
+  | 'ajuste_manual_credito'
+  | 'ajuste_manual_debito';
+
+export type OrigemTabelaMovimento =
+  | 'fretes'
+  | 'pagamentos_frete'
+  | 'saidas_combustivel'
+  | 'ajuste_manual';
+
+export interface TransportadoraMovimento {
+  id: string;
+  transportadoraId: string;                        // FK fornecedores.id
+  data: string;                                    // ISO timestamptz
+  tipo: TipoMovimentoTransportadora;
+  /** Sempre positivo. Sinal vem do tipo (credito_* soma, debito_* subtrai). */
+  valor: number;
+  origemTabela: OrigemTabelaMovimento;
+  origemId: string;
+  descricao: string | null;
+  obraId: string | null;
+  /** ISO date YYYY-MM-DD (truncado pro 1º dia do mês). */
+  mesReferencia: string | null;
+  /** FK pagamentos_frete.id quando este débito for abatido em pagamento (Fase 4). */
+  abatidoEmPagamentoId: string | null;
+
+  createdAt: string;
+  createdBy: string | null;
+}
+
+/** Output da view transportadora_saldos. Read-only — saldo é agregado. */
+export interface TransportadoraSaldo {
+  transportadoraId: string;
+  nome: string;
+  ehDonaDeTanque: boolean;
+  /** Crédito − débito agregado. Sinal natural. */
+  saldo: number;
+  debitoCombustivelTotal: number;
+  creditoFreteTotal: number;
+  pagoFreteTotal: number;
+  qtdMovimentos: number;
+}
+
 export interface AbastecimentoCarreta {
   id: string;
   data: string;

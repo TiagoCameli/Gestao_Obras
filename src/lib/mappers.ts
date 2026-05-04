@@ -40,6 +40,9 @@ import type {
   HistoricoMedicao,
   ChecklistEquipamento,
   HistoricoInspecao,
+  SaidaCombustivel,
+  TransportadoraMovimento,
+  TransportadoraSaldo,
 } from '../types';
 
 // ── Obras ──
@@ -1377,5 +1380,124 @@ export function historicoInspecaoToDb(h: HistoricoInspecao) {
     operador: h.operador,
     encarregado: h.encarregado,
     criado_por: h.criadoPor,
+  };
+}
+
+// ── Saidas Combustivel ──
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function dbToSaidaCombustivel(row: any): SaidaCombustivel {
+  return {
+    id: row.id,
+    data: row.data,
+    origem: row.origem,
+    tipoConsumidor: row.tipo_consumidor,
+    tanqueId: row.tanque_id ?? null,
+    equipamentoId: row.equipamento_id ?? null,
+    transportadoraId: row.transportadora_id ?? null,
+    placa: row.placa ?? null,
+    motoristaId: row.motorista_id ?? null,
+    obraId: row.obra_id ?? null,
+    etapaId: row.etapa_id ?? null,
+    alocacoes: row.alocacoes ?? null,
+    tipoCombustivel: row.tipo_combustivel,
+    litros: Number(row.litros),
+    precoMedioTanqueSnapshot: row.preco_medio_tanque_snapshot != null ? Number(row.preco_medio_tanque_snapshot) : null,
+    taxaLitro: Number(row.taxa_litro ?? 0),
+    precoUnitario: Number(row.preco_unitario),
+    valorTotal: Number(row.valor_total),
+    fotoUrls: row.foto_urls ?? null,
+    observacoes: row.observacoes ?? null,
+    pago: row.pago,
+    pagoEm: row.pago_em ?? null,
+    movimentoId: row.movimento_id ?? null,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+    createdBy: row.created_by ?? null,
+  };
+}
+
+export function saidaCombustivelToDb(s: SaidaCombustivel) {
+  return {
+    id: s.id,
+    data: s.data,
+    origem: s.origem,
+    tipo_consumidor: s.tipoConsumidor,
+    tanque_id: s.tanqueId,
+    equipamento_id: s.equipamentoId,
+    transportadora_id: s.transportadoraId,
+    placa: s.placa,
+    motorista_id: s.motoristaId,
+    obra_id: s.obraId,
+    etapa_id: s.etapaId,
+    alocacoes: s.alocacoes,
+    tipo_combustivel: s.tipoCombustivel,
+    litros: s.litros,
+    preco_medio_tanque_snapshot: s.precoMedioTanqueSnapshot,
+    taxa_litro: s.taxaLitro,
+    preco_unitario: s.precoUnitario,
+    valor_total: s.valorTotal,
+    foto_urls: s.fotoUrls,
+    observacoes: s.observacoes,
+    pago: s.pago,
+    pago_em: s.pagoEm,
+    movimento_id: s.movimentoId,
+    created_by: s.createdBy,
+    // created_at e updated_at: defaults do DB / trigger
+  };
+}
+
+// ── Transportadora Movimentos ──
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function dbToTransportadoraMovimento(row: any): TransportadoraMovimento {
+  return {
+    id: row.id,
+    transportadoraId: row.transportadora_id,
+    data: row.data,
+    tipo: row.tipo,
+    valor: Number(row.valor),
+    origemTabela: row.origem_tabela,
+    origemId: row.origem_id,
+    descricao: row.descricao ?? null,
+    obraId: row.obra_id ?? null,
+    mesReferencia: row.mes_referencia ?? null,
+    abatidoEmPagamentoId: row.abatido_em_pagamento_id ?? null,
+    createdAt: row.created_at,
+    createdBy: row.created_by ?? null,
+  };
+}
+
+export function transportadoraMovimentoToDb(m: TransportadoraMovimento) {
+  return {
+    id: m.id,
+    transportadora_id: m.transportadoraId,
+    data: m.data,
+    tipo: m.tipo,
+    valor: m.valor,
+    origem_tabela: m.origemTabela,
+    origem_id: m.origemId,
+    descricao: m.descricao,
+    obra_id: m.obraId,
+    mes_referencia: m.mesReferencia,
+    abatido_em_pagamento_id: m.abatidoEmPagamentoId,
+    created_by: m.createdBy,
+    // created_at: default do DB
+  };
+}
+
+// ── Transportadora Saldos (view, read-only) ──
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function dbToTransportadoraSaldo(row: any): TransportadoraSaldo {
+  return {
+    transportadoraId: row.transportadora_id,
+    nome: row.nome,
+    ehDonaDeTanque: row.eh_dona_de_tanque ?? false,
+    saldo: Number(row.saldo ?? 0),
+    debitoCombustivelTotal: Number(row.debito_combustivel_total ?? 0),
+    creditoFreteTotal: Number(row.credito_frete_total ?? 0),
+    pagoFreteTotal: Number(row.pago_frete_total ?? 0),
+    qtdMovimentos: Number(row.qtd_movimentos ?? 0),
   };
 }
