@@ -1,12 +1,13 @@
 import type { Equipamento, Empresa } from '../../types';
 import { getCategoriaFrota } from '../../lib/frotaConstants';
 import Button from '../ui/Button';
-import { Pencil, Building2, Hash, Calendar, Gauge, Tag, Key } from 'lucide-react';
+import { Pencil, Building2, Hash, Calendar, Gauge, Tag, Key, Trash2 } from 'lucide-react';
 
 interface FrotaDetalheProps {
   equipamento: Equipamento;
   empresas: Empresa[];
   onEditar?: () => void;
+  onExcluir?: () => void;
 }
 
 const TIPO_MEDICAO_LABEL: Record<string, string> = {
@@ -48,7 +49,7 @@ function Campo({
   );
 }
 
-export default function FrotaDetalhe({ equipamento: eq, empresas, onEditar }: FrotaDetalheProps) {
+export default function FrotaDetalhe({ equipamento: eq, empresas, onEditar, onExcluir }: FrotaDetalheProps) {
   const cat = getCategoriaFrota(eq.tipo);
   const empresaNome = empresas.find((e) => e.id === eq.empresaId)?.nome ?? '—';
   const alugada = eq.propriedade === 'alugada';
@@ -116,6 +117,12 @@ export default function FrotaDetalhe({ equipamento: eq, empresas, onEditar }: Fr
                 <Button onClick={onEditar} variant="secondary" size="sm">
                   <Pencil aria-hidden className="w-3.5 h-3.5" />
                   Editar
+                </Button>
+              )}
+              {onExcluir && (
+                <Button onClick={onExcluir} variant="danger" size="sm">
+                  <Trash2 aria-hidden className="w-3.5 h-3.5" />
+                  Excluir
                 </Button>
               )}
             </div>

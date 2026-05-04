@@ -1,11 +1,12 @@
 import { useState, useMemo, useCallback } from 'react';
 import { useUrlState } from '../hooks/useUrlState';
 import type { Equipamento, TipoEquipamento, PropriedadeEquipamento } from '../types';
-import { useEquipamentos, useAdicionarEquipamento, useAtualizarEquipamento } from '../hooks/useEquipamentos';
+import { useEquipamentos, useAdicionarEquipamento, useAtualizarEquipamento, useExcluirEquipamento } from '../hooks/useEquipamentos';
 import { useEmpresas } from '../hooks/useEmpresas';
 import { useAuth } from '../contexts/AuthContext';
 import Modal from '../components/ui/Modal';
 import Button from '../components/ui/Button';
+import ConfirmDialog from '../components/ui/ConfirmDialog';
 import FrotaStats from '../components/frota/FrotaStats';
 import FrotaGrid from '../components/frota/FrotaGrid';
 import FrotaList from '../components/frota/FrotaList';
@@ -36,6 +37,7 @@ export default function Frota() {
   const { temAcao, usuario } = useAuth();
   const adicionarMutation = useAdicionarEquipamento();
   const atualizarMutation = useAtualizarEquipamento();
+  const excluirMutation = useExcluirEquipamento();
 
   const [busca, setBusca] = useUrlState('busca');
   const [buscaPatrimonio, setBuscaPatrimonio] = useUrlState('patrimonio');
@@ -55,10 +57,23 @@ export default function Frota() {
   const setFiltroPropriedade = (v: FiltroPropriedade) => setFiltroPropRaw(v);
   const [modalNovoOpen, setModalNovoOpen] = useState(false);
   const [editandoEquip, setEditandoEquip] = useState<Equipamento | null>(null);
+  const [excluindoEquip, setExcluindoEquip] = useState<Equipamento | null>(null);
   const [filtrosAvancadosOpen, setFiltrosAvancadosOpen] = useState(false);
 
   const canCreate = temAcao('criar_cadastros');
   const canEdit = temAcao('editar_cadastros');
+  const canDelete = temAcao('excluir_cadastros');
+
+  async function handleConfirmarExclusao() {
+    if (!excluindoEquip) return;
+    try {
+      await excluirMutation.mutateAsync(excluindoEquip.id);
+      setExcluindoEquip(null);
+      setEquipamentoSelecionado(null);
+    } catch (e) {
+      alert(e instanceof Error ? e.message : 'Erro ao excluir');
+    }
+  }
 
   const alertasMap = useMemo(() => new Map<string, number>(), []);
 
@@ -423,9 +438,27 @@ export default function Frota() {
                   }
                 : undefined
             }
+            onExcluir={
+              canDelete
+                ? () => setExcluindoEquip(equipamentoSelecionado)
+                : undefined
+            }
           />
         )}
       </Modal>
+
+      <ConfirmDialog
+        open={!!excluindoEquip}
+        onClose={() => setExcluindoEquip(null)}
+        onConfirm={handleConfirmarExclusao}
+        title="Excluir equipamento"
+        message={
+          excluindoEquip
+            ? `Tem certeza que deseja excluir "${excluindoEquip.nome}"${excluindoEquip.codigoPatrimonio ? ` (${excluindoEquip.codigoPatrimonio})` : ''}? Esta ação é IRREVERSÍVEL e remove o registro do banco.`
+            : ''
+        }
+        requirePassword={false}
+      />
 
       <Modal open={!!editandoEquip} onClose={() => setEditandoEquip(null)} title="Editar Equipamento" size="lg">
         {editandoEquip && (
