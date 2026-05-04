@@ -16,6 +16,7 @@ import SaldoTransportadora from './pages/SaldoTransportadora';
 import Funcionarios from './pages/Funcionarios';
 import Apontamentos from './pages/Apontamentos';
 import Frota from './pages/Frota';
+import Combustivel from './pages/Combustivel';
 import Login from './pages/Login';
 import AcessoNegado from './pages/AcessoNegado';
 import NotFound from './pages/NotFound';
@@ -79,6 +80,7 @@ export default function App() {
               <Route path="/frete" element={<ProtectedRoute modulo="frete"><Frete /></ProtectedRoute>} />
               <Route path="/frete/saldo/:slug" element={<ProtectedRoute modulo="frete"><SaldoTransportadora /></ProtectedRoute>} />
               <Route path="/frota" element={<ProtectedRoute modulo="frota"><Frota /></ProtectedRoute>} />
+              <Route path="/combustivel" element={<ProtectedRoute modulo="frota"><Combustivel /></ProtectedRoute>} />
               <Route path="/funcionarios" element={<ProtectedRoute modulo="funcionarios"><Funcionarios /></ProtectedRoute>} />
               <Route path="/apontamentos" element={<ProtectedRoute modulo="apontamentos"><Apontamentos /></ProtectedRoute>} />
               <Route path="/apontamento" element={<ProtectedRoute modulo="apontamento_rh"><ApontamentoPage /></ProtectedRoute>} />

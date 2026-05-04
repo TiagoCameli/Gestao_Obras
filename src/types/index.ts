@@ -78,6 +78,8 @@ export interface TipoEquipamentoEntity {
   criadoPor: string;
 }
 
+export type PropriedadeEquipamento = 'propria' | 'alugada';
+
 export interface Equipamento {
   id: string;
   nome: string;
@@ -87,6 +89,8 @@ export interface Equipamento {
   numeroSerie: string;
   ano: string;
   marca: string;
+  modelo: string;
+  propriedade: PropriedadeEquipamento;
   tipoMedicao: TipoMedicao;
   medicaoInicial: number;
   ativo: boolean;

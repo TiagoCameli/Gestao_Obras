@@ -51,6 +51,8 @@ export default function EquipamentoFormFrota({ initial, onSubmit, onCancel, empr
   const [numeroSerie, setNumeroSerie] = useState(initial?.numeroSerie || '');
   const [ano, setAno] = useState(initial?.ano || '');
   const [marca, setMarca] = useState(initial?.marca || '');
+  const [modelo, setModelo] = useState(initial?.modelo || '');
+  const [propriedade, setPropriedade] = useState<'propria' | 'alugada'>(initial?.propriedade || 'propria');
   const [tipoMedicao, setTipoMedicao] = useState<TipoMedicao>(initial?.tipoMedicao || 'horimetro');
   const [medicaoInicial, setMedicaoInicial] = useState(initial?.medicaoInicial?.toString() || '0');
   const [ativo, setAtivo] = useState(initial?.ativo !== false);
@@ -142,6 +144,8 @@ export default function EquipamentoFormFrota({ initial, onSubmit, onCancel, empr
       numeroSerie,
       ano,
       marca,
+      modelo,
+      propriedade,
       tipoMedicao,
       medicaoInicial: parseFloat(medicaoInicial) || 0,
       ativo: dataVenda ? false : ativo,
@@ -274,11 +278,28 @@ export default function EquipamentoFormFrota({ initial, onSubmit, onCancel, empr
           placeholder="Ex: Caterpillar"
         />
         <Input
+          label="Modelo"
+          id="frotaEqModelo"
+          value={modelo}
+          onChange={(e) => setModelo(e.target.value)}
+          placeholder="Ex: 320C, PC200, 2423 K/36"
+        />
+        <Input
           label="Ano"
           id="frotaEqAno"
           value={ano}
           onChange={(e) => setAno(e.target.value)}
           placeholder="Ex: 2024"
+        />
+        <Select
+          label="Propriedade"
+          id="frotaEqPropriedade"
+          value={propriedade}
+          onChange={(e) => setPropriedade(e.target.value as 'propria' | 'alugada')}
+          options={[
+            { value: 'propria', label: 'Própria' },
+            { value: 'alugada', label: 'Alugada' },
+          ]}
         />
         <Select
           label="Tipo de Medição"

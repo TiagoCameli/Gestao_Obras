@@ -266,6 +266,8 @@ function EquipamentoForm({
       numeroSerie,
       ano,
       marca,
+      modelo: initial?.modelo || '',
+      propriedade: initial?.propriedade || 'propria',
       tipoMedicao,
       medicaoInicial: parseFloat(medicaoInicial) || 0,
       ativo: dataVenda ? false : ativo,
