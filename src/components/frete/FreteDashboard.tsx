@@ -1,9 +1,11 @@
 import { Fragment, useState, useRef, useEffect, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
 import type { Frete, PagamentoFrete, AbastecimentoCarreta, Obra, PedidoMaterial, Fornecedor } from '../../types';
 import { useInsumos } from '../../hooks/useInsumos';
 // Fonte canônica de saldos (Fase 2 — view validada ≤ R$ 0,01 vs lógica legada).
 import { useTodosSaldosTransportadora } from '../../hooks/useTransportadoraSaldo';
+// Saídas de carreta — substitui dependência de useAbastecimentosCarreta na Fase 5.
+import { useSaidasCombustivel } from '../../hooks/useSaidasCombustivel';
+import { useFornecedores } from '../../hooks/useFornecedores';
 import { formatCurrency } from '../../utils/formatters';
 import Card from '../ui/Card';
 import FreteAnalyticsOverview from './FreteAnalyticsOverview';
@@ -104,7 +106,7 @@ function SaldoCard({
   titulo: string;
   saldo: number;
   linhas: { label: string; valor: string }[];
-  onClick: () => void;
+  onClick?: () => void;
 }) {
   const cor = saldo > 0 ? 'text-red-600' : saldo < 0 ? 'text-green-600' : 'text-gray-500';
   return (
@@ -155,33 +157,55 @@ const METODO_LABELS: Record<string, string> = {
 interface FreteDashboardProps {
   fretes: Frete[];
   pagamentos: PagamentoFrete[];
-  abastecimentosCarreta: AbastecimentoCarreta[];
   obras: Obra[];
   pedidosMaterial: PedidoMaterial[];
   fornecedores: Fornecedor[];
+  /** Callback opcional pra navegar pra aba Conta Corrente (Fase 5). */
+  onVerContaCorrente?: () => void;
 }
 
 export default function FreteDashboard({
   fretes,
   pagamentos,
-  abastecimentosCarreta,
   obras,
   pedidosMaterial,
   fornecedores,
+  onVerContaCorrente,
 }: FreteDashboardProps) {
-  const navigate = useNavigate();
   const [dataInicio, setDataInicio] = useState('');
   const [dataFim, setDataFim] = useState('');
   const [obraIdFiltro, setObraIdFiltro] = useState('');
 
-  const goSaldo = (slug: string) => {
-    const params = new URLSearchParams();
-    if (dataInicio) params.set('inicio', dataInicio);
-    if (dataFim) params.set('fim', dataFim);
-    if (obraIdFiltro) params.set('obra', obraIdFiltro);
-    const qs = params.toString();
-    navigate(`/frete/saldo/${slug}${qs ? `?${qs}` : ''}`);
-  };
+  // Adapter inline: lê saidas_combustivel filtrado por carreta + resolve nome
+  // da transportadora via fornecedores. Substitui dependência de
+  // useAbastecimentosCarreta (compat shim) — Fase 5.
+  const { data: todasSaidas = [] } = useSaidasCombustivel();
+  const { data: todosFornecedores = [] } = useFornecedores();
+  const fornecedorNomeById = useMemo(
+    () => new Map(todosFornecedores.map((f) => [f.id, f.nome])),
+    [todosFornecedores]
+  );
+  const abastecimentosCarreta: AbastecimentoCarreta[] = useMemo(
+    () => todasSaidas
+      .filter((s) => s.tipoConsumidor === 'carreta_transportadora')
+      .map((s) => ({
+        id: s.id,
+        data: typeof s.data === 'string' ? s.data.slice(0, 10) : s.data,
+        transportadora: s.transportadoraId ? (fornecedorNomeById.get(s.transportadoraId) ?? '') : '',
+        placaCarreta: s.placa ?? '',
+        mesReferencia: typeof s.data === 'string' ? s.data.slice(0, 7) : '',
+        tipoCombustivel: s.tipoCombustivel ?? '',
+        quantidadeLitros: s.litros,
+        valorUnidade: s.precoUnitario,
+        valorTotal: s.valorTotal,
+        observacoes: s.observacoes ?? '',
+        // Não usado downstream — fixo 'transterra' por simplicidade.
+        categoria: 'transterra',
+        taxaLitro: s.taxaLitro,
+        criadoPor: s.createdBy ?? '',
+      })),
+    [todasSaidas, fornecedorNomeById]
+  );
   const [cmfMaterialFiltro, setCmfMaterialFiltro] = useState<string[]>([]);
   const [cmfDestinoFiltro, setCmfDestinoFiltro] = useState<string[]>([]);
   const [cmfPedreiraFiltro, setCmfPedreiraFiltro] = useState<string[]>([]);
@@ -856,7 +880,7 @@ export default function FreteDashboard({
             { label: 'Pago Frete', valor: `−${formatCurrency(sAreacre?.pagoFreteTotal ?? 0)}` },
             // Areacre é dona de tanque — recebe crédito de carretas, não débito.
           ]}
-          onClick={() => goSaldo('areacre')}
+          onClick={onVerContaCorrente}
         />
         <SaldoCard
           titulo="Saldo Triunfo"
@@ -866,7 +890,7 @@ export default function FreteDashboard({
             { label: 'Pago Frete', valor: `−${formatCurrency(sTriunfo?.pagoFreteTotal ?? 0)}` },
             { label: 'Débito Combustível', valor: `−${formatCurrency(sTriunfo?.debitoCombustivelTotal ?? 0)}` },
           ]}
-          onClick={() => goSaldo('triunfo')}
+          onClick={onVerContaCorrente}
         />
         <SaldoCard
           titulo="Saldo Andrade Transporte"
@@ -876,7 +900,7 @@ export default function FreteDashboard({
             { label: 'Pago Frete', valor: `−${formatCurrency(sAndrade?.pagoFreteTotal ?? 0)}` },
             { label: 'Débito Combustível', valor: `−${formatCurrency(sAndrade?.debitoCombustivelTotal ?? 0)}` },
           ]}
-          onClick={() => goSaldo('andrade')}
+          onClick={onVerContaCorrente}
         />
         <SaldoCard
           titulo="Saldo ETAM"
@@ -886,7 +910,7 @@ export default function FreteDashboard({
             { label: 'Pago Frete', valor: `−${formatCurrency(sEtam?.pagoFreteTotal ?? 0)}` },
             // ETAM tem saldo = pagosPelaEtam − pagosParaEtam (ajuste manual).
           ]}
-          onClick={() => goSaldo('etam')}
+          onClick={onVerContaCorrente}
         />
         <SaldoCard
           titulo="Saldo EMT TRANSPORTES"
@@ -896,7 +920,7 @@ export default function FreteDashboard({
             { label: 'Pago Frete', valor: `−${formatCurrency(sEmtTransportes?.pagoFreteTotal ?? 0)}` },
             { label: 'Débito Combustível', valor: `−${formatCurrency(sEmtTransportes?.debitoCombustivelTotal ?? 0)}` },
           ]}
-          onClick={() => goSaldo('emt-transportes')}
+          onClick={onVerContaCorrente}
         />
       </div>
 
@@ -917,7 +941,6 @@ export default function FreteDashboard({
       <FreteAnalyticsOverview
         fretesBase={fretesBase}
         pagamentosBase={pagamentosBase}
-        abastBase={abastCarretaBase}
         obrasMap={obrasMap}
         insumosMap={insumosMap}
         crossFilters={crossFilters}

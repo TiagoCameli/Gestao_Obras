@@ -3,9 +3,8 @@ import { useSearchParams } from 'react-router-dom';
 import type { Frete as FreteType, FiltrosFrete, Localidade, PagamentoFrete, PedidoMaterial } from '../types';
 import { useFretes, useAdicionarFrete, useAtualizarFrete, useExcluirFrete } from '../hooks/useFretes';
 import { usePagamentosFrete, useAdicionarPagamentoFrete, useAtualizarPagamentoFrete, useExcluirPagamentoFrete } from '../hooks/usePagamentosFrete';
-// useAbastecimentosCarreta (compat shim) ainda alimenta FreteDashboard
-// até Commit 6 reescrever o dashboard. Mutations não são mais usadas aqui.
-import { useAbastecimentosCarreta } from '../hooks/useAbastecimentosCarreta';
+// FreteDashboard agora lê saidas de carreta direto via useSaidasCombustivel
+// internamente (Fase 5). Removido useAbastecimentosCarreta daqui.
 import { usePedidosMaterial, useAdicionarPedidoMaterial, useAtualizarPedidoMaterial, useExcluirPedidoMaterial } from '../hooks/usePedidosMaterial';
 import { useObras } from '../hooks/useObras';
 import { useInsumos } from '../hooks/useInsumos';
@@ -63,9 +62,6 @@ export default function Frete() {
   const adicionarPagamentoMutation = useAdicionarPagamentoFrete();
   const atualizarPagamentoMutation = useAtualizarPagamentoFrete();
   const excluirPagamentoMutation = useExcluirPagamentoFrete();
-  // useAbastecimentosCarreta (compat shim) ainda alimenta FreteDashboard
-  // até Commit 6 reescrever o dashboard via view transportadora_saldos.
-  const { data: abastecimentosCarreta = [] } = useAbastecimentosCarreta();
   // Saldos das transportadoras pra aba Conta Corrente.
   const { data: saldosTransportadoras = [] } = useTodosSaldosTransportadora();
   const { data: pedidosMaterial = [] } = usePedidosMaterial();
@@ -375,10 +371,10 @@ export default function Frete() {
         <FreteDashboard
           fretes={fretes}
           pagamentos={pagamentosFrete}
-          abastecimentosCarreta={abastecimentosCarreta}
           obras={obras}
           pedidosMaterial={pedidosMaterial}
           fornecedores={fornecedores}
+          onVerContaCorrente={() => setTab('conta_corrente')}
         />
       )}
 

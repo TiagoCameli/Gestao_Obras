@@ -24,7 +24,7 @@ import {
   Wallet,
   Mountain,
 } from 'lucide-react';
-import type { Frete, PagamentoFrete, AbastecimentoCarreta } from '../../types';
+import type { Frete, PagamentoFrete } from '../../types';
 import { formatCurrency } from '../../utils/formatters';
 import type { CrossFilters, CrossDim } from './crossFilterTypes';
 
@@ -53,7 +53,6 @@ const METODO_LABELS: Record<string, string> = {
 interface Props {
   fretesBase: Frete[];
   pagamentosBase: PagamentoFrete[];
-  abastBase: AbastecimentoCarreta[];
   obrasMap: Map<string, string>;
   insumosMap: Map<string, string>;
   crossFilters: CrossFilters;
