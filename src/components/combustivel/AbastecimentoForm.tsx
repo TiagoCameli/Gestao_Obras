@@ -10,6 +10,7 @@ import Select from '../ui/Select';
 import Button from '../ui/Button';
 import SearchableSelect from '../apontamentos/SearchableSelect';
 import ImportExcelModal, { parseStr, parseNumero, type ParsedRow } from '../ui/ImportExcelModal';
+import FotoCaptureUploader from './FotoCaptureUploader';
 
 interface AbastecimentoFormProps {
   initial?: Abastecimento | null;
@@ -96,6 +97,10 @@ export default function AbastecimentoForm({
   const [depositoId, setDepositoId] = useState(initial?.depositoId || '');
   const [equipamentoId, setEquipamentoId] = useState(initial?.equipamentoId || '');
   const [veiculo, setVeiculo] = useState(initial?.veiculo || '');
+  const [fotosUrls, setFotosUrls] = useState<string[]>(initial?.fotosUrls ?? []);
+  // ID estável da pasta de upload no bucket — reaproveita o id do registro
+  // em modo edit ou cria um novo (fica vinculado ao novo registro pelo nome).
+  const [pastaFotos] = useState(() => initial?.id || `tmp-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`);
   const [observacoes, setObservacoes] = useState(initial?.observacoes || '');
   const [origemCombustivel, setOrigemCombustivel] = useState<OrigemCombustivel>(initial?.origemCombustivel || 'tanque');
   const [fornecedor, setFornecedor] = useState(initial?.fornecedor || '');
@@ -306,6 +311,7 @@ export default function AbastecimentoForm({
       depositoId: isTanqueRow ? depId : '',
       equipamentoId: '',
       veiculo: d.veiculo,
+      fotosUrls: [],
       observacoes: d.observacoes,
       criadoPor: '',
       origemCombustivel: origem,
@@ -341,6 +347,7 @@ export default function AbastecimentoForm({
       depositoId: isTanque ? depositoId : '',
       equipamentoId,
       veiculo,
+      fotosUrls,
       observacoes,
       criadoPor: initial?.criadoPor || '',
       origemCombustivel,
@@ -629,6 +636,13 @@ export default function AbastecimentoForm({
         >
           + Adicionar Etapa
         </button>
+      </div>
+
+      <div>
+        <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">
+          Fotos do abastecimento (opcional)
+        </label>
+        <FotoCaptureUploader fotosUrls={fotosUrls} onChange={setFotosUrls} pastaId={pastaFotos} />
       </div>
 
       <div>

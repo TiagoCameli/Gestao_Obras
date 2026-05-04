@@ -48,6 +48,8 @@ export interface Abastecimento {
   /** Texto livre do veículo. Mantido para auditoria de lançamentos antigos
    *  e como fallback quando equipamentoId está vazio. */
   veiculo: string;
+  /** URLs assinadas das fotos do abastecimento (bucket abastecimento-fotos). */
+  fotosUrls: string[];
   observacoes: string;
   criadoPor: string;
   origemCombustivel: OrigemCombustivel;
