@@ -63,6 +63,39 @@ projeto inteiro, não só ao escopo da refatoração.
        TRANSPORTES (-R$ 14k) na primeira tentativa de backfill da Fase 2.
        Fix em `20260505075000_fix_view_transportadora_saldos.sql`.
 
+11. **Abatimento parcial de débito não suportado na V1 (Fase 4).**
+    O `PagamentoAbatimentoCard` permite marcar débitos inteiros pra
+    abater (checkbox por linha, FIFO sugerido), mas não permite abater
+    uma fração de um débito (ex: pagar R$ 3k contra um débito de R$ 5k
+    deixando R$ 2k pendente). O modelo atual usa só
+    `transportadora_movimentos.abatido_em_pagamento_id` (FK), que é
+    binário (abatido inteiro ou não-abatido). Se necessidade aparecer
+    (débito muito grande > pagamento line item, ou usuário quer pagar
+    parcial), criar coluna `valor_abatido numeric(14,4)` em
+    `transportadora_movimentos` (default 0) e ajustar:
+    - `saldo_devedor_combustivel(transportadora_id, ate_data)` SQL
+      function — somar `(valor − coalesce(valor_abatido, 0))` em vez
+      de excluir abatidos.
+    - View `transportadora_saldos` — case quando valor_abatido > 0
+      subtrai só (valor − valor_abatido).
+    - `PagamentoAbatimentoCard` — input numérico ao lado do checkbox
+      pra editar valor parcial; default = valor cheio do débito.
+    - UPDATE no submit do PagamentoFreteForm — passa `valor_abatido`
+      junto com `abatido_em_pagamento_id`.
+
+12. **Tornar campo obrigatório em tipo TS cascata por TODOS os call
+    sites de literal.** Quando adicionei `ehTransportadora` /
+    `taxaLitroPadrao` / `ehDonaDeTanque` em `Fornecedor` (Fase 4 / Item 1)
+    pra refletir colunas DB existentes, `tsc` quebrou em 5 sites de
+    construção literal (EntradaForm, EntradaMaterialForm,
+    fornecedores.config, Compras.tsx, Obras.tsx). Já tinha acontecido na
+    Fase 1b com Deposito (3 campos novos → 4 sites literais). Padrão de
+    fix sempre o mesmo: hardcode false/0/false em criação nova; preserva
+    initial em edição. **Continuação da standing rule #3**: não basta
+    fazer grep amplo antes — também planejar o esforço cascata. Vale
+    checar TODOS os literais antes de subir o tipo, ou tornar campos
+    opcionais (`?`) com default no mapper se a UI não souber preencher.
+
 6. **Trigger functions de auto-movimento (Fase 1c) não setam
    `created_by`.** Movimentos criados via app post-Fase 1c ficam com
    `created_by IS NULL`. Se um dia for útil distinguir "auto-trigger"
