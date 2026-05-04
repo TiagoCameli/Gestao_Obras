@@ -189,15 +189,24 @@ export default function SaidaCombustivelForm({
     return totalLitros > 0 ? totalValor / totalLitros : 0;
   }, [origem, tanqueId, entradasCombustivel]);
 
-  // Combustível disponível no tanque: ditado pela entrada mais recente.
+  // Combustível disponível no tanque:
+  //   - Tanque externo (Transterra): hardcode Diesel S10 (nunca recebe entradas).
+  //   - Tanque interno: ditado pela entrada mais recente.
   // Misturar combustíveis no mesmo tanque é erro operacional (não suportado).
   const tipoCombustivelDoTanque = useMemo(() => {
     if (origem !== 'tanque' || !tanqueId) return '';
+    const tanque = depositos.find((d) => d.id === tanqueId);
+    if (tanque?.ehExterno) {
+      const dieselS10 = combustiveis.find(
+        (c) => c.nome.trim().toLowerCase() === 'diesel s10'
+      );
+      return dieselS10?.id ?? '';
+    }
     const ents = entradasCombustivel
       .filter((e) => e.depositoId === tanqueId)
       .sort((a, b) => new Date(b.dataHora).getTime() - new Date(a.dataHora).getTime());
     return ents[0]?.tipoCombustivel ?? '';
-  }, [origem, tanqueId, entradasCombustivel]);
+  }, [origem, tanqueId, depositos, combustiveis, entradasCombustivel]);
 
   // Auto-seleciona combustível conforme o tanque escolhido.
   useEffect(() => {
@@ -495,20 +504,37 @@ export default function SaidaCombustivelForm({
         />
 
         <div>
-          <Select
-            label="Tipo de Combustível"
-            id="saidaCombustivel"
-            value={tipoCombustivel}
-            onChange={(e) => setTipoCombustivel(e.target.value)}
-            options={listaCombustiveis.map((c) => ({ value: c.id, label: c.nome }))}
-            placeholder={
-              origem === 'tanque' && tanqueId && !tipoCombustivelDoTanque
-                ? 'Tanque sem entradas — selecione manualmente'
-                : 'Selecione combustível'
-            }
-            required
-            disabled={origem === 'tanque' && !!tipoCombustivelDoTanque}
-          />
+          {origem === 'tanque' && tanqueId ? (
+            tipoCombustivelDoTanque ? (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">
+                  Tipo de Combustível
+                </label>
+                <div className="px-3 py-2 rounded-lg bg-gray-100 dark:bg-slate-700 text-gray-800 dark:text-slate-200 text-sm">
+                  {listaCombustiveis.find((c) => c.id === tipoCombustivelDoTanque)?.nome ?? '—'}
+                </div>
+              </div>
+            ) : (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">
+                  Tipo de Combustível
+                </label>
+                <div className="px-3 py-2 rounded-lg bg-amber-50 dark:bg-amber-900/20 text-amber-800 dark:text-amber-300 text-sm border border-amber-200 dark:border-amber-800">
+                  Tanque sem entradas — registre uma entrada antes de fazer saída.
+                </div>
+              </div>
+            )
+          ) : (
+            <Select
+              label="Tipo de Combustível"
+              id="saidaCombustivel"
+              value={tipoCombustivel}
+              onChange={(e) => setTipoCombustivel(e.target.value)}
+              options={listaCombustiveis.map((c) => ({ value: c.id, label: c.nome }))}
+              placeholder="Selecione combustível"
+              required
+            />
+          )}
           {!novoCombustivelAberto ? (
             <button
               type="button"
