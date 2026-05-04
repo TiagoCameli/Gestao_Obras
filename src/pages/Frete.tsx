@@ -32,7 +32,7 @@ import { exportarAbastecimentosCarretaExcel, exportarAbastecimentosCarretaPDF } 
 import FilterBar from '../components/frete/FilterBar';
 import { Truck, Sparkles, BarChart3, Wallet, Fuel, PackageSearch } from 'lucide-react';
 
-type Tab = 'dashboard' | 'fretes' | 'pagamentos' | 'abastecimentos' | 'pedidos';
+type Tab = 'dashboard' | 'fretes' | 'pagamentos' | 'abastecimentos' | 'abastecimentos_emt' | 'pedidos';
 
 export default function Frete() {
   const { temAcao, usuario } = useAuth();
@@ -41,7 +41,7 @@ export default function Frete() {
   const canDelete = temAcao('excluir_frete');
 
   const [searchParams, setSearchParams] = useSearchParams();
-  const validTabs: Tab[] = ['dashboard', 'fretes', 'pagamentos', 'abastecimentos', 'pedidos'];
+  const validTabs: Tab[] = ['dashboard', 'fretes', 'pagamentos', 'abastecimentos', 'abastecimentos_emt', 'pedidos'];
   const tabParam = searchParams.get('tab') as Tab | null;
   const tab: Tab = tabParam && validTabs.includes(tabParam) ? tabParam : 'dashboard';
   const setTab = useCallback((t: Tab) => setSearchParams({ tab: t }, { replace: true }), [setSearchParams]);
@@ -173,12 +173,6 @@ export default function Frete() {
   const [abastFiltroMes, setAbastFiltroMes] = useState('');
   const [abastFiltroDataInicio, setAbastFiltroDataInicio] = useState('');
   const [abastFiltroDataFim, setAbastFiltroDataFim] = useState('');
-
-  // Extract unique placas from abastecimentos
-  const placasAbast = useMemo(() => {
-    const set = new Set(abastecimentosCarreta.map((a) => a.placaCarreta).filter(Boolean));
-    return Array.from(set).sort();
-  }, [abastecimentosCarreta]);
 
   // Extract unique meses from abastecimentos
   const mesesAbast = useMemo(() => {
@@ -315,6 +309,7 @@ export default function Frete() {
     { key: 'fretes', label: 'Fretes', icon: <Truck className="h-3.5 w-3.5" /> },
     { key: 'pagamentos', label: 'Pagamentos', icon: <Wallet className="h-3.5 w-3.5" /> },
     { key: 'abastecimentos', label: 'Abastecimento Transterra', icon: <Fuel className="h-3.5 w-3.5" /> },
+    { key: 'abastecimentos_emt', label: 'Abastecimento EMT', icon: <Fuel className="h-3.5 w-3.5" /> },
     { key: 'pedidos', label: 'Pedidos', icon: <PackageSearch className="h-3.5 w-3.5" /> },
   ];
 
@@ -533,13 +528,20 @@ export default function Frete() {
         </>
       )}
 
-      {/* ── Abastecimentos Tab ── */}
-      {tab === 'abastecimentos' && (
+      {/* ── Abastecimentos (Transterra / EMT) ── */}
+      {(tab === 'abastecimentos' || tab === 'abastecimentos_emt') && (() => {
+        const transpFiltro = tab === 'abastecimentos_emt' ? 'emt' : 'transterra';
+        const abastDaAba = abastecimentosCarreta.filter((a) =>
+          (a.transportadora ?? '').toLowerCase().includes(transpFiltro)
+        );
+        const transportadorasDaAba = Array.from(new Set(abastDaAba.map((a) => a.transportadora))).filter(Boolean).sort();
+        const placasDaAba = Array.from(new Set(abastDaAba.map((a) => a.placaCarreta).filter(Boolean))).sort();
+        return (
         <>
           <FilterBar
             fields={[
-              { key: 'transportadora', label: 'Transportadora', value: abastFiltroTransportadora, onChange: setAbastFiltroTransportadora, options: transportadoras.map((t) => ({ value: t, label: t })), placeholder: 'Todas as transportadoras' },
-              { key: 'placa', label: 'Placa', value: abastFiltroPlaca, onChange: setAbastFiltroPlaca, options: placasAbast.map((p) => ({ value: p, label: p })), placeholder: 'Todas as placas' },
+              { key: 'transportadora', label: 'Transportadora', value: abastFiltroTransportadora, onChange: setAbastFiltroTransportadora, options: transportadorasDaAba.map((t) => ({ value: t, label: t })), placeholder: 'Todas as transportadoras' },
+              { key: 'placa', label: 'Placa', value: abastFiltroPlaca, onChange: setAbastFiltroPlaca, options: placasDaAba.map((p) => ({ value: p, label: p })), placeholder: 'Todas as placas' },
               { key: 'dataInicio', label: 'De', value: abastFiltroDataInicio, onChange: setAbastFiltroDataInicio, type: 'date', placeholder: 'Data início' },
               { key: 'dataFim', label: 'Até', value: abastFiltroDataFim, onChange: setAbastFiltroDataFim, type: 'date', placeholder: 'Data fim' },
               { key: 'combustivel', label: 'Combustível', value: abastFiltroCombustivel, onChange: setAbastFiltroCombustivel, options: combustiveis.map((c) => ({ value: c.id, label: c.nome })), placeholder: 'Todos os combustíveis', collapsed: true },
@@ -563,7 +565,7 @@ export default function Frete() {
             <Button
               variant="secondary"
               className="text-xs"
-              onClick={() => exportarAbastecimentosCarretaExcel(abastecimentosCarreta, combustiveis, {
+              onClick={() => exportarAbastecimentosCarretaExcel(abastDaAba, combustiveis, {
                 transportadora: abastFiltroTransportadora,
                 placa: abastFiltroPlaca,
                 combustivelId: abastFiltroCombustivel,
@@ -577,7 +579,7 @@ export default function Frete() {
             <Button
               variant="secondary"
               className="text-xs"
-              onClick={() => exportarAbastecimentosCarretaPDF(abastecimentosCarreta, combustiveis, {
+              onClick={() => exportarAbastecimentosCarretaPDF(abastDaAba, combustiveis, {
                 transportadora: abastFiltroTransportadora,
                 placa: abastFiltroPlaca,
                 combustivelId: abastFiltroCombustivel,
@@ -591,7 +593,7 @@ export default function Frete() {
           </div>
 
           <AbastecimentoCarretaList
-            abastecimentos={abastecimentosCarreta}
+            abastecimentos={abastDaAba}
             combustiveis={combustiveis}
             filtroTransportadora={abastFiltroTransportadora}
             filtroPlaca={abastFiltroPlaca}
@@ -605,7 +607,8 @@ export default function Frete() {
             canDelete={canDelete}
           />
         </>
-      )}
+        );
+      })()}
 
       {/* ── Pedidos Tab ── */}
       {tab === 'pedidos' && (
