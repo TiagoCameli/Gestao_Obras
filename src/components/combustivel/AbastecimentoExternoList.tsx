@@ -97,7 +97,7 @@ export default function AbastecimentoExternoList({
                       ))}
                     </div>
                   </td>
-                  <td className="px-4 py-3">{equipMap.get(a.veiculo) || a.veiculo || '-'}</td>
+                  <td className="px-4 py-3">{equipMap.get(a.equipamentoId) || equipMap.get(a.veiculo) || a.veiculo || <span className="italic text-[var(--color-fg-subtle)]">Sem equipamento atrelado</span>}</td>
                   <td className="px-4 py-3">
                     <span className="inline-block px-2 py-0.5 rounded-full text-xs font-medium bg-orange-100 text-orange-800">
                       {insumosMap.get(a.tipoCombustivel) || a.tipoCombustivel}
