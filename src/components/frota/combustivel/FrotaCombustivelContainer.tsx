@@ -1,19 +1,31 @@
 import { useState, useCallback, useMemo } from 'react';
-import type { Abastecimento, EntradaCombustivel, TransferenciaCombustivel, Deposito, FiltrosAbastecimento } from '../../../types';
+import type {
+  EntradaCombustivel,
+  TransferenciaCombustivel,
+  Deposito,
+  FiltrosAbastecimento,
+  SaidaCombustivel,
+} from '../../../types';
 import { useObras } from '../../../hooks/useObras';
 import { useEtapas } from '../../../hooks/useEtapas';
 import { useDepositos, useAdicionarDeposito, useAtualizarDeposito, useExcluirDeposito } from '../../../hooks/useDepositos';
-import { useAbastecimentos, useAdicionarAbastecimento, useAtualizarAbastecimento, useExcluirAbastecimento, useMarcarAbastecimentoPago, useDesmarcarAbastecimentoPago } from '../../../hooks/useAbastecimentos';
+import { useAbastecimentos } from '../../../hooks/useAbastecimentos';
+// Hooks novos (Fase 3) — saídas via tabela unificada saidas_combustivel
+import { useSaidasCombustivel, useAdicionarSaidaCombustivel, useAtualizarSaidaCombustivel, useExcluirSaidaCombustivel } from '../../../hooks/useSaidasCombustivel';
 import { useEntradasCombustivel, useAdicionarEntradaCombustivel, useAtualizarEntradaCombustivel, useExcluirEntradaCombustivel } from '../../../hooks/useEntradasCombustivel';
 import { useTransferenciasCombustivel, useAdicionarTransferenciaCombustivel, useExcluirTransferenciaCombustivel } from '../../../hooks/useTransferenciasCombustivel';
+import { useEquipamentos } from '../../../hooks/useEquipamentos';
+import { useFornecedores } from '../../../hooks/useFornecedores';
+import { useFuncionarios } from '../../../hooks/useFuncionarios';
+import { useInsumos } from '../../../hooks/useInsumos';
 import { useAuth } from '../../../contexts/AuthContext';
 import Modal from '../../ui/Modal';
 import Button from '../../ui/Button';
 import PasswordDialog from '../../ui/PasswordDialog';
 import AbastecimentoFilters from '../../combustivel/AbastecimentoFilters';
-import AbastecimentoForm from '../../combustivel/AbastecimentoForm';
-import AbastecimentoList from '../../combustivel/AbastecimentoList';
-import AbastecimentoExternoList from '../../combustivel/AbastecimentoExternoList';
+// Saída unificada (Fase 4)
+import SaidaCombustivelForm from '../../combustivel/SaidaCombustivelForm';
+import SaidaCombustivelList from '../../combustivel/SaidaCombustivelList';
 import EntradaForm from '../../combustivel/EntradaForm';
 import EntradaList from '../../combustivel/EntradaList';
 import TransferenciaForm from '../../combustivel/TransferenciaForm';
@@ -51,21 +63,39 @@ export default function FrotaCombustivelContainer() {
   //   Triggers do DB bloqueiam INSERT em externos — filtro UI evita 4xx.
   const { data: depositosTodos = [] } = useDepositos({ incluirExternos: true });
   const { data: depositosOperacionais = [] } = useDepositos();
+  // Compat shim ainda alimenta CombustivelDashboard + ExportarPDFModal
+  // (esses dois migram pra useSaidasCombustivel no Commit 6 de dashboards).
   const { data: todosAbastecimentos = [] } = useAbastecimentos();
+  // Saídas via tabela unificada (Fase 3)
+  const { data: todasSaidas = [] } = useSaidasCombustivel();
   const { data: todasEntradas = [] } = useEntradasCombustivel();
   const { data: todasTransferencias = [] } = useTransferenciasCombustivel();
+  const { data: todosEquipamentos = [] } = useEquipamentos();
+  const { data: todosFornecedores = [] } = useFornecedores();
+  const { data: todosFuncionarios = [] } = useFuncionarios();
+  const { data: todosInsumos = [] } = useInsumos();
+
+  // Transportadoras filtradas pra forms/lists de saídas
+  const transportadoras = useMemo(
+    () => todosFornecedores.filter((f) => f.ehTransportadora && f.ativo !== false),
+    [todosFornecedores]
+  );
+
+  // Combustíveis = insumos tipo 'combustivel' ativos
+  const combustiveis = useMemo(
+    () => todosInsumos.filter((i) => i.tipo === 'combustivel' && i.ativo !== false),
+    [todosInsumos]
+  );
 
   // Deposito mutations
   const adicionarDepositoMut = useAdicionarDeposito();
   const atualizarDepositoMut = useAtualizarDeposito();
   const excluirDepositoMut = useExcluirDeposito();
 
-  // Abastecimento mutations
-  const adicionarAbastecimentoMut = useAdicionarAbastecimento();
-  const atualizarAbastecimentoMut = useAtualizarAbastecimento();
-  const excluirAbastecimentoMut = useExcluirAbastecimento();
-  const marcarPagoMut = useMarcarAbastecimentoPago();
-  const desmarcarPagoMut = useDesmarcarAbastecimentoPago();
+  // Saída mutations (modelo unificado Fase 3)
+  const adicionarSaidaMut = useAdicionarSaidaCombustivel();
+  const atualizarSaidaMut = useAtualizarSaidaCombustivel();
+  const excluirSaidaMut = useExcluirSaidaCombustivel();
 
   // Entrada mutations
   const adicionarEntradaMut = useAdicionarEntradaCombustivel();
@@ -83,9 +113,9 @@ export default function FrotaCombustivelContainer() {
   const [modalTanqueOpen, setModalTanqueOpen] = useState(false);
   const [editandoTanque, setEditandoTanque] = useState<Deposito | null>(null);
 
-  // Saida state
+  // Saida state (modelo unificado Fase 3/4)
   const [modalSaidaOpen, setModalSaidaOpen] = useState(false);
-  const [editandoSaida, setEditandoSaida] = useState<Abastecimento | null>(null);
+  const [editandoSaida, setEditandoSaida] = useState<SaidaCombustivel | null>(null);
 
   // Entrada state
   const [modalEntradaOpen, setModalEntradaOpen] = useState(false);
@@ -96,10 +126,6 @@ export default function FrotaCombustivelContainer() {
 
   // Exportar state
   const [modalExportarOpen, setModalExportarOpen] = useState(false);
-
-  // Sub-tab para saidas
-  type SubTabSaida = 'tanque' | 'dinheiro' | 'requisicao';
-  const [subTabSaida, setSubTabSaida] = useState<SubTabSaida>('tanque');
 
   // Password gate
   const [senhaOpen, setSenhaOpen] = useState(false);
@@ -121,6 +147,8 @@ export default function FrotaCombustivelContainer() {
     return true;
   }
 
+  // Filtro shape antigo (Abastecimento.dataHora) — usado pelo Dashboard +
+  // ExportarPDFModal que ainda recebem o shape antigo via shim.
   const abastecimentosFiltrados = useMemo(() => {
     return todosAbastecimentos.filter((a) => {
       if (filtros.obraId && a.obraId !== filtros.obraId) return false;
@@ -130,9 +158,15 @@ export default function FrotaCombustivelContainer() {
     });
   }, [todosAbastecimentos, filtros]);
 
-  const saidasTanque = useMemo(() => abastecimentosFiltrados.filter((a) => !a.origemCombustivel || a.origemCombustivel === 'tanque'), [abastecimentosFiltrados]);
-  const saidasDinheiro = useMemo(() => abastecimentosFiltrados.filter((a) => a.origemCombustivel === 'dinheiro'), [abastecimentosFiltrados]);
-  const saidasRequisicao = useMemo(() => abastecimentosFiltrados.filter((a) => a.origemCombustivel === 'requisicao'), [abastecimentosFiltrados]);
+  // Saídas no shape novo (SaidaCombustivel.data) — alimenta SaidaCombustivelList.
+  const saidasFiltradas = useMemo(() => {
+    return todasSaidas.filter((s) => {
+      if (filtros.obraId && s.obraId !== filtros.obraId) return false;
+      if (filtros.tipoCombustivel && s.tipoCombustivel !== filtros.tipoCombustivel) return false;
+      if (!filtrarPorData(s.data)) return false;
+      return true;
+    });
+  }, [todasSaidas, filtros]);
 
   const entradasFiltradas = useMemo(() => {
     return todasEntradas.filter((e) => {
@@ -177,32 +211,32 @@ export default function FrotaCombustivelContainer() {
     [excluirDepositoMut]
   );
 
-  // Saida handlers
+  // Saida handlers (modelo unificado SaidaCombustivel)
   const handleSubmitSaida = useCallback(
-    async (data: Abastecimento) => {
+    async (saida: SaidaCombustivel) => {
       if (editandoSaida) {
-        await atualizarAbastecimentoMut.mutateAsync(data);
+        await atualizarSaidaMut.mutateAsync(saida);
       } else {
-        await adicionarAbastecimentoMut.mutateAsync({ ...data, criadoPor: usuario?.nome || '' });
+        await adicionarSaidaMut.mutateAsync({ ...saida, createdBy: usuario?.nome || null });
       }
       setModalSaidaOpen(false);
       setEditandoSaida(null);
     },
-    [editandoSaida, atualizarAbastecimentoMut, adicionarAbastecimentoMut, usuario]
+    [editandoSaida, atualizarSaidaMut, adicionarSaidaMut, usuario]
   );
 
-  const handleEditSaida = useCallback((ab: Abastecimento) => {
+  const handleEditSaida = useCallback((s: SaidaCombustivel) => {
     pedirSenha(() => {
-      setEditandoSaida(ab);
+      setEditandoSaida(s);
       setModalSaidaOpen(true);
     });
   }, []);
 
   const handleDeleteSaida = useCallback(
     async (id: string) => {
-      await excluirAbastecimentoMut.mutateAsync(id);
+      await excluirSaidaMut.mutateAsync(id);
     },
-    [excluirAbastecimentoMut]
+    [excluirSaidaMut]
   );
 
   // Entrada handlers
@@ -361,65 +395,18 @@ export default function FrotaCombustivelContainer() {
       )}
 
       {subTab === 'saidas' && (
-        <div>
-          {/* Sub-tabs de origem */}
-          <div className="flex gap-1 mb-4 bg-gray-100 dark:bg-slate-700 rounded-lg p-1 w-fit">
-            {([
-              { key: 'tanque' as SubTabSaida, label: 'Tanque', count: saidasTanque.length },
-              { key: 'dinheiro' as SubTabSaida, label: 'Dinheiro', count: saidasDinheiro.length },
-              { key: 'requisicao' as SubTabSaida, label: 'Requisição', count: saidasRequisicao.length },
-            ]).map((st) => (
-              <button
-                key={st.key}
-                className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
-                  subTabSaida === st.key
-                    ? 'bg-white dark:bg-slate-800 text-gray-800 dark:text-slate-200 shadow-sm'
-                    : 'text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-200'
-                }`}
-                onClick={() => setSubTabSaida(st.key)}
-              >
-                {st.label}
-                <span className="ml-1.5 text-xs text-gray-400">({st.count})</span>
-              </button>
-            ))}
-          </div>
-
-          {subTabSaida === 'tanque' && (
-            <AbastecimentoList
-              abastecimentos={saidasTanque}
-              obras={obras}
-              onEdit={handleEditSaida}
-              onDelete={(id) => pedirSenha(() => handleDeleteSaida(id))}
-              canEdit={canEdit}
-              canDelete={canDelete}
-            />
-          )}
-
-          {subTabSaida === 'dinheiro' && (
-            <AbastecimentoExternoList
-              abastecimentos={saidasDinheiro}
-              obras={obras}
-              onEdit={handleEditSaida}
-              onDelete={(id) => pedirSenha(() => handleDeleteSaida(id))}
-              canEdit={canEdit}
-              canDelete={canDelete}
-            />
-          )}
-
-          {subTabSaida === 'requisicao' && (
-            <AbastecimentoExternoList
-              abastecimentos={saidasRequisicao}
-              obras={obras}
-              onEdit={handleEditSaida}
-              onDelete={(id) => pedirSenha(() => handleDeleteSaida(id))}
-              onMarcarPago={(id) => marcarPagoMut.mutate({ id, pagoPor: usuario?.nome || '' })}
-              onDesmarcarPago={(id) => desmarcarPagoMut.mutate(id)}
-              canEdit={canEdit}
-              canDelete={canDelete}
-              mostrarPagamento
-            />
-          )}
-        </div>
+        <SaidaCombustivelList
+          saidas={saidasFiltradas}
+          obras={obras}
+          depositos={depositosTodos}
+          equipamentos={todosEquipamentos}
+          transportadoras={transportadoras}
+          combustiveis={combustiveis}
+          onEdit={handleEditSaida}
+          onDelete={(id) => pedirSenha(() => handleDeleteSaida(id))}
+          canEdit={canEdit}
+          canDelete={canDelete}
+        />
       )}
 
       {subTab === 'transferencias' && (
@@ -456,26 +443,25 @@ export default function FrotaCombustivelContainer() {
         />
       </Modal>
 
-      {/* Modal Saida */}
+      {/* Modal Saida (form unificado Fase 4) */}
       <Modal
         open={modalSaidaOpen}
         onClose={() => { setModalSaidaOpen(false); setEditandoSaida(null); }}
         title={editandoSaida ? 'Editar Saída' : 'Nova Saída de Combustível'}
+        size="lg"
       >
-        <AbastecimentoForm
+        <SaidaCombustivelForm
           initial={editandoSaida}
           onSubmit={handleSubmitSaida}
           onCancel={() => { setModalSaidaOpen(false); setEditandoSaida(null); }}
           obras={obras}
           etapas={etapas}
-          depositos={depositosOperacionais}
-          onImportBatch={async (items) => {
-            for (const item of items) {
-              await adicionarAbastecimentoMut.mutateAsync({ ...item, criadoPor: usuario?.nome || '' });
-            }
-            setModalSaidaOpen(false);
-            setEditandoSaida(null);
-          }}
+          depositos={depositosTodos}
+          equipamentos={todosEquipamentos}
+          transportadoras={transportadoras}
+          funcionarios={todosFuncionarios}
+          combustiveis={combustiveis}
+          entradasCombustivel={todasEntradas}
         />
       </Modal>
 
