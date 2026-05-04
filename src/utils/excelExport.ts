@@ -147,7 +147,7 @@ export async function exportarSaidasExcel(
 
   mini('POR OBRA', 'Obra', agrupar((a) => a.obraId, (k) => obrasMap.get(k) || '—'));
   mini('POR TANQUE', 'Tanque', agrupar((a) => a.depositoId, (k) => depositosMap.get(k) || '—'));
-  mini('POR EQUIPAMENTO (TOP 10)', 'Equipamento', agrupar((a) => a.veiculo, (k) => equipMap.get(k) || k), 10);
+  mini('POR EQUIPAMENTO (TOP 10)', 'Equipamento', agrupar((a) => a.equipamentoId || a.veiculo, (k) => equipMap.get(k) || k), 10);
   mini('POR COMBUSTÍVEL', 'Combustível', agrupar((a) => a.tipoCombustivel, (k) => insumosMap.get(k) || k));
 
   renderExcelDetalhamento<Abastecimento>(
@@ -158,7 +158,7 @@ export async function exportarSaidasExcel(
       { header: 'Obra', key: 'obra', width: 22, align: 'left', value: (a) => obrasMap.get(a.obraId) || '-' },
       { header: 'Etapas', key: 'etapas', width: 28, align: 'left', value: (a) => formatarAlocacoes(a.alocacoes, a.etapaId) },
       { header: 'Tanque', key: 'tanque', width: 22, align: 'left', value: (a) => depositosMap.get(a.depositoId) || '-' },
-      { header: 'Equipamento', key: 'equipamento', width: 24, align: 'left', value: (a) => equipMap.get(a.veiculo) || a.veiculo || '-' },
+      { header: 'Equipamento', key: 'equipamento', width: 24, align: 'left', value: (a) => equipMap.get(a.equipamentoId) || equipMap.get(a.veiculo) || a.veiculo || '-' },
       { header: 'Combustível', key: 'combustivel', width: 18, align: 'left', value: (a) => insumosMap.get(a.tipoCombustivel) || a.tipoCombustivel },
       { header: 'Origem', key: 'origem', width: 14, align: 'center',
         value: (a) => (a.origemCombustivel === 'dinheiro' ? 'Dinheiro' : a.origemCombustivel === 'requisicao' ? 'Requisição' : 'Tanque') },
@@ -546,7 +546,7 @@ export async function exportarRelatorioCompletoCombustivelExcel(
       { header: 'Obra', key: 'obra', width: 22, align: 'left', value: (a) => obrasMap.get(a.obraId) || '-' },
       { header: 'Etapas', key: 'etapas', width: 28, align: 'left', value: (a) => formatarAlocacoes(a.alocacoes, a.etapaId) },
       { header: 'Tanque', key: 'tanque', width: 22, align: 'left', value: (a) => depositosMap.get(a.depositoId) || '-' },
-      { header: 'Equipamento', key: 'equipamento', width: 24, align: 'left', value: (a) => equipMap.get(a.veiculo) || a.veiculo || '-' },
+      { header: 'Equipamento', key: 'equipamento', width: 24, align: 'left', value: (a) => equipMap.get(a.equipamentoId) || equipMap.get(a.veiculo) || a.veiculo || '-' },
       { header: 'Combustível', key: 'combustivel', width: 18, align: 'left', value: (a) => insumosMap.get(a.tipoCombustivel) || a.tipoCombustivel },
       { header: 'Origem', key: 'origem', width: 14, align: 'center',
         value: (a) => (a.origemCombustivel === 'dinheiro' ? 'Dinheiro' : a.origemCombustivel === 'requisicao' ? 'Requisição' : 'Tanque') },

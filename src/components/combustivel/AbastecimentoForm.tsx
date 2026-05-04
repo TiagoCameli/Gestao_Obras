@@ -86,6 +86,7 @@ export default function AbastecimentoForm({
     getInitialAlocacoes(initial)
   );
   const [depositoId, setDepositoId] = useState(initial?.depositoId || '');
+  const [equipamentoId, setEquipamentoId] = useState(initial?.equipamentoId || '');
   const [veiculo, setVeiculo] = useState(initial?.veiculo || '');
   const [observacoes, setObservacoes] = useState(initial?.observacoes || '');
   const [origemCombustivel, setOrigemCombustivel] = useState<OrigemCombustivel>(initial?.origemCombustivel || 'tanque');
@@ -295,6 +296,7 @@ export default function AbastecimentoForm({
       etapaId,
       alocacoes: etapaId ? [{ etapaId, percentual: 100 }] : [],
       depositoId: isTanqueRow ? depId : '',
+      equipamentoId: '',
       veiculo: d.veiculo,
       observacoes: d.observacoes,
       criadoPor: '',
@@ -329,6 +331,7 @@ export default function AbastecimentoForm({
       etapaId: alocacoes[0]?.etapaId || '',
       alocacoes,
       depositoId: isTanque ? depositoId : '',
+      equipamentoId,
       veiculo,
       observacoes,
       criadoPor: initial?.criadoPor || '',
@@ -513,8 +516,12 @@ export default function AbastecimentoForm({
               id: eq.id,
               label: `${eq.nome}${eq.marca ? ` - ${eq.marca}` : ''}`,
             }))}
-            value={veiculo}
-            onChange={setVeiculo}
+            value={equipamentoId || veiculo}
+            onChange={(id) => {
+              setEquipamentoId(id);
+              const eq = equipamentosAtivos.find((e) => e.id === id);
+              setVeiculo(eq ? eq.nome : id);
+            }}
             placeholder={
               equipamentosAtivos.length === 0
                 ? 'Nenhum equipamento ativo'

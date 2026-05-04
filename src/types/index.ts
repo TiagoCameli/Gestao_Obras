@@ -42,6 +42,11 @@ export interface Abastecimento {
   etapaId: string;
   alocacoes?: AlocacaoEtapa[];
   depositoId: string;
+  /** ID do equipamento associado (FK pra tabela equipamentos). Pode ser
+   *  vazio para lançamentos legados ou quando não há equipamento. */
+  equipamentoId: string;
+  /** Texto livre do veículo. Mantido para auditoria de lançamentos antigos
+   *  e como fallback quando equipamentoId está vazio. */
   veiculo: string;
   observacoes: string;
   criadoPor: string;

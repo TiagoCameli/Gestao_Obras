@@ -158,7 +158,7 @@ export function exportarSaidasPDF(
 
   mini('POR OBRA', 'Obra', agrupar((a) => a.obraId, (k) => obrasMap.get(k) || '—'));
   mini('POR TANQUE', 'Tanque', agrupar((a) => a.depositoId, (k) => depositosMap.get(k) || '—'));
-  mini('POR EQUIPAMENTO (TOP 10)', 'Equipamento', agrupar((a) => a.veiculo, (k) => equipMap.get(k) || k), 10);
+  mini('POR EQUIPAMENTO (TOP 10)', 'Equipamento', agrupar((a) => a.equipamentoId || a.veiculo, (k) => equipMap.get(k) || k), 10);
   mini('POR COMBUSTÍVEL', 'Combustível', agrupar((a) => a.tipoCombustivel, (k) => insumosMap.get(k) || k));
 
   doc.addPage();
@@ -172,7 +172,7 @@ export function exportarSaidasPDF(
       obrasMap.get(a.obraId) || '-',
       formatarAlocacoes(a.alocacoes, a.etapaId),
       depositosMap.get(a.depositoId) || '-',
-      equipMap.get(a.veiculo) || a.veiculo || '-',
+      equipMap.get(a.equipamentoId) || equipMap.get(a.veiculo) || a.veiculo || '-',
       insumosMap.get(a.tipoCombustivel) || a.tipoCombustivel,
       fmtNum(a.quantidadeLitros),
       fmtBRL(a.valorTotal),
