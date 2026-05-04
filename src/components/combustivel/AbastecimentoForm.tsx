@@ -52,7 +52,15 @@ export default function AbastecimentoForm({
   onImportBatch,
 }: AbastecimentoFormProps) {
   const { data: equipamentosData } = useEquipamentos();
-  const equipamentosAtivos = (equipamentosData ?? []).filter((e) => e.ativo !== false);
+  const equipamentosAtivos = (equipamentosData ?? [])
+    .filter((e) => e.status !== 'fora_funcionamento')
+    .sort((a, b) => {
+      // Equipamentos com patrimônio primeiro (ordenado por patrimônio); resto por nome.
+      if (a.codigoPatrimonio && b.codigoPatrimonio) return a.codigoPatrimonio.localeCompare(b.codigoPatrimonio);
+      if (a.codigoPatrimonio) return -1;
+      if (b.codigoPatrimonio) return 1;
+      return a.nome.localeCompare(b.nome);
+    });
   const { data: insumosData } = useInsumos();
   const insumosCombustivel = (insumosData ?? []).filter((i) => i.tipo === 'combustivel' && i.ativo !== false);
   const { data: entradasData } = useEntradasCombustivel();
@@ -510,12 +518,20 @@ export default function AbastecimentoForm({
         <div>
           <label htmlFor="veiculo" className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">
             Veículo / Equipamento<span className="text-red-500 ml-0.5">*</span>
+            <span className="ml-2 text-[11px] font-normal text-[var(--color-fg-subtle)]">
+              · vindo do módulo Frota
+            </span>
           </label>
           <SearchableSelect
-            options={equipamentosAtivos.map((eq) => ({
-              id: eq.id,
-              label: `${eq.nome}${eq.marca ? ` - ${eq.marca}` : ''}`,
-            }))}
+            options={equipamentosAtivos.map((eq) => {
+              const partes = [];
+              if (eq.codigoPatrimonio) partes.push(eq.codigoPatrimonio);
+              partes.push(eq.nome);
+              const marcaModelo = [eq.marca, eq.modelo].filter(Boolean).join(' ');
+              if (marcaModelo) partes.push(marcaModelo);
+              if (eq.propriedade === 'alugada') partes.push('(alugado)');
+              return { id: eq.id, label: partes.join(' · ') };
+            })}
             value={equipamentoId || veiculo}
             onChange={(id) => {
               setEquipamentoId(id);
