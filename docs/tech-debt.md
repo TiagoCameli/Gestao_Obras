@@ -33,6 +33,28 @@ projeto inteiro, não só ao escopo da refatoração.
    `Deposito.ehExterno` obrigatório quebrou TS em 4 call sites de
    construção literal que o grep original (só `useDepositos`) não pegou.
 
+4. **Tipos de FK no schema EMT: tudo é `text`**, mesmo quando o valor
+   parece UUID. Tabelas com `id text` (formato UUID armazenado como
+   string): `obras`, `equipamentos`, `funcionarios`, `etapas_obra`,
+   `fornecedores`, `depositos`, `fretes`, `pagamentos_frete`,
+   `abastecimentos_carreta`, `abastecimentos`, `transportadora_movimentos`,
+   `saidas_combustivel`, `insumos`. Antes de criar uma FK pra qualquer
+   uma delas, **confirmar tipo via probe** (`POST` com `id="not_a_uuid"`
+   — se aceitar sem cast error, é text; se rejeitar com type error, é
+   uuid). Não assumir uuid pelo formato visual (`xxxxxxxx-xxxx-...`).
+   Origem: `db push` da Fase 1c falhou em
+   `transportadora_movimentos.obra_id uuid REFERENCES obras(id)` porque
+   `obras.id` é text armazenando string em formato uuid.
+
+5. **`_` em `LIKE` é wildcard**, não literal. Quando filtrar
+   `pg_constraint`/`pg_trigger`/`information_schema` por nome, usar
+   `IN (lista_explícita)` em vez de `LIKE 'prefix_%'`. Exemplo do bug:
+   `conname LIKE 'saida_%'` casa com `'saidas_combustivel_origem_check'`
+   (o `s` no meio de `saidas` casa com o wildcard `_`). Pra `_` literal,
+   escape com `\_` e `ESCAPE '\\'`, mas `IN (...)` é mais legível e
+   robusto. Origem: validação inline da Fase 1c reportou
+   `7 CHECKs encontrado 4 esperados` por casamento acidental do LIKE.
+
 ---
 
 ## Adicionar `created_at` / `updated_at` em fretes, pagamentos_frete, abastecimentos_carreta
