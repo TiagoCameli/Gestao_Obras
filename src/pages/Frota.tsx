@@ -13,10 +13,23 @@ import FrotaList from '../components/frota/FrotaList';
 import FrotaDetalhe from '../components/frota/FrotaDetalhe';
 import EquipamentoFormFrota from '../components/frota/EquipamentoFormFrota';
 import { exportarFrotaPDF, exportarFrotaExcel } from '../utils/frotaExport';
+import { Plus, Search, X, LayoutGrid, List as ListIcon, FileText, Sheet, SlidersHorizontal } from 'lucide-react';
 
 type ModoVisualizacao = 'grid' | 'lista';
 type FiltroAtivo = 'todos' | 'ativos' | 'inativos';
 type FiltroPropriedade = 'todos' | PropriedadeEquipamento;
+
+const PROP_LABELS: Record<FiltroPropriedade, string> = {
+  todos: 'Todas',
+  propria: 'Próprios',
+  alugada: 'Alugados',
+};
+
+const STATUS_LABELS: Record<FiltroAtivo, string> = {
+  todos: 'Todos',
+  ativos: 'Ativos',
+  inativos: 'Inativos',
+};
 
 export default function Frota() {
   const { data: equipamentos = [], isLoading } = useEquipamentos();
@@ -43,6 +56,7 @@ export default function Frota() {
   const setFiltroPropriedade = (v: FiltroPropriedade) => setFiltroPropRaw(v);
   const [modalNovoOpen, setModalNovoOpen] = useState(false);
   const [editandoEquip, setEditandoEquip] = useState<Equipamento | null>(null);
+  const [filtrosAvancadosOpen, setFiltrosAvancadosOpen] = useState(false);
 
   const canCreate = temAcao('criar_cadastros');
   const canEdit = temAcao('editar_cadastros');
@@ -80,7 +94,12 @@ export default function Frota() {
 
     if (busca.trim()) {
       const termo = busca.toLowerCase();
-      lista = lista.filter((e) => e.nome.toLowerCase().includes(termo) || (e.modelo ?? '').toLowerCase().includes(termo));
+      lista = lista.filter(
+        (e) =>
+          e.nome.toLowerCase().includes(termo) ||
+          (e.modelo ?? '').toLowerCase().includes(termo) ||
+          (e.marca ?? '').toLowerCase().includes(termo)
+      );
     }
 
     if (buscaPatrimonio.trim()) {
@@ -91,214 +110,295 @@ export default function Frota() {
     return lista;
   }, [equipamentos, filtroAtivo, filtroPropriedade, categoriaFiltro, filtroEmpresa, busca, buscaPatrimonio]);
 
+  const filtrosAtivosCount =
+    (filtroAtivo !== 'todos' ? 1 : 0) +
+    (filtroPropriedade !== 'todos' ? 1 : 0) +
+    (categoriaFiltro ? 1 : 0) +
+    (filtroEmpresa ? 1 : 0) +
+    (busca.trim() ? 1 : 0) +
+    (buscaPatrimonio.trim() ? 1 : 0);
+
+  function limparFiltros() {
+    setBusca('');
+    setBuscaPatrimonio('');
+    setFiltroEmpresa('');
+    setCategoriaFiltro('');
+    setFiltroAtivo('todos');
+    setFiltroPropriedade('todos');
+  }
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-20">
-        <p className="text-[var(--color-fg-muted)]">Carregando frota...</p>
+        <p className="text-[var(--color-fg-muted)] text-sm">Carregando frota...</p>
       </div>
     );
   }
 
+  function exportarComFiltros(fn: typeof exportarFrotaPDF) {
+    const filtros: string[] = [];
+    if (filtroAtivo !== 'todos') filtros.push(`Status: ${filtroAtivo}`);
+    if (filtroPropriedade !== 'todos') filtros.push(`Propriedade: ${filtroPropriedade}`);
+    if (categoriaFiltro) filtros.push(`Tipo: ${categoriaFiltro}`);
+    if (filtroEmpresa) {
+      const nome = empresas.find((e) => e.id === filtroEmpresa)?.nome;
+      if (nome) filtros.push(`Empresa: ${nome}`);
+    }
+    fn(equipamentosFiltrados, empresas, filtros.length > 0 ? filtros.join(' | ') : undefined);
+  }
+
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <h1 className="text-2xl sm:text-[28px] font-semibold tracking-tight text-[var(--color-fg)]">Frota</h1>
-        <div className="flex items-center gap-2 flex-wrap">
-          {canCreate && (
-            <Button onClick={() => setModalNovoOpen(true)} className="text-sm">
-              + Novo Equipamento
+      {/* HERO HEADER */}
+      <header className="rounded-2xl border border-[var(--color-border)] bg-gradient-to-br from-[var(--color-surface-1)] to-[var(--color-surface-2)] p-5 sm:p-6">
+        <div className="flex items-start justify-between gap-4 flex-wrap">
+          <div className="min-w-0">
+            <h1 className="text-2xl sm:text-[28px] font-semibold tracking-tight text-[var(--color-fg)] leading-tight">
+              Frota
+            </h1>
+            <p className="text-sm text-[var(--color-fg-muted)] mt-1">
+              Gestão de equipamentos próprios e alugados.
+            </p>
+          </div>
+          <div className="flex items-center gap-2 flex-wrap">
+            {canCreate && (
+              <Button onClick={() => setModalNovoOpen(true)} variant="primary">
+                <Plus aria-hidden className="w-4 h-4" />
+                Novo equipamento
+              </Button>
+            )}
+            <Button variant="secondary" size="sm" onClick={() => exportarComFiltros(exportarFrotaPDF)}>
+              <FileText aria-hidden className="w-4 h-4" />
+              PDF
             </Button>
-          )}
-          <Button
-            variant="secondary"
-            className="text-sm"
-            onClick={() => {
-              const filtros: string[] = [];
-              if (filtroAtivo !== 'todos') filtros.push(`Status: ${filtroAtivo}`);
-              if (filtroPropriedade !== 'todos') filtros.push(`Propriedade: ${filtroPropriedade}`);
-              if (categoriaFiltro) filtros.push(`Tipo: ${categoriaFiltro}`);
-              if (filtroEmpresa) {
-                const nome = empresas.find((e) => e.id === filtroEmpresa)?.nome;
-                if (nome) filtros.push(`Empresa: ${nome}`);
-              }
-              exportarFrotaPDF(equipamentosFiltrados, empresas, filtros.length > 0 ? filtros.join(' | ') : undefined);
-            }}
-          >
-            Exportar PDF
-          </Button>
-          <Button
-            variant="secondary"
-            className="text-sm"
-            onClick={() => {
-              const filtros: string[] = [];
-              if (filtroAtivo !== 'todos') filtros.push(`Status: ${filtroAtivo}`);
-              if (filtroPropriedade !== 'todos') filtros.push(`Propriedade: ${filtroPropriedade}`);
-              if (categoriaFiltro) filtros.push(`Tipo: ${categoriaFiltro}`);
-              if (filtroEmpresa) {
-                const nome = empresas.find((e) => e.id === filtroEmpresa)?.nome;
-                if (nome) filtros.push(`Empresa: ${nome}`);
-              }
-              exportarFrotaExcel(equipamentosFiltrados, empresas, filtros.length > 0 ? filtros.join(' | ') : undefined);
-            }}
-          >
-            Exportar Excel
-          </Button>
-          <div className="flex rounded-lg border border-[var(--color-border)] overflow-hidden text-sm">
-            {(['todos', 'ativos', 'inativos'] as FiltroAtivo[]).map((f) => (
-              <button
-                key={f}
-                onClick={() => setFiltroAtivo(f)}
-                className={`px-3 py-1.5 capitalize transition-colors ${
-                  filtroAtivo === f
-                    ? 'bg-[var(--color-accent)] text-[var(--color-fg-on-accent)]'
-                    : 'text-[var(--color-fg-muted)] hover:bg-[var(--color-surface-2)]'
-                }`}
-              >
-                {f}
-              </button>
-            ))}
-          </div>
-          <div className="flex rounded-lg border border-[var(--color-border)] overflow-hidden text-sm">
-            {(['todos', 'propria', 'alugada'] as FiltroPropriedade[]).map((f) => (
-              <button
-                key={f}
-                onClick={() => setFiltroPropriedade(f)}
-                className={`px-3 py-1.5 capitalize transition-colors ${
-                  filtroPropriedade === f
-                    ? 'bg-[var(--color-accent)] text-[var(--color-fg-on-accent)]'
-                    : 'text-[var(--color-fg-muted)] hover:bg-[var(--color-surface-2)]'
-                }`}
-              >
-                {f === 'todos' ? 'todos' : f === 'propria' ? 'Próprios' : 'Alugados'}
-              </button>
-            ))}
-          </div>
-          <div className="flex rounded-lg border border-[var(--color-border)] overflow-hidden">
-            <button
-              onClick={() => setModoVisualizacao('grid')}
-              className={`p-2 transition-colors ${
-                modoVisualizacao === 'grid'
-                  ? 'bg-[var(--color-accent)] text-[var(--color-fg-on-accent)]'
-                  : 'text-[var(--color-fg-muted)] hover:bg-[var(--color-surface-2)]'
-              }`}
-              title="Grid"
-            >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
-              </svg>
-            </button>
-            <button
-              onClick={() => setModoVisualizacao('lista')}
-              className={`p-2 transition-colors ${
-                modoVisualizacao === 'lista'
-                  ? 'bg-[var(--color-accent)] text-[var(--color-fg-on-accent)]'
-                  : 'text-[var(--color-fg-muted)] hover:bg-[var(--color-surface-2)]'
-              }`}
-              title="Lista"
-            >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-              </svg>
-            </button>
+            <Button variant="secondary" size="sm" onClick={() => exportarComFiltros(exportarFrotaExcel)}>
+              <Sheet aria-hidden className="w-4 h-4" />
+              Excel
+            </Button>
           </div>
         </div>
-      </div>
+      </header>
 
+      {/* KPIs */}
       <FrotaStats equipamentos={equipamentos} />
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <input
-          type="text"
-          placeholder="Filtrar por nome ou modelo..."
-          value={busca}
-          onChange={(e) => setBusca(e.target.value)}
-          className="w-full h-[44px] border border-[var(--color-border)] bg-[var(--color-surface-1)] text-[var(--color-fg)] rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-ring)]"
-        />
-        <input
-          type="text"
-          placeholder="Filtrar por patrimônio..."
-          value={buscaPatrimonio}
-          onChange={(e) => setBuscaPatrimonio(e.target.value)}
-          className="w-full h-[44px] border border-[var(--color-border)] bg-[var(--color-surface-1)] text-[var(--color-fg)] rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-ring)]"
-        />
-        <select
-          value={filtroEmpresa}
-          onChange={(e) => setFiltroEmpresa(e.target.value)}
-          className="w-full h-[44px] border border-[var(--color-border)] bg-[var(--color-surface-1)] text-[var(--color-fg)] rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-ring)]"
-        >
-          <option value="">Todas as empresas</option>
-          {empresas
-            .filter((e) => e.ativo !== false)
-            .sort((a, b) => a.nome.localeCompare(b.nome))
-            .map((e) => (
-              <option key={e.id} value={e.id}>{e.nome}</option>
-            ))}
-        </select>
-        <select
-          value={categoriaFiltro}
-          onChange={(e) => setCategoriaFiltro(e.target.value as TipoEquipamento | '')}
-          className="w-full h-[44px] border border-[var(--color-border)] bg-[var(--color-surface-1)] text-[var(--color-fg)] rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-ring)]"
-        >
-          <option value="">Todos os tipos</option>
-          {Array.from(new Set(equipamentos.map((e) => e.tipo).filter(Boolean)))
-            .sort((a, b) => a.localeCompare(b))
-            .map((t) => (
-              <option key={t} value={t}>{t}</option>
-            ))}
-        </select>
+      {/* BARRA DE BUSCA + AÇÕES */}
+      <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface-1)] p-3 sm:p-4 space-y-3">
+        <div className="flex flex-col sm:flex-row gap-2 sm:items-center">
+          {/* Busca principal */}
+          <div className="relative flex-1 min-w-0">
+            <Search aria-hidden className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--color-fg-subtle)]" />
+            <input
+              type="text"
+              placeholder="Buscar por nome, modelo ou marca..."
+              value={busca}
+              onChange={(e) => setBusca(e.target.value)}
+              className="w-full h-11 pl-10 pr-9 text-sm rounded-xl bg-[var(--color-surface-1)] border border-[var(--color-border)] focus:outline-none focus:border-[var(--color-accent)] focus:ring-2 focus:ring-[var(--color-ring)] transition-colors"
+            />
+            {busca && (
+              <button
+                onClick={() => setBusca('')}
+                aria-label="Limpar busca"
+                className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded-md text-[var(--color-fg-subtle)] hover:text-[var(--color-fg)] hover:bg-[var(--color-surface-2)]"
+              >
+                <X aria-hidden className="w-4 h-4" />
+              </button>
+            )}
+          </div>
+
+          {/* Patrimônio */}
+          <div className="relative sm:w-56">
+            <Search aria-hidden className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--color-fg-subtle)]" />
+            <input
+              type="text"
+              placeholder="Patrimônio..."
+              value={buscaPatrimonio}
+              onChange={(e) => setBuscaPatrimonio(e.target.value)}
+              className="w-full h-11 pl-10 pr-9 text-sm font-mono rounded-xl bg-[var(--color-surface-1)] border border-[var(--color-border)] focus:outline-none focus:border-[var(--color-accent)] focus:ring-2 focus:ring-[var(--color-ring)] transition-colors"
+            />
+            {buscaPatrimonio && (
+              <button
+                onClick={() => setBuscaPatrimonio('')}
+                aria-label="Limpar"
+                className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded-md text-[var(--color-fg-subtle)] hover:text-[var(--color-fg)] hover:bg-[var(--color-surface-2)]"
+              >
+                <X aria-hidden className="w-4 h-4" />
+              </button>
+            )}
+          </div>
+
+          {/* Toggle filtros avançados */}
+          <button
+            onClick={() => setFiltrosAvancadosOpen((v) => !v)}
+            className={
+              'inline-flex items-center gap-2 h-11 px-3 rounded-xl border text-sm font-medium transition-colors ' +
+              (filtrosAvancadosOpen || filtrosAtivosCount > 0
+                ? 'bg-[var(--color-accent-soft)] text-[var(--color-accent-fg)] border-[var(--color-accent)]/30'
+                : 'bg-[var(--color-surface-1)] text-[var(--color-fg-muted)] border-[var(--color-border)] hover:text-[var(--color-fg)]')
+            }
+            aria-expanded={filtrosAvancadosOpen}
+          >
+            <SlidersHorizontal aria-hidden className="w-4 h-4" />
+            Filtros
+            {filtrosAtivosCount > 0 && (
+              <span className="inline-flex items-center justify-center min-w-[1.25rem] h-5 px-1.5 rounded-full text-[11px] font-bold bg-[var(--color-accent)] text-[var(--color-fg-on-accent)]">
+                {filtrosAtivosCount}
+              </span>
+            )}
+          </button>
+
+          {/* Toggle de visualização */}
+          <div className="inline-flex rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-1)] p-0.5 h-11">
+            {(['grid', 'lista'] as ModoVisualizacao[]).map((v) => {
+              const ativo = modoVisualizacao === v;
+              const Icon = v === 'grid' ? LayoutGrid : ListIcon;
+              return (
+                <button
+                  key={v}
+                  onClick={() => setModoVisualizacao(v)}
+                  className={
+                    'inline-flex items-center justify-center w-10 rounded-lg transition-colors ' +
+                    (ativo
+                      ? 'bg-[var(--color-fg)] text-[var(--color-surface-1)]'
+                      : 'text-[var(--color-fg-muted)] hover:text-[var(--color-fg)]')
+                  }
+                  title={v === 'grid' ? 'Grid' : 'Lista'}
+                  aria-label={v === 'grid' ? 'Ver em grade' : 'Ver em lista'}
+                  aria-pressed={ativo}
+                >
+                  <Icon aria-hidden className="w-4 h-4" />
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Filtros avançados (segmented controls) */}
+        {filtrosAvancadosOpen && (
+          <div className="flex flex-wrap items-center gap-3 pt-2 border-t border-[var(--color-border)]">
+            <SegmentedControl
+              label="Status"
+              value={filtroAtivo}
+              options={(['todos', 'ativos', 'inativos'] as FiltroAtivo[]).map((v) => ({
+                value: v,
+                label: STATUS_LABELS[v],
+              }))}
+              onChange={(v) => setFiltroAtivo(v as FiltroAtivo)}
+            />
+            <SegmentedControl
+              label="Propriedade"
+              value={filtroPropriedade}
+              options={(['todos', 'propria', 'alugada'] as FiltroPropriedade[]).map((v) => ({
+                value: v,
+                label: PROP_LABELS[v],
+              }))}
+              onChange={(v) => setFiltroPropriedade(v as FiltroPropriedade)}
+            />
+            <div className="flex items-center gap-1.5">
+              <span className="text-xs font-medium uppercase tracking-wide text-[var(--color-fg-muted)]">
+                Empresa
+              </span>
+              <select
+                value={filtroEmpresa}
+                onChange={(e) => setFiltroEmpresa(e.target.value)}
+                className="h-9 px-2.5 text-sm rounded-lg bg-[var(--color-surface-1)] border border-[var(--color-border)] focus:outline-none focus:border-[var(--color-accent)] focus:ring-2 focus:ring-[var(--color-ring)]"
+              >
+                <option value="">Todas</option>
+                {empresas
+                  .filter((e) => e.ativo !== false)
+                  .sort((a, b) => a.nome.localeCompare(b.nome))
+                  .map((e) => (
+                    <option key={e.id} value={e.id}>
+                      {e.nome}
+                    </option>
+                  ))}
+              </select>
+            </div>
+            {filtrosAtivosCount > 0 && (
+              <button
+                onClick={limparFiltros}
+                className="inline-flex items-center gap-1 text-xs font-medium text-[var(--color-fg-muted)] hover:text-[var(--color-danger-fg)] transition-colors ml-auto"
+              >
+                <X aria-hidden className="w-3.5 h-3.5" />
+                Limpar filtros
+              </button>
+            )}
+          </div>
+        )}
       </div>
 
+      {/* CATEGORIAS */}
       <FrotaCategoryPills
-        equipamentos={filtroAtivo === 'ativos' ? equipamentos.filter((e) => e.ativo) : filtroAtivo === 'inativos' ? equipamentos.filter((e) => !e.ativo) : equipamentos}
+        equipamentos={
+          filtroAtivo === 'ativos'
+            ? equipamentos.filter((e) => e.ativo)
+            : filtroAtivo === 'inativos'
+              ? equipamentos.filter((e) => !e.ativo)
+              : equipamentos
+        }
         categoriaFiltro={categoriaFiltro}
         onSelect={setCategoriaFiltro}
       />
 
-      {modoVisualizacao === 'grid' ? (
-        <FrotaGrid
-          equipamentos={equipamentosFiltrados}
-          empresas={empresas}
-          categoriaFiltro={categoriaFiltro}
-          onSelect={setEquipamentoSelecionado}
-          alertasMap={alertasMap}
-        />
-      ) : (
-        <FrotaList
-          equipamentos={equipamentosFiltrados}
-          empresas={empresas}
-          onSelect={setEquipamentoSelecionado}
-          alertasMap={alertasMap}
-        />
-      )}
-
-      {equipamentosFiltrados.length === 0 && modoVisualizacao === 'grid' && (
-        <div className="text-center py-12 text-gray-400 dark:text-slate-500">
-          Nenhum equipamento encontrado.
+      {/* CONTEÚDO */}
+      <div>
+        <div className="flex items-center justify-between mb-3">
+          <p className="text-sm text-[var(--color-fg-muted)]">
+            <span className="font-semibold text-[var(--color-fg)]">{equipamentosFiltrados.length}</span>{' '}
+            de {equipamentos.length} equipamento{equipamentos.length === 1 ? '' : 's'}
+          </p>
         </div>
-      )}
+
+        {modoVisualizacao === 'grid' ? (
+          equipamentosFiltrados.length === 0 ? (
+            <div className="rounded-2xl border border-dashed border-[var(--color-border)] bg-[var(--color-surface-1)] py-16 px-6 text-center">
+              <p className="text-sm font-medium text-[var(--color-fg)]">Nenhum equipamento</p>
+              <p className="text-xs text-[var(--color-fg-muted)] mt-1">
+                Ajuste os filtros ou cadastre um novo equipamento.
+              </p>
+            </div>
+          ) : (
+            <FrotaGrid
+              equipamentos={equipamentosFiltrados}
+              empresas={empresas}
+              categoriaFiltro={categoriaFiltro}
+              onSelect={setEquipamentoSelecionado}
+              alertasMap={alertasMap}
+            />
+          )
+        ) : (
+          <FrotaList
+            equipamentos={equipamentosFiltrados}
+            empresas={empresas}
+            onSelect={setEquipamentoSelecionado}
+            alertasMap={alertasMap}
+          />
+        )}
+      </div>
 
       <Modal
         open={!!equipamentoSelecionado}
         onClose={() => setEquipamentoSelecionado(null)}
         title={equipamentoSelecionado?.nome ?? 'Detalhes'}
+        size="lg"
       >
         {equipamentoSelecionado && (
           <FrotaDetalhe
             equipamento={equipamentoSelecionado}
             empresas={empresas}
-            onEditar={canEdit ? () => {
-              setEditandoEquip(equipamentoSelecionado);
-              setEquipamentoSelecionado(null);
-            } : undefined}
+            onEditar={
+              canEdit
+                ? () => {
+                    setEditandoEquip(equipamentoSelecionado);
+                    setEquipamentoSelecionado(null);
+                  }
+                : undefined
+            }
           />
         )}
       </Modal>
 
-      <Modal
-        open={!!editandoEquip}
-        onClose={() => setEditandoEquip(null)}
-        title="Editar Equipamento"
-      >
+      <Modal open={!!editandoEquip} onClose={() => setEditandoEquip(null)} title="Editar Equipamento" size="lg">
         {editandoEquip && (
           <EquipamentoFormFrota
             initial={editandoEquip}
@@ -310,11 +410,7 @@ export default function Frota() {
         )}
       </Modal>
 
-      <Modal
-        open={modalNovoOpen}
-        onClose={() => setModalNovoOpen(false)}
-        title="Novo Equipamento"
-      >
+      <Modal open={modalNovoOpen} onClose={() => setModalNovoOpen(false)} title="Novo Equipamento" size="lg">
         <EquipamentoFormFrota
           onSubmit={handleAdicionarEquipamento}
           onCancel={() => setModalNovoOpen(false)}
@@ -328,6 +424,46 @@ export default function Frota() {
           }}
         />
       </Modal>
+    </div>
+  );
+}
+
+function SegmentedControl<T extends string>({
+  label,
+  value,
+  options,
+  onChange,
+}: {
+  label: string;
+  value: T;
+  options: Array<{ value: T; label: string }>;
+  onChange: (v: T) => void;
+}) {
+  return (
+    <div className="flex items-center gap-1.5">
+      <span className="text-xs font-medium uppercase tracking-wide text-[var(--color-fg-muted)]">
+        {label}
+      </span>
+      <div className="inline-flex rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-1)] p-0.5">
+        {options.map((opt) => {
+          const ativo = value === opt.value;
+          return (
+            <button
+              key={opt.value}
+              onClick={() => onChange(opt.value)}
+              className={
+                'px-3 h-8 rounded-md text-xs font-medium transition-colors ' +
+                (ativo
+                  ? 'bg-[var(--color-fg)] text-[var(--color-surface-1)]'
+                  : 'text-[var(--color-fg-muted)] hover:text-[var(--color-fg)]')
+              }
+              aria-pressed={ativo}
+            >
+              {opt.label}
+            </button>
+          );
+        })}
+      </div>
     </div>
   );
 }

@@ -15,35 +15,47 @@ export default function FrotaCategoryPills({ equipamentos, categoriaFiltro, onSe
     }
   }
 
-  const tipos = Array.from(contagem.entries()).sort((a, b) => a[0].localeCompare(b[0]));
+  const tipos = Array.from(contagem.entries()).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
+
+  function pillClass(active: boolean): string {
+    return (
+      'inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full text-sm font-medium ' +
+      'transition-all border whitespace-nowrap focus-visible:outline-none ' +
+      'focus-visible:ring-2 focus-visible:ring-[var(--color-ring)] ' +
+      (active
+        ? 'bg-[var(--color-fg)] text-[var(--color-surface-1)] border-[var(--color-fg)] shadow-[var(--shadow-sm)]'
+        : 'bg-[var(--color-surface-1)] text-[var(--color-fg-muted)] border-[var(--color-border)] hover:border-[var(--color-border-strong)] hover:text-[var(--color-fg)]')
+    );
+  }
 
   return (
     <div className="flex flex-wrap gap-2">
-      <button
-        onClick={() => onSelect('')}
-        className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
-          categoriaFiltro === ''
-            ? 'bg-emt-verde text-white'
-            : 'bg-gray-100 dark:bg-slate-700 text-gray-600 dark:text-slate-300 hover:bg-gray-200 dark:hover:bg-slate-600'
-        }`}
-      >
-        Todos ({equipamentos.length})
+      <button onClick={() => onSelect('')} className={pillClass(categoriaFiltro === '')}>
+        <span className="font-semibold">Todos</span>
+        <span className={
+          'inline-flex items-center justify-center min-w-[1.5rem] h-5 px-1.5 rounded-full text-[11px] tabular-nums font-bold ' +
+          (categoriaFiltro === ''
+            ? 'bg-[var(--color-surface-1)] text-[var(--color-fg)]'
+            : 'bg-[var(--color-surface-2)] text-[var(--color-fg-muted)]')
+        }>
+          {equipamentos.length}
+        </span>
       </button>
       {tipos.map(([tipo, count]) => {
         const cat = getCategoriaFrota(tipo);
         const ativo = categoriaFiltro === tipo;
         return (
-          <button
-            key={tipo}
-            onClick={() => onSelect(tipo)}
-            className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors inline-flex items-center gap-1.5 ${
-              ativo
-                ? `${cat.cor} text-white`
-                : `${cat.corBg} ${cat.corTexto} hover:opacity-80`
-            }`}
-          >
-            <span className={`w-2 h-2 rounded-full ${ativo ? 'bg-white' : cat.cor}`} />
-            {cat.label} ({count})
+          <button key={tipo} onClick={() => onSelect(tipo)} className={pillClass(ativo)}>
+            <span className={`w-2 h-2 rounded-full ${cat.cor}`} aria-hidden />
+            <span>{cat.label}</span>
+            <span className={
+              'inline-flex items-center justify-center min-w-[1.5rem] h-5 px-1.5 rounded-full text-[11px] tabular-nums font-bold ' +
+              (ativo
+                ? 'bg-[var(--color-surface-1)] text-[var(--color-fg)]'
+                : 'bg-[var(--color-surface-2)] text-[var(--color-fg-muted)]')
+            }>
+              {count}
+            </span>
           </button>
         );
       })}

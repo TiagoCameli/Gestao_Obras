@@ -1,5 +1,6 @@
 import type { Equipamento, Empresa, TipoEquipamento } from '../../types';
 import { getCategoriaFrota } from '../../lib/frotaConstants';
+import { Bell, Calendar, Building2, Hash, Key } from 'lucide-react';
 
 interface FrotaGridProps {
   equipamentos: Equipamento[];
@@ -9,53 +10,126 @@ interface FrotaGridProps {
   alertasMap?: Map<string, number>;
 }
 
-function EquipamentoCard({ eq, empresaNome, alertas, onClick }: { eq: Equipamento; empresaNome: string; alertas: number; onClick: () => void }) {
+function EquipamentoCard({
+  eq,
+  empresaNome,
+  alertas,
+  onClick,
+}: {
+  eq: Equipamento;
+  empresaNome: string;
+  alertas: number;
+  onClick: () => void;
+}) {
   const cat = getCategoriaFrota(eq.tipo);
+  const alugada = eq.propriedade === 'alugada';
 
   return (
     <button
       onClick={onClick}
-      className="surface-raised p-4 text-left w-full hover:shadow-md hover:border-[var(--color-border-strong)] transition-all"
+      className={
+        'group relative text-left w-full rounded-2xl border bg-[var(--color-surface-1)] ' +
+        'p-4 transition-all duration-200 ' +
+        'hover:-translate-y-0.5 hover:shadow-[var(--shadow-md)] hover:border-[var(--color-border-strong)] ' +
+        'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-ring)] ' +
+        (eq.ativo ? 'border-[var(--color-border)]' : 'border-[var(--color-border)] opacity-75')
+      }
     >
-      <div className="flex items-start justify-between mb-2">
-        <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-semibold ${cat.corBg} ${cat.corTexto}`}>
-          <span className={`w-1.5 h-1.5 rounded-full ${cat.cor}`} />
+      <div
+        aria-hidden
+        className={`absolute top-0 left-0 right-0 h-1 rounded-t-2xl ${cat.cor}`}
+      />
+
+      <div className="flex items-start justify-between gap-2 mb-3 pt-1">
+        <span
+          className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[11px] font-bold tracking-wide ${cat.corBg} ${cat.corTexto}`}
+        >
           {cat.codigo}
         </span>
         <div className="flex items-center gap-1.5">
           {alertas > 0 && (
-            <span className="text-xs font-bold px-1.5 py-0.5 rounded-full bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300" title={`${alertas} alerta(s) de manutenção`}>
+            <span
+              className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[11px] font-bold bg-[var(--color-danger-soft)] text-[var(--color-danger-fg)]"
+              title={`${alertas} alerta(s) de manutenção`}
+            >
+              <Bell aria-hidden className="w-3 h-3" />
               {alertas}
             </span>
           )}
-          <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${
-            eq.ativo
-              ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300'
-              : 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300'
-          }`}>
-            {eq.ativo ? 'Ativo' : 'Inativo'}
-          </span>
+          {alugada && (
+            <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[11px] font-medium bg-[var(--color-warning-soft)] text-[var(--color-warning-fg)]">
+              <Key aria-hidden className="w-3 h-3" />
+              Alugado
+            </span>
+          )}
+          <span
+            className={
+              'inline-block w-2 h-2 rounded-full ' +
+              (eq.ativo ? 'bg-[var(--color-success)]' : 'bg-[var(--color-danger)]')
+            }
+            title={eq.ativo ? 'Ativo' : 'Inativo'}
+            aria-label={eq.ativo ? 'Ativo' : 'Inativo'}
+          />
         </div>
       </div>
-      <h3 className="font-semibold text-[var(--color-fg)] truncate">{eq.nome}</h3>
-      <p className="text-sm text-[var(--color-fg-muted)] mt-1">
-        {[eq.marca, eq.ano].filter(Boolean).join(' · ') || '—'}
-      </p>
-      {eq.codigoPatrimonio && (
-        <p className="text-xs text-[var(--color-fg-subtle)] mt-1">
-          Patrimônio: {eq.codigoPatrimonio}
+
+      <h3 className="font-semibold text-[15px] text-[var(--color-fg)] leading-tight line-clamp-2">
+        {eq.nome}
+      </h3>
+
+      {(eq.modelo || eq.marca) && (
+        <p className="mt-1 text-sm text-[var(--color-fg-muted)] truncate">
+          {[eq.marca, eq.modelo].filter(Boolean).join(' · ')}
+          {eq.ano && (
+            <span className="text-[var(--color-fg-subtle)]">
+              {' · '}
+              {eq.ano}
+            </span>
+          )}
         </p>
       )}
-      {empresaNome && (
-        <p className="text-xs text-[var(--color-fg-subtle)] mt-1 truncate">
-          {empresaNome}
-        </p>
-      )}
+
+      <div className="mt-3 pt-3 border-t border-[var(--color-border)] space-y-1.5">
+        {eq.codigoPatrimonio && (
+          <div className="flex items-center gap-1.5 text-xs text-[var(--color-fg-subtle)]">
+            <Hash aria-hidden className="w-3.5 h-3.5 shrink-0" />
+            <span className="font-mono truncate">{eq.codigoPatrimonio}</span>
+          </div>
+        )}
+        {empresaNome && (
+          <div className="flex items-center gap-1.5 text-xs text-[var(--color-fg-subtle)]">
+            <Building2 aria-hidden className="w-3.5 h-3.5 shrink-0" />
+            <span className="truncate">{empresaNome}</span>
+          </div>
+        )}
+        {eq.dataAquisicao && (
+          <div className="flex items-center gap-1.5 text-xs text-[var(--color-fg-subtle)]">
+            <Calendar aria-hidden className="w-3.5 h-3.5 shrink-0" />
+            <span className="truncate">{formatarData(eq.dataAquisicao)}</span>
+          </div>
+        )}
+      </div>
     </button>
   );
 }
 
-export default function FrotaGrid({ equipamentos, empresas, categoriaFiltro, onSelect, alertasMap = new Map() }: FrotaGridProps) {
+function formatarData(s: string): string {
+  if (!s) return '';
+  // suporta YYYY-MM-DD e DD/MM/YYYY
+  if (/^\d{4}-\d{2}-\d{2}/.test(s)) {
+    const [a, m, d] = s.slice(0, 10).split('-');
+    return `${d}/${m}/${a}`;
+  }
+  return s;
+}
+
+export default function FrotaGrid({
+  equipamentos,
+  empresas,
+  categoriaFiltro,
+  onSelect,
+  alertasMap = new Map(),
+}: FrotaGridProps) {
   const empresaMap = new Map(empresas.map((e) => [e.id, e.nome]));
 
   if (categoriaFiltro) {
@@ -74,7 +148,6 @@ export default function FrotaGrid({ equipamentos, empresas, categoriaFiltro, onS
     );
   }
 
-  // Group by category when no filter
   const grupos = new Map<string, Equipamento[]>();
   for (const eq of equipamentos) {
     const key = eq.tipo || 'Outros';
@@ -82,18 +155,32 @@ export default function FrotaGrid({ equipamentos, empresas, categoriaFiltro, onS
     grupos.get(key)!.push(eq);
   }
 
-  const gruposOrdenados = Array.from(grupos.entries()).sort((a, b) => a[0].localeCompare(b[0]));
+  const gruposOrdenados = Array.from(grupos.entries()).sort(
+    (a, b) => b[1].length - a[1].length || a[0].localeCompare(b[0])
+  );
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       {gruposOrdenados.map(([tipo, eqs]) => {
         const cat = getCategoriaFrota(tipo as Equipamento['tipo']);
         return (
-          <div key={tipo}>
-            <h3 className="text-sm font-semibold text-[var(--color-fg-muted)] uppercase tracking-wider mb-3 flex items-center gap-2">
-              <span className={`w-2.5 h-2.5 rounded-full ${cat.cor}`} />
-              {cat.label} ({eqs.length})
-            </h3>
+          <section key={tipo}>
+            <header className="flex items-center gap-3 mb-4">
+              <span
+                className={`inline-flex items-center justify-center w-8 h-8 rounded-lg ${cat.corBg}`}
+                aria-hidden
+              >
+                <span className={`text-[11px] font-bold ${cat.corTexto}`}>{cat.codigo}</span>
+              </span>
+              <div className="flex-1 min-w-0">
+                <h3 className="text-base font-semibold text-[var(--color-fg)] leading-tight">
+                  {cat.label}
+                </h3>
+                <p className="text-xs text-[var(--color-fg-muted)]">
+                  {eqs.length} equipamento{eqs.length === 1 ? '' : 's'}
+                </p>
+              </div>
+            </header>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
               {eqs.map((eq) => (
                 <EquipamentoCard
@@ -105,7 +192,7 @@ export default function FrotaGrid({ equipamentos, empresas, categoriaFiltro, onS
                 />
               ))}
             </div>
-          </div>
+          </section>
         );
       })}
     </div>
