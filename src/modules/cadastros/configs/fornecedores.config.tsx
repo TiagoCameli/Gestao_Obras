@@ -125,6 +125,11 @@ export const fornecedoresConfig: EntityConfig<Fornecedor> = {
         observacoes: String(d.observacoes ?? ''),
         ativo: Boolean(d.ativo),
         criadoPor,
+        // Defaults pra flags da Fase 1a (cadastro genérico não distingue
+        // transportadora — flags marcadas em UI dedicada ou via SQL).
+        ehTransportadora: false,
+        taxaLitroPadrao: 0,
+        ehDonaDeTanque: false,
       };
     },
   },

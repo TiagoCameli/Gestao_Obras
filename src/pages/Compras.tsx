@@ -588,6 +588,9 @@ export default function Compras() {
               observacoes: '',
               ativo: true,
               criadoPor: usuario?.nome || '',
+              ehTransportadora: false,
+              taxaLitroPadrao: 0,
+              ehDonaDeTanque: false,
             });
             return id;
           }}
@@ -622,6 +625,9 @@ export default function Compras() {
               observacoes: '',
               ativo: true,
               criadoPor: usuario?.nome || '',
+              ehTransportadora: false,
+              taxaLitroPadrao: 0,
+              ehDonaDeTanque: false,
             });
             return id;
           }}

@@ -169,6 +169,15 @@ export interface Fornecedor {
   observacoes: string;
   ativo: boolean;
   criadoPor: string;
+  /** Marca o fornecedor como transportadora (aparece no select de transp
+   *  em fretes/pagamentos/saídas de carreta). Coluna adicionada na Fase 1a. */
+  ehTransportadora: boolean;
+  /** Taxa R$/litro sugerida em saídas de combustível tipo carreta.
+   *  Pode ser sobrescrita no form. Default 0. */
+  taxaLitroPadrao: number;
+  /** Marca empresa que controla um tanque externo (ex: Areacre = Transterra).
+   *  Quando carretas abastecem nesse tanque, gera crédito pra ela. */
+  ehDonaDeTanque: boolean;
 }
 
 export interface DepositoMaterial {

@@ -1391,6 +1391,11 @@ function FornecedorForm({
       observacoes,
       ativo,
       criadoPor: initial?.criadoPor || '',
+      // Preserva flags de transportadora se editando; em criação assume false.
+      // Form deste arquivo não expõe UI pra essas flags.
+      ehTransportadora: initial?.ehTransportadora ?? false,
+      taxaLitroPadrao: initial?.taxaLitroPadrao ?? 0,
+      ehDonaDeTanque: initial?.ehDonaDeTanque ?? false,
     });
   }
 

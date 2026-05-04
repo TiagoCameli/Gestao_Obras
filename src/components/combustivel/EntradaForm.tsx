@@ -433,6 +433,10 @@ export default function EntradaForm({
                     observacoes: '',
                     ativo: true,
                     criadoPor: '',
+                    // Defaults pra flags da Fase 1a (form não edita aqui)
+                    ehTransportadora: false,
+                    taxaLitroPadrao: 0,
+                    ehDonaDeTanque: false,
                   };
                   adicionarFornecedorMutation.mutate(novo);
                   setListaFornecedores((prev) => [...prev, novo]);

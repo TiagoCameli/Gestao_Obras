@@ -342,6 +342,9 @@ export function dbToFornecedor(row: any): Fornecedor {
     observacoes: row.observacoes,
     ativo: row.ativo,
     criadoPor: row.criado_por ?? '',
+    ehTransportadora: row.eh_transportadora ?? false,
+    taxaLitroPadrao: Number(row.taxa_litro_padrao ?? 0),
+    ehDonaDeTanque: row.eh_dona_de_tanque ?? false,
   };
 }
 
@@ -355,6 +358,9 @@ export function fornecedorToDb(f: Fornecedor) {
     observacoes: f.observacoes,
     ativo: f.ativo,
     criado_por: f.criadoPor,
+    eh_transportadora: f.ehTransportadora,
+    taxa_litro_padrao: f.taxaLitroPadrao,
+    eh_dona_de_tanque: f.ehDonaDeTanque,
   };
 }
 
