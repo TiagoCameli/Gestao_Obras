@@ -99,6 +99,27 @@ projeto inteiro, não só ao escopo da refatoração.
    permita atribuir os 756 ao equipamento real? Se sim, UPDATE pontual
    depois.
 
+9. **Compat shim `useAbastecimentosCarreta` lança em `categoria='emt'`
+   (Fase 3).** O INSERT/UPDATE via shim **não** suporta criar carreta
+   no tanque EMT — porque o shape legado `AbastecimentoCarreta` não
+   carrega `tanqueId` (precisa do usuário escolher), e o fluxo EMT já
+   foi resolvido fora do shim (`AbastecimentoCarretaForm` chama
+   `onSubmitEmt` que escreve direto via `useAdicionarSaidaCombustivel`).
+   Se algum dia um caller novo tentar usar o shim com `categoria='emt'`,
+   vai estourar a Error mensagem clara apontando o caminho correto.
+   Quando a Fase 4 colapsar tudo no `SaidaCombustivelForm` novo, este
+   shim pode ser removido junto.
+
+10. **`useDesmarcarAbastecimentoPago` não limpa o sentinel `[pago por: X]`
+    em `observacoes` (Fase 3).** O `useMarcarAbastecimentoPago` injeta
+    `[pago por: X]` em `observacoes` quando `pagoPor` é passado (campo
+    descartado do schema novo, preservado defensivamente). Mas o
+    `useDesmarcarAbastecimentoPago` só zera `pago` e `pago_em` — deixa
+    o sentinel pendurado nas observações. Aceitável por enquanto (texto
+    livre, raro de marcar+desmarcar+reler), mas se incomodar visualmente,
+    fazer o desmarcador tentar STRIP via regex `/\n?\[pago por: [^\]]+\]/`.
+    Não fazer agora — escopo de Fase 4+ se virar dor.
+
 ---
 
 ## Adicionar `created_at` / `updated_at` em fretes, pagamentos_frete, abastecimentos_carreta
