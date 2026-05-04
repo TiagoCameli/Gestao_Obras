@@ -307,12 +307,8 @@ export async function exportarTransferenciasExcel(
   dataFim?: string,
 ): Promise<void> {
   let dados = [...transferencias];
-  if (filtroObraIds && filtroObraIds.length > 0) {
-    const depositosDasObras = new Set(
-      depositos.filter((d) => filtroObraIds.includes(d.obraId)).map((d) => d.id),
-    );
-    dados = dados.filter((t) => depositosDasObras.has(t.depositoOrigemId) || depositosDasObras.has(t.depositoDestinoId));
-  }
+  // Tanques globais (Fase 6) — filtro por obra perdeu sentido em transferências
+  // (movimento entre tanques sem dono semântico). filtroDepositoIds segue válido.
   if (filtroDepositoIds && filtroDepositoIds.length > 0) {
     const set = new Set(filtroDepositoIds);
     dados = dados.filter((t) => set.has(t.depositoOrigemId) || set.has(t.depositoDestinoId));
@@ -424,10 +420,7 @@ export async function exportarRelatorioCompletoCombustivelExcel(
     const set = new Set(filtroObraIds);
     saidasDados = saidasDados.filter((a) => set.has(a.obraId));
     entradasDados = entradasDados.filter((e) => set.has(e.obraId));
-    const depositosDasObras = new Set(
-      depositos.filter((d) => filtroObraIds.includes(d.obraId)).map((d) => d.id),
-    );
-    transferenciasDados = transferenciasDados.filter((t) => depositosDasObras.has(t.depositoOrigemId) || depositosDasObras.has(t.depositoDestinoId));
+    // Tanques globais (Fase 6) — transferências não têm obra. Sem filtro aqui.
   }
   if (filtroDepositoIds && filtroDepositoIds.length > 0) {
     const set = new Set(filtroDepositoIds);

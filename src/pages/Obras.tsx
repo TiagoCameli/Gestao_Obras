@@ -31,19 +31,16 @@ function gerarId(): string {
 
 function TanqueForm({
   initial,
-  obras,
   onSubmit,
   onCancel,
   onImportBatch,
 }: {
   initial: Deposito | null;
-  obras: Obra[];
   onSubmit: (dep: Deposito) => void;
   onCancel: () => void;
   onImportBatch?: (items: Deposito[]) => void;
 }) {
   const [nome, setNome] = useState(initial?.nome || '');
-  const [obraId, setObraId] = useState(initial?.obraId || '');
   const [capacidade, setCapacidade] = useState(
     initial?.capacidadeLitros?.toString() || ''
   );
@@ -59,50 +56,37 @@ function TanqueForm({
     onSubmit({
       id: initial?.id || gerarId(),
       nome,
-      obraId,
       capacidadeLitros: cap,
       nivelAtualLitros: initial?.nivelAtualLitros || 0,
       ativo,
       criadoPor: initial?.criadoPor || '',
-      // Preserva flags de externo se editando; em criação assume interno.
-      // Form deste arquivo não expõe UI pra eh_externo.
       ehExterno: initial?.ehExterno ?? false,
       transportadoraProprietariaId: initial?.transportadoraProprietariaId ?? null,
       apelido: initial?.apelido ?? null,
     });
   }
 
-  const isValid = nome && obraId && capacidade;
+  const isValid = nome && capacidade;
 
   const parseTanqueRow = useCallback((row: unknown[], _index: number): ParsedRow => {
     const erros: string[] = [];
     const nomeVal = parseStr(row[0]);
-    const obraName = parseStr(row[1]);
-    const capVal = parseNumero(row[2]);
+    const capVal = parseNumero(row[1]);
 
     if (!nomeVal) erros.push('Nome obrigatorio');
-    let obraMatch: Obra | undefined;
-    if (!obraName) {
-      erros.push('Obra obrigatoria');
-    } else {
-      obraMatch = obras.find(o => o.nome.toLowerCase() === obraName.toLowerCase());
-      if (!obraMatch) erros.push(`Obra "${obraName}" nao encontrada`);
-    }
     if (capVal === null) erros.push('Capacidade obrigatoria (numerico)');
 
-    const obraNome = obraMatch?.nome || obraName;
     return {
       valido: erros.length === 0,
       erros,
-      resumo: `${nomeVal} | ${obraNome} | ${capVal ?? ''}L`,
-      dados: { nome: nomeVal, obraId: obraMatch?.id || '', capacidadeLitros: capVal ?? 0 },
+      resumo: `${nomeVal} | ${capVal ?? ''}L`,
+      dados: { nome: nomeVal, capacidadeLitros: capVal ?? 0 },
     };
-  }, [obras]);
+  }, []);
 
   const tanqueToEntity = useCallback((row: ParsedRow): Record<string, unknown> => ({
     id: gerarId(),
     nome: row.dados.nome,
-    obraId: row.dados.obraId,
     capacidadeLitros: row.dados.capacidadeLitros,
     nivelAtualLitros: 0,
     ativo: true,
@@ -125,15 +109,6 @@ function TanqueForm({
           value={nome}
           onChange={(e) => setNome(e.target.value)}
           placeholder="Ex: Tanque Diesel 01"
-          required
-        />
-        <Select
-          label="Obra"
-          id="tanqueObraId"
-          value={obraId}
-          onChange={(e) => setObraId(e.target.value)}
-          options={obras.map((o) => ({ value: o.id, label: o.nome }))}
-          placeholder="Selecione a obra"
           required
         />
         <Input
@@ -198,14 +173,14 @@ function TanqueForm({
           entityLabel="Tanque"
           genderFem={false}
           templateData={[
-            ['Nome', 'Obra', 'Capacidade (L)'],
-            ['Tanque Diesel 01', 'Obra ABC', '5000'],
+            ['Nome', 'Capacidade (L)'],
+            ['Tanque Diesel 01', '5000'],
           ]}
           templateFileName="template_tanques.xlsx"
           sheetName="Tanques"
-          templateColWidths={[25, 25, 18]}
-          formatHintHeaders={['Nome', 'Obra', 'Capacidade (L)']}
-          formatHintExample={['Tanque Diesel 01', 'Obra ABC', '5000']}
+          templateColWidths={[25, 18]}
+          formatHintHeaders={['Nome', 'Capacidade (L)']}
+          formatHintExample={['Tanque Diesel 01', '5000']}
           parseRow={parseTanqueRow}
           toEntity={tanqueToEntity}
         />
@@ -3000,7 +2975,6 @@ export default function Obras() {
       >
         <TanqueForm
           initial={editandoTanque}
-          obras={obras}
           onSubmit={handleSubmitTanque}
           onCancel={() => {
             setModalTanqueOpen(false);

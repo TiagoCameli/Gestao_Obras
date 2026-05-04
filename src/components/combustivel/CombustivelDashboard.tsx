@@ -370,7 +370,6 @@ export default function CombustivelDashboard({
                   <div className="flex justify-between items-start mb-3">
                     <div>
                       <p className="text-base font-semibold text-gray-800 dark:text-slate-200">{dep.nome}</p>
-                      <p className="text-sm text-gray-400">{obrasMap.get(dep.obraId) || ''}</p>
                     </div>
                     <span className={`text-2xl font-bold ${corTexto}`}>{Math.round(pct)}%</span>
                   </div>

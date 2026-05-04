@@ -85,8 +85,8 @@ export default function EntradaForm({
   const [notaFiscal, setNotaFiscal] = useState(initial?.notaFiscal || '');
   const [observacoes, setObservacoes] = useState(initial?.observacoes || '');
 
-  // Filter depositos by obraId from props
-  const depositos = obraId ? allDepositos.filter((d) => d.obraId === obraId && d.ativo !== false) : [];
+  // Tanques são globais (Fase 6) — lista todos os ativos.
+  const depositos = allDepositos.filter((d) => d.ativo !== false);
 
   useEffect(() => {
     if (!initial) {
@@ -136,10 +136,9 @@ export default function EntradaForm({
       if (!depositoNome) {
         erros.push('Falta depósito');
       } else {
-        const depositosObra = foundObraId
-          ? allDepositos.filter((d) => d.obraId === foundObraId && d.ativo !== false)
-          : allDepositos.filter((d) => d.ativo !== false);
-        const found = depositosObra.find((d) => d.nome.toLowerCase() === depositoNome.toLowerCase());
+        const found = allDepositos
+          .filter((d) => d.ativo !== false)
+          .find((d) => d.nome.toLowerCase() === depositoNome.toLowerCase());
         if (found) foundDepositoId = found.id;
         else erros.push(`Depósito "${depositoNome}" não encontrado`);
       }

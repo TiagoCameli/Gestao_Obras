@@ -4,16 +4,15 @@ import {
   useAtualizarDeposito,
   useExcluirDeposito,
 } from '../../../hooks/useDepositos';
-import { useObras } from '../../../hooks/useObras';
-import type { Deposito, Obra } from '../../../types';
-import type { EntityConfig, FieldOption } from '../types';
+import type { Deposito } from '../../../types';
+import type { EntityConfig } from '../types';
 import { parseStr, parseNumero, type ParsedRow } from '../../../components/ui/ImportExcelModal';
 
 export const tanquesConfig: EntityConfig<Deposito> = {
   slug: 'tanques',
   singular: 'Tanque de combustível',
   plural: 'Tanques de combustível',
-  description: 'Depósitos de combustível por obra (capacidade e nível atual).',
+  description: 'Tanques globais de combustível (capacidade e nível atual).',
   category: 'frota',
   accent: 'amber',
   searchKey: 'nome',
@@ -27,15 +26,6 @@ export const tanquesConfig: EntityConfig<Deposito> = {
 
   columns: [
     { key: 'nome', label: 'Nome' },
-    {
-      key: 'obraId',
-      label: 'Obra',
-      hideOnMobile: true,
-      useLookup: () => {
-        const { data = [] } = useObras();
-        return new Map(data.map((o: Obra) => [o.id, o.nome]));
-      },
-    },
     {
       key: 'capacidadeLitros',
       label: 'Capacidade',
@@ -64,17 +54,6 @@ export const tanquesConfig: EntityConfig<Deposito> = {
 
   fields: [
     { key: 'nome', label: 'Nome', type: 'text', required: true, colSpan: 2 },
-    {
-      key: 'obraId',
-      label: 'Obra',
-      type: 'select',
-      required: true,
-      colSpan: 2,
-      useOptions: () => {
-        const { data = [] } = useObras();
-        return data.map<FieldOption>((o) => ({ value: o.id, label: o.nome }));
-      },
-    },
     { key: 'capacidadeLitros', label: 'Capacidade (litros)', type: 'number', required: true },
     { key: 'nivelAtualLitros', label: 'Nível atual (litros)', type: 'number' },
     { key: 'ativo', label: 'Tanque ativo', type: 'checkbox', colSpan: 2 },
@@ -82,7 +61,6 @@ export const tanquesConfig: EntityConfig<Deposito> = {
 
   defaultValues: () => ({
     nome: '',
-    obraId: '',
     capacidadeLitros: 0,
     nivelAtualLitros: 0,
     ativo: true,
@@ -97,41 +75,23 @@ export const tanquesConfig: EntityConfig<Deposito> = {
   },
 
   excel: {
-    templateHeaders: ['Nome', 'Obra (nome exato)', 'Capacidade (L)', 'Nível atual (L)', 'Ativo (sim/não)'],
-    templateExample: ['Tanque Diesel 1', 'Pavimentação BR-364', 5000, 0, 'sim'],
-    templateColWidths: [22, 28, 16, 16, 12],
+    templateHeaders: ['Nome', 'Capacidade (L)', 'Nível atual (L)', 'Ativo (sim/não)'],
+    templateExample: ['Tanque Diesel 1', 5000, 0, 'sim'],
+    templateColWidths: [22, 16, 16, 12],
     parseRow: (row, index): ParsedRow => {
       const erros: string[] = [];
       const nome = parseStr(row[0]);
+      const capacidadeLitros = parseNumero(row[1]) ?? 0;
+      const nivelAtualLitros = parseNumero(row[2]) ?? 0;
+      const ativoRaw = parseStr(row[3]).toLowerCase();
       if (!nome) erros.push('Nome obrigatório');
+      if (capacidadeLitros <= 0) erros.push('Capacidade inválida');
+      const ativo = ativoRaw === '' ? true : ['sim', 's', 'true', '1', 'yes', 'y'].includes(ativoRaw);
       return {
         valido: erros.length === 0,
         erros,
         resumo: nome || `(linha ${index + 2})`,
-        dados: { nome },
-      };
-    },
-    useBoundParser: () => {
-      const { data: obras = [] } = useObras();
-      return (row, index) => {
-        const erros: string[] = [];
-        const nome = parseStr(row[0]);
-        const obraName = parseStr(row[1]);
-        const capacidadeLitros = parseNumero(row[2]) ?? 0;
-        const nivelAtualLitros = parseNumero(row[3]) ?? 0;
-        const ativoRaw = parseStr(row[4]).toLowerCase();
-        if (!nome) erros.push('Nome obrigatório');
-        const obra = obras.find((o: Obra) => o.nome.toLowerCase() === obraName.toLowerCase());
-        if (!obraName) erros.push('Obra obrigatória');
-        else if (!obra) erros.push(`Obra "${obraName}" não encontrada`);
-        if (capacidadeLitros <= 0) erros.push('Capacidade inválida');
-        const ativo = ativoRaw === '' ? true : ['sim', 's', 'true', '1', 'yes', 'y'].includes(ativoRaw);
-        return {
-          valido: erros.length === 0,
-          erros,
-          resumo: nome || `(linha ${index + 2})`,
-          dados: { nome, obraId: obra?.id ?? '', capacidadeLitros, nivelAtualLitros, ativo },
-        };
+        dados: { nome, capacidadeLitros, nivelAtualLitros, ativo },
       };
     },
     toEntity: (row, gerarId, criadoPor): Deposito => {
@@ -139,13 +99,10 @@ export const tanquesConfig: EntityConfig<Deposito> = {
       return {
         id: gerarId(),
         nome: String(d.nome ?? ''),
-        obraId: String(d.obraId ?? ''),
         capacidadeLitros: Number(d.capacidadeLitros) || 0,
         nivelAtualLitros: Number(d.nivelAtualLitros) || 0,
         ativo: Boolean(d.ativo),
         criadoPor,
-        // Importação Excel sempre cria depósito interno. Transterra é seed
-        // único via migration, nunca importado em massa.
         ehExterno: false,
         transportadoraProprietariaId: null,
         apelido: null,

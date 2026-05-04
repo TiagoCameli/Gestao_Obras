@@ -396,7 +396,6 @@ export default function FrotaCombustivelContainer() {
       {subTab === 'tanques' && (
         <TanqueList
           depositos={depositosTodos}
-          obras={obras}
           onEdit={handleEditTanque}
           onDelete={(id) => handleDeleteTanque(id)}
           canEdit={canEdit}
@@ -463,7 +462,6 @@ export default function FrotaCombustivelContainer() {
           initial={editandoTanque}
           onSubmit={handleSubmitTanque}
           onCancel={() => { setModalTanqueOpen(false); setEditandoTanque(null); }}
-          obras={obras}
         />
       </Modal>
 

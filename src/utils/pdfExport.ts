@@ -352,12 +352,8 @@ export function exportarTransferenciasPDF(
   dataFim?: string,
 ): void {
   let dados = [...transferencias];
-  if (filtroObraIds && filtroObraIds.length > 0) {
-    const depositosDasObras = new Set(
-      depositos.filter((d) => filtroObraIds.includes(d.obraId)).map((d) => d.id),
-    );
-    dados = dados.filter((t) => depositosDasObras.has(t.depositoOrigemId) || depositosDasObras.has(t.depositoDestinoId));
-  }
+  // Tanques globais (Fase 6) — filtro por obra perdeu sentido em transferências
+  // (movimento entre tanques sem dono semântico). filtroDepositoIds segue válido.
   if (filtroDepositoIds && filtroDepositoIds.length > 0) {
     const set = new Set(filtroDepositoIds);
     dados = dados.filter((t) => set.has(t.depositoOrigemId) || set.has(t.depositoDestinoId));

@@ -1,19 +1,16 @@
 import { useState } from 'react';
-import type { Deposito, Obra } from '../../../types';
+import type { Deposito } from '../../../types';
 import Button from '../../ui/Button';
 import Input from '../../ui/Input';
-import Select from '../../ui/Select';
 
 interface TanqueFormProps {
   initial?: Deposito | null;
   onSubmit: (deposito: Deposito) => Promise<void>;
   onCancel: () => void;
-  obras: Obra[];
 }
 
-export default function TanqueForm({ initial, onSubmit, onCancel, obras }: TanqueFormProps) {
+export default function TanqueForm({ initial, onSubmit, onCancel }: TanqueFormProps) {
   const [nome, setNome] = useState(initial?.nome ?? '');
-  const [obraId, setObraId] = useState(initial?.obraId ?? '');
   const [capacidadeLitros, setCapacidadeLitros] = useState(initial?.capacidadeLitros?.toString() ?? '');
   const [nivelAtualLitros, setNivelAtualLitros] = useState(initial?.nivelAtualLitros?.toString() ?? '0');
   const [ativo, setAtivo] = useState(initial?.ativo ?? true);
@@ -21,19 +18,16 @@ export default function TanqueForm({ initial, onSubmit, onCancel, obras }: Tanqu
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!nome.trim() || !obraId || !capacidadeLitros) return;
+    if (!nome.trim() || !capacidadeLitros) return;
     setSalvando(true);
     try {
       await onSubmit({
         id: initial?.id ?? Date.now().toString(36) + Math.random().toString(36).slice(2, 7),
         nome: nome.trim(),
-        obraId,
         capacidadeLitros: parseFloat(capacidadeLitros) || 0,
         nivelAtualLitros: parseFloat(nivelAtualLitros) || 0,
         ativo,
         criadoPor: initial?.criadoPor ?? '',
-        // Preserva flags de depósito externo se existirem (edição). Em criação
-        // hardcoded como interno — UI deste form não permite criar externo.
         ehExterno: initial?.ehExterno ?? false,
         transportadoraProprietariaId: initial?.transportadoraProprietariaId ?? null,
         apelido: initial?.apelido ?? null,
@@ -53,15 +47,6 @@ export default function TanqueForm({ initial, onSubmit, onCancel, obras }: Tanqu
           onChange={(e) => setNome(e.target.value)}
           required
           placeholder="Ex: Tanque Principal"
-        />
-        <Select
-          label="Obra"
-          id="tanque-obra"
-          value={obraId}
-          onChange={(e) => setObraId(e.target.value)}
-          options={obras.map((o) => ({ value: o.id, label: o.nome }))}
-          placeholder="Selecione a obra"
-          required
         />
         <Input
           label="Capacidade (Litros)"
@@ -102,7 +87,7 @@ export default function TanqueForm({ initial, onSubmit, onCancel, obras }: Tanqu
         <Button type="button" variant="secondary" onClick={onCancel}>
           Cancelar
         </Button>
-        <Button type="submit" disabled={salvando || !nome.trim() || !obraId || !capacidadeLitros}>
+        <Button type="submit" disabled={salvando || !nome.trim() || !capacidadeLitros}>
           {salvando ? 'Salvando...' : initial ? 'Salvar' : 'Criar Tanque'}
         </Button>
       </div>

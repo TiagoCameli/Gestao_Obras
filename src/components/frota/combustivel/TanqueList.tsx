@@ -1,12 +1,11 @@
 import { useMemo } from 'react';
-import type { Deposito, Obra } from '../../../types';
+import type { Deposito } from '../../../types';
 import Button from '../../ui/Button';
 import ConfirmDialog from '../../ui/ConfirmDialog';
 import { useState } from 'react';
 
 interface TanqueListProps {
   depositos: Deposito[];
-  obras: Obra[];
   onEdit: (deposito: Deposito) => void;
   onDelete: (id: string) => void;
   canEdit: boolean;
@@ -17,7 +16,6 @@ interface TanqueListProps {
 
 export default function TanqueList({
   depositos,
-  obras,
   onEdit,
   onDelete,
   canEdit,
@@ -26,12 +24,6 @@ export default function TanqueList({
   canCreate,
 }: TanqueListProps) {
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
-
-  const obrasMap = useMemo(() => {
-    const map = new Map<string, string>();
-    for (const o of obras) map.set(o.id, o.nome);
-    return map;
-  }, [obras]);
 
   const tanquesOrdenados = useMemo(
     () => [...depositos].sort((a, b) => a.nome.localeCompare(b.nome)),
@@ -78,9 +70,6 @@ export default function TanqueList({
                 <div className="flex items-start justify-between mb-3">
                   <div>
                     <h3 className="font-semibold text-gray-800 dark:text-slate-200">{d.nome}</h3>
-                    <p className="text-sm text-gray-500 dark:text-slate-400">
-                      {obrasMap.get(d.obraId) || '—'}
-                    </p>
                   </div>
                   <span
                     className={`text-xs px-2 py-0.5 rounded-full font-medium ${

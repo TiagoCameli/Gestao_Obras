@@ -159,19 +159,16 @@ export default function SaidaCombustivelForm({
   );
 
   // Transportadoras: já filtradas eh_transportadora=true pelo container (assumido).
-  // Tanques disponíveis dependem do contexto:
-  //   - equipamento_proprio: só tanques internos (eh_externo=false), filtrado por obra se setada.
-  //   - carreta_transportadora: TODOS (incluindo Transterra externo), filtrado por obra se setada.
+  // Tanques são globais (Fase 6) — único filtro contextual:
+  //   - equipamento_proprio: só tanques internos (eh_externo=false).
+  //   - carreta_transportadora: TODOS (incluindo Transterra externo).
   const tanquesVisiveis = useMemo(() => {
     let lista = depositos.filter((d) => d.ativo !== false);
     if (tipoConsumidor === 'equipamento_proprio') {
       lista = lista.filter((d) => !d.ehExterno);
     }
-    if (obraId) {
-      lista = lista.filter((d) => d.obraId === obraId);
-    }
     return lista;
-  }, [depositos, tipoConsumidor, obraId]);
+  }, [depositos, tipoConsumidor]);
 
   // Etapas da obra escolhida
   const etapasDaObra = useMemo(
