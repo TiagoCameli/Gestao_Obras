@@ -189,6 +189,21 @@ export default function SaidaCombustivelForm({
     return totalLitros > 0 ? totalValor / totalLitros : 0;
   }, [origem, tanqueId, entradasCombustivel]);
 
+  // Combustível disponível no tanque: ditado pela entrada mais recente.
+  // Misturar combustíveis no mesmo tanque é erro operacional (não suportado).
+  const tipoCombustivelDoTanque = useMemo(() => {
+    if (origem !== 'tanque' || !tanqueId) return '';
+    const ents = entradasCombustivel
+      .filter((e) => e.depositoId === tanqueId)
+      .sort((a, b) => new Date(b.dataHora).getTime() - new Date(a.dataHora).getTime());
+    return ents[0]?.tipoCombustivel ?? '';
+  }, [origem, tanqueId, entradasCombustivel]);
+
+  // Auto-seleciona combustível conforme o tanque escolhido.
+  useEffect(() => {
+    if (tipoCombustivelDoTanque) setTipoCombustivel(tipoCombustivelDoTanque);
+  }, [tipoCombustivelDoTanque]);
+
   // Preço unitário final:
   //   - origem='tanque': preco_medio + taxa (taxa só carreta).
   //   - outras: input manual.
@@ -486,8 +501,13 @@ export default function SaidaCombustivelForm({
             value={tipoCombustivel}
             onChange={(e) => setTipoCombustivel(e.target.value)}
             options={listaCombustiveis.map((c) => ({ value: c.id, label: c.nome }))}
-            placeholder="Selecione combustível"
+            placeholder={
+              origem === 'tanque' && tanqueId && !tipoCombustivelDoTanque
+                ? 'Tanque sem entradas — selecione manualmente'
+                : 'Selecione combustível'
+            }
             required
+            disabled={origem === 'tanque' && !!tipoCombustivelDoTanque}
           />
           {!novoCombustivelAberto ? (
             <button
