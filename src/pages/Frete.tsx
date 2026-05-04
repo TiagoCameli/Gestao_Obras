@@ -314,7 +314,7 @@ export default function Frete() {
     { key: 'dashboard', label: 'Dashboard', icon: <BarChart3 className="h-3.5 w-3.5" /> },
     { key: 'fretes', label: 'Fretes', icon: <Truck className="h-3.5 w-3.5" /> },
     { key: 'pagamentos', label: 'Pagamentos', icon: <Wallet className="h-3.5 w-3.5" /> },
-    { key: 'abastecimentos', label: 'Abastecimentos', icon: <Fuel className="h-3.5 w-3.5" /> },
+    { key: 'abastecimentos', label: 'Abastecimento Transterra', icon: <Fuel className="h-3.5 w-3.5" /> },
     { key: 'pedidos', label: 'Pedidos', icon: <PackageSearch className="h-3.5 w-3.5" /> },
   ];
 
