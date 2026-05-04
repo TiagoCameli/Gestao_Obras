@@ -112,6 +112,9 @@ export function dbToDeposito(row: any): Deposito {
     nivelAtualLitros: Number(row.nivel_atual_litros),
     ativo: row.ativo,
     criadoPor: row.criado_por ?? '',
+    transportadoraProprietariaId: row.transportadora_proprietaria_id ?? null,
+    apelido: row.apelido ?? null,
+    ehExterno: row.eh_externo ?? false,
   };
 }
 
@@ -124,6 +127,9 @@ export function depositoToDb(d: Deposito) {
     nivel_atual_litros: d.nivelAtualLitros,
     ativo: d.ativo,
     criado_por: d.criadoPor,
+    transportadora_proprietaria_id: d.transportadoraProprietariaId,
+    apelido: d.apelido,
+    eh_externo: d.ehExterno,
   };
 }
 

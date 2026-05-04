@@ -1,5 +1,5 @@
 import {
-  useDepositos,
+  useTodosDepositos,
   useAdicionarDeposito,
   useAtualizarDeposito,
   useExcluirDeposito,
@@ -90,7 +90,7 @@ export const tanquesConfig: EntityConfig<Deposito> = {
   }),
 
   hooks: {
-    useList: useDepositos,
+    useList: useTodosDepositos,
     useAdd: useAdicionarDeposito,
     useUpdate: useAtualizarDeposito,
     useDelete: useExcluirDeposito,
@@ -144,6 +144,11 @@ export const tanquesConfig: EntityConfig<Deposito> = {
         nivelAtualLitros: Number(d.nivelAtualLitros) || 0,
         ativo: Boolean(d.ativo),
         criadoPor,
+        // Importação Excel sempre cria depósito interno. Transterra é seed
+        // único via migration, nunca importado em massa.
+        ehExterno: false,
+        transportadoraProprietariaId: null,
+        apelido: null,
       };
     },
   },

@@ -28,6 +28,14 @@ export interface Deposito {
   nivelAtualLitros: number;
   ativo: boolean;
   criadoPor: string;
+  /** FK para fornecedores (nullable). NULL = tanque "da casa" (EMT).
+   *  Preenchido = empresa terceira que controla este tanque (ex: Areacre/Transterra). */
+  transportadoraProprietariaId: string | null;
+  /** Display curto opcional. Se preenchido, UIs podem usar em vez do nome canônico. */
+  apelido: string | null;
+  /** true = depósito controlado por terceiro, sem estoque interno. Triggers no DB
+   *  bloqueiam entradas_combustivel e transferencias_combustivel envolvendo ele. */
+  ehExterno: boolean;
 }
 
 export type OrigemCombustivel = 'tanque' | 'dinheiro' | 'requisicao';

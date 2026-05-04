@@ -64,6 +64,11 @@ function TanqueForm({
       nivelAtualLitros: initial?.nivelAtualLitros || 0,
       ativo,
       criadoPor: initial?.criadoPor || '',
+      // Preserva flags de externo se editando; em criação assume interno.
+      // Form deste arquivo não expõe UI pra eh_externo.
+      ehExterno: initial?.ehExterno ?? false,
+      transportadoraProprietariaId: initial?.transportadoraProprietariaId ?? null,
+      apelido: initial?.apelido ?? null,
     });
   }
 

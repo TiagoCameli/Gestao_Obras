@@ -68,7 +68,10 @@ export default function Frete() {
   const adicionarAbastCarretaMutation = useAdicionarAbastecimentoCarreta();
   const atualizarAbastCarretaMutation = useAtualizarAbastecimentoCarreta();
   const excluirAbastCarretaMutation = useExcluirAbastecimentoCarreta();
-  const { data: depositos = [] } = useDepositos();
+  // incluirExternos: true → Transterra (Areacre) aparece no dropdown do
+  // AbastecimentoCarretaForm, que é exatamente o ponto (carretas externas
+  // abastecem nesse tanque). Outros forms operacionais filtram por default.
+  const { data: depositos = [] } = useDepositos({ incluirExternos: true });
   const { data: etapas = [] } = useEtapas();
   const { data: entradasCombustivel = [] } = useEntradasCombustivel();
   const adicionarAbastecimentoMutation = useAdicionarAbastecimento();

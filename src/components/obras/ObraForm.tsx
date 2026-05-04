@@ -158,6 +158,10 @@ export default function ObraForm({
         nivelAtualLitros: Math.min(nivel, capacidade),
         ativo: true,
         criadoPor: '',
+        // Adicionar inline: sempre interno (UI não expõe flags de externo).
+        ehExterno: false,
+        transportadoraProprietariaId: null,
+        apelido: null,
       },
     ]);
     setNovoDepNome('');

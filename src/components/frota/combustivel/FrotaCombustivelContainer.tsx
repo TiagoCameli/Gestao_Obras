@@ -44,7 +44,13 @@ export default function FrotaCombustivelContainer() {
 
   const { data: obras = [] } = useObras();
   const { data: etapas = [] } = useEtapas();
-  const { data: depositos = [] } = useDepositos();
+  // Depositos: divididos por uso.
+  // - depositosTodos (incluindo externos): pra views/lists/dashboards/exports.
+  //   Garante que rows com depósito externo (Transterra) renderizam o nome.
+  // - depositosOperacionais (default, só internos): pra forms que CRIAM rows.
+  //   Triggers do DB bloqueiam INSERT em externos — filtro UI evita 4xx.
+  const { data: depositosTodos = [] } = useDepositos({ incluirExternos: true });
+  const { data: depositosOperacionais = [] } = useDepositos();
   const { data: todosAbastecimentos = [] } = useAbastecimentos();
   const { data: todasEntradas = [] } = useEntradasCombustivel();
   const { data: todasTransferencias = [] } = useTransferenciasCombustivel();
@@ -325,13 +331,13 @@ export default function FrotaCombustivelContainer() {
           transferencias={todasTransferencias}
           obras={obras}
           etapas={etapas}
-          depositos={depositos}
+          depositos={depositosTodos}
         />
       )}
 
       {subTab === 'tanques' && (
         <TanqueList
-          depositos={depositos}
+          depositos={depositosTodos}
           obras={obras}
           onEdit={handleEditTanque}
           onDelete={(id) => handleDeleteTanque(id)}
@@ -346,7 +352,7 @@ export default function FrotaCombustivelContainer() {
         <EntradaList
           entradas={entradasFiltradas}
           obras={obras}
-          depositos={depositos}
+          depositos={depositosTodos}
           onEdit={handleEditEntrada}
           onDelete={(id) => pedirSenha(() => handleDeleteEntrada(id))}
           canEdit={canEdit}
@@ -419,7 +425,7 @@ export default function FrotaCombustivelContainer() {
       {subTab === 'transferencias' && (
         <TransferenciaList
           transferencias={transferenciasFiltradas}
-          depositos={depositos}
+          depositos={depositosTodos}
           onDelete={(id) => pedirSenha(() => handleDeleteTransferencia(id))}
           canDelete={canDelete}
         />
@@ -462,7 +468,7 @@ export default function FrotaCombustivelContainer() {
           onCancel={() => { setModalSaidaOpen(false); setEditandoSaida(null); }}
           obras={obras}
           etapas={etapas}
-          depositos={depositos}
+          depositos={depositosOperacionais}
           onImportBatch={async (items) => {
             for (const item of items) {
               await adicionarAbastecimentoMut.mutateAsync({ ...item, criadoPor: usuario?.nome || '' });
@@ -484,7 +490,7 @@ export default function FrotaCombustivelContainer() {
           onSubmit={handleSubmitEntrada}
           onCancel={() => { setModalEntradaOpen(false); setEditandoEntrada(null); }}
           obras={obras}
-          depositos={depositos}
+          depositos={depositosOperacionais}
           onImportBatch={async (items) => {
             for (const item of items) {
               await adicionarEntradaMut.mutateAsync({ ...item, criadoPor: usuario?.nome || '' });
@@ -504,7 +510,7 @@ export default function FrotaCombustivelContainer() {
         <TransferenciaForm
           onSubmit={handleSubmitTransferencia}
           onCancel={() => setModalTransferenciaOpen(false)}
-          depositos={depositos}
+          depositos={depositosOperacionais}
           onImportBatch={async (items) => {
             for (const item of items) {
               await adicionarTransferenciaMut.mutateAsync({ ...item, criadoPor: usuario?.nome || '' });
@@ -522,7 +528,7 @@ export default function FrotaCombustivelContainer() {
         entradas={entradasFiltradas}
         transferencias={transferenciasFiltradas}
         obras={obras}
-        depositos={depositos}
+        depositos={depositosTodos}
       />
     </div>
   );

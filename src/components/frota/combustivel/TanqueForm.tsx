@@ -32,6 +32,11 @@ export default function TanqueForm({ initial, onSubmit, onCancel, obras }: Tanqu
         nivelAtualLitros: parseFloat(nivelAtualLitros) || 0,
         ativo,
         criadoPor: initial?.criadoPor ?? '',
+        // Preserva flags de depósito externo se existirem (edição). Em criação
+        // hardcoded como interno — UI deste form não permite criar externo.
+        ehExterno: initial?.ehExterno ?? false,
+        transportadoraProprietariaId: initial?.transportadoraProprietariaId ?? null,
+        apelido: initial?.apelido ?? null,
       });
     } finally {
       setSalvando(false);
