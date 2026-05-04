@@ -53,6 +53,7 @@ export default function EquipamentoFormFrota({ initial, onSubmit, onCancel, empr
   const [marca, setMarca] = useState(initial?.marca || '');
   const [modelo, setModelo] = useState(initial?.modelo || '');
   const [propriedade, setPropriedade] = useState<'propria' | 'alugada'>(initial?.propriedade || 'propria');
+  const [status, setStatus] = useState<'ativa' | 'manutencao_corretiva' | 'manutencao_preventiva' | 'fora_funcionamento'>(initial?.status || 'ativa');
   const [tipoMedicao, setTipoMedicao] = useState<TipoMedicao>(initial?.tipoMedicao || 'horimetro');
   const [medicaoInicial, setMedicaoInicial] = useState(initial?.medicaoInicial?.toString() || '0');
   const [ativo, setAtivo] = useState(initial?.ativo !== false);
@@ -146,9 +147,10 @@ export default function EquipamentoFormFrota({ initial, onSubmit, onCancel, empr
       marca,
       modelo,
       propriedade,
+      status,
       tipoMedicao,
       medicaoInicial: parseFloat(medicaoInicial) || 0,
-      ativo: dataVenda ? false : ativo,
+      ativo: dataVenda ? false : status !== 'fora_funcionamento',
       dataAquisicao,
       dataVenda,
       criadoPor: initial?.criadoPor || '',
@@ -299,6 +301,18 @@ export default function EquipamentoFormFrota({ initial, onSubmit, onCancel, empr
           options={[
             { value: 'propria', label: 'Própria' },
             { value: 'alugada', label: 'Alugada' },
+          ]}
+        />
+        <Select
+          label="Status"
+          id="frotaEqStatus"
+          value={status}
+          onChange={(e) => setStatus(e.target.value as typeof status)}
+          options={[
+            { value: 'ativa', label: 'Ativa' },
+            { value: 'manutencao_preventiva', label: 'Em manutenção preventiva' },
+            { value: 'manutencao_corretiva', label: 'Em manutenção corretiva' },
+            { value: 'fora_funcionamento', label: 'Fora de funcionamento' },
           ]}
         />
         <Select

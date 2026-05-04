@@ -1,12 +1,14 @@
-import type { Equipamento, Empresa, TipoEquipamento } from '../../types';
+import type { Equipamento, Empresa, TipoEquipamento, StatusEquipamento } from '../../types';
 import { getCategoriaFrota } from '../../lib/frotaConstants';
 import { Bell, Calendar, Building2, Hash, Key } from 'lucide-react';
+import StatusDropdown from './StatusDropdown';
 
 interface FrotaGridProps {
   equipamentos: Equipamento[];
   empresas: Empresa[];
   categoriaFiltro: TipoEquipamento | '';
   onSelect: (equipamento: Equipamento) => void;
+  onChangeStatus?: (equipamento: Equipamento, status: StatusEquipamento) => void;
   alertasMap?: Map<string, number>;
 }
 
@@ -15,24 +17,34 @@ function EquipamentoCard({
   empresaNome,
   alertas,
   onClick,
+  onChangeStatus,
 }: {
   eq: Equipamento;
   empresaNome: string;
   alertas: number;
   onClick: () => void;
+  onChangeStatus?: (status: StatusEquipamento) => void;
 }) {
   const cat = getCategoriaFrota(eq.tipo);
   const alugada = eq.propriedade === 'alugada';
 
   return (
-    <button
+    <div
+      role="button"
+      tabIndex={0}
       onClick={onClick}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          onClick();
+        }
+      }}
       className={
         'group relative text-left w-full rounded-2xl border bg-[var(--color-surface-1)] ' +
-        'p-4 transition-all duration-200 ' +
+        'p-4 transition-all duration-200 cursor-pointer ' +
         'hover:-translate-y-0.5 hover:shadow-[var(--shadow-md)] hover:border-[var(--color-border-strong)] ' +
         'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-ring)] ' +
-        (eq.ativo ? 'border-[var(--color-border)]' : 'border-[var(--color-border)] opacity-75')
+        (eq.status === 'fora_funcionamento' ? 'border-[var(--color-border)] opacity-75' : 'border-[var(--color-border)]')
       }
     >
       <div
@@ -62,14 +74,6 @@ function EquipamentoCard({
               Alugado
             </span>
           )}
-          <span
-            className={
-              'inline-block w-2 h-2 rounded-full ' +
-              (eq.ativo ? 'bg-[var(--color-success)]' : 'bg-[var(--color-danger)]')
-            }
-            title={eq.ativo ? 'Ativo' : 'Inativo'}
-            aria-label={eq.ativo ? 'Ativo' : 'Inativo'}
-          />
         </div>
       </div>
 
@@ -88,6 +92,15 @@ function EquipamentoCard({
           )}
         </p>
       )}
+
+      <div className="mt-3" onClick={(e) => e.stopPropagation()}>
+        <StatusDropdown
+          value={eq.status}
+          onChange={(s) => onChangeStatus?.(s)}
+          disabled={!onChangeStatus}
+          size="sm"
+        />
+      </div>
 
       <div className="mt-3 pt-3 border-t border-[var(--color-border)] space-y-1.5">
         {eq.codigoPatrimonio && (
@@ -109,7 +122,7 @@ function EquipamentoCard({
           </div>
         )}
       </div>
-    </button>
+    </div>
   );
 }
 
@@ -128,6 +141,7 @@ export default function FrotaGrid({
   empresas,
   categoriaFiltro,
   onSelect,
+  onChangeStatus,
   alertasMap = new Map(),
 }: FrotaGridProps) {
   const empresaMap = new Map(empresas.map((e) => [e.id, e.nome]));
@@ -142,6 +156,7 @@ export default function FrotaGrid({
             empresaNome={empresaMap.get(eq.empresaId) ?? ''}
             alertas={alertasMap.get(eq.id) ?? 0}
             onClick={() => onSelect(eq)}
+            onChangeStatus={onChangeStatus ? (s) => onChangeStatus(eq, s) : undefined}
           />
         ))}
       </div>
@@ -189,6 +204,7 @@ export default function FrotaGrid({
                   empresaNome={empresaMap.get(eq.empresaId) ?? ''}
                   alertas={alertasMap.get(eq.id) ?? 0}
                   onClick={() => onSelect(eq)}
+                  onChangeStatus={onChangeStatus ? (s) => onChangeStatus(eq, s) : undefined}
                 />
               ))}
             </div>

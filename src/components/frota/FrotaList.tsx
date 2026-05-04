@@ -1,11 +1,13 @@
-import type { Equipamento, Empresa } from '../../types';
+import type { Equipamento, Empresa, StatusEquipamento } from '../../types';
 import { getCategoriaFrota } from '../../lib/frotaConstants';
 import { Bell, Key, Inbox } from 'lucide-react';
+import StatusDropdown from './StatusDropdown';
 
 interface FrotaListProps {
   equipamentos: Equipamento[];
   empresas: Empresa[];
   onSelect: (equipamento: Equipamento) => void;
+  onChangeStatus?: (equipamento: Equipamento, status: StatusEquipamento) => void;
   alertasMap?: Map<string, number>;
 }
 
@@ -13,6 +15,7 @@ export default function FrotaList({
   equipamentos,
   empresas,
   onSelect,
+  onChangeStatus,
   alertasMap = new Map(),
 }: FrotaListProps) {
   const empresaMap = new Map(empresas.map((e) => [e.id, e.nome]));
@@ -136,8 +139,12 @@ export default function FrotaList({
                       )}
                     </div>
                   </td>
-                  <td className="px-4 py-3 text-center">
-                    <StatusBadge ativo={eq.ativo} />
+                  <td className="px-4 py-3 text-center" onClick={(e) => e.stopPropagation()}>
+                    <StatusDropdown
+                      value={eq.status}
+                      onChange={(s) => onChangeStatus?.(eq, s)}
+                      disabled={!onChangeStatus}
+                    />
                   </td>
                 </tr>
               );
@@ -171,24 +178,3 @@ function Th({
   );
 }
 
-function StatusBadge({ ativo }: { ativo: boolean }) {
-  return (
-    <span
-      className={
-        'inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[11px] font-medium border ' +
-        (ativo
-          ? 'bg-[var(--color-success-soft)] text-[var(--color-success-fg)] border-[var(--color-success)]/30'
-          : 'bg-[var(--color-danger-soft)] text-[var(--color-danger-fg)] border-[var(--color-danger)]/30')
-      }
-    >
-      <span
-        aria-hidden
-        className={
-          'w-1.5 h-1.5 rounded-full ' +
-          (ativo ? 'bg-[var(--color-success)]' : 'bg-[var(--color-danger)]')
-        }
-      />
-      {ativo ? 'Ativo' : 'Inativo'}
-    </span>
-  );
-}

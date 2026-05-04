@@ -1,5 +1,5 @@
 import type { Equipamento } from '../../types';
-import { CheckCircle2, XCircle, Layers, Building2, Key } from 'lucide-react';
+import { CheckCircle2, Wrench, AlertOctagon, PowerOff, Layers } from 'lucide-react';
 
 interface FrotaStatsProps {
   equipamentos: Equipamento[];
@@ -15,48 +15,47 @@ interface KPI {
 
 export default function FrotaStats({ equipamentos }: FrotaStatsProps) {
   const total = equipamentos.length;
-  const ativos = equipamentos.filter((e) => e.ativo).length;
-  const inativos = total - ativos;
-  const proprios = equipamentos.filter((e) => e.propriedade === 'propria').length;
-  const alugados = equipamentos.filter((e) => e.propriedade === 'alugada').length;
-  const categorias = new Set(equipamentos.map((e) => e.tipo).filter(Boolean)).size;
-  const pctAtivos = total > 0 ? Math.round((ativos / total) * 100) : 0;
+  const ativas = equipamentos.filter((e) => e.status === 'ativa').length;
+  const preventiva = equipamentos.filter((e) => e.status === 'manutencao_preventiva').length;
+  const corretiva = equipamentos.filter((e) => e.status === 'manutencao_corretiva').length;
+  const fora = equipamentos.filter((e) => e.status === 'fora_funcionamento').length;
+  const pct = (n: number) => (total > 0 ? Math.round((n / total) * 100) : 0);
 
   const kpis: KPI[] = [
     {
       label: 'Total da frota',
       valor: total,
-      hint: `${categorias} categorias`,
+      hint: `${equipamentos.filter((e) => e.propriedade === 'alugada').length} alugado(s)`,
       icon: Layers,
       accent: { bg: 'var(--color-surface-2)', fg: 'var(--color-fg)', border: 'var(--color-border)' },
     },
     {
-      label: 'Ativos',
-      valor: ativos,
-      hint: `${pctAtivos}% da frota`,
+      label: 'Ativas',
+      valor: ativas,
+      hint: `${pct(ativas)}% da frota`,
       icon: CheckCircle2,
       accent: { bg: 'var(--color-success-soft)', fg: 'var(--color-success-fg)', border: 'var(--color-success)' },
     },
     {
-      label: 'Inativos',
-      valor: inativos,
-      hint: inativos > 0 ? 'Fora de operação' : 'Tudo operando',
-      icon: XCircle,
+      label: 'Manutenção preventiva',
+      valor: preventiva,
+      hint: `${pct(preventiva)}% da frota`,
+      icon: Wrench,
+      accent: { bg: 'var(--color-warning-soft)', fg: 'var(--color-warning-fg)', border: 'var(--color-warning)' },
+    },
+    {
+      label: 'Manutenção corretiva',
+      valor: corretiva,
+      hint: corretiva > 0 ? 'Atenção urgente' : 'Sem ocorrências',
+      icon: AlertOctagon,
       accent: { bg: 'var(--color-danger-soft)', fg: 'var(--color-danger-fg)', border: 'var(--color-danger)' },
     },
     {
-      label: 'Próprios',
-      valor: proprios,
-      hint: `${total > 0 ? Math.round((proprios / total) * 100) : 0}% da frota`,
-      icon: Building2,
-      accent: { bg: 'var(--color-info-soft)', fg: 'var(--color-info-fg)', border: 'var(--color-info)' },
-    },
-    {
-      label: 'Alugados',
-      valor: alugados,
-      hint: `${total > 0 ? Math.round((alugados / total) * 100) : 0}% da frota`,
-      icon: Key,
-      accent: { bg: 'var(--color-warning-soft)', fg: 'var(--color-warning-fg)', border: 'var(--color-warning)' },
+      label: 'Fora de funcionamento',
+      valor: fora,
+      hint: `${pct(fora)}% da frota`,
+      icon: PowerOff,
+      accent: { bg: 'var(--color-surface-2)', fg: 'var(--color-fg-muted)', border: 'var(--color-border-strong)' },
     },
   ];
 
@@ -89,7 +88,7 @@ export default function FrotaStats({ equipamentos }: FrotaStatsProps) {
               </div>
               <div
                 className="shrink-0 w-10 h-10 rounded-xl flex items-center justify-center"
-                style={{ backgroundColor: k.accent.bg }}
+                style={{ backgroundColor: k.accent.bg, color: k.accent.fg }}
               >
                 <Icon aria-hidden className="w-5 h-5" />
               </div>

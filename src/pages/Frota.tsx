@@ -1,6 +1,7 @@
 import { useState, useMemo, useCallback } from 'react';
 import { useUrlState } from '../hooks/useUrlState';
-import type { Equipamento, TipoEquipamento, PropriedadeEquipamento } from '../types';
+import type { Equipamento, TipoEquipamento, PropriedadeEquipamento, StatusEquipamento } from '../types';
+import { STATUS_EQUIPAMENTO_LABEL } from '../types';
 import { useEquipamentos, useAdicionarEquipamento, useAtualizarEquipamento, useExcluirEquipamento } from '../hooks/useEquipamentos';
 import { useEmpresas } from '../hooks/useEmpresas';
 import { useAuth } from '../contexts/AuthContext';
@@ -16,7 +17,7 @@ import { exportarFrotaPDF, exportarFrotaExcel } from '../utils/frotaExport';
 import { Plus, Search, X, LayoutGrid, List as ListIcon, FileText, Sheet, SlidersHorizontal } from 'lucide-react';
 
 type ModoVisualizacao = 'grid' | 'lista';
-type FiltroAtivo = 'todos' | 'ativos' | 'inativos';
+type FiltroStatus = 'todos' | StatusEquipamento;
 type FiltroPropriedade = 'todos' | PropriedadeEquipamento;
 
 const PROP_LABELS: Record<FiltroPropriedade, string> = {
@@ -25,10 +26,12 @@ const PROP_LABELS: Record<FiltroPropriedade, string> = {
   alugada: 'Alugados',
 };
 
-const STATUS_LABELS: Record<FiltroAtivo, string> = {
+const STATUS_LABELS: Record<FiltroStatus, string> = {
   todos: 'Todos',
-  ativos: 'Ativos',
-  inativos: 'Inativos',
+  ativa: STATUS_EQUIPAMENTO_LABEL.ativa,
+  manutencao_preventiva: STATUS_EQUIPAMENTO_LABEL.manutencao_preventiva,
+  manutencao_corretiva: STATUS_EQUIPAMENTO_LABEL.manutencao_corretiva,
+  fora_funcionamento: STATUS_EQUIPAMENTO_LABEL.fora_funcionamento,
 };
 
 export default function Frota() {
@@ -49,9 +52,9 @@ export default function Frota() {
   const modoVisualizacao = (modoRaw as ModoVisualizacao) || 'grid';
   const setModoVisualizacao = (v: ModoVisualizacao) => setModoRaw(v);
   const [equipamentoSelecionado, setEquipamentoSelecionado] = useState<Equipamento | null>(null);
-  const [filtroAtivoRaw, setFiltroAtivoRaw] = useUrlState('ativo', 'todos');
-  const filtroAtivo = (filtroAtivoRaw as FiltroAtivo) || 'todos';
-  const setFiltroAtivo = (v: FiltroAtivo) => setFiltroAtivoRaw(v);
+  const [filtroStatusRaw, setFiltroStatusRaw] = useUrlState('status', 'todos');
+  const filtroStatus = (filtroStatusRaw as FiltroStatus) || 'todos';
+  const setFiltroStatus = (v: FiltroStatus) => setFiltroStatusRaw(v);
   const [filtroPropRaw, setFiltroPropRaw] = useUrlState('propriedade', 'todos');
   const filtroPropriedade = (filtroPropRaw as FiltroPropriedade) || 'todos';
   const setFiltroPropriedade = (v: FiltroPropriedade) => setFiltroPropRaw(v);
@@ -63,6 +66,18 @@ export default function Frota() {
   const canCreate = temAcao('criar_cadastros');
   const canEdit = temAcao('editar_cadastros');
   const canDelete = temAcao('excluir_cadastros');
+
+  async function handleChangeStatus(eq: Equipamento, status: StatusEquipamento) {
+    try {
+      await atualizarMutation.mutateAsync({
+        ...eq,
+        status,
+        ativo: status !== 'fora_funcionamento',
+      });
+    } catch (e) {
+      alert(e instanceof Error ? e.message : 'Erro ao atualizar status');
+    }
+  }
 
   async function handleConfirmarExclusao() {
     if (!excluindoEquip) return;
@@ -91,8 +106,7 @@ export default function Frota() {
   const equipamentosFiltrados = useMemo(() => {
     let lista = equipamentos;
 
-    if (filtroAtivo === 'ativos') lista = lista.filter((e) => e.ativo);
-    else if (filtroAtivo === 'inativos') lista = lista.filter((e) => !e.ativo);
+    if (filtroStatus !== 'todos') lista = lista.filter((e) => e.status === filtroStatus);
 
     if (filtroPropriedade !== 'todos') {
       lista = lista.filter((e) => e.propriedade === filtroPropriedade);
@@ -122,10 +136,10 @@ export default function Frota() {
     }
 
     return lista;
-  }, [equipamentos, filtroAtivo, filtroPropriedade, categoriaFiltro, filtroEmpresa, busca, buscaPatrimonio]);
+  }, [equipamentos, filtroStatus, filtroPropriedade, categoriaFiltro, filtroEmpresa, busca, buscaPatrimonio]);
 
   const filtrosAtivosCount =
-    (filtroAtivo !== 'todos' ? 1 : 0) +
+    (filtroStatus !== 'todos' ? 1 : 0) +
     (filtroPropriedade !== 'todos' ? 1 : 0) +
     (categoriaFiltro ? 1 : 0) +
     (filtroEmpresa ? 1 : 0) +
@@ -137,7 +151,7 @@ export default function Frota() {
     setBuscaPatrimonio('');
     setFiltroEmpresa('');
     setCategoriaFiltro('');
-    setFiltroAtivo('todos');
+    setFiltroStatus('todos');
     setFiltroPropriedade('todos');
   }
 
@@ -151,7 +165,7 @@ export default function Frota() {
 
   function exportarComFiltros(fn: typeof exportarFrotaPDF) {
     const filtros: string[] = [];
-    if (filtroAtivo !== 'todos') filtros.push(`Status: ${filtroAtivo}`);
+    if (filtroStatus !== 'todos') filtros.push(`Status: ${filtroStatus}`);
     if (filtroPropriedade !== 'todos') filtros.push(`Propriedade: ${filtroPropriedade}`);
     if (categoriaFiltro) filtros.push(`Tipo: ${categoriaFiltro}`);
     if (filtroEmpresa) {
@@ -290,15 +304,22 @@ export default function Frota() {
         {/* Filtros avançados (segmented controls) */}
         {filtrosAvancadosOpen && (
           <div className="flex flex-wrap items-center gap-3 pt-2 border-t border-[var(--color-border)]">
-            <SegmentedControl
-              label="Status"
-              value={filtroAtivo}
-              options={(['todos', 'ativos', 'inativos'] as FiltroAtivo[]).map((v) => ({
-                value: v,
-                label: STATUS_LABELS[v],
-              }))}
-              onChange={(v) => setFiltroAtivo(v as FiltroAtivo)}
-            />
+            <div className="flex items-center gap-1.5">
+              <span className="text-xs font-medium uppercase tracking-wide text-[var(--color-fg-muted)]">
+                Status
+              </span>
+              <select
+                value={filtroStatus}
+                onChange={(e) => setFiltroStatus(e.target.value as FiltroStatus)}
+                className="h-9 px-2.5 text-sm rounded-lg bg-[var(--color-surface-1)] border border-[var(--color-border)] focus:outline-none focus:border-[var(--color-accent)] focus:ring-2 focus:ring-[var(--color-ring)]"
+              >
+                <option value="todos">Todos</option>
+                <option value="ativa">{STATUS_LABELS.ativa}</option>
+                <option value="manutencao_preventiva">{STATUS_LABELS.manutencao_preventiva}</option>
+                <option value="manutencao_corretiva">{STATUS_LABELS.manutencao_corretiva}</option>
+                <option value="fora_funcionamento">{STATUS_LABELS.fora_funcionamento}</option>
+              </select>
+            </div>
             <SegmentedControl
               label="Propriedade"
               value={filtroPropriedade}
@@ -372,10 +393,10 @@ export default function Frota() {
             <span className="font-semibold text-[var(--color-fg)]">{equipamentosFiltrados.length}</span>{' '}
             de {equipamentos.length} equipamento{equipamentos.length === 1 ? '' : 's'}
           </p>
-          {(categoriaFiltro || filtroEmpresa || filtroAtivo !== 'todos' || filtroPropriedade !== 'todos') && (
+          {(categoriaFiltro || filtroEmpresa || filtroStatus !== 'todos' || filtroPropriedade !== 'todos') && (
             <div className="flex items-center gap-1.5 flex-wrap">
-              {filtroAtivo !== 'todos' && (
-                <Chip label={STATUS_LABELS[filtroAtivo]} onClear={() => setFiltroAtivo('todos')} />
+              {filtroStatus !== 'todos' && (
+                <Chip label={STATUS_LABELS[filtroStatus]} onClear={() => setFiltroStatus('todos')} />
               )}
               {filtroPropriedade !== 'todos' && (
                 <Chip label={PROP_LABELS[filtroPropriedade]} onClear={() => setFiltroPropriedade('todos')} />
@@ -407,6 +428,7 @@ export default function Frota() {
               empresas={empresas}
               categoriaFiltro={categoriaFiltro}
               onSelect={setEquipamentoSelecionado}
+              onChangeStatus={canEdit ? handleChangeStatus : undefined}
               alertasMap={alertasMap}
             />
           )
@@ -415,6 +437,7 @@ export default function Frota() {
             equipamentos={equipamentosFiltrados}
             empresas={empresas}
             onSelect={setEquipamentoSelecionado}
+            onChangeStatus={canEdit ? handleChangeStatus : undefined}
             alertasMap={alertasMap}
           />
         )}

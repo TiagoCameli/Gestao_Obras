@@ -1,7 +1,9 @@
 import type { Equipamento, Empresa } from '../../types';
+import { STATUS_EQUIPAMENTO_LABEL } from '../../types';
 import { getCategoriaFrota } from '../../lib/frotaConstants';
 import Button from '../ui/Button';
 import { Pencil, Building2, Hash, Calendar, Gauge, Tag, Key, Trash2 } from 'lucide-react';
+import { getStatusOption } from './StatusDropdown';
 
 interface FrotaDetalheProps {
   equipamento: Equipamento;
@@ -85,23 +87,26 @@ export default function FrotaDetalhe({ equipamento: eq, empresas, onEditar, onEx
             </div>
 
             <div className="flex items-center gap-2 flex-wrap">
-              <span
-                className={
-                  'inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border ' +
-                  (eq.ativo
-                    ? 'bg-[var(--color-success-soft)] text-[var(--color-success-fg)] border-[var(--color-success)]/30'
-                    : 'bg-[var(--color-danger-soft)] text-[var(--color-danger-fg)] border-[var(--color-danger)]/30')
-                }
-              >
-                <span
-                  aria-hidden
-                  className={
-                    'w-1.5 h-1.5 rounded-full ' +
-                    (eq.ativo ? 'bg-[var(--color-success)]' : 'bg-[var(--color-danger)]')
-                  }
-                />
-                {eq.ativo ? 'Ativo' : 'Inativo'}
-              </span>
+              {(() => {
+                const so = getStatusOption(eq.status);
+                return (
+                  <span
+                    className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border"
+                    style={{
+                      backgroundColor: so.bg,
+                      color: so.fg,
+                      borderColor: `color-mix(in srgb, ${so.border} 30%, transparent)`,
+                    }}
+                  >
+                    <span
+                      aria-hidden
+                      className="w-1.5 h-1.5 rounded-full"
+                      style={{ backgroundColor: so.dot }}
+                    />
+                    {STATUS_EQUIPAMENTO_LABEL[eq.status]}
+                  </span>
+                );
+              })()}
               <span
                 className={
                   'inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border ' +

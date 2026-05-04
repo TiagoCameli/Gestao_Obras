@@ -80,6 +80,19 @@ export interface TipoEquipamentoEntity {
 
 export type PropriedadeEquipamento = 'propria' | 'alugada';
 
+export type StatusEquipamento =
+  | 'ativa'
+  | 'manutencao_corretiva'
+  | 'manutencao_preventiva'
+  | 'fora_funcionamento';
+
+export const STATUS_EQUIPAMENTO_LABEL: Record<StatusEquipamento, string> = {
+  ativa: 'Ativa',
+  manutencao_corretiva: 'Em manutenção corretiva',
+  manutencao_preventiva: 'Em manutenção preventiva',
+  fora_funcionamento: 'Fora de funcionamento',
+};
+
 export interface Equipamento {
   id: string;
   nome: string;
@@ -91,6 +104,7 @@ export interface Equipamento {
   marca: string;
   modelo: string;
   propriedade: PropriedadeEquipamento;
+  status: StatusEquipamento;
   tipoMedicao: TipoMedicao;
   medicaoInicial: number;
   ativo: boolean;

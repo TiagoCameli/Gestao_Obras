@@ -224,6 +224,9 @@ export function dbToEquipamento(row: any): Equipamento {
     marca: row.marca,
     modelo: row.modelo ?? '',
     propriedade: row.propriedade === 'alugada' ? 'alugada' : 'propria',
+    status: ['ativa', 'manutencao_corretiva', 'manutencao_preventiva', 'fora_funcionamento'].includes(row.status)
+      ? row.status
+      : 'ativa',
     tipoMedicao: row.tipo_medicao ?? 'horimetro',
     medicaoInicial: Number(row.medicao_inicial) || 0,
     ativo: row.ativo ?? true,
@@ -245,6 +248,7 @@ export function equipamentoToDb(e: Equipamento) {
     marca: e.marca,
     modelo: e.modelo,
     propriedade: e.propriedade,
+    status: e.status,
     tipo_medicao: e.tipoMedicao,
     medicao_inicial: e.medicaoInicial,
     ativo: e.ativo,
