@@ -23,7 +23,6 @@ export interface EtapaObra {
 export interface Deposito {
   id: string;
   nome: string;
-  obraId: string;
   capacidadeLitros: number;
   nivelAtualLitros: number;
   ativo: boolean;

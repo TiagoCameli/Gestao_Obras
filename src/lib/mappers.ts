@@ -108,7 +108,6 @@ export function dbToDeposito(row: any): Deposito {
   return {
     id: row.id,
     nome: row.nome,
-    obraId: row.obra_id,
     capacidadeLitros: Number(row.capacidade_litros),
     nivelAtualLitros: Number(row.nivel_atual_litros),
     ativo: row.ativo,
@@ -123,7 +122,6 @@ export function depositoToDb(d: Deposito) {
   return {
     id: d.id,
     nome: d.nome,
-    obra_id: d.obraId,
     capacidade_litros: d.capacidadeLitros,
     nivel_atual_litros: d.nivelAtualLitros,
     ativo: d.ativo,

@@ -77,17 +77,3 @@ export function useExcluirDeposito() {
   });
 }
 
-export function useSalvarDepositosObra() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: async ({ obraId, depositos }: { obraId: string; depositos: Deposito[] }) => {
-      const { error: delError } = await supabase.from('depositos').delete().eq('obra_id', obraId);
-      if (delError) throw delError;
-      if (depositos.length > 0) {
-        const { error: insError } = await supabase.from('depositos').insert(depositos.map(depositoToDb));
-        if (insError) throw insError;
-      }
-    },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['depositos'] }),
-  });
-}
