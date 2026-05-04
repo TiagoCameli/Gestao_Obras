@@ -361,6 +361,8 @@ export interface PagamentoFrete {
   criadoPor: string;
 }
 
+export type CategoriaAbastecimentoCarreta = 'transterra' | 'emt';
+
 export interface AbastecimentoCarreta {
   id: string;
   data: string;
@@ -372,6 +374,8 @@ export interface AbastecimentoCarreta {
   valorUnidade: number;
   valorTotal: number;
   observacoes: string;
+  /** Distingue Transterra (terceirizado) vs EMT (frota própria). */
+  categoria: CategoriaAbastecimentoCarreta;
   criadoPor: string;
 }
 

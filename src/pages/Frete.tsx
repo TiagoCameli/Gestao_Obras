@@ -530,10 +530,8 @@ export default function Frete() {
 
       {/* ── Abastecimentos (Transterra / EMT) ── */}
       {(tab === 'abastecimentos' || tab === 'abastecimentos_emt') && (() => {
-        const transpFiltro = tab === 'abastecimentos_emt' ? 'emt' : 'transterra';
-        const abastDaAba = abastecimentosCarreta.filter((a) =>
-          (a.transportadora ?? '').toLowerCase().includes(transpFiltro)
-        );
+        const categoriaDaAba: 'transterra' | 'emt' = tab === 'abastecimentos_emt' ? 'emt' : 'transterra';
+        const abastDaAba = abastecimentosCarreta.filter((a) => a.categoria === categoriaDaAba);
         const transportadorasDaAba = Array.from(new Set(abastDaAba.map((a) => a.transportadora))).filter(Boolean).sort();
         const placasDaAba = Array.from(new Set(abastDaAba.map((a) => a.placaCarreta).filter(Boolean))).sort();
         return (
@@ -857,6 +855,7 @@ export default function Frete() {
           onCancel={() => { setAbastModalOpen(false); setEditandoAbast(null); }}
           transportadoras={transportadoras}
           combustiveis={combustiveis}
+          defaultCategoria={tab === 'abastecimentos_emt' ? 'emt' : 'transterra'}
           onImportBatch={async (items) => {
             for (const item of items) {
               await adicionarAbastCarretaMutation.mutateAsync({ ...item, criadoPor: usuario?.nome || '' });

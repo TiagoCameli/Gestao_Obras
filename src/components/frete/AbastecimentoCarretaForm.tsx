@@ -1,5 +1,5 @@
 import { useCallback, useState, useEffect, type FormEvent } from 'react';
-import type { AbastecimentoCarreta, Insumo } from '../../types';
+import type { AbastecimentoCarreta, CategoriaAbastecimentoCarreta, Insumo } from '../../types';
 import Input from '../ui/Input';
 import Select from '../ui/Select';
 import Button from '../ui/Button';
@@ -13,6 +13,8 @@ interface AbastecimentoCarretaFormProps {
   transportadoras: string[];
   combustiveis: Insumo[];
   onImportBatch?: (items: AbastecimentoCarreta[]) => void;
+  /** Categoria padrão pra novo registro (vem da aba ativa do Frete). */
+  defaultCategoria?: CategoriaAbastecimentoCarreta;
 }
 
 function gerarId(): string {
@@ -31,9 +33,13 @@ export default function AbastecimentoCarretaForm({
   transportadoras,
   combustiveis,
   onImportBatch,
+  defaultCategoria,
 }: AbastecimentoCarretaFormProps) {
   const [data, setData] = useState(initial?.data || '');
   const [transportadora, setTransportadora] = useState(initial?.transportadora || '');
+  const [categoria, setCategoria] = useState<CategoriaAbastecimentoCarreta>(
+    initial?.categoria ?? defaultCategoria ?? 'transterra'
+  );
   const [placaCarreta, setPlacaCarreta] = useState(initial?.placaCarreta || '');
   const [mesReferencia, setMesReferencia] = useState(initial?.mesReferencia || '');
   const [tipoCombustivel, setTipoCombustivel] = useState(initial?.tipoCombustivel || '');
@@ -110,9 +116,10 @@ export default function AbastecimentoCarretaForm({
       valorUnidade: vlrUnit,
       valorTotal: litros * vlrUnit,
       observacoes: d.observacoes,
+      categoria: defaultCategoria ?? 'transterra',
       criadoPor: '',
     };
-  }, []);
+  }, [defaultCategoria]);
 
   const handleImportBatch = useCallback(
     (items: Record<string, unknown>[]) => {
@@ -139,6 +146,7 @@ export default function AbastecimentoCarretaForm({
       setQuantidadeLitros(initial.quantidadeLitros?.toString() || '');
       setValorUnidade(initial.valorUnidade?.toString() || '');
       setObservacoes(initial.observacoes);
+      setCategoria(initial.categoria ?? 'transterra');
     }
   }, [initial]);
 
@@ -159,6 +167,7 @@ export default function AbastecimentoCarretaForm({
       valorUnidade: vlrUnit,
       valorTotal,
       observacoes,
+      categoria,
       criadoPor: initial?.criadoPor || '',
     });
   }
@@ -181,6 +190,17 @@ export default function AbastecimentoCarretaForm({
           type="date"
           value={data}
           onChange={(e) => { setData(e.target.value); if (e.target.value) setMesReferencia(e.target.value.slice(0, 7)); }}
+          required
+        />
+        <Select
+          label="Categoria"
+          id="abastCarretaCategoria"
+          value={categoria}
+          onChange={(e) => setCategoria(e.target.value as CategoriaAbastecimentoCarreta)}
+          options={[
+            { value: 'transterra', label: 'Transterra (terceirizado)' },
+            { value: 'emt', label: 'EMT (frota própria)' },
+          ]}
           required
         />
         <Select
