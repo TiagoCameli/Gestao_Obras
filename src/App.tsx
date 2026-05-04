@@ -12,7 +12,6 @@ import CadastrosHub from './modules/cadastros/CadastrosHub';
 import EntityCadastroRoute from './modules/cadastros/EntityCadastroRoute';
 import EtapasPage from './modules/cadastros/EtapasPage';
 import Frete from './pages/Frete';
-import SaldoTransportadora from './pages/SaldoTransportadora';
 import Funcionarios from './pages/Funcionarios';
 import Apontamentos from './pages/Apontamentos';
 import Frota from './pages/Frota';
@@ -78,7 +77,6 @@ export default function App() {
               <Route path="/cadastros/etapas" element={<ProtectedRoute modulo="cadastros"><EtapasPage /></ProtectedRoute>} />
               <Route path="/cadastros/:slug" element={<ProtectedRoute modulo="cadastros"><EntityCadastroRoute /></ProtectedRoute>} />
               <Route path="/frete" element={<ProtectedRoute modulo="frete"><Frete /></ProtectedRoute>} />
-              <Route path="/frete/saldo/:slug" element={<ProtectedRoute modulo="frete"><SaldoTransportadora /></ProtectedRoute>} />
               <Route path="/frota" element={<ProtectedRoute modulo="frota"><Frota /></ProtectedRoute>} />
               <Route path="/combustivel" element={<ProtectedRoute modulo="frota"><Combustivel /></ProtectedRoute>} />
               <Route path="/funcionarios" element={<ProtectedRoute modulo="funcionarios"><Funcionarios /></ProtectedRoute>} />
