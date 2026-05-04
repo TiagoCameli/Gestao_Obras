@@ -25,7 +25,6 @@ import type {
   Deposito,
   Equipamento,
   Fornecedor,
-  Funcionario,
   Insumo,
   EntradaCombustivel,
   AlocacaoEtapa,
@@ -49,7 +48,6 @@ interface Props {
   /** Equipamentos ativos. Sentinel 'desconhecido' deve ser filtrado fora. */
   equipamentos: Equipamento[];
   transportadoras: Fornecedor[];
-  funcionarios: Funcionario[];
   combustiveis: Insumo[];
   /** Pra cálculo de preço médio do tanque. */
   entradasCombustivel: EntradaCombustivel[];
@@ -83,7 +81,6 @@ export default function SaidaCombustivelForm({
   depositos,
   equipamentos,
   transportadoras,
-  funcionarios,
   combustiveis,
   entradasCombustivel,
 }: Props) {
@@ -119,7 +116,7 @@ export default function SaidaCombustivelForm({
   // ── Estado: carreta ──
   const [transportadoraId, setTransportadoraId] = useState(initial?.transportadoraId ?? '');
   const [placa, setPlaca] = useState(initial?.placa ?? '');
-  const [motoristaId, setMotoristaId] = useState(initial?.motoristaId ?? '');
+  const [motorista, setMotorista] = useState(initial?.motorista ?? '');
   const [taxaLitroStr, setTaxaLitroStr] = useState(
     initial?.taxaLitro != null ? String(initial.taxaLitro) : '0'
   );
@@ -278,7 +275,7 @@ export default function SaidaCombustivelForm({
         equipamentoId: tipoConsumidor === 'equipamento_proprio' ? equipamentoId || null : null,
         transportadoraId: tipoConsumidor === 'carreta_transportadora' ? transportadoraId || null : null,
         placa: tipoConsumidor === 'carreta_transportadora' ? (placa || null) : null,
-        motoristaId: tipoConsumidor === 'carreta_transportadora' ? (motoristaId || null) : null,
+        motorista: tipoConsumidor === 'carreta_transportadora' ? motorista.trim() : '',
         obraId: obraId || null,
         etapaId: etapaId || null,
         alocacoes,
@@ -302,7 +299,7 @@ export default function SaidaCombustivelForm({
     },
     [
       isValid, initial, data, origem, tipoConsumidor, tanqueId, equipamentoId,
-      transportadoraId, placa, motoristaId, obraId, etapaId, tipoCombustivel,
+      transportadoraId, placa, motorista, obraId, etapaId, tipoCombustivel,
       litros, precoMedioTanque, taxaLitro, precoUnitario, valorTotal,
       fotoUrls, observacoes, pago, pagoEm, onSubmit,
     ]
@@ -445,15 +442,13 @@ export default function SaidaCombustivelForm({
               onChange={(e) => setPlaca(e.target.value.toUpperCase())}
               placeholder="ABC-1234"
             />
-            <Select
+            <Input
               label="Motorista"
               id="saidaMotorista"
-              value={motoristaId}
-              onChange={(e) => setMotoristaId(e.target.value)}
-              options={funcionarios
-                .filter((f) => f.status === 'ativo')
-                .map((f) => ({ value: f.id, label: f.nome }))}
-              placeholder="Selecione (opcional)"
+              type="text"
+              value={motorista}
+              onChange={(e) => setMotorista(e.target.value)}
+              placeholder="Nome do motorista (opcional)"
             />
           </>
         )}

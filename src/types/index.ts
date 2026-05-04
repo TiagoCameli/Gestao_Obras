@@ -402,7 +402,8 @@ export interface SaidaCombustivel {
   /** FK fornecedores.id. NOT NULL quando tipoConsumidor='carreta_transportadora'. */
   transportadoraId: string | null;
   placa: string | null;
-  motoristaId: string | null;
+  /** Texto livre. Motorista nem sempre é funcionário cadastrado (terceirizado). */
+  motorista: string;
 
   obraId: string | null;
   etapaId: string | null;

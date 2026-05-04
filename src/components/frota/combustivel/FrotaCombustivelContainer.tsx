@@ -16,7 +16,6 @@ import { useEntradasCombustivel, useAdicionarEntradaCombustivel, useAtualizarEnt
 import { useTransferenciasCombustivel, useAdicionarTransferenciaCombustivel, useExcluirTransferenciaCombustivel } from '../../../hooks/useTransferenciasCombustivel';
 import { useEquipamentos } from '../../../hooks/useEquipamentos';
 import { useFornecedores } from '../../../hooks/useFornecedores';
-import { useFuncionarios } from '../../../hooks/useFuncionarios';
 import { useInsumos } from '../../../hooks/useInsumos';
 import { useAuth } from '../../../contexts/AuthContext';
 import Modal from '../../ui/Modal';
@@ -96,7 +95,6 @@ export default function FrotaCombustivelContainer() {
   const { data: todasTransferencias = [] } = useTransferenciasCombustivel();
   const { data: todosEquipamentos = [] } = useEquipamentos();
   const { data: todosFornecedores = [] } = useFornecedores();
-  const { data: todosFuncionarios = [] } = useFuncionarios();
   const { data: todosInsumos = [] } = useInsumos();
 
   // Transportadoras filtradas pra forms/lists de saídas
@@ -481,7 +479,6 @@ export default function FrotaCombustivelContainer() {
           depositos={depositosTodos}
           equipamentos={todosEquipamentos}
           transportadoras={transportadoras}
-          funcionarios={todosFuncionarios}
           combustiveis={combustiveis}
           entradasCombustivel={todasEntradas}
         />
