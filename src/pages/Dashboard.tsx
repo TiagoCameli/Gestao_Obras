@@ -22,7 +22,8 @@ import Select from '../components/ui/Select';
 import Button from '../components/ui/Button';
 import { useAuth } from '../contexts/AuthContext';
 import { useObras } from '../hooks/useObras';
-import { useAbastecimentos } from '../hooks/useAbastecimentos';
+// Substitui useAbastecimentos (compat shim) na Fase 5 — adapter inline mantém shape antigo.
+import { useSaidasCombustivel } from '../hooks/useSaidasCombustivel';
 import { useSaidasMaterial } from '../hooks/useSaidasMaterial';
 import { useInsumos } from '../hooks/useInsumos';
 import { useEtapas } from '../hooks/useEtapas';
@@ -55,7 +56,34 @@ export default function Dashboard() {
   const canFilter = temAcao('filtros_dashboard');
   const { data: obras = [], isLoading: loadingObras } = useObras();
   const { data: etapas = [] } = useEtapas();
-  const { data: abastecimentos = [] } = useAbastecimentos();
+  const { data: saidasCombustivel = [] } = useSaidasCombustivel();
+  // Adapter inline pra preservar helpers/uso downstream (tipo Abastecimento
+  // será removido na Fase 5; quando isso acontecer, este arquivo refatora
+  // pra usar SaidaCombustivel direto).
+  const abastecimentos: Abastecimento[] = useMemo(
+    () => saidasCombustivel.map((s) => ({
+      id: s.id,
+      dataHora: s.data,
+      tipoCombustivel: s.tipoCombustivel ?? '',
+      quantidadeLitros: s.litros,
+      valorTotal: s.valorTotal,
+      obraId: s.obraId ?? '',
+      etapaId: s.etapaId ?? '',
+      alocacoes: s.alocacoes ?? [],
+      depositoId: s.tanqueId ?? '',
+      equipamentoId: (s.equipamentoId === 'desconhecido' ? '' : (s.equipamentoId ?? '')),
+      veiculo: '',
+      fotosUrls: s.fotoUrls ?? [],
+      observacoes: s.observacoes ?? '',
+      criadoPor: s.createdBy ?? '',
+      origemCombustivel: s.origem,
+      fornecedor: '',
+      pago: s.pago ?? false,
+      dataPagamento: s.pagoEm ?? '',
+      pagoPor: '',
+    })),
+    [saidasCombustivel]
+  );
   const { data: saidasMaterial = [] } = useSaidasMaterial();
   const { data: insumos = [] } = useInsumos();
 
