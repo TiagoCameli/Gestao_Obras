@@ -6,6 +6,35 @@ foi identificado.
 
 ---
 
+## Standing rules da refatoração
+
+Regras de processo cravadas durante a refatoração Frete + Combustível +
+Conta Corrente das Transportadoras. **Aplicáveis indefinidamente** ao
+projeto inteiro, não só ao escopo da refatoração.
+
+1. **Renames/moves de arquivo no repo passam por `git mv`** (ou
+   `git rm` + `git add` no novo nome se rename direto não couber). Sem
+   `mv` cru. Origem: rename das 17 órfãs do passo (a) da Fase 1a usou `mv`
+   cru e perdeu blob chain do git.
+
+2. **Antes de qualquer `supabase migration repair --status reverted/applied`**,
+   conferir o estado do registry pra aquele timestamp via
+   `supabase migration list | grep <TS>`. Se houver mais de 1 linha pra
+   versão, ou se a linha representar algo que NÃO queremos
+   reverter/aplicar, abortar e replanejar. Origem: `repair --status reverted
+   20260428000000` no passo (3) anterior atingiu também a entrada legítima
+   do `_rename_amazonia_to_emt_transportes` que já estava applied.
+
+3. **Antes de tornar campo obrigatório em tipo TS**, fazer grep amplo
+   cobrindo (a) usos do hook que retorna o tipo, (b) construções literais
+   do tipo (busca por `: TipoNome`, `as TipoNome`, `<TipoNome>`,
+   `TipoNome[]`), (c) factories ou converters que produzem o tipo.
+   Reportar todos antes de aplicar a mudança. Origem: tornar
+   `Deposito.ehExterno` obrigatório quebrou TS em 4 call sites de
+   construção literal que o grep original (só `useDepositos`) não pegou.
+
+---
+
 ## Adicionar `created_at` / `updated_at` em fretes, pagamentos_frete, abastecimentos_carreta
 
 **Identificado em:** Refatoração Frete + Combustível + Conta Corrente, Fase 1a
@@ -58,3 +87,48 @@ pra evitar ambiguidade em migrations futuras / scripts de backfill.
 | Constante | Valor | Origem | Significado |
 |---|---|---|---|
 | `DEPOSITO_VIRTUAL_TRANSTERRA_ID` | `mori6yyt9owm9` | Migration `20260505060000` | Depósito virtual Transterra (Areacre); `eh_externo=true`. Não tem estoque interno — só amarra movimentos pra conta-corrente da Areacre. |
+
+---
+
+## Filtro `eh_externo` na UI — manter consistência na Fase 4
+
+**Identificado em:** Refatoração Frete + Combustível, commit de UI da Fase 1b
+(filtros `eh_externo=false` aplicados nos forms operacionais via hook
+`useDepositos()` default; views/lists/exports usam `useDepositos({ incluirExternos: true })`
+ou wrapper `useTodosDepositos`).
+
+**Contexto:** a regra de filtragem de depósitos externos vive HOJE no hook
+`useDepositos`. Forms que CRIAM rows (entrada/saída/transferência) filtram
+por default; views que EXIBEM rows usam todos.
+
+**Risco na Fase 4:** quando o `SaidaCombustivelForm` novo colapsar
+`AbastecimentoForm` (saída tanque) + `AbastecimentoCarretaForm` numa única
+tela com toggle de tipo de consumidor, a regra precisa continuar:
+- Tipo `equipamento_proprio` → só depósitos internos no select de tanque.
+- Tipo `carreta_transportadora` → todos os depósitos (incluindo Transterra).
+
+**Plano:** o novo form deve receber 2 listas (ou chamar `useDepositos({ incluirExternos: <depende do tipo> })` reativamente conforme o toggle).
+Não duplicar a regra dentro do componente — manter no hook ou em um helper.
+
+---
+
+## `migrateToSupabase.ts` não popula campos novos de `Deposito`
+
+**Identificado em:** Refatoração Frete + Combustível, commit de UI da Fase 1b
+(grep ampliado de construções literais de Deposito).
+
+**Contexto:** `src/utils/migrateToSupabase.ts:140` lê depósitos do localStorage
+via `readLS<Deposito>(KEYS.depositos)` (cast TS, sem checagem de schema). O
+mapper `depositoToDb` agora envia `transportadora_proprietaria_id`, `apelido`
+e `eh_externo`. Quando o LS legado não tem esses campos, eles vão como
+`undefined` → vira `NULL` no payload → DB usa `DEFAULT` da coluna
+(`null/null/false` respectivamente).
+
+**Comportamento atual:** funciona silenciosamente. Migrações de localStorage
+gravam depósitos sempre como internos (`eh_externo=false`), o que é o caso
+universal já que ninguém criou Transterra via app.
+
+**Quando endereçar:** se algum dia houver necessidade de re-rodar este
+script com dados que já tenham `eh_externo=true` no LS (improvável — Transterra
+é seed via migration). Em caso de re-run, fazer schema validation antes do
+batch upsert.
