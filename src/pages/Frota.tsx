@@ -7,7 +7,6 @@ import { useAuth } from '../contexts/AuthContext';
 import Modal from '../components/ui/Modal';
 import Button from '../components/ui/Button';
 import FrotaStats from '../components/frota/FrotaStats';
-import FrotaCategoryPills from '../components/frota/FrotaCategoryPills';
 import FrotaGrid from '../components/frota/FrotaGrid';
 import FrotaList from '../components/frota/FrotaList';
 import FrotaDetalhe from '../components/frota/FrotaDetalhe';
@@ -296,6 +295,30 @@ export default function Frota() {
             />
             <div className="flex items-center gap-1.5">
               <span className="text-xs font-medium uppercase tracking-wide text-[var(--color-fg-muted)]">
+                Tipo
+              </span>
+              <select
+                value={categoriaFiltro}
+                onChange={(e) => setCategoriaFiltro(e.target.value as TipoEquipamento | '')}
+                className="h-9 px-2.5 text-sm rounded-lg bg-[var(--color-surface-1)] border border-[var(--color-border)] focus:outline-none focus:border-[var(--color-accent)] focus:ring-2 focus:ring-[var(--color-ring)]"
+              >
+                <option value="">Todos</option>
+                {Array.from(
+                  equipamentos.reduce((acc, e) => {
+                    if (e.tipo) acc.set(e.tipo, (acc.get(e.tipo) ?? 0) + 1);
+                    return acc;
+                  }, new Map<TipoEquipamento, number>()).entries()
+                )
+                  .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+                  .map(([t, n]) => (
+                    <option key={t} value={t}>
+                      {t} ({n})
+                    </option>
+                  ))}
+              </select>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <span className="text-xs font-medium uppercase tracking-wide text-[var(--color-fg-muted)]">
                 Empresa
               </span>
               <select
@@ -327,26 +350,32 @@ export default function Frota() {
         )}
       </div>
 
-      {/* CATEGORIAS */}
-      <FrotaCategoryPills
-        equipamentos={
-          filtroAtivo === 'ativos'
-            ? equipamentos.filter((e) => e.ativo)
-            : filtroAtivo === 'inativos'
-              ? equipamentos.filter((e) => !e.ativo)
-              : equipamentos
-        }
-        categoriaFiltro={categoriaFiltro}
-        onSelect={setCategoriaFiltro}
-      />
-
       {/* CONTEÚDO */}
       <div>
-        <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center justify-between mb-3 gap-3 flex-wrap">
           <p className="text-sm text-[var(--color-fg-muted)]">
             <span className="font-semibold text-[var(--color-fg)]">{equipamentosFiltrados.length}</span>{' '}
             de {equipamentos.length} equipamento{equipamentos.length === 1 ? '' : 's'}
           </p>
+          {(categoriaFiltro || filtroEmpresa || filtroAtivo !== 'todos' || filtroPropriedade !== 'todos') && (
+            <div className="flex items-center gap-1.5 flex-wrap">
+              {filtroAtivo !== 'todos' && (
+                <Chip label={STATUS_LABELS[filtroAtivo]} onClear={() => setFiltroAtivo('todos')} />
+              )}
+              {filtroPropriedade !== 'todos' && (
+                <Chip label={PROP_LABELS[filtroPropriedade]} onClear={() => setFiltroPropriedade('todos')} />
+              )}
+              {categoriaFiltro && (
+                <Chip label={categoriaFiltro} onClear={() => setCategoriaFiltro('')} />
+              )}
+              {filtroEmpresa && (
+                <Chip
+                  label={empresas.find((e) => e.id === filtroEmpresa)?.nome ?? '?'}
+                  onClear={() => setFiltroEmpresa('')}
+                />
+              )}
+            </div>
+          )}
         </div>
 
         {modoVisualizacao === 'grid' ? (
@@ -425,6 +454,21 @@ export default function Frota() {
         />
       </Modal>
     </div>
+  );
+}
+
+function Chip({ label, onClear }: { label: string; onClear: () => void }) {
+  return (
+    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-medium bg-[var(--color-accent-soft)] text-[var(--color-accent-fg)] border border-[var(--color-accent)]/20">
+      {label}
+      <button
+        onClick={onClear}
+        aria-label={`Remover filtro ${label}`}
+        className="hover:text-[var(--color-danger-fg)]"
+      >
+        <X aria-hidden className="w-3 h-3" />
+      </button>
+    </span>
   );
 }
 
