@@ -46,14 +46,58 @@ projeto inteiro, não só ao escopo da refatoração.
    `transportadora_movimentos.obra_id uuid REFERENCES obras(id)` porque
    `obras.id` é text armazenando string em formato uuid.
 
-5. **`_` em `LIKE` é wildcard**, não literal. Quando filtrar
-   `pg_constraint`/`pg_trigger`/`information_schema` por nome, usar
-   `IN (lista_explícita)` em vez de `LIKE 'prefix_%'`. Exemplo do bug:
-   `conname LIKE 'saida_%'` casa com `'saidas_combustivel_origem_check'`
-   (o `s` no meio de `saidas` casa com o wildcard `_`). Pra `_` literal,
-   escape com `\_` e `ESCAPE '\\'`, mas `IN (...)` é mais legível e
-   robusto. Origem: validação inline da Fase 1c reportou
-   `7 CHECKs encontrado 4 esperados` por casamento acidental do LIKE.
+5. **`LIKE` com prefix tem 2 modos de falhar.** Sempre prefira
+   `IN (lista_explícita)` em filtros de tipos enumerados.
+   (a) `_` no padrão é wildcard que casa caracteres não previstos.
+       Exemplo: `conname LIKE 'saida_%'` casa com
+       `'saidas_combustivel_origem_check'` (o `s` no meio de `saidas`
+       casa com o wildcard `_`). Pra `_` literal, escape com `\_` e
+       `ESCAPE '\\'`. Origem: validação inline da Fase 1c reportou
+       `7 CHECKs encontrado 4 esperados` por casamento acidental.
+   (b) `'prefix_%'` só casa tipos onde a categoria está no INÍCIO do
+       nome — não funciona pra naming onde a categoria está no fim,
+       tipo `ajuste_manual_credito` (categoria `credito` está no fim).
+       Origem: view `transportadora_saldos` da Fase 1c usava
+       `tipo LIKE 'credito_%'` e tratou `ajuste_manual_credito` como
+       débito, causando saldo errado pra ETAM (-R$ 1,3M) e EMT
+       TRANSPORTES (-R$ 14k) na primeira tentativa de backfill da Fase 2.
+       Fix em `20260505075000_fix_view_transportadora_saldos.sql`.
+
+6. **Trigger functions de auto-movimento (Fase 1c) não setam
+   `created_by`.** Movimentos criados via app post-Fase 1c ficam com
+   `created_by IS NULL`. Se um dia for útil distinguir "auto-trigger"
+   de "manual via UI", modificar as 3 funções `fn_*_movimentos`
+   (`fn_saidas_combustivel_movimentos`, `fn_fretes_movimentos`,
+   `fn_pagamentos_frete_movimentos`) pra setar `created_by = 'auto_trigger'`
+   ou similar. Não fazer agora — a seção 6 do backfill da Fase 2 já
+   trata via `RAISE NOTICE` quando há movs sem marker; modelo atual é
+   "OR NULL" pra app activity = aceitável.
+
+7. **Precisão monetária no schema EMT.** Algumas tabelas
+   (`abastecimentos_carreta.valor_total`) armazenam valores calculados
+   com 4 decimais (litros × valor_unidade — ex: `85065.4014`). Pra
+   preservar fidelidade na cadeia `transportadora_movimentos` /
+   `saidas_combustivel`, ambas usam `numeric(14,4)` (decisão tomada na
+   migration 080 após o backfill diff R$ 0,01-0,02 por
+   redistribuição de truncamento). Display em UI deve rodar
+   `Math.round(v × 100) / 100` ou equivalente. Cuidado ao adicionar
+   tabelas novas que somem ou comparem esses valores — sempre
+   `numeric(14,4)` na cadeia financeira; só arredonda no momento do
+   display.
+
+8. **Equipamento sentinel `'desconhecido'` (Fase 2/081).** 756
+   abastecimentos legados não tinham `equipamento_id` (UI histórica
+   não exigia, e a Fase 0 wipou todos os refs). Pra honrar a CHECK
+   `saida_equipamento_exige_equipamento` no novo schema, criamos 1 row
+   sentinel em `equipamentos` (`id='desconhecido'`, `nome='Equipamento
+   Desconhecido'`, `tipo='Sentinel'`, `marca='Desconhecido'`,
+   `modelo='Desconhecido'`, `ativo=false`, `status='fora_funcionamento'`)
+   e backfilamos os 756 com esse id. Filtrar `equipamento_id <>
+   'desconhecido'` em: queries de stats da Frota, relatórios de consumo
+   por equipamento, dropdowns operacionais (já filtram via `ativo=true`
+   por convenção). Investigar quando der: existe backup/audit log que
+   permita atribuir os 756 ao equipamento real? Se sim, UPDATE pontual
+   depois.
 
 ---
 
