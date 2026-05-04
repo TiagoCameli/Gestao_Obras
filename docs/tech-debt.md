@@ -153,6 +153,50 @@ projeto inteiro, não só ao escopo da refatoração.
     fazer o desmarcador tentar STRIP via regex `/\n?\[pago por: [^\]]+\]/`.
     Não fazer agora — escopo de Fase 4+ se virar dor.
 
+13. **Backups DBA-only `abastecimentos_backup_20260505` e
+    `abastecimentos_carreta_backup_20260505` (Fase 5).** Snapshot pré-DROP
+    das tabelas legadas (756 + 167 rows). Sem RLS, REVOKE all em anon +
+    authenticated → não aparecem em PostgREST. **Drop programado:
+    2026-07-04** (60 dias após a Fase 5). Antes de dropar:
+    confirmar que ninguém mais precisa dos dados (ex: investigação de
+    auditoria). Recovery se preciso: copiar rows manualmente de volta
+    pro schema novo (`saidas_combustivel` + `transportadora_movimentos`)
+    — mappers da Fase 2 (`scripts/backfill_*` na época) servem de
+    referência mas não rodam mais (tabelas originais foram dropadas).
+    Migration de drop: criar
+    `supabase/migrations/20260704000000_drop_legacy_backups.sql` com
+    `DROP TABLE IF EXISTS public.abastecimentos_backup_20260505;` +
+    `DROP TABLE IF EXISTS public.abastecimentos_carreta_backup_20260505;`
+    e remover esta entrada do tech-debt.
+
+14. **`Abastecimento` e `AbastecimentoCarreta` types vivem em
+    `src/types/index.ts` mesmo sem tabela DB (Fase 5).** Após o DROP
+    das tabelas legadas, mantemos os tipos TS porque ainda há 3 callers
+    que constroem o shape pra exports:
+    - `src/utils/pdfExport.ts::exportarSaidasPDF` (param `Abastecimento[]`)
+    - `src/utils/excelExport.ts::exportarSaidasExcel` +
+      `RelatorioCompletoCombustivelExcel` (param `Abastecimento[]`)
+    - `src/components/frete/FreteDashboard.tsx` (adapter inline produzindo
+      `AbastecimentoCarreta[]` pra cards de saldo legados)
+
+    Os callers acima recebem o shape via adapters ad-hoc nos containers
+    (`Dashboard.tsx`, `FrotaCombustivelContainer.tsx`, `Frete.tsx`) que
+    convertem `SaidaCombustivel[]` (schema novo) → shape legado. Ideal:
+    refatorar exports pra consumir `SaidaCombustivel[]` direto e deletar
+    os 2 tipos. Não é bloqueante — adapters são localizados e o custo
+    de manutenção é baixo.
+
+15. **Nunca usar `sed -i ''` em arquivos do projeto — usar Edit tool.**
+    Comandos `sed -i '' 's/.../.../g' arquivo.tsx` em arquivos com
+    múltiplas linhas e regex multi-line podem **zerar o arquivo
+    inteiro** se a substituição engatilhar greedy match. Origem:
+    Commit 1 da Fase 5 usei `sed -i '' 's/onClick={() => goSaldo([^}]*)}/onClick={onVerContaCorrente}/g'`
+    em `FreteDashboard.tsx` (1641 linhas) e o arquivo virou 0 bytes —
+    teve que `git checkout HEAD --` e re-aplicar via Edit tool em 5
+    chamadas individuais. Edit tool é atômico, mostra diff antes,
+    falha de forma segura se old_string não bater. Sed em arquivos do
+    repo só com extremo cuidado e backup prévio.
+
 ---
 
 ## Adicionar `created_at` / `updated_at` em fretes, pagamentos_frete, abastecimentos_carreta
@@ -232,23 +276,11 @@ Não duplicar a regra dentro do componente — manter no hook ou em um helper.
 
 ---
 
-## `migrateToSupabase.ts` não popula campos novos de `Deposito`
+## ~~`migrateToSupabase.ts` não popula campos novos de `Deposito`~~ (RESOLVIDO Fase 5)
 
-**Identificado em:** Refatoração Frete + Combustível, commit de UI da Fase 1b
-(grep ampliado de construções literais de Deposito).
-
-**Contexto:** `src/utils/migrateToSupabase.ts:140` lê depósitos do localStorage
-via `readLS<Deposito>(KEYS.depositos)` (cast TS, sem checagem de schema). O
-mapper `depositoToDb` agora envia `transportadora_proprietaria_id`, `apelido`
-e `eh_externo`. Quando o LS legado não tem esses campos, eles vão como
-`undefined` → vira `NULL` no payload → DB usa `DEFAULT` da coluna
-(`null/null/false` respectivamente).
-
-**Comportamento atual:** funciona silenciosamente. Migrações de localStorage
-gravam depósitos sempre como internos (`eh_externo=false`), o que é o caso
-universal já que ninguém criou Transterra via app.
-
-**Quando endereçar:** se algum dia houver necessidade de re-rodar este
-script com dados que já tenham `eh_externo=true` no LS (improvável — Transterra
-é seed via migration). Em caso de re-run, fazer schema validation antes do
-batch upsert.
+**Resolvido em:** Commit 5 da Fase 5 (`6dd3c1c`) — script
+`src/utils/migrateToSupabase.ts` e a página `src/pages/MigrarDados.tsx` foram
+deletados. O script era one-shot pra migração inicial do localStorage pro
+Supabase e já tinha cumprido seu papel. Sem callers ativos hoje. Se algum dia
+precisar re-importar dados de LS legado, escrever script novo com schema
+validation desde o início (sem reaproveitar a estrutura antiga).
