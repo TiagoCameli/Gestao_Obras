@@ -1,17 +1,33 @@
 import { useCallback, useState, useEffect, type FormEvent } from 'react';
-import type { AbastecimentoCarreta, CategoriaAbastecimentoCarreta, Insumo } from '../../types';
+import type {
+  Abastecimento,
+  AbastecimentoCarreta,
+  CategoriaAbastecimentoCarreta,
+  Deposito,
+  EtapaObra,
+  Insumo,
+  Obra,
+} from '../../types';
 import Input from '../ui/Input';
 import Select from '../ui/Select';
 import Button from '../ui/Button';
 import { useAdicionarInsumo } from '../../hooks/useInsumos';
 import ImportExcelModal, { parseStr, parseNumero, parseData, type ParsedRow } from '../ui/ImportExcelModal';
+import { Truck, Building2 } from 'lucide-react';
 
 interface AbastecimentoCarretaFormProps {
   initial?: AbastecimentoCarreta | null;
   onSubmit: (data: AbastecimentoCarreta) => void;
+  /** Callback usado quando categoria='emt': salva carreta + saída de combustível atomicamente. */
+  onSubmitEmt?: (carreta: AbastecimentoCarreta, saida: Omit<Abastecimento, 'id' | 'criadoPor' | 'pago' | 'dataPagamento' | 'pagoPor' | 'origemCombustivel' | 'fornecedor' | 'fotosUrls'>) => void;
   onCancel: () => void;
   transportadoras: string[];
   combustiveis: Insumo[];
+  obras?: Obra[];
+  depositos?: Deposito[];
+  etapas?: EtapaObra[];
+  /** Entradas de combustível pra cálculo do preço médio do tanque. */
+  entradasCombustivel?: Array<{ depositoId: string; quantidadeLitros: number; valorTotal: number }>;
   onImportBatch?: (items: AbastecimentoCarreta[]) => void;
   /** Categoria padrão pra novo registro (vem da aba ativa do Frete). */
   defaultCategoria?: CategoriaAbastecimentoCarreta;
@@ -29,9 +45,14 @@ const ABASTCARRETA_TEMPLATE = [
 export default function AbastecimentoCarretaForm({
   initial,
   onSubmit,
+  onSubmitEmt,
   onCancel,
   transportadoras,
   combustiveis,
+  obras = [],
+  depositos = [],
+  etapas = [],
+  entradasCombustivel = [],
   onImportBatch,
   defaultCategoria,
 }: AbastecimentoCarretaFormProps) {
@@ -46,6 +67,11 @@ export default function AbastecimentoCarretaForm({
   const [quantidadeLitros, setQuantidadeLitros] = useState(initial?.quantidadeLitros?.toString() || '');
   const [valorUnidade, setValorUnidade] = useState(initial?.valorUnidade?.toString() || '');
   const [observacoes, setObservacoes] = useState(initial?.observacoes || '');
+  // Campos extras pra modo EMT
+  const [obraId, setObraId] = useState('');
+  const [depositoId, setDepositoId] = useState('');
+  const [etapaId, setEtapaId] = useState('');
+  const [taxaLitro, setTaxaLitro] = useState(initial?.taxaLitro?.toString() || '0');
 
   // Inline novo combustivel
   const [listaCombustiveis, setListaCombustiveis] = useState<Insumo[]>(combustiveis);
@@ -154,8 +180,61 @@ export default function AbastecimentoCarretaForm({
   const vlrUnit = parseFloat(valorUnidade) || 0;
   const valorTotal = litros * vlrUnit;
 
+  // ── Cálculos EMT ──
+  const isEmt = categoria === 'emt';
+  const depositosDaObra = obraId
+    ? depositos.filter((d) => d.obraId === obraId && d.ativo !== false)
+    : [];
+  const etapasDaObra = obraId ? etapas.filter((e) => e.obraId === obraId) : [];
+  const entradasTanque = depositoId
+    ? entradasCombustivel.filter((e) => e.depositoId === depositoId)
+    : [];
+  const totalLitrosEnt = entradasTanque.reduce((s, e) => s + e.quantidadeLitros, 0);
+  const totalValorEnt = entradasTanque.reduce((s, e) => s + e.valorTotal, 0);
+  const precoMedioTanque = totalLitrosEnt > 0 ? totalValorEnt / totalLitrosEnt : 0;
+  const taxaNum = parseFloat(taxaLitro) || 0;
+  const valorUnitFinal = isEmt ? precoMedioTanque + taxaNum : vlrUnit;
+  const valorTotalFinal = isEmt ? litros * valorUnitFinal : valorTotal;
+
   function handleSubmit(e: FormEvent) {
     e.preventDefault();
+
+    if (isEmt && onSubmitEmt) {
+      const carreta: AbastecimentoCarreta = {
+        id: initial?.id || gerarId(),
+        data,
+        transportadora,
+        placaCarreta,
+        mesReferencia,
+        tipoCombustivel,
+        quantidadeLitros: litros,
+        valorUnidade: valorUnitFinal,
+        valorTotal: valorTotalFinal,
+        observacoes,
+        categoria: 'emt',
+        taxaLitro: taxaNum,
+        criadoPor: initial?.criadoPor || '',
+      };
+      const dataHora = `${data}T00:00:00`;
+      const saidaPayload = {
+        dataHora,
+        tipoCombustivel,
+        quantidadeLitros: litros,
+        valorTotal: valorTotalFinal,
+        obraId,
+        etapaId,
+        alocacoes: etapaId ? [{ etapaId, percentual: 100 }] : [],
+        depositoId,
+        equipamentoId: '',
+        veiculo: `${transportadora} · ${placaCarreta}`,
+        observacoes:
+          observacoes ||
+          `Abastecimento EMT — taxa R$ ${taxaNum.toFixed(4)}/L · preço médio R$ ${precoMedioTanque.toFixed(4)}/L`,
+      };
+      onSubmitEmt(carreta, saidaPayload);
+      return;
+    }
+
     onSubmit({
       id: initial?.id || gerarId(),
       data,
@@ -168,11 +247,14 @@ export default function AbastecimentoCarretaForm({
       valorTotal,
       observacoes,
       categoria,
+      taxaLitro: 0,
       criadoPor: initial?.criadoPor || '',
     });
   }
 
-  const isValid = data && transportadora && placaCarreta && mesReferencia && tipoCombustivel && quantidadeLitros && valorUnidade;
+  const isValid = isEmt
+    ? data && obraId && depositoId && etapaId && transportadora && placaCarreta && tipoCombustivel && litros > 0 && precoMedioTanque > 0
+    : data && transportadora && placaCarreta && mesReferencia && tipoCombustivel && quantidadeLitros && valorUnidade;
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
@@ -183,6 +265,62 @@ export default function AbastecimentoCarretaForm({
           </Button>
         </div>
       )}
+
+      {/* Toggle Categoria — destaque grande */}
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-2">
+          Tipo de Abastecimento
+        </label>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <button
+            type="button"
+            onClick={() => setCategoria('transterra')}
+            className={`flex items-center gap-3 px-4 py-4 rounded-xl border-2 transition-all text-left ${
+              categoria === 'transterra'
+                ? 'border-emt-verde bg-emt-verde/10 shadow-sm'
+                : 'border-gray-200 bg-white hover:border-gray-300'
+            }`}
+          >
+            <div className={`w-11 h-11 rounded-lg flex items-center justify-center shrink-0 ${
+              categoria === 'transterra' ? 'bg-emt-verde text-white' : 'bg-gray-100 text-gray-500'
+            }`}>
+              <Truck className="w-6 h-6" />
+            </div>
+            <div className="min-w-0">
+              <div className={`font-semibold text-sm ${categoria === 'transterra' ? 'text-emt-verde-escuro' : 'text-gray-800'}`}>
+                Abastecimento Transterra
+              </div>
+              <div className="text-xs text-gray-500">
+                Terceirizado — informa valor unitário direto
+              </div>
+            </div>
+          </button>
+          <button
+            type="button"
+            onClick={() => setCategoria('emt')}
+            className={`flex items-center gap-3 px-4 py-4 rounded-xl border-2 transition-all text-left ${
+              categoria === 'emt'
+                ? 'border-emt-verde bg-emt-verde/10 shadow-sm'
+                : 'border-gray-200 bg-white hover:border-gray-300'
+            }`}
+          >
+            <div className={`w-11 h-11 rounded-lg flex items-center justify-center shrink-0 ${
+              categoria === 'emt' ? 'bg-emt-verde text-white' : 'bg-gray-100 text-gray-500'
+            }`}>
+              <Building2 className="w-6 h-6" />
+            </div>
+            <div className="min-w-0">
+              <div className={`font-semibold text-sm ${categoria === 'emt' ? 'text-emt-verde-escuro' : 'text-gray-800'}`}>
+                Abastecimento EMT
+              </div>
+              <div className="text-xs text-gray-500">
+                Sai do tanque EMT — preço calculado + taxa
+              </div>
+            </div>
+          </button>
+        </div>
+      </div>
+
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <Input
           label="Data"
@@ -190,17 +328,6 @@ export default function AbastecimentoCarretaForm({
           type="date"
           value={data}
           onChange={(e) => { setData(e.target.value); if (e.target.value) setMesReferencia(e.target.value.slice(0, 7)); }}
-          required
-        />
-        <Select
-          label="Categoria"
-          id="abastCarretaCategoria"
-          value={categoria}
-          onChange={(e) => setCategoria(e.target.value as CategoriaAbastecimentoCarreta)}
-          options={[
-            { value: 'transterra', label: 'Transterra (terceirizado)' },
-            { value: 'emt', label: 'EMT (frota própria)' },
-          ]}
           required
         />
         <Select
@@ -221,13 +348,15 @@ export default function AbastecimentoCarretaForm({
           placeholder="Ex: ABC-1234"
           required
         />
-        <Input
-          label="Mês Referência"
-          id="abastCarretaMesRef"
-          value={mesReferencia ? (() => { const [a, m] = mesReferencia.split('-'); const nomes = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro']; return `${nomes[parseInt(m,10)-1]} ${a}`; })() : ''}
-          onChange={() => {}}
-          readOnly
-        />
+        {!isEmt && (
+          <Input
+            label="Mês Referência"
+            id="abastCarretaMesRef"
+            value={mesReferencia ? (() => { const [a, m] = mesReferencia.split('-'); const nomes = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro']; return `${nomes[parseInt(m,10)-1]} ${a}`; })() : ''}
+            onChange={() => {}}
+            readOnly
+          />
+        )}
 
         {/* Tipo Combustivel com inline + Novo */}
         <div>
@@ -309,26 +438,120 @@ export default function AbastecimentoCarretaForm({
           onChange={(e) => setQuantidadeLitros(e.target.value)}
           required
         />
-        <Input
-          label="Valor Unitário (R$/litro)"
-          id="abastCarretaVlrUnit"
-          type="number"
-          step="0.0001"
-          min="0"
-          value={valorUnidade}
-          onChange={(e) => setValorUnidade(e.target.value)}
-          required
-        />
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Valor Total (R$)
-          </label>
-          <div className="w-full border border-gray-200 bg-gray-50 rounded-lg px-3 py-2 text-sm font-semibold text-emt-verde">
-            {valorTotal.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+        {!isEmt && (
+          <Input
+            label="Valor Unitário (R$/litro)"
+            id="abastCarretaVlrUnit"
+            type="number"
+            step="0.0001"
+            min="0"
+            value={valorUnidade}
+            onChange={(e) => setValorUnidade(e.target.value)}
+            required
+          />
+        )}
+        {!isEmt && (
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Valor Total (R$)
+            </label>
+            <div className="w-full border border-gray-200 bg-gray-50 rounded-lg px-3 py-2 text-sm font-semibold text-emt-verde">
+              {valorTotal.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+            </div>
+            <p className="text-xs text-gray-400 mt-1">Litros x Valor Unitário</p>
           </div>
-          <p className="text-xs text-gray-400 mt-1">Litros x Valor Unitário</p>
-        </div>
+        )}
       </div>
+
+      {isEmt && (
+        <div className="rounded-xl border border-emt-verde/30 bg-emt-verde/5 p-4 space-y-4">
+          <div className="flex items-center gap-2 text-emt-verde-escuro">
+            <Building2 className="w-4 h-4" />
+            <span className="font-semibold text-sm">Saída do Tanque EMT</span>
+          </div>
+          <p className="text-xs text-gray-600 -mt-2">
+            Este abastecimento também será registrado como saída de combustível no módulo Combustível.
+          </p>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <Select
+              label="Obra"
+              id="abastCarretaObraEmt"
+              value={obraId}
+              onChange={(e) => { setObraId(e.target.value); setDepositoId(''); setEtapaId(''); }}
+              options={obras.map((o) => ({ value: o.id, label: o.nome }))}
+              placeholder="Selecione a obra"
+              required
+            />
+            <Select
+              label="Tanque (depósito)"
+              id="abastCarretaTanqueEmt"
+              value={depositoId}
+              onChange={(e) => setDepositoId(e.target.value)}
+              options={depositosDaObra.map((d) => ({ value: d.id, label: d.nome }))}
+              placeholder={obraId ? 'Selecione o tanque' : 'Selecione uma obra primeiro'}
+              disabled={!obraId}
+              required
+            />
+            <Select
+              label="Etapa da Obra"
+              id="abastCarretaEtapaEmt"
+              value={etapaId}
+              onChange={(e) => setEtapaId(e.target.value)}
+              options={etapasDaObra.map((et) => ({ value: et.id, label: et.nome }))}
+              placeholder={obraId ? 'Selecione a etapa' : 'Selecione uma obra primeiro'}
+              disabled={!obraId}
+              required
+            />
+            <Input
+              label="Taxa por Litro (R$/L)"
+              id="abastCarretaTaxa"
+              type="number"
+              step="0.0001"
+              min="0"
+              value={taxaLitro}
+              onChange={(e) => setTaxaLitro(e.target.value)}
+              placeholder="0.0000"
+            />
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3 pt-2">
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">Preço Médio do Tanque</label>
+              <div className="w-full border border-gray-200 bg-white rounded-lg px-3 py-2 text-sm font-semibold text-gray-800">
+                {precoMedioTanque > 0
+                  ? precoMedioTanque.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', minimumFractionDigits: 4 })
+                  : '—'}
+              </div>
+              <p className="text-[10px] text-gray-400 mt-1">Calculado das entradas do tanque</p>
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">Valor Unitário Final</label>
+              <div className="w-full border border-gray-200 bg-white rounded-lg px-3 py-2 text-sm font-semibold text-gray-800">
+                {valorUnitFinal > 0
+                  ? valorUnitFinal.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', minimumFractionDigits: 4 })
+                  : '—'}
+              </div>
+              <p className="text-[10px] text-gray-400 mt-1">Preço médio + Taxa</p>
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">Valor Total</label>
+              <div className="w-full border border-emt-verde/40 bg-white rounded-lg px-3 py-2 text-sm font-bold text-emt-verde">
+                {valorTotalFinal > 0
+                  ? valorTotalFinal.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
+                  : '—'}
+              </div>
+              <p className="text-[10px] text-gray-400 mt-1">Litros × Valor Unitário Final</p>
+            </div>
+          </div>
+
+          {depositoId && precoMedioTanque === 0 && (
+            <div className="rounded-lg bg-yellow-50 border border-yellow-200 px-3 py-2 text-xs text-yellow-800">
+              Este tanque ainda não tem entradas de combustível registradas. Cadastre uma entrada no módulo Combustível antes de prosseguir.
+            </div>
+          )}
+        </div>
+      )}
       <div>
         <label
           htmlFor="abastCarretaObs"

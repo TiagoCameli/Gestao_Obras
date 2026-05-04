@@ -376,6 +376,8 @@ export interface AbastecimentoCarreta {
   observacoes: string;
   /** Distingue Transterra (terceirizado) vs EMT (frota própria). */
   categoria: CategoriaAbastecimentoCarreta;
+  /** Taxa adicional por litro (R$/L). Aplicável apenas em categoria='emt'. */
+  taxaLitro: number;
   criadoPor: string;
 }
 

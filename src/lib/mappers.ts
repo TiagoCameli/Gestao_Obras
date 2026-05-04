@@ -671,6 +671,7 @@ export function dbToAbastecimentoCarreta(row: any): AbastecimentoCarreta {
     valorTotal: Number(row.valor_total),
     observacoes: row.observacoes,
     categoria: row.categoria === 'emt' ? 'emt' : 'transterra',
+    taxaLitro: Number(row.taxa_litro ?? 0),
     criadoPor: row.criado_por ?? '',
   };
 }
@@ -688,6 +689,7 @@ export function abastecimentoCarretaToDb(a: AbastecimentoCarreta) {
     valor_total: a.valorTotal,
     observacoes: a.observacoes,
     categoria: a.categoria ?? 'transterra',
+    taxa_litro: a.taxaLitro ?? 0,
     criado_por: a.criadoPor,
   };
 }

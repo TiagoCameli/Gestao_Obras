@@ -6,6 +6,10 @@ import { usePagamentosFrete, useAdicionarPagamentoFrete, useAtualizarPagamentoFr
 import { useAbastecimentosCarreta, useAdicionarAbastecimentoCarreta, useAtualizarAbastecimentoCarreta, useExcluirAbastecimentoCarreta } from '../hooks/useAbastecimentosCarreta';
 import { usePedidosMaterial, useAdicionarPedidoMaterial, useAtualizarPedidoMaterial, useExcluirPedidoMaterial } from '../hooks/usePedidosMaterial';
 import { useObras } from '../hooks/useObras';
+import { useDepositos } from '../hooks/useDepositos';
+import { useEtapas } from '../hooks/useEtapas';
+import { useEntradasCombustivel } from '../hooks/useEntradasCombustivel';
+import { useAdicionarAbastecimento } from '../hooks/useAbastecimentos';
 import { useInsumos } from '../hooks/useInsumos';
 import { useLocalidades, useAdicionarLocalidade } from '../hooks/useLocalidades';
 import { useFuncionarios } from '../hooks/useFuncionarios';
@@ -64,6 +68,10 @@ export default function Frete() {
   const adicionarAbastCarretaMutation = useAdicionarAbastecimentoCarreta();
   const atualizarAbastCarretaMutation = useAtualizarAbastecimentoCarreta();
   const excluirAbastCarretaMutation = useExcluirAbastecimentoCarreta();
+  const { data: depositos = [] } = useDepositos();
+  const { data: etapas = [] } = useEtapas();
+  const { data: entradasCombustivel = [] } = useEntradasCombustivel();
+  const adicionarAbastecimentoMutation = useAdicionarAbastecimento();
   const { data: pedidosMaterial = [] } = usePedidosMaterial();
   const adicionarPedidoMutation = useAdicionarPedidoMaterial();
   const atualizarPedidoMutation = useAtualizarPedidoMaterial();
@@ -272,6 +280,49 @@ export default function Frete() {
       setAbastDeleteId(null);
     },
     [excluirAbastCarretaMutation]
+  );
+
+  const handleAbastSubmitEmt = useCallback(
+    async (
+      carreta: AbastecimentoCarreta,
+      saida: Omit<import('../types').Abastecimento, 'id' | 'criadoPor' | 'pago' | 'dataPagamento' | 'pagoPor' | 'origemCombustivel' | 'fornecedor' | 'fotosUrls'>
+    ) => {
+      try {
+        const criadoPor = usuario?.nome || '';
+        if (editandoAbast) {
+          await atualizarAbastCarretaMutation.mutateAsync(carreta);
+        } else {
+          await adicionarAbastCarretaMutation.mutateAsync({ ...carreta, criadoPor });
+          const novoAbast: import('../types').Abastecimento = {
+            id: Date.now().toString(36) + Math.random().toString(36).slice(2, 7),
+            dataHora: saida.dataHora,
+            tipoCombustivel: saida.tipoCombustivel,
+            quantidadeLitros: saida.quantidadeLitros,
+            valorTotal: saida.valorTotal,
+            obraId: saida.obraId,
+            etapaId: saida.etapaId,
+            alocacoes: saida.alocacoes,
+            depositoId: saida.depositoId,
+            equipamentoId: '',
+            veiculo: saida.veiculo,
+            fotosUrls: [],
+            observacoes: saida.observacoes,
+            criadoPor,
+            origemCombustivel: 'tanque',
+            fornecedor: '',
+            pago: false,
+            dataPagamento: '',
+            pagoPor: '',
+          };
+          await adicionarAbastecimentoMutation.mutateAsync(novoAbast);
+        }
+        setAbastModalOpen(false);
+        setEditandoAbast(null);
+      } catch (err) {
+        console.error('Erro ao salvar abastecimento EMT:', err);
+      }
+    },
+    [editandoAbast, atualizarAbastCarretaMutation, adicionarAbastCarretaMutation, adicionarAbastecimentoMutation, usuario]
   );
 
   // ── Pedido Material handlers ──
@@ -852,9 +903,18 @@ export default function Frete() {
         <AbastecimentoCarretaForm
           initial={editandoAbast}
           onSubmit={handleAbastSubmit}
+          onSubmitEmt={handleAbastSubmitEmt}
           onCancel={() => { setAbastModalOpen(false); setEditandoAbast(null); }}
           transportadoras={transportadoras}
           combustiveis={combustiveis}
+          obras={obras}
+          depositos={depositos}
+          etapas={etapas}
+          entradasCombustivel={entradasCombustivel.map((e) => ({
+            depositoId: e.depositoId,
+            quantidadeLitros: e.quantidadeLitros,
+            valorTotal: e.valorTotal,
+          }))}
           defaultCategoria={tab === 'abastecimentos_emt' ? 'emt' : 'transterra'}
           onImportBatch={async (items) => {
             for (const item of items) {
