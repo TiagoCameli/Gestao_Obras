@@ -1,19 +1,19 @@
 import { useState, useCallback, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import type { Frete as FreteType, FiltrosFrete, Localidade, PagamentoFrete, AbastecimentoCarreta, PedidoMaterial } from '../types';
+import type { Frete as FreteType, FiltrosFrete, Localidade, PagamentoFrete, PedidoMaterial } from '../types';
 import { useFretes, useAdicionarFrete, useAtualizarFrete, useExcluirFrete } from '../hooks/useFretes';
 import { usePagamentosFrete, useAdicionarPagamentoFrete, useAtualizarPagamentoFrete, useExcluirPagamentoFrete } from '../hooks/usePagamentosFrete';
-import { useAbastecimentosCarreta, useAdicionarAbastecimentoCarreta, useAtualizarAbastecimentoCarreta, useExcluirAbastecimentoCarreta } from '../hooks/useAbastecimentosCarreta';
+// useAbastecimentosCarreta (compat shim) ainda alimenta FreteDashboard
+// até Commit 6 reescrever o dashboard. Mutations não são mais usadas aqui.
+import { useAbastecimentosCarreta } from '../hooks/useAbastecimentosCarreta';
 import { usePedidosMaterial, useAdicionarPedidoMaterial, useAtualizarPedidoMaterial, useExcluirPedidoMaterial } from '../hooks/usePedidosMaterial';
 import { useObras } from '../hooks/useObras';
-import { useDepositos } from '../hooks/useDepositos';
-import { useEtapas } from '../hooks/useEtapas';
-import { useEntradasCombustivel } from '../hooks/useEntradasCombustivel';
-import { useAdicionarAbastecimento } from '../hooks/useAbastecimentos';
 import { useInsumos } from '../hooks/useInsumos';
 import { useLocalidades, useAdicionarLocalidade } from '../hooks/useLocalidades';
 import { useFuncionarios } from '../hooks/useFuncionarios';
 import { useFornecedores } from '../hooks/useFornecedores';
+// Conta Corrente — hooks novos da Fase 3
+import { useTodosSaldosTransportadora } from '../hooks/useTransportadoraSaldo';
 import { useAuth } from '../contexts/AuthContext';
 import Button from '../components/ui/Button';
 import Input from '../components/ui/Input';
@@ -24,19 +24,18 @@ import FreteForm from '../components/frete/FreteForm';
 import FreteList from '../components/frete/FreteList';
 import PagamentoFreteForm from '../components/frete/PagamentoFreteForm';
 import PagamentoFreteList from '../components/frete/PagamentoFreteList';
-import AbastecimentoCarretaForm from '../components/frete/AbastecimentoCarretaForm';
-import AbastecimentoCarretaList from '../components/frete/AbastecimentoCarretaList';
 import FreteDashboard from '../components/frete/FreteDashboard';
 import PedidoMaterialForm from '../components/frete/PedidoMaterialForm';
 import PedidoMaterialList from '../components/frete/PedidoMaterialList';
+// Conta Corrente — Modal novo da Fase 4
+import TransportadoraExtratoModal from '../components/frete/TransportadoraExtratoModal';
 import { exportarFretesPDF, exportarFretesExcel } from '../utils/freteExport';
 import ImportAtualizacaoFretesModal from '../components/frete/ImportAtualizacaoFretesModal';
 import { exportarPedidosMaterialExcel, exportarPedidosMaterialPDF } from '../utils/pedidosMaterialExport';
-import { exportarAbastecimentosCarretaExcel, exportarAbastecimentosCarretaPDF } from '../utils/abastecimentoCarretaExport';
 import FilterBar from '../components/frete/FilterBar';
-import { Truck, Sparkles, BarChart3, Wallet, Fuel, PackageSearch } from 'lucide-react';
+import { Truck, Sparkles, BarChart3, Wallet, Wallet2, PackageSearch } from 'lucide-react';
 
-type Tab = 'dashboard' | 'fretes' | 'pagamentos' | 'abastecimentos' | 'abastecimentos_emt' | 'pedidos';
+type Tab = 'dashboard' | 'fretes' | 'pagamentos' | 'conta_corrente' | 'pedidos';
 
 export default function Frete() {
   const { temAcao, usuario } = useAuth();
@@ -45,7 +44,7 @@ export default function Frete() {
   const canDelete = temAcao('excluir_frete');
 
   const [searchParams, setSearchParams] = useSearchParams();
-  const validTabs: Tab[] = ['dashboard', 'fretes', 'pagamentos', 'abastecimentos', 'abastecimentos_emt', 'pedidos'];
+  const validTabs: Tab[] = ['dashboard', 'fretes', 'pagamentos', 'conta_corrente', 'pedidos'];
   const tabParam = searchParams.get('tab') as Tab | null;
   const tab: Tab = tabParam && validTabs.includes(tabParam) ? tabParam : 'dashboard';
   const setTab = useCallback((t: Tab) => setSearchParams({ tab: t }, { replace: true }), [setSearchParams]);
@@ -64,25 +63,18 @@ export default function Frete() {
   const adicionarPagamentoMutation = useAdicionarPagamentoFrete();
   const atualizarPagamentoMutation = useAtualizarPagamentoFrete();
   const excluirPagamentoMutation = useExcluirPagamentoFrete();
+  // useAbastecimentosCarreta (compat shim) ainda alimenta FreteDashboard
+  // até Commit 6 reescrever o dashboard via view transportadora_saldos.
   const { data: abastecimentosCarreta = [] } = useAbastecimentosCarreta();
-  const adicionarAbastCarretaMutation = useAdicionarAbastecimentoCarreta();
-  const atualizarAbastCarretaMutation = useAtualizarAbastecimentoCarreta();
-  const excluirAbastCarretaMutation = useExcluirAbastecimentoCarreta();
-  // incluirExternos: true → Transterra (Areacre) aparece no dropdown do
-  // AbastecimentoCarretaForm, que é exatamente o ponto (carretas externas
-  // abastecem nesse tanque). Outros forms operacionais filtram por default.
-  const { data: depositos = [] } = useDepositos({ incluirExternos: true });
-  const { data: etapas = [] } = useEtapas();
-  const { data: entradasCombustivel = [] } = useEntradasCombustivel();
-  const adicionarAbastecimentoMutation = useAdicionarAbastecimento();
+  // Saldos das transportadoras pra aba Conta Corrente.
+  const { data: saldosTransportadoras = [] } = useTodosSaldosTransportadora();
   const { data: pedidosMaterial = [] } = usePedidosMaterial();
   const adicionarPedidoMutation = useAdicionarPedidoMaterial();
   const atualizarPedidoMutation = useAtualizarPedidoMaterial();
   const excluirPedidoMutation = useExcluirPedidoMaterial();
 
-  // Filter insumos: materials + combustiveis
+  // Filter insumos: materials (combustiveis movidos pra Combustivel.tsx)
   const insumosAtivos = insumos.filter((i) => i.ativo !== false);
-  const combustiveis = insumos.filter((i) => i.tipo === 'combustivel' && i.ativo !== false);
 
   // Nomes dos fornecedores ativos como opcoes de transportadora
   const transportadoras = useMemo(() => {
@@ -172,24 +164,13 @@ export default function Frete() {
   const [pagFiltroDataInicio, setPagFiltroDataInicio] = useState('');
   const [pagFiltroDataFim, setPagFiltroDataFim] = useState('');
 
-  // ── Abastecimento Carreta state ──
-  const [abastModalOpen, setAbastModalOpen] = useState(false);
-  const [editandoAbast, setEditandoAbast] = useState<AbastecimentoCarreta | null>(null);
-  const [abastDeleteId, setAbastDeleteId] = useState<string | null>(null);
-
-  // Abastecimento filters
-  const [abastFiltroTransportadora, setAbastFiltroTransportadora] = useState('');
-  const [abastFiltroPlaca, setAbastFiltroPlaca] = useState('');
-  const [abastFiltroCombustivel, setAbastFiltroCombustivel] = useState('');
-  const [abastFiltroMes, setAbastFiltroMes] = useState('');
-  const [abastFiltroDataInicio, setAbastFiltroDataInicio] = useState('');
-  const [abastFiltroDataFim, setAbastFiltroDataFim] = useState('');
-
-  // Extract unique meses from abastecimentos
-  const mesesAbast = useMemo(() => {
-    const set = new Set(abastecimentosCarreta.map((a) => a.mesReferencia).filter(Boolean));
-    return Array.from(set).sort();
-  }, [abastecimentosCarreta]);
+  // ── Conta Corrente das Transportadoras state ──
+  // Modal aberto pra ver extrato de uma transportadora.
+  const [extratoTranspId, setExtratoTranspId] = useState<string | null>(null);
+  const extratoTranspNome = useMemo(() => {
+    if (!extratoTranspId) return null;
+    return saldosTransportadoras.find((s) => s.transportadoraId === extratoTranspId)?.nome ?? null;
+  }, [extratoTranspId, saldosTransportadoras]);
 
   // ── Pedido Material state ──
   const [pedidoModalOpen, setPedidoModalOpen] = useState(false);
@@ -259,75 +240,6 @@ export default function Frete() {
     [excluirPagamentoMutation]
   );
 
-  // ── Abastecimento Carreta handlers ──
-  const handleAbastSubmit = useCallback(
-    async (abast: AbastecimentoCarreta) => {
-      try {
-        if (editandoAbast) {
-          await atualizarAbastCarretaMutation.mutateAsync(abast);
-        } else {
-          await adicionarAbastCarretaMutation.mutateAsync({ ...abast, criadoPor: usuario?.nome || '' });
-        }
-        setAbastModalOpen(false);
-        setEditandoAbast(null);
-      } catch (err) {
-        console.error('Erro ao salvar abastecimento:', err);
-      }
-    },
-    [editandoAbast, adicionarAbastCarretaMutation, atualizarAbastCarretaMutation, usuario]
-  );
-
-  const handleAbastDelete = useCallback(
-    async (id: string) => {
-      await excluirAbastCarretaMutation.mutateAsync(id);
-      setAbastDeleteId(null);
-    },
-    [excluirAbastCarretaMutation]
-  );
-
-  const handleAbastSubmitEmt = useCallback(
-    async (
-      carreta: AbastecimentoCarreta,
-      saida: Omit<import('../types').Abastecimento, 'id' | 'criadoPor' | 'pago' | 'dataPagamento' | 'pagoPor' | 'origemCombustivel' | 'fornecedor' | 'fotosUrls'>
-    ) => {
-      try {
-        const criadoPor = usuario?.nome || '';
-        if (editandoAbast) {
-          await atualizarAbastCarretaMutation.mutateAsync(carreta);
-        } else {
-          await adicionarAbastCarretaMutation.mutateAsync({ ...carreta, criadoPor });
-          const novoAbast: import('../types').Abastecimento = {
-            id: Date.now().toString(36) + Math.random().toString(36).slice(2, 7),
-            dataHora: saida.dataHora,
-            tipoCombustivel: saida.tipoCombustivel,
-            quantidadeLitros: saida.quantidadeLitros,
-            valorTotal: saida.valorTotal,
-            obraId: saida.obraId,
-            etapaId: saida.etapaId,
-            alocacoes: saida.alocacoes,
-            depositoId: saida.depositoId,
-            equipamentoId: '',
-            veiculo: saida.veiculo,
-            fotosUrls: [],
-            observacoes: saida.observacoes,
-            criadoPor,
-            origemCombustivel: 'tanque',
-            fornecedor: '',
-            pago: false,
-            dataPagamento: '',
-            pagoPor: '',
-          };
-          await adicionarAbastecimentoMutation.mutateAsync(novoAbast);
-        }
-        setAbastModalOpen(false);
-        setEditandoAbast(null);
-      } catch (err) {
-        console.error('Erro ao salvar abastecimento EMT:', err);
-      }
-    },
-    [editandoAbast, atualizarAbastCarretaMutation, adicionarAbastCarretaMutation, adicionarAbastecimentoMutation, usuario]
-  );
-
   // ── Pedido Material handlers ──
   const handlePedidoSubmit = useCallback(
     async (pedido: PedidoMaterial) => {
@@ -362,8 +274,7 @@ export default function Frete() {
     { key: 'dashboard', label: 'Dashboard', icon: <BarChart3 className="h-3.5 w-3.5" /> },
     { key: 'fretes', label: 'Fretes', icon: <Truck className="h-3.5 w-3.5" /> },
     { key: 'pagamentos', label: 'Pagamentos', icon: <Wallet className="h-3.5 w-3.5" /> },
-    { key: 'abastecimentos', label: 'Abastecimento Transterra', icon: <Fuel className="h-3.5 w-3.5" /> },
-    { key: 'abastecimentos_emt', label: 'Abastecimento EMT', icon: <Fuel className="h-3.5 w-3.5" /> },
+    { key: 'conta_corrente', label: 'Conta Corrente', icon: <Wallet2 className="h-3.5 w-3.5" /> },
     { key: 'pedidos', label: 'Pedidos', icon: <PackageSearch className="h-3.5 w-3.5" /> },
   ];
 
@@ -415,9 +326,6 @@ export default function Frete() {
             </Button>
             <Button variant="secondary" onClick={() => { setPedidoEditando(null); setPedidoModalOpen(true); }}>
               Novo Pedido
-            </Button>
-            <Button variant="secondary" onClick={() => { setEditandoAbast(null); setAbastModalOpen(true); }}>
-              Novo Abastecimento
             </Button>
             <Button variant="secondary" onClick={() => { setPagEditando(null); setPagModalOpen(true); }}>
               Novo Pagamento
@@ -582,83 +490,80 @@ export default function Frete() {
         </>
       )}
 
-      {/* ── Abastecimentos (Transterra / EMT) ── */}
-      {(tab === 'abastecimentos' || tab === 'abastecimentos_emt') && (() => {
-        const categoriaDaAba: 'transterra' | 'emt' = tab === 'abastecimentos_emt' ? 'emt' : 'transterra';
-        const abastDaAba = abastecimentosCarreta.filter((a) => a.categoria === categoriaDaAba);
-        const transportadorasDaAba = Array.from(new Set(abastDaAba.map((a) => a.transportadora))).filter(Boolean).sort();
-        const placasDaAba = Array.from(new Set(abastDaAba.map((a) => a.placaCarreta).filter(Boolean))).sort();
+      {/* ── Conta Corrente das Transportadoras ── */}
+      {tab === 'conta_corrente' && (() => {
+        const totalDevedor = saldosTransportadoras.reduce((s, x) => s + x.debitoCombustivelTotal, 0);
         return (
-        <>
-          <FilterBar
-            fields={[
-              { key: 'transportadora', label: 'Transportadora', value: abastFiltroTransportadora, onChange: setAbastFiltroTransportadora, options: transportadorasDaAba.map((t) => ({ value: t, label: t })), placeholder: 'Todas as transportadoras' },
-              { key: 'placa', label: 'Placa', value: abastFiltroPlaca, onChange: setAbastFiltroPlaca, options: placasDaAba.map((p) => ({ value: p, label: p })), placeholder: 'Todas as placas' },
-              { key: 'dataInicio', label: 'De', value: abastFiltroDataInicio, onChange: setAbastFiltroDataInicio, type: 'date', placeholder: 'Data início' },
-              { key: 'dataFim', label: 'Até', value: abastFiltroDataFim, onChange: setAbastFiltroDataFim, type: 'date', placeholder: 'Data fim' },
-              { key: 'combustivel', label: 'Combustível', value: abastFiltroCombustivel, onChange: setAbastFiltroCombustivel, options: combustiveis.map((c) => ({ value: c.id, label: c.nome })), placeholder: 'Todos os combustíveis', collapsed: true },
-              {
-                key: 'mes', label: 'Mês', value: abastFiltroMes, onChange: setAbastFiltroMes,
-                options: mesesAbast.map((m) => {
-                  const [ano, mes] = m.split('-');
-                  const nomes = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
-                  return { value: m, label: `${nomes[parseInt(mes, 10) - 1]}/${ano}` };
-                }),
-                placeholder: 'Todos os meses', collapsed: true,
-              },
-            ]}
-            onClearAll={() => {
-              setAbastFiltroTransportadora(''); setAbastFiltroPlaca(''); setAbastFiltroCombustivel('');
-              setAbastFiltroMes(''); setAbastFiltroDataInicio(''); setAbastFiltroDataFim('');
-            }}
-          />
-
-          <div className="flex gap-2 mb-4">
-            <Button
-              variant="secondary"
-              className="text-xs"
-              onClick={() => exportarAbastecimentosCarretaExcel(abastDaAba, combustiveis, {
-                transportadora: abastFiltroTransportadora,
-                placa: abastFiltroPlaca,
-                combustivelId: abastFiltroCombustivel,
-                mesReferencia: abastFiltroMes,
-                dataInicio: abastFiltroDataInicio,
-                dataFim: abastFiltroDataFim,
+          <>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
+              {saldosTransportadoras.map((s) => {
+                const cor = s.saldo > 0 ? 'text-green-700' : s.saldo < 0 ? 'text-red-700' : 'text-gray-500';
+                return (
+                  <div
+                    key={s.transportadoraId}
+                    className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface-1)] p-5 hover:shadow-md transition-shadow"
+                  >
+                    <div className="flex items-start justify-between gap-2 mb-3">
+                      <div>
+                        <div className="font-semibold text-[var(--color-fg)] flex items-center gap-1.5">
+                          {s.nome}
+                          {s.ehDonaDeTanque && (
+                            <span className="text-amber-500" title="Dona de tanque externo">★</span>
+                          )}
+                        </div>
+                        <div className="text-xs text-[var(--color-fg-muted)] mt-0.5">
+                          {s.qtdMovimentos} movimento{s.qtdMovimentos !== 1 ? 's' : ''}
+                        </div>
+                      </div>
+                    </div>
+                    <div className={`text-2xl font-bold ${cor}`}>
+                      {s.saldo.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                    </div>
+                    <div className="mt-3 grid grid-cols-3 gap-1 text-[11px]">
+                      <div>
+                        <div className="text-[var(--color-fg-muted)] uppercase tracking-wide">Créditos</div>
+                        <div className="font-mono text-green-700">
+                          {s.creditoFreteTotal.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 })}
+                        </div>
+                      </div>
+                      <div>
+                        <div className="text-[var(--color-fg-muted)] uppercase tracking-wide">Pagos</div>
+                        <div className="font-mono text-red-700">
+                          {s.pagoFreteTotal.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 })}
+                        </div>
+                      </div>
+                      <div>
+                        <div className="text-[var(--color-fg-muted)] uppercase tracking-wide">Comb.</div>
+                        <div className="font-mono text-red-700">
+                          {s.debitoCombustivelTotal.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 })}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="mt-4">
+                      <Button
+                        variant="secondary"
+                        className="w-full text-sm"
+                        onClick={() => setExtratoTranspId(s.transportadoraId)}
+                      >
+                        Ver extrato
+                      </Button>
+                    </div>
+                  </div>
+                );
               })}
-            >
-              Exportar Excel
-            </Button>
-            <Button
-              variant="secondary"
-              className="text-xs"
-              onClick={() => exportarAbastecimentosCarretaPDF(abastDaAba, combustiveis, {
-                transportadora: abastFiltroTransportadora,
-                placa: abastFiltroPlaca,
-                combustivelId: abastFiltroCombustivel,
-                mesReferencia: abastFiltroMes,
-                dataInicio: abastFiltroDataInicio,
-                dataFim: abastFiltroDataFim,
-              })}
-            >
-              Exportar PDF
-            </Button>
-          </div>
-
-          <AbastecimentoCarretaList
-            abastecimentos={abastDaAba}
-            combustiveis={combustiveis}
-            filtroTransportadora={abastFiltroTransportadora}
-            filtroPlaca={abastFiltroPlaca}
-            filtroCombustivel={abastFiltroCombustivel}
-            filtroMes={abastFiltroMes}
-            filtroDataInicio={abastFiltroDataInicio}
-            filtroDataFim={abastFiltroDataFim}
-            onEdit={(abast) => pedirSenha(() => { setEditandoAbast(abast); setAbastModalOpen(true); })}
-            onDelete={(id) => pedirSenha(() => setAbastDeleteId(id))}
-            canEdit={canEdit}
-            canDelete={canDelete}
-          />
-        </>
+            </div>
+            <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-1)] p-4">
+              <div className="text-xs text-[var(--color-fg-muted)] uppercase tracking-wide mb-1">
+                Saldo devedor de combustível total
+              </div>
+              <div className="text-xl font-bold text-red-700">
+                {totalDevedor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+              </div>
+              <div className="text-xs text-[var(--color-fg-muted)] mt-1">
+                Soma dos débitos de combustível em aberto (todas as transportadoras).
+              </div>
+            </div>
+          </>
         );
       })()}
 
@@ -897,45 +802,13 @@ export default function Frete() {
         message="Tem certeza que deseja excluir este pagamento? Esta ação não pode ser desfeita."
       />
 
-      {/* Modal Abastecimento Carreta Form */}
-      <Modal
-        open={abastModalOpen}
-        onClose={() => { setAbastModalOpen(false); setEditandoAbast(null); }}
-        title={editandoAbast ? 'Editar Abastecimento' : 'Novo Abastecimento'}
-      >
-        <AbastecimentoCarretaForm
-          initial={editandoAbast}
-          onSubmit={handleAbastSubmit}
-          onSubmitEmt={handleAbastSubmitEmt}
-          onCancel={() => { setAbastModalOpen(false); setEditandoAbast(null); }}
-          transportadoras={transportadoras}
-          combustiveis={combustiveis}
-          obras={obras}
-          depositos={depositos}
-          etapas={etapas}
-          entradasCombustivel={entradasCombustivel.map((e) => ({
-            depositoId: e.depositoId,
-            quantidadeLitros: e.quantidadeLitros,
-            valorTotal: e.valorTotal,
-          }))}
-          defaultCategoria={tab === 'abastecimentos_emt' ? 'emt' : 'transterra'}
-          onImportBatch={async (items) => {
-            for (const item of items) {
-              await adicionarAbastCarretaMutation.mutateAsync({ ...item, criadoPor: usuario?.nome || '' });
-            }
-            setAbastModalOpen(false);
-            setEditandoAbast(null);
-          }}
-        />
-      </Modal>
-
-      {/* Confirm Delete Abastecimento Carreta */}
-      <ConfirmDialog
-        open={abastDeleteId !== null}
-        onClose={() => setAbastDeleteId(null)}
-        onConfirm={() => { if (abastDeleteId) handleAbastDelete(abastDeleteId); }}
-        title="Excluir Abastecimento"
-        message="Tem certeza que deseja excluir este abastecimento? Esta ação não pode ser desfeita."
+      {/* Modal Extrato da Transportadora (aba Conta Corrente) */}
+      <TransportadoraExtratoModal
+        open={extratoTranspId !== null}
+        onClose={() => setExtratoTranspId(null)}
+        transportadoraId={extratoTranspId}
+        transportadoraNome={extratoTranspNome}
+        canExport
       />
 
       {/* Modal Pedido Material Form */}
