@@ -75,9 +75,12 @@ export default function EntradaForm({
   const [quantidadeLitros, setQuantidadeLitros] = useState(
     initial?.quantidadeLitros?.toString() || ''
   );
-  const [valorTotal, setValorTotal] = useState(
-    initial?.valorTotal?.toString() || ''
-  );
+  const [valorUnitario, setValorUnitario] = useState(() => {
+    if (initial && initial.quantidadeLitros > 0) {
+      return (initial.valorTotal / initial.quantidadeLitros).toString();
+    }
+    return '';
+  });
   const [fornecedor, setFornecedor] = useState(initial?.fornecedor || '');
   const [notaFiscal, setNotaFiscal] = useState(initial?.notaFiscal || '');
   const [observacoes, setObservacoes] = useState(initial?.observacoes || '');
@@ -93,6 +96,8 @@ export default function EntradaForm({
 
   const depositoSelecionado = depositos.find((d) => d.id === depositoId);
   const qtdLitros = parseFloat(quantidadeLitros) || 0;
+  const valorUnitarioNum = parseFloat(valorUnitario.replace(',', '.')) || 0;
+  const valorTotalCalc = qtdLitros * valorUnitarioNum;
   const espacoDisponivel = depositoSelecionado
     ? depositoSelecionado.capacidadeLitros - depositoSelecionado.nivelAtualLitros
     : 0;
@@ -191,7 +196,7 @@ export default function EntradaForm({
       depositoId,
       tipoCombustivel,
       quantidadeLitros: qtdLitros,
-      valorTotal: parseFloat(valorTotal),
+      valorTotal: valorTotalCalc,
       fornecedor,
       notaFiscal,
       observacoes,
@@ -200,7 +205,7 @@ export default function EntradaForm({
   }
 
   const isValid =
-    dataHora && depositoId && tipoCombustivel && quantidadeLitros && valorTotal && fornecedor && !excedeLimite;
+    dataHora && depositoId && tipoCombustivel && quantidadeLitros && valorUnitarioNum > 0 && fornecedor && !excedeLimite;
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
@@ -343,16 +348,23 @@ export default function EntradaForm({
           error={excedeLimite ? `Excede capacidade do tanque (${espacoDisponivel.toFixed(0)} L livres)` : undefined}
           required
         />
-        <Input
-          label="Valor Total (R$)"
-          id="entradaValor"
-          type="number"
-          step="0.0001"
-          min="0"
-          value={valorTotal}
-          onChange={(e) => setValorTotal(e.target.value)}
-          required
-        />
+        <div>
+          <Input
+            label="Valor Unitário (R$/L)"
+            id="entradaValorUnitario"
+            type="number"
+            step="any"
+            min="0"
+            value={valorUnitario}
+            onChange={(e) => setValorUnitario(e.target.value)}
+            required
+          />
+          {valorUnitarioNum > 0 && qtdLitros > 0 && (
+            <p className="mt-1 text-xs text-gray-500 dark:text-slate-400">
+              Valor Total: {valorTotalCalc.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+            </p>
+          )}
+        </div>
         <div>
           <Select
             label="Fornecedor"
