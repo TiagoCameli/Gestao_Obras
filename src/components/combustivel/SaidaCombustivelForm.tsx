@@ -376,6 +376,8 @@ export default function SaidaCombustivelForm({
       isValid, initial, data, origem, tipoConsumidor, tanqueId, equipamentoId,
       transportadoraId, placa, motorista, obraId, etapaId, tipoCombustivel,
       litros, precoMedioTanque, taxaLitro, precoUnitario, valorTotal,
+      precoCombustivelNum, precoCombustivelAreacreNum, precoUnitarioManual,
+      tanqueExterno,
       fotoUrls, observacoes, pago, pagoEm, onSubmit,
     ]
   );
