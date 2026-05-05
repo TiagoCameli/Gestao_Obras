@@ -412,6 +412,8 @@ export interface SaidaCombustivel {
   litros: number;
   precoMedioTanqueSnapshot: number | null;
   taxaLitro: number;
+  /** Preço/litro do combustível (sem taxa). NULL só por compat — backfill garante populado. */
+  precoCombustivel: number | null;
   precoUnitario: number;
   valorTotal: number;
 

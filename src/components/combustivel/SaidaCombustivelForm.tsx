@@ -120,6 +120,9 @@ export default function SaidaCombustivelForm({
   const [taxaLitroStr, setTaxaLitroStr] = useState(
     initial?.taxaLitro != null ? String(initial.taxaLitro) : '0'
   );
+  const [precoCombustivelStr, setPrecoCombustivelStr] = useState(
+    initial?.precoCombustivel != null ? String(initial.precoCombustivel) : ''
+  );
 
   // ── Estado: requisição ──
   const [pago, setPago] = useState<boolean>(initial?.pago ?? false);
@@ -213,13 +216,24 @@ export default function SaidaCombustivelForm({
     if (tipoCombustivelDoTanque) setTipoCombustivel(tipoCombustivelDoTanque);
   }, [tipoCombustivelDoTanque]);
 
+  // Carreta + tanque: precoCombustivel default = preço médio do tanque (usuário sobrescreve).
+  useEffect(() => {
+    if (tipoConsumidor === 'carreta_transportadora' && origem === 'tanque' && precoMedioTanque > 0 && !precoCombustivelStr) {
+      setPrecoCombustivelStr(precoMedioTanque.toFixed(4));
+    }
+  }, [tipoConsumidor, origem, precoMedioTanque, precoCombustivelStr]);
+
   // Preço unitário final:
   //   - origem='tanque': preco_medio + taxa (taxa só carreta).
   //   - outras: input manual.
   const precoUnitarioManual = parseFloat(precoUnitarioManualStr.replace(',', '.')) || 0;
-  const precoUnitario = origem === 'tanque'
-    ? precoMedioTanque + taxaLitro
-    : precoUnitarioManual;
+  const precoCombustivelNum = parseFloat(precoCombustivelStr.replace(',', '.')) || 0;
+  const precoUnitario =
+    tipoConsumidor === 'carreta_transportadora' && origem === 'tanque'
+      ? precoCombustivelNum + taxaLitro
+      : origem === 'tanque'
+        ? precoMedioTanque + taxaLitro
+        : precoUnitarioManual;
 
   const valorTotal = litros * precoUnitario;
 
@@ -307,6 +321,10 @@ export default function SaidaCombustivelForm({
         litros,
         precoMedioTanqueSnapshot: origem === 'tanque' ? precoMedioTanque : null,
         taxaLitro,
+        precoCombustivel:
+          tipoConsumidor === 'carreta_transportadora'
+            ? precoCombustivelNum
+            : origem === 'tanque' ? precoMedioTanque : precoUnitarioManual,
         precoUnitario,
         valorTotal,
         fotoUrls: fotoUrls.length > 0 ? fotoUrls : null,
@@ -614,18 +632,41 @@ export default function SaidaCombustivelForm({
           />
         )}
 
+        {/* Preço combustível: só carreta + origem=tanque (default = preço médio) */}
+        {tipoConsumidor === 'carreta_transportadora' && origem === 'tanque' && (
+          <Input
+            label="Preço Combustível (R$/L)"
+            id="saidaPrecoCombustivel"
+            type="number"
+            step="any"
+            min="0"
+            value={precoCombustivelStr}
+            onChange={(e) => setPrecoCombustivelStr(e.target.value)}
+            placeholder={precoMedioTanque > 0 ? precoMedioTanque.toFixed(4) : '0,0000'}
+            required
+          />
+        )}
+
         {/* Taxa por litro: só carreta + origem=tanque */}
         {tipoConsumidor === 'carreta_transportadora' && origem === 'tanque' && (
           <Input
             label="Taxa por Litro (R$/L)"
             id="saidaTaxa"
             type="number"
-            step="0.0001"
+            step="any"
             min="0"
             value={taxaLitroStr}
             onChange={(e) => setTaxaLitroStr(e.target.value)}
             placeholder="0,0000"
           />
+        )}
+
+        {/* Preview da soma cobrada */}
+        {tipoConsumidor === 'carreta_transportadora' && origem === 'tanque' && (precoCombustivelNum > 0 || taxaLitro > 0) && (
+          <p className="md:col-span-2 text-sm text-gray-600 dark:text-slate-400">
+            Preço unitário cobrado: <strong>{fmtBRL(precoUnitario, 4)}/L</strong>
+            {' '}({fmtBRL(precoCombustivelNum, 4)} combustível + {fmtBRL(taxaLitro, 4)} taxa)
+          </p>
         )}
       </div>
 
