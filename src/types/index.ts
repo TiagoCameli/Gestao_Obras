@@ -412,8 +412,12 @@ export interface SaidaCombustivel {
   litros: number;
   precoMedioTanqueSnapshot: number | null;
   taxaLitro: number;
-  /** Preço/litro do combustível (sem taxa). NULL só por compat — backfill garante populado. */
+  /** Preço/litro do combustível (sem taxa). NULL só por compat — backfill garante populado.
+   *  Em tanque externo: preço cobrado da TRANSPORTADORA consumidora. */
   precoCombustivel: number | null;
+  /** Preço/L cobrado pela proprietária do tanque externo (Areacre na Transterra).
+   *  NULL pra tanque interno. Diferença pra precoCombustivel = margem EMT. */
+  precoCombustivelAreacre: number | null;
   precoUnitario: number;
   valorTotal: number;
 

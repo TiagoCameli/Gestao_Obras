@@ -123,6 +123,9 @@ export default function SaidaCombustivelForm({
   const [precoCombustivelStr, setPrecoCombustivelStr] = useState(
     initial?.precoCombustivel != null ? String(initial.precoCombustivel) : ''
   );
+  const [precoCombustivelAreacreStr, setPrecoCombustivelAreacreStr] = useState(
+    initial?.precoCombustivelAreacre != null ? String(initial.precoCombustivelAreacre) : ''
+  );
 
   // ── Estado: requisição ──
   const [pago, setPago] = useState<boolean>(initial?.pago ?? false);
@@ -228,6 +231,7 @@ export default function SaidaCombustivelForm({
   //   - outras: input manual.
   const precoUnitarioManual = parseFloat(precoUnitarioManualStr.replace(',', '.')) || 0;
   const precoCombustivelNum = parseFloat(precoCombustivelStr.replace(',', '.')) || 0;
+  const precoCombustivelAreacreNum = parseFloat(precoCombustivelAreacreStr.replace(',', '.')) || 0;
   const precoUnitario =
     tipoConsumidor === 'carreta_transportadora' && origem === 'tanque'
       ? precoCombustivelNum + taxaLitro
@@ -241,6 +245,24 @@ export default function SaidaCombustivelForm({
   const tanqueSelecionado = tanquesVisiveis.find((d) => d.id === tanqueId)
     ?? depositos.find((d) => d.id === tanqueId)
     ?? null;
+
+  // Tanque com proprietária externa (Transterra/Areacre): split de preço Areacre vs cobrado.
+  const tanqueExterno = !!tanqueSelecionado?.transportadoraProprietariaId;
+  const proprietariaNomeAtual = tanqueExterno
+    ? (transportadoras.find((t) => t.id === tanqueSelecionado!.transportadoraProprietariaId)?.nome ?? '?')
+    : '';
+  const creditoAreacreValor = tanqueExterno
+    ? litros * (precoCombustivelAreacreNum + taxaLitro)
+    : 0;
+  const margemEmt = tanqueExterno ? valorTotal - creditoAreacreValor : 0;
+
+  // Tanque externo: precoAreacre default = mesmo do precoCombustivel (paridade).
+  // Usuário sobrescreve pra criar margem EMT (preco_transp − preco_areacre).
+  useEffect(() => {
+    if (tipoConsumidor === 'carreta_transportadora' && tanqueExterno && precoCombustivelNum > 0 && !precoCombustivelAreacreStr) {
+      setPrecoCombustivelAreacreStr(precoCombustivelNum.toString());
+    }
+  }, [tipoConsumidor, tanqueExterno, precoCombustivelNum, precoCombustivelAreacreStr]);
 
   // Preview de impacto financeiro:
   //   - carreta + tanque externo (proprietária preenchida) → crédito proprietária + débito transportadora.
@@ -259,8 +281,15 @@ export default function SaidaCombustivelForm({
         const proprietariaNome = transportadoras.find(
           (t) => t.id === tanqueSelecionado.transportadoraProprietariaId
         )?.nome ?? '?';
-        linhas.push({ sinal: '▲', texto: `Crédito ${proprietariaNome}: ${fmtBRL(valorTotal)}`, cor: 'verde' });
+        linhas.push({ sinal: '▲', texto: `Crédito ${proprietariaNome}: ${fmtBRL(creditoAreacreValor)}`, cor: 'verde' });
         linhas.push({ sinal: '▼', texto: `Débito ${transpNome}: ${fmtBRL(valorTotal)}`, cor: 'vermelho' });
+        if (Math.abs(margemEmt) > 0.005) {
+          linhas.push({
+            sinal: margemEmt > 0 ? '▲' : '▼',
+            texto: `Margem EMT (combustível): ${fmtBRL(margemEmt)}`,
+            cor: margemEmt > 0 ? 'verde' : 'vermelho',
+          });
+        }
       } else {
         // Tanque EMT
         linhas.push({ sinal: '▼', texto: `Débito ${transpNome}: ${fmtBRL(valorTotal)}`, cor: 'vermelho' });
@@ -274,7 +303,7 @@ export default function SaidaCombustivelForm({
     }
 
     return linhas;
-  }, [tipoConsumidor, transportadoraId, transportadoras, tanqueSelecionado, litros, valorTotal, origem]);
+  }, [tipoConsumidor, transportadoraId, transportadoras, tanqueSelecionado, litros, valorTotal, origem, creditoAreacreValor, margemEmt]);
 
   // ── Validação ──
   const isValid = useMemo(() => {
@@ -325,6 +354,7 @@ export default function SaidaCombustivelForm({
           tipoConsumidor === 'carreta_transportadora'
             ? precoCombustivelNum
             : origem === 'tanque' ? precoMedioTanque : precoUnitarioManual,
+        precoCombustivelAreacre: tanqueExterno ? precoCombustivelAreacreNum : null,
         precoUnitario,
         valorTotal,
         fotoUrls: fotoUrls.length > 0 ? fotoUrls : null,
@@ -632,10 +662,24 @@ export default function SaidaCombustivelForm({
           />
         )}
 
-        {/* Preço combustível: só carreta + origem=tanque (default = preço médio) */}
+        {/* Tanque externo (Transterra): preço Areacre cobra (vai pro crédito proprietária) */}
+        {tipoConsumidor === 'carreta_transportadora' && origem === 'tanque' && tanqueExterno && (
+          <Input
+            label={`Preço ${proprietariaNomeAtual} cobra (R$/L)`}
+            id="saidaPrecoAreacre"
+            type="number"
+            step="any"
+            min="0"
+            value={precoCombustivelAreacreStr}
+            onChange={(e) => setPrecoCombustivelAreacreStr(e.target.value)}
+            required
+          />
+        )}
+
+        {/* Preço combustível: cobrado da transportadora (default = preço médio) */}
         {tipoConsumidor === 'carreta_transportadora' && origem === 'tanque' && (
           <Input
-            label="Preço Combustível (R$/L)"
+            label={tanqueExterno ? "Preço cobrado da transportadora (R$/L)" : "Preço Combustível (R$/L)"}
             id="saidaPrecoCombustivel"
             type="number"
             step="any"
@@ -650,7 +694,7 @@ export default function SaidaCombustivelForm({
         {/* Taxa por litro: só carreta + origem=tanque */}
         {tipoConsumidor === 'carreta_transportadora' && origem === 'tanque' && (
           <Input
-            label="Taxa por Litro (R$/L)"
+            label={tanqueExterno ? `Taxa ${proprietariaNomeAtual} (R$/L)` : "Taxa por Litro (R$/L)"}
             id="saidaTaxa"
             type="number"
             step="any"
