@@ -334,14 +334,21 @@ export default function FreteDashboard({
   // não o acumulado. Replica a fórmula da view (créditos somam, débitos
   // subtraem; débitos abatidos em pagamento são excluídos do saldo igual à
   // view). Quando todos os filtros estão vazios, resultado bate com a view.
+  //
+  // Filtro de período usa mes_referencia (truncado YYYY-MM) — pagamentos de
+  // frete abatem no mês de referência informado pelo usuário, não na data em
+  // que foram lançados. Trigger no DB sempre popula mes_referencia (pagamento
+  // usa o mês informado, demais tipos usam date_trunc('month', data)).
   const { data: todosMovimentos = [] } = useTransportadoraMovimentos();
   const saldosFiltrados = useMemo(() => {
     type Agregado = { saldo: number; creditoFreteTotal: number; pagoFreteTotal: number; debitoCombustivelTotal: number };
     const map = new Map<string, Agregado>();
+    const inicioMes = dataInicio ? dataInicio.slice(0, 7) : '';
+    const fimMes = dataFim ? dataFim.slice(0, 7) : '';
     for (const m of todosMovimentos) {
-      const d = (m.data ?? '').slice(0, 10);
-      if (dataInicio && d < dataInicio) continue;
-      if (dataFim && d > dataFim) continue;
+      const ref = (m.mesReferencia ?? (m.data ?? '').slice(0, 10)).slice(0, 7);
+      if (inicioMes && ref < inicioMes) continue;
+      if (fimMes && ref > fimMes) continue;
       if (obraIdFiltro && m.obraId !== obraIdFiltro) continue;
 
       const cur = map.get(m.transportadoraId) ?? { saldo: 0, creditoFreteTotal: 0, pagoFreteTotal: 0, debitoCombustivelTotal: 0 };
