@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import type { Deposito, EntradaCombustivel, Obra } from '../../types';
+import type { Deposito, EntradaCombustivel } from '../../types';
 import { useInsumos } from '../../hooks/useInsumos';
 import { useFornecedores } from '../../hooks/useFornecedores';
 import { formatCurrency, formatDateTime } from '../../utils/formatters';
@@ -8,7 +8,6 @@ import ConfirmDialog from '../ui/ConfirmDialog';
 
 interface EntradaListProps {
   entradas: EntradaCombustivel[];
-  obras: Obra[];
   depositos: Deposito[];
   onEdit: (entrada: EntradaCombustivel) => void;
   onDelete: (id: string) => void;
@@ -18,7 +17,6 @@ interface EntradaListProps {
 
 export default function EntradaList({
   entradas,
-  obras,
   depositos,
   onEdit,
   onDelete,
@@ -26,7 +24,6 @@ export default function EntradaList({
   canDelete = true,
 }: EntradaListProps) {
   const [deleteId, setDeleteId] = useState<string | null>(null);
-  const obrasMap = new Map(obras.map((o) => [o.id, o.nome]));
   const depositosMap = new Map(depositos.map((d) => [d.id, d]));
 
   const { data: insumosData } = useInsumos();
@@ -58,9 +55,6 @@ export default function EntradaList({
                   Data/Hora
                 </th>
                 <th className="text-left px-4 py-3 text-white font-medium uppercase text-xs">
-                  Obra
-                </th>
-                <th className="text-left px-4 py-3 text-white font-medium uppercase text-xs">
                   Tanque
                 </th>
                 <th className="text-left px-4 py-3 text-white font-medium uppercase text-xs">
@@ -86,9 +80,6 @@ export default function EntradaList({
                 return (
                   <tr key={e.id} className="hover:bg-emt-verde-claro">
                     <td className="px-4 py-3">{formatDateTime(e.dataHora)}</td>
-                    <td className="px-4 py-3">
-                      {obrasMap.get(e.obraId) || '-'}
-                    </td>
                     <td className="px-4 py-3">{dep?.nome || '-'}</td>
                     <td className="px-4 py-3">
                       <span className="inline-block px-2 py-0.5 rounded-full text-xs font-medium bg-orange-100 text-orange-800">

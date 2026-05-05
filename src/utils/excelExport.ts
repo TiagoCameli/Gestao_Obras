@@ -194,10 +194,7 @@ export async function exportarEntradasExcel(
   dataFim?: string,
 ): Promise<void> {
   let dados = [...entradas];
-  if (filtroObraIds && filtroObraIds.length > 0) {
-    const set = new Set(filtroObraIds);
-    dados = dados.filter((e) => set.has(e.obraId));
-  }
+  // Entradas são globais — filtroObraIds ignorado (sem obra na entrada).
   if (filtroDepositoIds && filtroDepositoIds.length > 0) {
     const set = new Set(filtroDepositoIds);
     dados = dados.filter((e) => set.has(e.depositoId));
@@ -262,7 +259,6 @@ export async function exportarEntradasExcel(
     );
   }
 
-  mini('POR OBRA', 'Obra', agrupar((e) => e.obraId, (k) => obrasMap.get(k) || '—'));
   mini('POR TANQUE', 'Tanque', agrupar((e) => e.depositoId, (k) => depositosMap.get(k) || '—'));
   mini('POR COMBUSTÍVEL', 'Combustível', agrupar((e) => e.tipoCombustivel, (k) => insumosMap.get(k) || k));
   mini('POR FORNECEDOR (TOP 10)', 'Fornecedor', agrupar((e) => e.fornecedor, (k) => fornecedoresMap.get(k) || k || '—'), 10);
@@ -272,7 +268,6 @@ export async function exportarEntradasExcel(
     dados,
     [
       { header: 'Data/Hora', key: 'dataHora', width: 18, align: 'center', value: (e) => formatDateTimeBR(e.dataHora) },
-      { header: 'Obra', key: 'obra', width: 22, align: 'left', value: (e) => obrasMap.get(e.obraId) || '-' },
       { header: 'Tanque', key: 'tanque', width: 22, align: 'left', value: (e) => depositosMap.get(e.depositoId) || '-' },
       { header: 'Combustível', key: 'combustivel', width: 18, align: 'left', value: (e) => insumosMap.get(e.tipoCombustivel) || e.tipoCombustivel },
       { header: 'Fornecedor', key: 'fornecedor', width: 22, align: 'left', value: (e) => fornecedoresMap.get(e.fornecedor) || e.fornecedor || '-' },
@@ -419,8 +414,7 @@ export async function exportarRelatorioCompletoCombustivelExcel(
   if (filtroObraIds && filtroObraIds.length > 0) {
     const set = new Set(filtroObraIds);
     saidasDados = saidasDados.filter((a) => set.has(a.obraId));
-    entradasDados = entradasDados.filter((e) => set.has(e.obraId));
-    // Tanques globais (Fase 6) — transferências não têm obra. Sem filtro aqui.
+    // Entradas e transferências são globais — sem obra (Fase 6 + 7).
   }
   if (filtroDepositoIds && filtroDepositoIds.length > 0) {
     const set = new Set(filtroDepositoIds);
@@ -511,7 +505,6 @@ export async function exportarRelatorioCompletoCombustivelExcel(
     entradasDados,
     [
       { header: 'Data/Hora', key: 'dataHora', width: 18, align: 'center', value: (e) => formatDateTimeBR(e.dataHora) },
-      { header: 'Obra', key: 'obra', width: 22, align: 'left', value: (e) => obrasMap.get(e.obraId) || '-' },
       { header: 'Tanque', key: 'tanque', width: 22, align: 'left', value: (e) => depositosMap.get(e.depositoId) || '-' },
       { header: 'Combustível', key: 'combustivel', width: 18, align: 'left', value: (e) => insumosMap.get(e.tipoCombustivel) || e.tipoCombustivel },
       { header: 'Fornecedor', key: 'fornecedor', width: 22, align: 'left', value: (e) => fornecedoresMap.get(e.fornecedor) || e.fornecedor || '-' },

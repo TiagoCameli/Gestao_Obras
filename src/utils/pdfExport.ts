@@ -216,10 +216,7 @@ export function exportarEntradasPDF(
   dataFim?: string,
 ): void {
   let dados = [...entradas];
-  if (filtroObraIds && filtroObraIds.length > 0) {
-    const set = new Set(filtroObraIds);
-    dados = dados.filter((e) => set.has(e.obraId));
-  }
+  // Entradas são globais — filtroObraIds ignorado (sem obra na entrada).
   if (filtroDepositoIds && filtroDepositoIds.length > 0) {
     const set = new Set(filtroDepositoIds);
     dados = dados.filter((e) => set.has(e.depositoId));
@@ -293,7 +290,6 @@ export function exportarEntradasPDF(
     );
   }
 
-  mini('POR OBRA', 'Obra', agrupar((e) => e.obraId, (k) => obrasMap.get(k) || '—'));
   mini('POR TANQUE', 'Tanque', agrupar((e) => e.depositoId, (k) => depositosMap.get(k) || '—'));
   mini('POR COMBUSTÍVEL', 'Combustível', agrupar((e) => e.tipoCombustivel, (k) => insumosMap.get(k) || k));
   mini('POR FORNECEDOR (TOP 10)', 'Fornecedor', agrupar((e) => e.fornecedor, (k) => fornecedoresMap.get(k) || k || '—'), 10);
@@ -303,10 +299,9 @@ export function exportarEntradasPDF(
 
   drawPdfDetailTable(
     doc, detailY,
-    ['Data/Hora', 'Obra', 'Tanque', 'Combustível', 'Fornecedor', 'Nota Fiscal', 'Litros', 'Valor Total'],
+    ['Data/Hora', 'Tanque', 'Combustível', 'Fornecedor', 'Nota Fiscal', 'Litros', 'Valor Total'],
     dados.map((e) => [
       formatDateTimeBR(e.dataHora),
-      obrasMap.get(e.obraId) || '-',
       depositosMap.get(e.depositoId) || '-',
       insumosMap.get(e.tipoCombustivel) || e.tipoCombustivel,
       fornecedoresMap.get(e.fornecedor) || e.fornecedor || '-',
@@ -317,7 +312,7 @@ export function exportarEntradasPDF(
     [
       '',
       `TOTAL (${dados.length})`,
-      '', '', '', '',
+      '', '', '',
       fmtNum(totalLitros),
       fmtBRL(totalValor),
     ],

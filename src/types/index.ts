@@ -71,7 +71,6 @@ export interface EntradaCombustivel {
   dataHora: string;
   depositoId: string;
   tipoCombustivel: string;
-  obraId: string;
   quantidadeLitros: number;
   valorTotal: number;
   fornecedor: string;

@@ -329,7 +329,6 @@ export default function Compras() {
         dataHora: agora,
         depositoId,
         tipoCombustivel: oc.itens[0]?.descricao || 'diesel',
-        obraId: oc.obraId,
         quantidadeLitros: totalLitros,
         valorTotal: oc.totalGeral,
         fornecedor: forn?.nome || '',

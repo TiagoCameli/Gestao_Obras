@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
-import type { Deposito, EntradaCombustivel, Obra } from '../../types';
+import type { Deposito, EntradaCombustivel } from '../../types';
 import { useInsumos, useAdicionarInsumo } from '../../hooks/useInsumos';
 import { useFornecedores, useAdicionarFornecedor } from '../../hooks/useFornecedores';
 import Input from '../ui/Input';
@@ -11,7 +11,6 @@ interface EntradaFormProps {
   initial?: EntradaCombustivel | null;
   onSubmit: (data: EntradaCombustivel) => void;
   onCancel: () => void;
-  obras: Obra[];
   depositos: Deposito[];
   onImportBatch?: (items: EntradaCombustivel[]) => void;
 }
@@ -21,15 +20,14 @@ function gerarId(): string {
 }
 
 const ENTRADA_TEMPLATE = [
-  ['Data', 'Obra', 'Depósito', 'Combustível', 'Litros', 'Valor Total', 'Fornecedor', 'NF', 'Observações'],
-  ['2024-01-15 08:00', 'Obra ABC', 'Tanque Diesel 01', 'Diesel S10', '1000', '6500', 'Distribuidora XYZ', 'NF-001', ''],
+  ['Data', 'Depósito', 'Combustível', 'Litros', 'Valor Total', 'Fornecedor', 'NF', 'Observações'],
+  ['2024-01-15 08:00', 'Tanque Diesel 01', 'Diesel S10', '1000', '6500', 'Distribuidora XYZ', 'NF-001', ''],
 ];
 
 export default function EntradaForm({
   initial,
   onSubmit,
   onCancel,
-  obras,
   depositos: allDepositos,
   onImportBatch,
 }: EntradaFormProps) {
@@ -72,7 +70,6 @@ export default function EntradaForm({
   const [novoCombustivelNome, setNovoCombustivelNome] = useState('');
 
   const [dataHora, setDataHora] = useState(initial?.dataHora || '');
-  const [obraId, setObraId] = useState(initial?.obraId || '');
   const [depositoId, setDepositoId] = useState(initial?.depositoId || '');
   const [tipoCombustivel, setTipoCombustivel] = useState(initial?.tipoCombustivel || '');
   const [quantidadeLitros, setQuantidadeLitros] = useState(
@@ -87,13 +84,6 @@ export default function EntradaForm({
 
   // Tanques são globais (Fase 6) — lista todos os ativos.
   const depositos = allDepositos.filter((d) => d.ativo !== false);
-
-  useEffect(() => {
-    if (!initial) {
-      setDepositoId('');
-      setTipoCombustivel('');
-    }
-  }, [obraId, initial]);
 
   useEffect(() => {
     if (!initial) {
@@ -112,25 +102,15 @@ export default function EntradaForm({
     (row: unknown[], _index: number): ParsedRow => {
       const erros: string[] = [];
       const data = parseStr(row[0]);
-      const obraNome = parseStr(row[1]);
-      const depositoNome = parseStr(row[2]);
-      const combustivelNome = parseStr(row[3]);
-      const litros = parseNumero(row[4]);
-      const valor = parseNumero(row[5]);
-      const fornecedorNome = parseStr(row[6]);
-      const nf = parseStr(row[7]);
-      const obs = parseStr(row[8]);
+      const depositoNome = parseStr(row[1]);
+      const combustivelNome = parseStr(row[2]);
+      const litros = parseNumero(row[3]);
+      const valor = parseNumero(row[4]);
+      const fornecedorNome = parseStr(row[5]);
+      const nf = parseStr(row[6]);
+      const obs = parseStr(row[7]);
 
       if (!data) erros.push('Falta data');
-
-      let foundObraId = '';
-      if (!obraNome) {
-        erros.push('Falta obra');
-      } else {
-        const found = obras.find((o) => o.nome.toLowerCase() === obraNome.toLowerCase());
-        if (found) foundObraId = found.id;
-        else erros.push(`Obra "${obraNome}" não encontrada`);
-      }
 
       let foundDepositoId = '';
       if (!depositoNome) {
@@ -164,16 +144,16 @@ export default function EntradaForm({
         else erros.push(`Fornecedor "${fornecedorNome}" não encontrado`);
       }
 
-      const resumo = `${data || '?'} | ${obraNome || '?'} | ${depositoNome || '?'} | ${combustivelNome || '?'} | ${litros ?? '?'} L`;
+      const resumo = `${data || '?'} | ${depositoNome || '?'} | ${combustivelNome || '?'} | ${litros ?? '?'} L`;
 
       return {
         valido: erros.length === 0,
         erros,
         resumo,
-        dados: { data, obraId: foundObraId, depositoId: foundDepositoId, tipoCombustivel: foundCombustivelId, quantidadeLitros: litros ?? 0, valorTotal: valor ?? 0, fornecedor: foundFornecedor, notaFiscal: nf, observacoes: obs },
+        dados: { data, depositoId: foundDepositoId, tipoCombustivel: foundCombustivelId, quantidadeLitros: litros ?? 0, valorTotal: valor ?? 0, fornecedor: foundFornecedor, notaFiscal: nf, observacoes: obs },
       };
     },
-    [obras, allDepositos, listaCombustiveis, listaFornecedores]
+    [allDepositos, listaCombustiveis, listaFornecedores]
   );
 
   const toEntity = useCallback((row: ParsedRow): Record<string, unknown> => {
@@ -183,7 +163,6 @@ export default function EntradaForm({
       dataHora: d.data,
       depositoId: d.depositoId,
       tipoCombustivel: d.tipoCombustivel,
-      obraId: d.obraId,
       quantidadeLitros: d.quantidadeLitros,
       valorTotal: d.valorTotal,
       fornecedor: d.fornecedor,
@@ -211,7 +190,6 @@ export default function EntradaForm({
       dataHora,
       depositoId,
       tipoCombustivel,
-      obraId,
       quantidadeLitros: qtdLitros,
       valorTotal: parseFloat(valorTotal),
       fornecedor,
@@ -222,7 +200,7 @@ export default function EntradaForm({
   }
 
   const isValid =
-    dataHora && obraId && depositoId && tipoCombustivel && quantidadeLitros && valorTotal && fornecedor && !excedeLimite;
+    dataHora && depositoId && tipoCombustivel && quantidadeLitros && valorTotal && fornecedor && !excedeLimite;
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
@@ -242,15 +220,6 @@ export default function EntradaForm({
           onChange={(e) => setDataHora(e.target.value)}
           required
         />
-        <Select
-          label="Obra"
-          id="entradaObraId"
-          value={obraId}
-          onChange={(e) => setObraId(e.target.value)}
-          options={obras.map((o) => ({ value: o.id, label: o.nome }))}
-          placeholder="Selecione a obra"
-          required
-        />
         <div>
           <Select
             label="Tanque de Destino"
@@ -262,13 +231,11 @@ export default function EntradaForm({
               label: `${d.nome} (${d.nivelAtualLitros.toFixed(0)}/${d.capacidadeLitros.toFixed(0)} L)`,
             }))}
             placeholder={
-              !obraId
-                ? 'Selecione a obra primeiro'
-                : depositos.length === 0
-                  ? 'Nenhum tanque cadastrado'
-                  : 'Selecione o tanque'
+              depositos.length === 0
+                ? 'Nenhum tanque cadastrado'
+                : 'Selecione o tanque'
             }
-            disabled={!obraId || depositos.length === 0}
+            disabled={depositos.length === 0}
             required
           />
           {depositoSelecionado && (
@@ -504,8 +471,8 @@ export default function EntradaForm({
         templateFileName="template_entradas_combustivel.xlsx"
         sheetName="Entradas"
         templateColWidths={[18, 15, 20, 15, 10, 12, 20, 10, 15]}
-        formatHintHeaders={['Data', 'Obra', 'Depósito', 'Combustível', 'Litros', 'Valor', 'Fornecedor', 'NF', 'Obs']}
-        formatHintExample={['2024-01-15 08:00', 'Obra ABC', 'Tanque 01', 'Diesel S10', '1000', '6500', 'Dist. XYZ', '', '']}
+        formatHintHeaders={['Data', 'Depósito', 'Combustível', 'Litros', 'Valor', 'Fornecedor', 'NF', 'Obs']}
+        formatHintExample={['2024-01-15 08:00', 'Tanque 01', 'Diesel S10', '1000', '6500', 'Dist. XYZ', '', '']}
         parseRow={parseRow}
         toEntity={toEntity}
       />

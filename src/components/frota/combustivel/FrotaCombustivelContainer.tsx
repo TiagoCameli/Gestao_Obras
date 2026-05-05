@@ -192,7 +192,7 @@ export default function FrotaCombustivelContainer() {
 
   const entradasFiltradas = useMemo(() => {
     return todasEntradas.filter((e) => {
-      if (filtros.obraId && e.obraId !== filtros.obraId) return false;
+      // Entradas são globais — sem filtro por obra.
       if (filtros.tipoCombustivel && e.tipoCombustivel !== filtros.tipoCombustivel) return false;
       if (!filtrarPorData(e.dataHora)) return false;
       return true;
@@ -406,7 +406,6 @@ export default function FrotaCombustivelContainer() {
       {subTab === 'entradas' && (
         <EntradaList
           entradas={entradasFiltradas}
-          obras={obras}
           depositos={depositosTodos}
           onEdit={handleEditEntrada}
           onDelete={(id) => pedirSenha(() => handleDeleteEntrada(id))}
@@ -494,7 +493,6 @@ export default function FrotaCombustivelContainer() {
           initial={editandoEntrada}
           onSubmit={handleSubmitEntrada}
           onCancel={() => { setModalEntradaOpen(false); setEditandoEntrada(null); }}
-          obras={obras}
           depositos={depositosOperacionais}
           onImportBatch={async (items) => {
             for (const item of items) {
