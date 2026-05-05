@@ -94,8 +94,11 @@ export default function SaidaCombustivelForm({
   const [origem, setOrigem] = useState<OrigemCombustivel>(initial?.origem ?? 'tanque');
 
   // ── Estado comum ──
+  // initial.data vem do DB como ISO completo ("2026-05-05T08:01:00+00:00").
+  // Input datetime-local exige formato truncado YYYY-MM-DDTHH:MM (16 chars) —
+  // sem truncar, o input rejeita o valor e fica vazio em modo edição.
   const [data, setData] = useState(
-    initial?.data ?? new Date().toISOString().slice(0, 16)
+    (initial?.data ?? new Date().toISOString()).slice(0, 16)
   );
   const [obraId, setObraId] = useState(initial?.obraId ?? '');
   const [etapaId, setEtapaId] = useState(initial?.etapaId ?? '');
