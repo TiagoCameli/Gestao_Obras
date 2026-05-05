@@ -552,7 +552,21 @@ export default function SaidaCombustivelForm({
         />
 
         <div>
-          {origem === 'tanque' && tanqueId ? (
+          {origem === 'tanque' && tanqueId && tanqueExterno ? (
+            // Tanque externo (Transterra): Select habilitado — fornece múltiplos
+            // combustíveis (Diesel S10 + Arla). Default sugerido = Diesel S10
+            // via tipoCombustivelDoTanque, mas usuário troca pra Arla quando
+            // for o caso.
+            <Select
+              label="Tipo de Combustível"
+              id="saidaCombustivel"
+              value={tipoCombustivel}
+              onChange={(e) => setTipoCombustivel(e.target.value)}
+              options={listaCombustiveis.map((c) => ({ value: c.id, label: c.nome }))}
+              placeholder="Selecione combustível"
+              required
+            />
+          ) : origem === 'tanque' && tanqueId ? (
             tipoCombustivelDoTanque ? (
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">
