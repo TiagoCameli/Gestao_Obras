@@ -533,7 +533,8 @@ export async function listContractItems(obraId: string): Promise<ContractItem[]>
   const { data, error } = await supabase
     .from("rodotracker_contract_items")
     .select("*")
-    .eq("obra_id", obraId);
+    .eq("obra_id", obraId)
+    .order("code", { ascending: true, nullsFirst: false });
   throwIfError(error, "listContractItems");
   return (data ?? []).map(rowToContract);
 }
