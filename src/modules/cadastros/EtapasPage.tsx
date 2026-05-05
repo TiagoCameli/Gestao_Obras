@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
 import Button from '../../components/ui/Button';
 import Drawer from '../../components/ui/Drawer';
 import ConfirmDialog from '../../components/ui/ConfirmDialog';
@@ -18,6 +19,12 @@ import {
   useExcluirContractItem,
 } from '../../hooks/useContractItems';
 import type { ContractItem } from '../rodotracker/types/activity';
+import { listActivities } from '../rodotracker/utils/rodotrackerApi';
+import {
+  buildContribsByCodeAndMedicao,
+  aggregatedAccumulatedValue,
+} from '../rodotracker/utils/medicaoAggregates';
+import { isAggregating } from '../rodotracker/utils/contractTree';
 import { useAuth } from '../../contexts/AuthContext';
 import { formatCurrency } from '../../utils/formatters';
 import { gerarId } from './utils';
@@ -131,16 +138,27 @@ export default function EtapasPage() {
     });
   }, [items, search, typeFilter]);
 
+  // Carrega activities da obra (mesma fonte do módulo Medição) pra calcular
+  // o total medido acumulado via aggregatedAccumulatedValue.
+  const { data: activities = [] } = useQuery({
+    queryKey: ['rodotracker_activities', obraId],
+    queryFn: () => listActivities(obraId),
+    enabled: !!obraId,
+  });
+  const contribsMap = useMemo(() => buildContribsByCodeAndMedicao(activities), [activities]);
+
   // Stats
   const stats = useMemo(() => {
     const totalContratado = items
       .filter((i) => (i.type ?? 'item') === 'item')
       .reduce((acc, i) => acc + (i.contractedQty || 0) * (i.unitPrice || 0), 0);
+    // Total medido = mesma fórmula do MeasurementView ("Valor Total Medido"):
+    // soma aggregatedAccumulatedValue de todos os items não-agregadores.
     const totalMedido = items
-      .filter((i) => (i.type ?? 'item') === 'item')
-      .reduce((acc, i) => acc + (i.measuredQty || 0) * (i.unitPrice || 0), 0);
+      .filter((i) => !isAggregating(i, items))
+      .reduce((acc, i) => acc + aggregatedAccumulatedValue(i, items, contribsMap), 0);
     return { totalContratado, totalMedido, count: items.length };
-  }, [items]);
+  }, [items, contribsMap]);
 
   // Drawer state
   const [drawerOpen, setDrawerOpen] = useState(false);
