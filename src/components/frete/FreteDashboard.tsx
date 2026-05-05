@@ -365,11 +365,6 @@ export default function FreteDashboard({
     return map;
   }, [todosMovimentos, dataInicio, dataFim, obraIdFiltro]);
 
-  const debitoCombustivelTotalView = useMemo(
-    () => Array.from(saldosFiltrados.values()).reduce((s, x) => s + x.debitoCombustivelTotal, 0),
-    [saldosFiltrados]
-  );
-
   const sAreacre = saldoByNome.get('areacre');
   const sTriunfo = saldoByNome.get('transportadora triunfo');
   const sAndrade = saldoByNome.get('andrade transporte');
@@ -963,19 +958,6 @@ export default function FreteDashboard({
           ]}
           onClick={onVerContaCorrente}
         />
-      </div>
-
-      {/* KPI novo (Item 7): saldo a receber das transportadoras (combustível) */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        <Card>
-          <p className="text-sm text-gray-500">Saldo a Receber (Combustível)</p>
-          <p className="text-2xl font-bold mt-1 text-amber-700">
-            {formatCurrency(debitoCombustivelTotalView)}
-          </p>
-          <p className="text-xs text-gray-400 mt-1">
-            Soma dos débitos de combustível das transportadoras (incluindo já abatidos no histórico).
-          </p>
-        </Card>
       </div>
 
       {/* ── Analytics Overview: KPIs + gráficos interativos ── */}
