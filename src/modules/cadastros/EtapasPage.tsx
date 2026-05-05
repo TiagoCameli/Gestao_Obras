@@ -116,7 +116,19 @@ export default function EtapasPage() {
           i.unit.toLowerCase().includes(q)
       );
     }
-    return list;
+    // Ordena hierárquico: etapa "2" deve vir antes de "02.01" e "10".
+    // Compara segmento a segmento como número (1 < 2 < 10).
+    const segs = (c: string | null | undefined) =>
+      (c ?? '').split('.').map((s) => parseInt(s, 10) || 0);
+    return [...list].sort((a, b) => {
+      const sa = segs(a.code), sb = segs(b.code);
+      const len = Math.max(sa.length, sb.length);
+      for (let i = 0; i < len; i++) {
+        const da = sa[i] ?? -1, db = sb[i] ?? -1;
+        if (da !== db) return da - db;
+      }
+      return 0;
+    });
   }, [items, search, typeFilter]);
 
   // Stats
