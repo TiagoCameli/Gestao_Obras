@@ -31,6 +31,7 @@ import type {
 } from '../../types';
 import Input from '../ui/Input';
 import Select from '../ui/Select';
+import FilterCombobox from '../ui/FilterCombobox';
 import Button from '../ui/Button';
 import FotoCaptureUploader from './FotoCaptureUploader';
 import { useAdicionarInsumo } from '../../hooks/useInsumos';
@@ -546,15 +547,27 @@ export default function SaidaCombustivelForm({
           />
         )}
 
-        <Select
-          label="Etapa"
-          id="saidaEtapa"
-          value={etapaId}
-          onChange={(e) => setEtapaId(e.target.value)}
-          options={etapasDaObra.map((et) => ({ value: et.id, label: et.nome }))}
-          placeholder={obraId ? 'Selecione etapa (opcional)' : 'Selecione obra primeiro'}
-          disabled={!obraId}
-        />
+        <div>
+          <label htmlFor="saidaEtapa" className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">
+            Etapa
+          </label>
+          {obraId ? (
+            <FilterCombobox
+              value={etapaId}
+              onChange={setEtapaId}
+              options={etapasDaObra.map((et) => ({ value: et.id, label: et.nome }))}
+              placeholder="Buscar etapa por código ou nome (opcional)"
+            />
+          ) : (
+            <input
+              id="saidaEtapa"
+              type="text"
+              disabled
+              placeholder="Selecione obra primeiro"
+              className="w-full h-[38px] rounded-lg px-3 py-2 text-sm bg-gray-100 dark:bg-slate-700 border border-gray-300 dark:border-slate-600 text-gray-400 dark:text-slate-500"
+            />
+          )}
+        </div>
 
         <div>
           {origem === 'tanque' && tanqueId && tanqueExterno ? (
