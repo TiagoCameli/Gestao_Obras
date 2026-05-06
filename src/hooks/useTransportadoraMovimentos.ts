@@ -1,7 +1,11 @@
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '../lib/supabase';
 import { dbToTransportadoraMovimento } from '../lib/mappers';
 import type { TipoMovimentoTransportadora, TransportadoraMovimento } from '../types';
+
+function gerarIdText(): string {
+  return Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+}
 
 export interface UseTransportadoraMovimentosOptions {
   /** Filtra por transportadora_id no servidor. */
@@ -50,6 +54,53 @@ const TIPOS_CREDITO: ReadonlySet<TipoMovimentoTransportadora> = new Set([
   'credito_abastecimento_transterra',
   'ajuste_manual_credito',
 ]);
+
+/** Cria ajuste manual (crédito ou débito) na conta-corrente da transportadora.
+ *  INSERT direto em transportadora_movimentos com origem_tabela='ajuste_manual'
+ *  (sem trigger — não há tabela origem). View transportadora_saldos é
+ *  atualizada automaticamente (é VIEW agregada).
+ */
+export interface NovoAjusteManualInput {
+  transportadoraId: string;
+  tipo: 'ajuste_manual_credito' | 'ajuste_manual_debito';
+  /** Valor positivo. Sinal vem do tipo. */
+  valor: number;
+  /** ISO timestamptz da data do ajuste. */
+  data: string;
+  /** Mês de referência (YYYY-MM-DD do 1º dia). Default = mês da data. */
+  mesReferencia?: string | null;
+  descricao: string;
+  obraId?: string | null;
+}
+
+export function useCriarAjusteManualTransportadora() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: NovoAjusteManualInput) => {
+      const id = gerarIdText();
+      const dataIso = input.data.length === 16 ? `${input.data}:00` : input.data;
+      const mesRef = input.mesReferencia ?? `${dataIso.slice(0, 7)}-01`;
+      const { error } = await supabase.from('transportadora_movimentos').insert({
+        id,
+        transportadora_id: input.transportadoraId,
+        data: dataIso,
+        tipo: input.tipo,
+        valor: input.valor,
+        origem_tabela: 'ajuste_manual',
+        origem_id: id,
+        descricao: input.descricao,
+        obra_id: input.obraId ?? null,
+        mes_referencia: mesRef,
+      });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['transportadora_movimentos'] });
+      qc.invalidateQueries({ queryKey: ['transportadora_saldos'] });
+      qc.invalidateQueries({ queryKey: ['transportadora_saldo'] });
+    },
+  });
+}
 
 export function calcularSaldoAcumulado(
   movs: TransportadoraMovimento[]
