@@ -114,49 +114,65 @@ export default function TransportadoraExtratoList({
 
   return (
     <div className="space-y-4">
-      {/* Cabeçalho com saldo */}
-      <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-1)] p-4 flex flex-col sm:flex-row sm:items-end gap-4 justify-between">
-        <div>
-          <div className="text-xs uppercase tracking-wide text-[var(--color-fg-muted)]">Saldo Atual</div>
-          <div className={`text-2xl font-bold ${saldoAtual >= 0 ? 'text-green-700' : 'text-red-700'}`}>
-            {fmtBRL(saldoAtual)}
-          </div>
-          <div className="text-xs text-[var(--color-fg-muted)] mt-0.5">
-            {movimentos.length} movimento{movimentos.length !== 1 ? 's' : ''} no total
-          </div>
-        </div>
+      {/* Cabeçalho com saldo — quando filtroMes ativo, mostra saldo do mês
+          (créditos - débitos do recorte filtrado); senão saldo total. */}
+      {(() => {
+        const temFiltroMes = !!filtroMes;
+        const saldoExibido = temFiltroMes ? totais.creditos - totais.debitos : saldoAtual;
+        let mesLabel = '';
+        if (temFiltroMes) {
+          const [yy, mm] = filtroMes.split('-');
+          const dt = new Date(Number(yy), Number(mm) - 1, 1);
+          const nome = dt.toLocaleString('pt-BR', { month: 'long' });
+          mesLabel = `${nome.charAt(0).toUpperCase() + nome.slice(1)}/${yy}`;
+        }
+        const titulo = temFiltroMes ? `Saldo de ${mesLabel}` : 'Saldo Atual';
+        const sub = temFiltroMes
+          ? `${dados.length} movimento${dados.length !== 1 ? 's' : ''} no mês`
+          : `${movimentos.length} movimento${movimentos.length !== 1 ? 's' : ''} no total`;
+        return (
+          <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-1)] p-4 flex flex-col sm:flex-row sm:items-end gap-4 justify-between">
+            <div>
+              <div className="text-xs uppercase tracking-wide text-[var(--color-fg-muted)]">{titulo}</div>
+              <div className={`text-2xl font-bold ${saldoExibido >= 0 ? 'text-green-700' : 'text-red-700'}`}>
+                {fmtBRL(saldoExibido)}
+              </div>
+              <div className="text-xs text-[var(--color-fg-muted)] mt-0.5">{sub}</div>
+            </div>
 
-        {canExport && dados.length > 0 && (
-          <div className="flex gap-2 shrink-0">
-            <Button
-              variant="secondary"
-              className="text-xs"
-              onClick={() =>
-                exportarExtratoExcel(transportadoraNome, movimentos, {
-                  mesReferencia: filtroMes,
-                  tipos: filtroTipos,
-                  busca,
-                })
-              }
-            >
-              <FileSpreadsheet className="w-3.5 h-3.5" /> Excel
-            </Button>
-            <Button
-              variant="secondary"
-              className="text-xs"
-              onClick={() =>
-                exportarExtratoPDF(transportadoraNome, movimentos, {
-                  mesReferencia: filtroMes,
-                  tipos: filtroTipos,
-                  busca,
-                })
-              }
-            >
-              <FileText className="w-3.5 h-3.5" /> PDF
-            </Button>
+            {canExport && dados.length > 0 && (
+              <div className="flex gap-2 shrink-0">
+                <Button
+                  variant="secondary"
+                  className="text-xs"
+                  onClick={() =>
+                    exportarExtratoExcel(transportadoraNome, movimentos, {
+                      mesReferencia: filtroMes,
+                      tipos: filtroTipos,
+                      busca,
+                    })
+                  }
+                >
+                  <FileSpreadsheet className="w-3.5 h-3.5" /> Excel
+                </Button>
+                <Button
+                  variant="secondary"
+                  className="text-xs"
+                  onClick={() =>
+                    exportarExtratoPDF(transportadoraNome, movimentos, {
+                      mesReferencia: filtroMes,
+                      tipos: filtroTipos,
+                      busca,
+                    })
+                  }
+                >
+                  <FileText className="w-3.5 h-3.5" /> PDF
+                </Button>
+              </div>
+            )}
           </div>
-        )}
-      </div>
+        );
+      })()}
 
       {/* Filtros */}
       <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-1)] p-3 sm:p-4 space-y-3">
