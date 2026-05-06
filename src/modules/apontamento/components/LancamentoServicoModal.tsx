@@ -25,8 +25,13 @@ interface Linha {
   servicoId: string;
   tipo: TipoApontamento;
   motivo: string;
+  /** Display + edição manual (truncado pra 2 casas). NUNCA usar em cálculos. */
   horasStr: string;
   pctStr: string;
+  /** Valor numérico canônico (full precision). Usado em totalHoras, validar e save.
+   *  Setado por setHorasDaLinha (parseFloat do input) ou setPctDaLinha
+   *  ((p/100) × baseHoras, sem arredondar). 0 = vazio/inválido. */
+  horasNum: number;
   observacao: string;
 }
 
@@ -38,6 +43,7 @@ function novaLinha(servicoId = ""): Linha {
     motivo: "",
     horasStr: "",
     pctStr: "",
+    horasNum: 0,
     observacao: "",
   };
 }
@@ -89,6 +95,7 @@ export default function LancamentoServicoModal({
             motivo: a.motivoImprodutivo ?? "",
             horasStr: a.horas.toFixed(2),
             pctStr: pct.toFixed(1),
+            horasNum: a.horas,
             observacao: a.observacao ?? "",
           };
         })
@@ -112,6 +119,7 @@ export default function LancamentoServicoModal({
     patchLinha(uid, {
       horasStr,
       pctStr: Number.isFinite(pct) ? pct.toFixed(1) : "",
+      horasNum: Number.isFinite(h) ? h : 0,
     });
   }
   function setPctDaLinha(uid: string, pctStr: string) {
@@ -120,16 +128,14 @@ export default function LancamentoServicoModal({
     patchLinha(uid, {
       pctStr,
       horasStr: Number.isFinite(h) ? h.toFixed(2) : "",
+      // horasNum guarda full precision pra que totalPct dê 100% exato quando
+      // pct=100. Display continua arredondado pra 2 casas.
+      horasNum: Number.isFinite(h) ? h : 0,
     });
   }
 
   const totalHoras = useMemo(
-    () =>
-      linhas.reduce(
-        (acc, l) =>
-          acc + (Number.isFinite(parseFloat(l.horasStr)) ? parseFloat(l.horasStr) : 0),
-        0
-      ),
+    () => linhas.reduce((acc, l) => acc + (l.horasNum || 0), 0),
     [linhas]
   );
   const totalPct = baseHoras > 0 ? (totalHoras / baseHoras) * 100 : 0;
@@ -137,7 +143,7 @@ export default function LancamentoServicoModal({
   function validar(): string | null {
     if (linhas.length === 0) return "Adicione pelo menos uma linha.";
     for (const l of linhas) {
-      const h = parseFloat(l.horasStr);
+      const h = l.horasNum;
       if (!Number.isFinite(h) || h <= 0)
         return "Informe horas (> 0) em todas as linhas.";
       if (l.tipo === "produtivo" && !l.servicoId)
@@ -199,7 +205,7 @@ export default function LancamentoServicoModal({
               data,
               linhas: linhas.map((l) => ({
                 servicoId: l.tipo === "produtivo" ? l.servicoId : null,
-                horas: parseFloat(l.horasStr),
+                horas: l.horasNum,
                 tipo: l.tipo,
                 motivoImprodutivo: l.motivo || null,
                 observacao: l.observacao || null,
