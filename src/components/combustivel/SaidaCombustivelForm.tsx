@@ -487,20 +487,22 @@ export default function SaidaCombustivelForm({
         />
 
         {tipoConsumidor === 'equipamento_proprio' ? (
-          <Select
-            label="Equipamento"
-            id="saidaEquip"
-            value={equipamentoId}
-            onChange={(e) => setEquipamentoId(e.target.value)}
-            options={equipamentosVisiveis.map((eq) => ({
-              value: eq.id,
-              label: eq.codigoPatrimonio
-                ? `${eq.codigoPatrimonio} — ${eq.nome}`
-                : eq.nome,
-            }))}
-            placeholder="Selecione equipamento"
-            required
-          />
+          <div>
+            <label htmlFor="saidaEquip" className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">
+              Equipamento <span className="text-red-500">*</span>
+            </label>
+            <FilterCombobox
+              value={equipamentoId}
+              onChange={setEquipamentoId}
+              options={equipamentosVisiveis.map((eq) => ({
+                value: eq.id,
+                label: eq.codigoPatrimonio
+                  ? `${eq.codigoPatrimonio} — ${eq.nome}`
+                  : eq.nome,
+              }))}
+              placeholder="Buscar equipamento por código ou nome"
+            />
+          </div>
         ) : (
           <>
             <Select
