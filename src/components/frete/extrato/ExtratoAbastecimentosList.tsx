@@ -7,6 +7,7 @@
 import { useMemo, useState } from 'react';
 import { Search } from 'lucide-react';
 import type { TransportadoraMovimento } from '../../../types';
+import { useInsumos } from '../../../hooks/useInsumos';
 import { fmtBRL, fmtData, fmtNumDec } from './extratoShared';
 
 interface Props {
@@ -30,6 +31,16 @@ export default function ExtratoAbastecimentosList({ movimentos }: Props) {
   const [filtroCategoria, setFiltroCategoria] = useState<Categoria | ''>('');
   const [busca, setBusca] = useState('');
 
+  const { data: insumos = [] } = useInsumos();
+
+  // saidaTipoCombustivel é FK soft pra insumos.id — resolve pra nome.
+  const combustivelNome = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const i of insumos) map.set(i.id, i.nome);
+    return (id: string | null | undefined) =>
+      id ? map.get(id) ?? id : '—';
+  }, [insumos]);
+
   const abastecimentos = useMemo(
     () => movimentos.filter((m) => categoriaDoTipo(m.tipo) !== null),
     [movimentos]
@@ -45,14 +56,14 @@ export default function ExtratoAbastecimentosList({ movimentos }: Props) {
           m.descricao,
           m.saidaPlaca,
           m.saidaMotorista,
-          m.saidaTipoCombustivel,
+          combustivelNome(m.saidaTipoCombustivel),
           m.saidaObservacoes,
         ];
         return campos.some((c) => (c ?? '').toLowerCase().includes(q));
       });
     }
     return [...lista].sort((a, b) => b.data.localeCompare(a.data));
-  }, [abastecimentos, filtroCategoria, busca]);
+  }, [abastecimentos, filtroCategoria, busca, combustivelNome]);
 
   const total = useMemo(() => dados.reduce((s, m) => s + m.valor, 0), [dados]);
   const litrosTotal = useMemo(
@@ -170,7 +181,7 @@ export default function ExtratoAbastecimentosList({ movimentos }: Props) {
                         </span>
                       )}
                     </td>
-                    <td className="px-3 py-2 text-gray-700">{m.saidaTipoCombustivel ?? '—'}</td>
+                    <td className="px-3 py-2 text-gray-700">{combustivelNome(m.saidaTipoCombustivel)}</td>
                     <td className="px-3 py-2 text-right font-mono text-gray-700 whitespace-nowrap">
                       {m.saidaLitros != null ? `${fmtNumDec(m.saidaLitros, 0)} L` : '—'}
                     </td>

@@ -17,6 +17,8 @@ import ExtratoPagamentosList from './extrato/ExtratoPagamentosList';
 import ExtratoAjustesList from './extrato/ExtratoAjustesList';
 import { useTransportadoraMovimentos } from '../../hooks/useTransportadoraMovimentos';
 import { useTransportadoraSaldo } from '../../hooks/useTransportadoraSaldo';
+import { useInsumos } from '../../hooks/useInsumos';
+import { useObras } from '../../hooks/useObras';
 import { exportarExtratoExcel, exportarExtratoPDF, TIPOS_CREDITO } from '../../utils/extratoExport';
 import { fmtBRL } from './extrato/extratoShared';
 
@@ -57,9 +59,23 @@ export default function TransportadoraExtratoModal({
     transportadoraId: transportadoraId ?? undefined,
   });
   const { data: saldo, isLoading: loadingSaldo } = useTransportadoraSaldo(transportadoraId);
+  const { data: insumos = [] } = useInsumos();
+  const { data: obras = [] } = useObras();
   const [ajusteOpen, setAjusteOpen] = useState(false);
   const [tab, setTab] = useState<TabId>('todos');
   const [filtroMes, setFiltroMes] = useState('');
+
+  // Lookups id→nome pra resolver FKs soft no export.
+  const insumosMap = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const i of insumos) map.set(i.id, i.nome);
+    return map;
+  }, [insumos]);
+  const obrasMap = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const o of obras) map.set(o.id, o.nome);
+    return map;
+  }, [obras]);
 
   // Lista de meses únicos pra dropdown (DESC)
   const mesesDisponiveis = useMemo(() => {
@@ -168,11 +184,12 @@ export default function TransportadoraExtratoModal({
                       variant="secondary"
                       className="text-xs"
                       onClick={() =>
-                        exportarExtratoExcel(transportadoraNome ?? '?', movimentos, {
-                          mesReferencia: filtroMes,
-                          tipos: [],
-                          busca: '',
-                        })
+                        exportarExtratoExcel(
+                          transportadoraNome ?? '?',
+                          movimentos,
+                          { mesReferencia: filtroMes, tipos: [], busca: '' },
+                          { insumosMap, obrasMap },
+                        )
                       }
                     >
                       <FileSpreadsheet className="w-3.5 h-3.5" /> Excel

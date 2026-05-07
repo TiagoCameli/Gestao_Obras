@@ -2,7 +2,7 @@
 // Reusa helpers do exportTemplate.ts pra manter visual consistente.
 
 import jsPDF from 'jspdf';
-import type { TransportadoraMovimento, TipoMovimentoTransportadora } from '../types';
+import type { TransportadoraMovimento, TipoMovimentoTransportadora, MetodoPagamentoFrete } from '../types';
 import {
   createWorkbook,
   drawPdfBanner,
@@ -46,6 +46,34 @@ export const TIPOS_CREDITO: ReadonlySet<TipoMovimentoTransportadora> = new Set([
   'credito_abastecimento_transterra',
   'ajuste_manual_credito',
 ]);
+
+const METODO_LABEL: Record<MetodoPagamentoFrete, string> = {
+  pix: 'PIX',
+  boleto: 'Boleto',
+  cheque: 'Cheque',
+  dinheiro: 'Dinheiro',
+  transferencia: 'Transferência',
+  combustivel: 'Combustível',
+};
+
+function categoriaAbastecimento(tipo: TipoMovimentoTransportadora): string {
+  if (tipo === 'debito_abastecimento_transterra') return 'Transterra';
+  if (tipo === 'debito_abastecimento_emt') return 'EMT';
+  return '';
+}
+
+/** Contexto opcional pro export — Maps id→nome pra resolver FKs soft. */
+export interface ExtratoExportContext {
+  insumosMap?: Map<string, string>;
+  obrasMap?: Map<string, string>;
+}
+
+function resolverNome(map: Map<string, string> | undefined) {
+  return (id: string | null | undefined): string => {
+    if (!id) return '';
+    return map?.get(id) ?? id;
+  };
+}
 
 // ────────────────────────────────────────────────────────────────────
 // formatBreakdown — fórmula que produziu o valor do movimento.
@@ -191,50 +219,211 @@ function filtrosToTuples(filtros: ExtratoFiltros): Array<[string, string]> {
 }
 
 // ════════════════════════════════════════════════════════════════════
-// Excel
+// Excel — workbook com 6 sheets:
+//   Resumo · Todos · Fretes · Abastecimentos · Pagamentos · Ajustes
+// Cada sheet de tipo é filtrada pelo mês (filtros.mesReferencia) e
+// mostra colunas detalhadas próprias (espelha as abas da UI).
 // ════════════════════════════════════════════════════════════════════
 
 export async function exportarExtratoExcel(
   transportadoraNome: string,
   movimentos: TransportadoraMovimento[],
-  filtros: ExtratoFiltros
+  filtros: ExtratoFiltros,
+  context?: ExtratoExportContext,
 ): Promise<void> {
-  const dados = prepararExtrato(movimentos, filtros);
-  const totais = totaisFromList(dados);
+  const insumoNome = resolverNome(context?.insumosMap);
+  const obraNome = resolverNome(context?.obrasMap);
+
+  // "Todos" — cronológico com saldo acumulado, aplica filtros completos.
+  const dadosTodos = prepararExtrato(movimentos, filtros);
+  const totais = totaisFromList(dadosTodos);
+
+  // Subsets por tipo — só o filtro de mês importa (tipos/busca não fazem
+  // sentido aqui; cada aba tem seu próprio escopo).
+  const movsMes = filtros.mesReferencia
+    ? movimentos.filter((m) => m.mesReferencia === filtros.mesReferencia)
+    : movimentos;
+
+  const sortDesc = (a: TransportadoraMovimento, b: TransportadoraMovimento) =>
+    b.data.localeCompare(a.data);
+
+  const fretes = movsMes.filter((m) => m.tipo === 'credito_frete').sort(sortDesc);
+  const abastecimentos = movsMes
+    .filter((m) => m.tipo === 'debito_abastecimento_transterra' || m.tipo === 'debito_abastecimento_emt')
+    .sort(sortDesc);
+  const pagamentos = movsMes.filter((m) => m.tipo === 'debito_pagamento_frete').sort(sortDesc);
+  const ajustes = movsMes
+    .filter((m) => m.tipo === 'ajuste_manual_credito' || m.tipo === 'ajuste_manual_debito')
+    .sort(sortDesc);
 
   const { wb, wsResumo, wsDetalhe } = createWorkbook();
+  wsDetalhe.name = 'Todos';
 
+  // ── Sheet "Resumo" ──
   let row = renderExcelBanner(wsResumo, TITULO, `${transportadoraNome} · ${SUBTITULO}`);
   row += 1;
   row = renderExcelFiltros(wsResumo, row, filtrosToTuples(filtros));
   row += 1;
   renderExcelKPIs(wsResumo, row, [
-    { label: 'Saldo Final', value: totais.saldoFinal, numFmt: '"R$" #,##0.00' },
+    { label: 'Saldo do Período', value: totais.saldoFinal, numFmt: '"R$" #,##0.00' },
     { label: 'Créditos', value: totais.creditos, numFmt: '"R$" #,##0.00' },
     { label: 'Débitos', value: totais.debitos, numFmt: '"R$" #,##0.00' },
-    { label: 'Movimentos', value: totais.qtd },
+    { label: 'Total Movimentos', value: totais.qtd },
+    { label: 'Fretes', value: fretes.length },
+    { label: 'Abastecimentos', value: abastecimentos.length },
+    { label: 'Pagamentos', value: pagamentos.length },
+    { label: 'Ajustes', value: ajustes.length },
   ]);
 
-  // Sheet de detalhe
-  renderExcelDetalhamento<MovimentoComSaldo>(wsDetalhe, dados, [
+  // ── Sheet "Todos" (cronológico com saldo acumulado) ──
+  renderExcelDetalhamento<MovimentoComSaldo>(wsDetalhe, dadosTodos, [
     { header: 'Data', key: 'data', width: 14, value: (m) => formatDateBR(m.data) },
-    { header: 'Tipo', key: 'tipo', width: 36, value: (m) => TIPO_LABEL[m.tipo] },
+    { header: 'Tipo', key: 'tipo', width: 32, value: (m) => TIPO_LABEL[m.tipo] },
     { header: 'Descrição', key: 'descricao', width: 42, value: (m) => m.descricao ?? '' },
     { header: 'Cálculo', key: 'calculo', width: 50, value: (m) => formatBreakdown(m) },
     {
       header: 'Crédito', key: 'credito', width: 16, align: 'right', numFmt: '"R$" #,##0.00',
-      value: (m) => TIPOS_CREDITO.has(m.tipo) ? m.valor : '',
+      value: (m) => (TIPOS_CREDITO.has(m.tipo) ? m.valor : ''),
       footerValue: (items) => items.reduce((s, m) => s + (TIPOS_CREDITO.has(m.tipo) ? m.valor : 0), 0),
     },
     {
       header: 'Débito', key: 'debito', width: 16, align: 'right', numFmt: '"R$" #,##0.00',
-      value: (m) => TIPOS_CREDITO.has(m.tipo) ? '' : m.valor,
+      value: (m) => (TIPOS_CREDITO.has(m.tipo) ? '' : m.valor),
       footerValue: (items) => items.reduce((s, m) => s + (TIPOS_CREDITO.has(m.tipo) ? 0 : m.valor), 0),
     },
     {
       header: 'Saldo', key: 'saldo', width: 18, align: 'right', numFmt: '"R$" #,##0.00',
       value: (m) => m.saldoAcumulado,
       emphasizeValue: true,
+    },
+  ]);
+
+  // ── Sheet "Fretes" ──
+  const wsFretes = wb.addWorksheet('Fretes', {
+    pageSetup: { paperSize: 9, orientation: 'landscape', fitToPage: true, fitToWidth: 1, margins: { left: 0.4, right: 0.4, top: 0.4, bottom: 0.4, header: 0.3, footer: 0.3 } },
+  });
+  renderExcelDetalhamento<TransportadoraMovimento>(wsFretes, fretes, [
+    { header: 'Data', key: 'data', width: 14, value: (m) => formatDateBR(m.data) },
+    { header: 'Origem', key: 'origem', width: 22, value: (m) => m.freteOrigem ?? '' },
+    { header: 'Destino', key: 'destino', width: 22, value: (m) => m.freteDestino ?? '' },
+    { header: 'Insumo', key: 'insumo', width: 24, value: (m) => insumoNome(m.freteInsumoId) },
+    { header: 'Obra', key: 'obra', width: 24, value: (m) => obraNome(m.obraId) },
+    {
+      header: 'Peso (t)', key: 'peso', width: 12, align: 'right', numFmt: '#,##0.00',
+      value: (m) => m.fretePesoToneladas ?? 0,
+      footerValue: (items) => items.reduce((s, m) => s + (m.fretePesoToneladas ?? 0), 0),
+    },
+    {
+      header: 'KM', key: 'km', width: 12, align: 'right', numFmt: '#,##0.0',
+      value: (m) => m.freteKmRodados ?? 0,
+      footerValue: (items) => items.reduce((s, m) => s + (m.freteKmRodados ?? 0), 0),
+    },
+    {
+      header: 'R$/tkm', key: 'tkm', width: 12, align: 'right', numFmt: '"R$" #,##0.0000',
+      value: (m) => m.freteValorTkm ?? 0,
+    },
+    { header: 'NF', key: 'nf', width: 14, value: (m) => m.freteNotaFiscal ?? '' },
+    { header: 'NF 2', key: 'nf2', width: 14, value: (m) => m.freteNotaFiscal2 ?? '' },
+    { header: 'Placa', key: 'placa', width: 12, value: (m) => m.fretePlacaCarreta ?? '' },
+    { header: 'Motorista', key: 'motorista', width: 22, value: (m) => m.freteMotorista ?? '' },
+    {
+      header: 'Valor', key: 'valor', width: 16, align: 'right', numFmt: '"R$" #,##0.00',
+      value: (m) => m.valor,
+      footerValue: (items) => items.reduce((s, m) => s + m.valor, 0),
+      emphasizeValue: true,
+    },
+  ]);
+
+  // ── Sheet "Abastecimentos" (apenas débitos) ──
+  const wsAbast = wb.addWorksheet('Abastecimentos', {
+    pageSetup: { paperSize: 9, orientation: 'landscape', fitToPage: true, fitToWidth: 1, margins: { left: 0.4, right: 0.4, top: 0.4, bottom: 0.4, header: 0.3, footer: 0.3 } },
+  });
+  renderExcelDetalhamento<TransportadoraMovimento>(wsAbast, abastecimentos, [
+    { header: 'Data', key: 'data', width: 14, value: (m) => formatDateBR(m.data) },
+    { header: 'Categoria', key: 'cat', width: 14, value: (m) => categoriaAbastecimento(m.tipo) },
+    { header: 'Combustível', key: 'comb', width: 22, value: (m) => insumoNome(m.saidaTipoCombustivel) },
+    {
+      header: 'Litros', key: 'litros', width: 12, align: 'right', numFmt: '#,##0',
+      value: (m) => m.saidaLitros ?? 0,
+      footerValue: (items) => items.reduce((s, m) => s + (m.saidaLitros ?? 0), 0),
+    },
+    {
+      header: 'Preço/L', key: 'preco', width: 14, align: 'right', numFmt: '"R$" #,##0.0000',
+      value: (m) =>
+        m.tipo === 'debito_abastecimento_emt'
+          ? (m.saidaPrecoMedioTanque ?? m.saidaPrecoCombustivel ?? 0)
+          : (m.saidaPrecoCombustivel ?? 0),
+    },
+    {
+      header: 'Taxa/L', key: 'taxa', width: 12, align: 'right', numFmt: '"R$" #,##0.0000',
+      value: (m) => m.saidaTaxaLitro ?? 0,
+    },
+    { header: 'Placa', key: 'placa', width: 12, value: (m) => m.saidaPlaca ?? '' },
+    { header: 'Motorista', key: 'motorista', width: 22, value: (m) => m.saidaMotorista ?? '' },
+    { header: 'Observações', key: 'obs', width: 32, value: (m) => m.saidaObservacoes ?? '' },
+    {
+      header: 'Total', key: 'total', width: 16, align: 'right', numFmt: '"R$" #,##0.00',
+      value: (m) => m.valor,
+      footerValue: (items) => items.reduce((s, m) => s + m.valor, 0),
+      emphasizeValue: true,
+    },
+  ]);
+
+  // ── Sheet "Pagamentos" ──
+  const wsPagto = wb.addWorksheet('Pagamentos', {
+    pageSetup: { paperSize: 9, orientation: 'landscape', fitToPage: true, fitToWidth: 1, margins: { left: 0.4, right: 0.4, top: 0.4, bottom: 0.4, header: 0.3, footer: 0.3 } },
+  });
+  renderExcelDetalhamento<TransportadoraMovimento>(wsPagto, pagamentos, [
+    { header: 'Data', key: 'data', width: 14, value: (m) => formatDateBR(m.data) },
+    { header: 'Mês ref', key: 'mes', width: 12, value: (m) => m.mesReferencia?.slice(0, 7) ?? '' },
+    {
+      header: 'Método', key: 'metodo', width: 16,
+      value: (m) =>
+        m.pagamentoMetodo
+          ? METODO_LABEL[m.pagamentoMetodo as MetodoPagamentoFrete] ?? m.pagamentoMetodo
+          : '',
+    },
+    { header: 'NF', key: 'nf', width: 14, value: (m) => m.pagamentoNotaFiscal ?? '' },
+    { header: 'Responsável', key: 'resp', width: 22, value: (m) => m.pagamentoResponsavel ?? '' },
+    { header: 'Pago por', key: 'pago', width: 22, value: (m) => m.pagamentoPagoPor ?? '' },
+    {
+      header: 'Combustível (L)', key: 'litros', width: 16, align: 'right', numFmt: '#,##0',
+      value: (m) => m.pagamentoQuantidadeCombustivel ?? '',
+      footerValue: (items) => items.reduce((s, m) => s + (m.pagamentoQuantidadeCombustivel ?? 0), 0),
+    },
+    { header: 'Observações', key: 'obs', width: 32, value: (m) => m.pagamentoObservacoes ?? m.descricao ?? '' },
+    {
+      header: 'Valor', key: 'valor', width: 16, align: 'right', numFmt: '"R$" #,##0.00',
+      value: (m) => m.valor,
+      footerValue: (items) => items.reduce((s, m) => s + m.valor, 0),
+      emphasizeValue: true,
+    },
+  ]);
+
+  // ── Sheet "Ajustes" ──
+  const wsAjustes = wb.addWorksheet('Ajustes', {
+    pageSetup: { paperSize: 9, orientation: 'landscape', fitToPage: true, fitToWidth: 1, margins: { left: 0.4, right: 0.4, top: 0.4, bottom: 0.4, header: 0.3, footer: 0.3 } },
+  });
+  renderExcelDetalhamento<TransportadoraMovimento>(wsAjustes, ajustes, [
+    { header: 'Data', key: 'data', width: 14, value: (m) => formatDateBR(m.data) },
+    {
+      header: 'Sinal', key: 'sinal', width: 12,
+      value: (m) => (m.tipo === 'ajuste_manual_credito' ? 'Crédito' : 'Débito'),
+    },
+    { header: 'Descrição', key: 'descricao', width: 42, value: (m) => m.descricao ?? '' },
+    { header: 'Obra', key: 'obra', width: 24, value: (m) => obraNome(m.obraId) },
+    { header: 'Criado por', key: 'autor', width: 22, value: (m) => m.createdBy ?? '' },
+    {
+      header: 'Crédito', key: 'credito', width: 16, align: 'right', numFmt: '"R$" #,##0.00',
+      value: (m) => (m.tipo === 'ajuste_manual_credito' ? m.valor : ''),
+      footerValue: (items) =>
+        items.reduce((s, m) => s + (m.tipo === 'ajuste_manual_credito' ? m.valor : 0), 0),
+    },
+    {
+      header: 'Débito', key: 'debito', width: 16, align: 'right', numFmt: '"R$" #,##0.00',
+      value: (m) => (m.tipo === 'ajuste_manual_debito' ? m.valor : ''),
+      footerValue: (items) =>
+        items.reduce((s, m) => s + (m.tipo === 'ajuste_manual_debito' ? m.valor : 0), 0),
     },
   ]);
 
