@@ -17,6 +17,7 @@ import {
 interface Props {
   transportadoraNome: string;
   movimentos: TransportadoraMovimento[];
+  /** Mantido na assinatura por compat — saldo é exibido pelo modal pai. */
   saldoAtual: number;
   canExport?: boolean;
 }
@@ -50,7 +51,7 @@ function fmtData(iso: string): string {
 export default function TransportadoraExtratoList({
   transportadoraNome,
   movimentos,
-  saldoAtual,
+  saldoAtual: _saldoAtual,
   canExport = true,
 }: Props) {
   const [filtroMes, setFiltroMes] = useState('');
@@ -115,66 +116,6 @@ export default function TransportadoraExtratoList({
 
   return (
     <div className="space-y-4">
-      {/* Cabeçalho com saldo — quando filtroMes ativo, mostra saldo do mês
-          (créditos - débitos do recorte filtrado); senão saldo total. */}
-      {(() => {
-        const temFiltroMes = !!filtroMes;
-        const saldoExibido = temFiltroMes ? totais.creditos - totais.debitos : saldoAtual;
-        let mesLabel = '';
-        if (temFiltroMes) {
-          const [yy, mm] = filtroMes.split('-');
-          const dt = new Date(Number(yy), Number(mm) - 1, 1);
-          const nome = dt.toLocaleString('pt-BR', { month: 'long' });
-          mesLabel = `${nome.charAt(0).toUpperCase() + nome.slice(1)}/${yy}`;
-        }
-        const titulo = temFiltroMes ? `Saldo de ${mesLabel}` : 'Saldo Atual';
-        const sub = temFiltroMes
-          ? `${dados.length} movimento${dados.length !== 1 ? 's' : ''} no mês`
-          : `${movimentos.length} movimento${movimentos.length !== 1 ? 's' : ''} no total`;
-        return (
-          <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-1)] p-4 flex flex-col sm:flex-row sm:items-end gap-4 justify-between">
-            <div>
-              <div className="text-xs uppercase tracking-wide text-[var(--color-fg-muted)]">{titulo}</div>
-              <div className={`text-2xl font-bold ${saldoExibido >= 0 ? 'text-green-700' : 'text-red-700'}`}>
-                {fmtBRL(saldoExibido)}
-              </div>
-              <div className="text-xs text-[var(--color-fg-muted)] mt-0.5">{sub}</div>
-            </div>
-
-            {canExport && dados.length > 0 && (
-              <div className="flex gap-2 shrink-0">
-                <Button
-                  variant="secondary"
-                  className="text-xs"
-                  onClick={() =>
-                    exportarExtratoExcel(transportadoraNome, movimentos, {
-                      mesReferencia: filtroMes,
-                      tipos: filtroTipos,
-                      busca,
-                    })
-                  }
-                >
-                  <FileSpreadsheet className="w-3.5 h-3.5" /> Excel
-                </Button>
-                <Button
-                  variant="secondary"
-                  className="text-xs"
-                  onClick={() =>
-                    exportarExtratoPDF(transportadoraNome, movimentos, {
-                      mesReferencia: filtroMes,
-                      tipos: filtroTipos,
-                      busca,
-                    })
-                  }
-                >
-                  <FileText className="w-3.5 h-3.5" /> PDF
-                </Button>
-              </div>
-            )}
-          </div>
-        );
-      })()}
-
       {/* Filtros */}
       <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-1)] p-3 sm:p-4 space-y-3">
         <div className="flex flex-col md:flex-row md:items-center gap-3">
@@ -240,18 +181,50 @@ export default function TransportadoraExtratoList({
         </div>
       </div>
 
-      {/* Resumo dos filtrados */}
-      <div className="text-sm text-[var(--color-fg-muted)] px-1 flex flex-wrap gap-x-4 gap-y-1">
-        <span>
-          <span className="font-semibold text-[var(--color-fg)]">{dados.length}</span>{' '}
-          movimento{dados.length !== 1 ? 's' : ''} filtrado{dados.length !== 1 ? 's' : ''}
-        </span>
-        <span>
-          Créditos: <span className="font-mono font-semibold text-green-700">{fmtBRL(totais.creditos)}</span>
-        </span>
-        <span>
-          Débitos: <span className="font-mono font-semibold text-red-700">{fmtBRL(totais.debitos)}</span>
-        </span>
+      {/* Resumo dos filtrados + ações de export filter-aware */}
+      <div className="px-1 flex flex-col sm:flex-row sm:items-center gap-3 sm:justify-between">
+        <div className="text-sm text-[var(--color-fg-muted)] flex flex-wrap gap-x-4 gap-y-1">
+          <span>
+            <span className="font-semibold text-[var(--color-fg)]">{dados.length}</span>{' '}
+            movimento{dados.length !== 1 ? 's' : ''} filtrado{dados.length !== 1 ? 's' : ''}
+          </span>
+          <span>
+            Créditos: <span className="font-mono font-semibold text-green-700">{fmtBRL(totais.creditos)}</span>
+          </span>
+          <span>
+            Débitos: <span className="font-mono font-semibold text-red-700">{fmtBRL(totais.debitos)}</span>
+          </span>
+        </div>
+        {canExport && dados.length > 0 && (
+          <div className="flex gap-2 shrink-0">
+            <Button
+              variant="secondary"
+              className="text-xs"
+              onClick={() =>
+                exportarExtratoExcel(transportadoraNome, movimentos, {
+                  mesReferencia: filtroMes,
+                  tipos: filtroTipos,
+                  busca,
+                })
+              }
+            >
+              <FileSpreadsheet className="w-3.5 h-3.5" /> Excel
+            </Button>
+            <Button
+              variant="secondary"
+              className="text-xs"
+              onClick={() =>
+                exportarExtratoPDF(transportadoraNome, movimentos, {
+                  mesReferencia: filtroMes,
+                  tipos: filtroTipos,
+                  busca,
+                })
+              }
+            >
+              <FileText className="w-3.5 h-3.5" /> PDF
+            </Button>
+          </div>
+        )}
       </div>
 
       {/* Tabela */}

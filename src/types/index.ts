@@ -480,13 +480,29 @@ export interface TransportadoraMovimento {
   fretePesoToneladas?: number | null;
   freteKmRodados?: number | null;
   freteValorTkm?: number | null;
+  freteOrigem?: string | null;
+  freteDestino?: string | null;
+  freteInsumoId?: string | null;
+  freteNotaFiscal?: string | null;
+  freteNotaFiscal2?: string | null;
+  fretePlacaCarreta?: string | null;
+  freteMotorista?: string | null;
   saidaLitros?: number | null;
   saidaPrecoCombustivel?: number | null;
   saidaPrecoCombustivelAreacre?: number | null;
   saidaTaxaLitro?: number | null;
   saidaPrecoMedioTanque?: number | null;
   saidaTipoCombustivel?: string | null;
+  saidaTipoConsumidor?: TipoConsumidorSaida | null;
+  saidaPlaca?: string | null;
+  saidaMotorista?: string | null;
+  saidaObservacoes?: string | null;
   pagamentoMetodo?: string | null;
+  pagamentoNotaFiscal?: string | null;
+  pagamentoResponsavel?: string | null;
+  pagamentoPagoPor?: string | null;
+  pagamentoObservacoes?: string | null;
+  pagamentoQuantidadeCombustivel?: number | null;
 }
 
 /** Output da view transportadora_saldos. Read-only — saldo é agregado. */
