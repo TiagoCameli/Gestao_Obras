@@ -13,7 +13,6 @@ import EntityCadastroRoute from './modules/cadastros/EntityCadastroRoute';
 import EtapasPage from './modules/cadastros/EtapasPage';
 import Frete from './pages/Frete';
 import Funcionarios from './pages/Funcionarios';
-import Apontamentos from './pages/Apontamentos';
 import Frota from './pages/Frota';
 import Combustivel from './pages/Combustivel';
 import Login from './pages/Login';
@@ -34,7 +33,6 @@ const PAGINAS_FALLBACK: { acao: string; rota: string }[] = [
   { acao: 'ver_frete', rota: '/frete' },
   { acao: 'ver_frota', rota: '/frota' },
   { acao: 'ver_funcionarios', rota: '/funcionarios' },
-  { acao: 'ver_apontamentos', rota: '/apontamentos' },
   { acao: 'ver_apontamento_rh', rota: '/apontamento' },
 ];
 
@@ -79,7 +77,6 @@ export default function App() {
               <Route path="/frota" element={<ProtectedRoute modulo="frota"><Frota /></ProtectedRoute>} />
               <Route path="/combustivel" element={<ProtectedRoute modulo="frota"><Combustivel /></ProtectedRoute>} />
               <Route path="/funcionarios" element={<ProtectedRoute modulo="funcionarios"><Funcionarios /></ProtectedRoute>} />
-              <Route path="/apontamentos" element={<ProtectedRoute modulo="apontamentos"><Apontamentos /></ProtectedRoute>} />
               <Route path="/apontamento" element={<ProtectedRoute modulo="apontamento_rh"><ApontamentoPage /></ProtectedRoute>} />
               <Route path="/acesso-negado" element={<AcessoNegado />} />
               <Route path="*" element={<NotFound />} />

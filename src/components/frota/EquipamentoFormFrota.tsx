@@ -5,7 +5,7 @@ import { useTiposEquipamento, useAdicionarTipoEquipamento } from '../../hooks/us
 import Input from '../ui/Input';
 import Select from '../ui/Select';
 import Button from '../ui/Button';
-import SearchableSelect from '../apontamentos/SearchableSelect';
+import SearchableSelect from '../ui/SearchableSelect';
 import ImportEquipamentosModal from '../obras/ImportEquipamentosModal';
 
 function gerarId(): string {

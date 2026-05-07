@@ -21,7 +21,7 @@ import Card from '../components/ui/Card';
 import ConfirmDialog from '../components/ui/ConfirmDialog';
 import PasswordDialog from '../components/ui/PasswordDialog';
 import ImportEquipamentosModal from '../components/obras/ImportEquipamentosModal';
-import SearchableSelect from '../components/apontamentos/SearchableSelect';
+import SearchableSelect from '../components/ui/SearchableSelect';
 import ImportExcelModal, { parseStr, parseNumero, type ParsedRow } from '../components/ui/ImportExcelModal';
 import { useAuth } from '../contexts/AuthContext';
 

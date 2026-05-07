@@ -258,7 +258,7 @@ export interface FiltrosInsumos {
 
 export type CargoFuncionario = 'Administrador' | 'Gerente' | 'Gerente Financeiro' | 'Gerente de Compras' | 'Supervisor' | 'Operador' | 'Financeiro' | 'Apontador' | 'Engenheiro Civil Sênior' | 'Engenheiro Civil';
 
-export type ModuloPermissao = 'dashboard' | 'cadastros' | 'frete' | 'frota' | 'funcionarios' | 'apontamentos';
+export type ModuloPermissao = 'dashboard' | 'cadastros' | 'frete' | 'frota' | 'funcionarios';
 
 export type AcaoPermissao = 'visualizar' | 'criar' | 'editar' | 'excluir' | 'exportar' | 'ajustar_filtros';
 
@@ -713,58 +713,6 @@ export interface OrdemCompra {
   empresaFaturamento: string;
   aprovada: boolean;
   criadoPor: string;
-}
-
-// === Apontamentos ===
-
-export type TipoApontamento = 'equipamento' | 'colaborador';
-export type StatusApontamento = 'aberto' | 'encerrado' | 'falta' | 'licenca_medica' | 'ferias' | 'manutencao' | 'ocioso';
-
-export interface Apontamento {
-  id: string;
-  data: string;
-  horaInicio: string;
-  horaFim: string;
-  obraId: string;
-  etapaObraId: string;
-  equipamentoId: string;
-  colaboradorId: string;
-  tipo: TipoApontamento;
-  horasTrabalhadas: number;
-  observacoes: string;
-  status: StatusApontamento;
-  criadoPor: string;
-}
-
-// === Diaristas ===
-
-export type StatusSequenciaDiaria = 'aberta' | 'fechada';
-
-export interface SequenciaDiaria {
-  id: string;
-  obraId: string;
-  nomeDiarista: string;
-  telefone: string;
-  valorDiaria: number;
-  detalhesServico: string;
-  observacoes: string;
-  status: StatusSequenciaDiaria;
-  dataAbertura: string;
-  dataFechamento: string;
-  pago: boolean;
-  dataPagamento: string;
-  createdAt: string;
-}
-
-export interface RegistroHorasDiarista {
-  id: string;
-  sequenciaId: string;
-  obraId: string;
-  etapaId: string;
-  data: string;
-  horas: number;
-  descricao: string;
-  createdAt: string;
 }
 
 // === Manutenção ===
