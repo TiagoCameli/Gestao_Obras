@@ -6,7 +6,7 @@ import { useMemo, useState } from 'react';
 import { Search } from 'lucide-react';
 import type { TransportadoraMovimento } from '../../../types';
 import { useObras } from '../../../hooks/useObras';
-import { fmtBRL, fmtData, getMesesDisponiveis } from './extratoShared';
+import { fmtBRL, fmtData } from './extratoShared';
 
 interface Props {
   movimentos: TransportadoraMovimento[];
@@ -21,7 +21,6 @@ function sinalDoTipo(tipo: string): Sinal | null {
 }
 
 export default function ExtratoAjustesList({ movimentos }: Props) {
-  const [filtroMes, setFiltroMes] = useState('');
   const [filtroSinal, setFiltroSinal] = useState<Sinal | ''>('');
   const [busca, setBusca] = useState('');
 
@@ -32,8 +31,6 @@ export default function ExtratoAjustesList({ movimentos }: Props) {
     [movimentos]
   );
 
-  const meses = useMemo(() => getMesesDisponiveis(ajustes), [ajustes]);
-
   const obraNome = useMemo(() => {
     const map = new Map<string, string>();
     for (const o of obras) map.set(o.id, o.nome);
@@ -43,7 +40,6 @@ export default function ExtratoAjustesList({ movimentos }: Props) {
 
   const dados = useMemo(() => {
     let lista = ajustes;
-    if (filtroMes) lista = lista.filter((m) => m.mesReferencia === filtroMes);
     if (filtroSinal) lista = lista.filter((m) => sinalDoTipo(m.tipo) === filtroSinal);
     if (busca.trim()) {
       const q = busca.trim().toLowerCase();
@@ -53,7 +49,7 @@ export default function ExtratoAjustesList({ movimentos }: Props) {
       });
     }
     return [...lista].sort((a, b) => b.data.localeCompare(a.data));
-  }, [ajustes, filtroMes, filtroSinal, busca, obraNome]);
+  }, [ajustes, filtroSinal, busca, obraNome]);
 
   const totais = useMemo(() => {
     let creditos = 0;
@@ -65,26 +61,13 @@ export default function ExtratoAjustesList({ movimentos }: Props) {
     return { creditos, debitos, liquido: creditos - debitos };
   }, [dados]);
 
-  const filtrosAtivos = !!filtroMes || !!filtroSinal || busca.trim().length > 0;
+  const filtrosAtivos = !!filtroSinal || busca.trim().length > 0;
 
   return (
     <div className="space-y-4">
       {/* Filtros */}
       <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-1)] p-3 sm:p-4 space-y-3">
         <div className="flex flex-col md:flex-row md:items-center gap-3">
-          <div className="flex items-center gap-2">
-            <span className="text-xs font-semibold uppercase tracking-wide text-[var(--color-fg-muted)]">Mês</span>
-            <select
-              value={filtroMes}
-              onChange={(e) => setFiltroMes(e.target.value)}
-              className="h-9 px-2.5 text-sm rounded-lg bg-white border border-[var(--color-border)] focus:outline-none focus:border-[var(--color-accent)]"
-            >
-              <option value="">Todos</option>
-              {meses.map((m) => (
-                <option key={m} value={m}>{m}</option>
-              ))}
-            </select>
-          </div>
           <div className="flex items-center gap-2 flex-1 min-w-0">
             <Search aria-hidden className="w-4 h-4 text-[var(--color-fg-subtle)]" />
             <input
@@ -97,7 +80,7 @@ export default function ExtratoAjustesList({ movimentos }: Props) {
           </div>
           {filtrosAtivos && (
             <button
-              onClick={() => { setFiltroMes(''); setFiltroSinal(''); setBusca(''); }}
+              onClick={() => { setFiltroSinal(''); setBusca(''); }}
               className="text-xs text-[var(--color-fg-muted)] hover:text-red-600 underline"
             >
               Limpar

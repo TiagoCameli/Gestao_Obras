@@ -5,7 +5,7 @@
 import { useMemo, useState } from 'react';
 import { Search } from 'lucide-react';
 import type { TransportadoraMovimento, MetodoPagamentoFrete } from '../../../types';
-import { fmtBRL, fmtData, fmtNumDec, fmtMesRef, getMesesDisponiveis } from './extratoShared';
+import { fmtBRL, fmtData, fmtNumDec, fmtMesRef } from './extratoShared';
 
 interface Props {
   movimentos: TransportadoraMovimento[];
@@ -23,7 +23,6 @@ const METODO_LABEL: Record<MetodoPagamentoFrete, string> = {
 const METODOS: MetodoPagamentoFrete[] = ['pix', 'boleto', 'cheque', 'dinheiro', 'transferencia', 'combustivel'];
 
 export default function ExtratoPagamentosList({ movimentos }: Props) {
-  const [filtroMes, setFiltroMes] = useState('');
   const [filtroMetodo, setFiltroMetodo] = useState<MetodoPagamentoFrete | ''>('');
   const [busca, setBusca] = useState('');
 
@@ -32,11 +31,8 @@ export default function ExtratoPagamentosList({ movimentos }: Props) {
     [movimentos]
   );
 
-  const meses = useMemo(() => getMesesDisponiveis(pagamentos), [pagamentos]);
-
   const dados = useMemo(() => {
     let lista = pagamentos;
-    if (filtroMes) lista = lista.filter((m) => m.mesReferencia === filtroMes);
     if (filtroMetodo) lista = lista.filter((m) => m.pagamentoMetodo === filtroMetodo);
     if (busca.trim()) {
       const q = busca.trim().toLowerCase();
@@ -52,7 +48,7 @@ export default function ExtratoPagamentosList({ movimentos }: Props) {
       });
     }
     return [...lista].sort((a, b) => b.data.localeCompare(a.data));
-  }, [pagamentos, filtroMes, filtroMetodo, busca]);
+  }, [pagamentos, filtroMetodo, busca]);
 
   const total = useMemo(() => dados.reduce((s, m) => s + m.valor, 0), [dados]);
   const litrosCombustivel = useMemo(
@@ -60,26 +56,13 @@ export default function ExtratoPagamentosList({ movimentos }: Props) {
     [dados]
   );
 
-  const filtrosAtivos = !!filtroMes || !!filtroMetodo || busca.trim().length > 0;
+  const filtrosAtivos = !!filtroMetodo || busca.trim().length > 0;
 
   return (
     <div className="space-y-4">
       {/* Filtros */}
       <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-1)] p-3 sm:p-4 space-y-3">
         <div className="flex flex-col md:flex-row md:items-center gap-3">
-          <div className="flex items-center gap-2">
-            <span className="text-xs font-semibold uppercase tracking-wide text-[var(--color-fg-muted)]">Mês ref</span>
-            <select
-              value={filtroMes}
-              onChange={(e) => setFiltroMes(e.target.value)}
-              className="h-9 px-2.5 text-sm rounded-lg bg-white border border-[var(--color-border)] focus:outline-none focus:border-[var(--color-accent)]"
-            >
-              <option value="">Todos</option>
-              {meses.map((m) => (
-                <option key={m} value={m}>{m}</option>
-              ))}
-            </select>
-          </div>
           <div className="flex items-center gap-2 flex-1 min-w-0">
             <Search aria-hidden className="w-4 h-4 text-[var(--color-fg-subtle)]" />
             <input
@@ -92,7 +75,7 @@ export default function ExtratoPagamentosList({ movimentos }: Props) {
           </div>
           {filtrosAtivos && (
             <button
-              onClick={() => { setFiltroMes(''); setFiltroMetodo(''); setBusca(''); }}
+              onClick={() => { setFiltroMetodo(''); setBusca(''); }}
               className="text-xs text-[var(--color-fg-muted)] hover:text-red-600 underline"
             >
               Limpar

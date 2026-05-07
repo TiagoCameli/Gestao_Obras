@@ -7,14 +7,13 @@ import { Search } from 'lucide-react';
 import type { TransportadoraMovimento } from '../../../types';
 import { useInsumos } from '../../../hooks/useInsumos';
 import { useObras } from '../../../hooks/useObras';
-import { fmtBRL, fmtData, fmtNumDec, getMesesDisponiveis } from './extratoShared';
+import { fmtBRL, fmtData, fmtNumDec } from './extratoShared';
 
 interface Props {
   movimentos: TransportadoraMovimento[];
 }
 
 export default function ExtratoFretesList({ movimentos }: Props) {
-  const [filtroMes, setFiltroMes] = useState('');
   const [busca, setBusca] = useState('');
 
   const { data: insumos = [] } = useInsumos();
@@ -24,8 +23,6 @@ export default function ExtratoFretesList({ movimentos }: Props) {
     () => movimentos.filter((m) => m.tipo === 'credito_frete'),
     [movimentos]
   );
-
-  const meses = useMemo(() => getMesesDisponiveis(fretes), [fretes]);
 
   const insumoNome = useMemo(() => {
     const map = new Map<string, string>();
@@ -43,7 +40,6 @@ export default function ExtratoFretesList({ movimentos }: Props) {
 
   const dados = useMemo(() => {
     let lista = fretes;
-    if (filtroMes) lista = lista.filter((m) => m.mesReferencia === filtroMes);
     if (busca.trim()) {
       const q = busca.trim().toLowerCase();
       lista = lista.filter((m) => {
@@ -62,7 +58,7 @@ export default function ExtratoFretesList({ movimentos }: Props) {
       });
     }
     return [...lista].sort((a, b) => b.data.localeCompare(a.data));
-  }, [fretes, filtroMes, busca, insumoNome, obraNome]);
+  }, [fretes, busca, insumoNome, obraNome]);
 
   const total = useMemo(() => dados.reduce((s, m) => s + m.valor, 0), [dados]);
   const pesoTotal = useMemo(
@@ -74,26 +70,13 @@ export default function ExtratoFretesList({ movimentos }: Props) {
     [dados]
   );
 
-  const filtrosAtivos = !!filtroMes || busca.trim().length > 0;
+  const filtrosAtivos = busca.trim().length > 0;
 
   return (
     <div className="space-y-4">
       {/* Filtros */}
       <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-1)] p-3 sm:p-4">
         <div className="flex flex-col md:flex-row md:items-center gap-3">
-          <div className="flex items-center gap-2">
-            <span className="text-xs font-semibold uppercase tracking-wide text-[var(--color-fg-muted)]">Mês</span>
-            <select
-              value={filtroMes}
-              onChange={(e) => setFiltroMes(e.target.value)}
-              className="h-9 px-2.5 text-sm rounded-lg bg-white border border-[var(--color-border)] focus:outline-none focus:border-[var(--color-accent)]"
-            >
-              <option value="">Todos</option>
-              {meses.map((m) => (
-                <option key={m} value={m}>{m}</option>
-              ))}
-            </select>
-          </div>
           <div className="flex items-center gap-2 flex-1 min-w-0">
             <Search aria-hidden className="w-4 h-4 text-[var(--color-fg-subtle)]" />
             <input
@@ -106,7 +89,7 @@ export default function ExtratoFretesList({ movimentos }: Props) {
           </div>
           {filtrosAtivos && (
             <button
-              onClick={() => { setFiltroMes(''); setBusca(''); }}
+              onClick={() => setBusca('')}
               className="text-xs text-[var(--color-fg-muted)] hover:text-red-600 underline"
             >
               Limpar
