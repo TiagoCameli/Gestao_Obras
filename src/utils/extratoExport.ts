@@ -47,6 +47,98 @@ export const TIPOS_CREDITO: ReadonlySet<TipoMovimentoTransportadora> = new Set([
   'ajuste_manual_credito',
 ]);
 
+// ────────────────────────────────────────────────────────────────────
+// formatBreakdown — fórmula que produziu o valor do movimento.
+//
+// Usado em 3 lugares (modal, Excel, PDF) — fonte única evita drift.
+// Retorna string vazia quando não há dados pra calcular (evita ruído
+// tipo "× R$ 0 = R$ 0" em ajustes manuais sem origem).
+// ────────────────────────────────────────────────────────────────────
+
+function fmtNumDec(n: number, dec: number): string {
+  return n.toLocaleString('pt-BR', {
+    minimumFractionDigits: dec,
+    maximumFractionDigits: dec,
+  });
+}
+function fmtL(n: number): string {
+  return `${fmtNumDec(n, 0)} L`;
+}
+function fmtTon(n: number): string {
+  return `${fmtNumDec(n, 2)} t`;
+}
+function fmtKm(n: number): string {
+  return `${fmtNumDec(n, 1)} km`;
+}
+function fmtPrecoL(n: number): string {
+  return `R$ ${fmtNumDec(n, 4)}/L`;
+}
+function fmtPrecoTkm(n: number): string {
+  return `R$ ${fmtNumDec(n, 4)}/tkm`;
+}
+
+export function formatBreakdown(m: TransportadoraMovimento): string {
+  switch (m.tipo) {
+    case 'credito_frete': {
+      const peso = m.fretePesoToneladas ?? 0;
+      const km = m.freteKmRodados ?? 0;
+      const tkm = m.freteValorTkm ?? 0;
+      if (peso <= 0 || km <= 0 || tkm <= 0) return '';
+      return `${fmtTon(peso)} × ${fmtKm(km)} × ${fmtPrecoTkm(tkm)} = ${fmtBRL(peso * km * tkm)}`;
+    }
+
+    case 'debito_abastecimento_transterra': {
+      const litros = m.saidaLitros ?? 0;
+      const preco = m.saidaPrecoCombustivel ?? 0;
+      const taxa = m.saidaTaxaLitro ?? 0;
+      if (litros <= 0 || preco <= 0) return '';
+      const precoFinal = preco + taxa;
+      return taxa > 0
+        ? `${fmtL(litros)} × (${fmtPrecoL(preco)} + ${fmtPrecoL(taxa)} taxa) = ${fmtBRL(litros * precoFinal)}`
+        : `${fmtL(litros)} × ${fmtPrecoL(preco)} = ${fmtBRL(litros * precoFinal)}`;
+    }
+
+    case 'credito_abastecimento_transterra': {
+      const litros = m.saidaLitros ?? 0;
+      const preco = m.saidaPrecoCombustivelAreacre ?? m.saidaPrecoCombustivel ?? 0;
+      const taxa = m.saidaTaxaLitro ?? 0;
+      if (litros <= 0 || preco <= 0) return '';
+      const precoFinal = preco + taxa;
+      return taxa > 0
+        ? `${fmtL(litros)} × (${fmtPrecoL(preco)} Areacre + ${fmtPrecoL(taxa)} taxa) = ${fmtBRL(litros * precoFinal)}`
+        : `${fmtL(litros)} × ${fmtPrecoL(preco)} (Areacre) = ${fmtBRL(litros * precoFinal)}`;
+    }
+
+    case 'debito_abastecimento_emt': {
+      const litros = m.saidaLitros ?? 0;
+      // Em tanque EMT, preco_combustivel guarda preço médio + taxa (precoUnitario);
+      // preco_medio_tanque_snapshot guarda só o médio sem taxa.
+      const precoMedio = m.saidaPrecoMedioTanque ?? 0;
+      const taxa = m.saidaTaxaLitro ?? 0;
+      if (litros <= 0 || precoMedio <= 0) {
+        // Fallback: deriva preço pelo total / litros
+        if (litros > 0) return `${fmtL(litros)} × ${fmtPrecoL(m.valor / litros)} (preço médio)`;
+        return '';
+      }
+      return taxa > 0
+        ? `${fmtL(litros)} × (${fmtPrecoL(precoMedio)} médio + ${fmtPrecoL(taxa)} taxa) = ${fmtBRL(litros * (precoMedio + taxa))}`
+        : `${fmtL(litros)} × ${fmtPrecoL(precoMedio)} (preço médio do tanque) = ${fmtBRL(litros * precoMedio)}`;
+    }
+
+    case 'debito_pagamento_frete': {
+      const partes: string[] = [];
+      if (m.pagamentoMetodo) partes.push(`Método: ${m.pagamentoMetodo}`);
+      if (m.mesReferencia) partes.push(`Ref: ${m.mesReferencia.slice(0, 7)}`);
+      return partes.join(' · ');
+    }
+
+    case 'ajuste_manual_credito':
+    case 'ajuste_manual_debito':
+      return 'Ajuste manual lançado no extrato';
+  }
+  return '';
+}
+
 interface MovimentoComSaldo extends TransportadoraMovimento {
   saldoAcumulado: number;
 }
@@ -127,7 +219,8 @@ export async function exportarExtratoExcel(
   renderExcelDetalhamento<MovimentoComSaldo>(wsDetalhe, dados, [
     { header: 'Data', key: 'data', width: 14, value: (m) => formatDateBR(m.data) },
     { header: 'Tipo', key: 'tipo', width: 36, value: (m) => TIPO_LABEL[m.tipo] },
-    { header: 'Descrição', key: 'descricao', width: 50, value: (m) => m.descricao ?? '' },
+    { header: 'Descrição', key: 'descricao', width: 42, value: (m) => m.descricao ?? '' },
+    { header: 'Cálculo', key: 'calculo', width: 50, value: (m) => formatBreakdown(m) },
     {
       header: 'Crédito', key: 'credito', width: 16, align: 'right', numFmt: '"R$" #,##0.00',
       value: (m) => TIPOS_CREDITO.has(m.tipo) ? m.valor : '',
@@ -177,16 +270,17 @@ export function exportarExtratoPDF(
   doc.addPage();
   drawPdfDetailPageHeader(doc, 'Movimentos', dados.length);
 
-  const head = ['Data', 'Tipo', 'Descrição', 'Crédito', 'Débito', 'Saldo'];
+  const head = ['Data', 'Tipo', 'Descrição', 'Cálculo', 'Crédito', 'Débito', 'Saldo'];
   const body = dados.map((m) => [
     formatDateBR(m.data),
     TIPO_LABEL[m.tipo],
     m.descricao ?? '',
+    formatBreakdown(m),
     TIPOS_CREDITO.has(m.tipo) ? fmtBRL(m.valor) : '',
     TIPOS_CREDITO.has(m.tipo) ? '' : fmtBRL(m.valor),
     fmtBRL(m.saldoAcumulado),
   ]);
-  const foot = ['', '', 'Saldo final', '', '', fmtBRL(totais.saldoFinal)];
+  const foot = ['', '', 'Saldo final', '', '', '', fmtBRL(totais.saldoFinal)];
 
   drawPdfDetailTable(
     doc,
@@ -195,12 +289,13 @@ export function exportarExtratoPDF(
     body,
     foot,
     {
-      0: { halign: 'left', cellWidth: 25 },
-      1: { halign: 'left', cellWidth: 55 },
-      2: { halign: 'left', cellWidth: 90 },
-      3: { halign: 'right', cellWidth: 30 },
-      4: { halign: 'right', cellWidth: 30 },
-      5: { halign: 'right', cellWidth: 35 },
+      0: { halign: 'left', cellWidth: 22 },
+      1: { halign: 'left', cellWidth: 48 },
+      2: { halign: 'left', cellWidth: 60 },
+      3: { halign: 'left', cellWidth: 65 },
+      4: { halign: 'right', cellWidth: 24 },
+      5: { halign: 'right', cellWidth: 24 },
+      6: { halign: 'right', cellWidth: 28 },
     },
     MARCA
   );

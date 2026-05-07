@@ -471,6 +471,22 @@ export interface TransportadoraMovimento {
 
   createdAt: string;
   createdBy: string | null;
+
+  // Campos opcionais vindos da view transportadora_movimentos_detalhe.
+  // Populados via LEFT JOIN nas tabelas de origem; ficam undefined quando
+  // a origem não bate (ex: ajuste manual). Usados pra mostrar o cálculo
+  // que gerou o valor (peso × km × tkm pra fretes, litros × preço pra
+  // saídas de combustível).
+  fretePesoToneladas?: number | null;
+  freteKmRodados?: number | null;
+  freteValorTkm?: number | null;
+  saidaLitros?: number | null;
+  saidaPrecoCombustivel?: number | null;
+  saidaPrecoCombustivelAreacre?: number | null;
+  saidaTaxaLitro?: number | null;
+  saidaPrecoMedioTanque?: number | null;
+  saidaTipoCombustivel?: string | null;
+  pagamentoMetodo?: string | null;
 }
 
 /** Output da view transportadora_saldos. Read-only — saldo é agregado. */

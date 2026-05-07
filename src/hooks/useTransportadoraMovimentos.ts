@@ -30,7 +30,10 @@ export function useTransportadoraMovimentos(options?: UseTransportadoraMovimento
   return useQuery({
     queryKey: ['transportadora_movimentos', { transportadoraId, mesReferencia, tipo }],
     queryFn: async () => {
-      let q = supabase.from('transportadora_movimentos').select('*').order('data', { ascending: false });
+      // View transportadora_movimentos_detalhe = base + LEFT JOIN nas
+      // tabelas de origem (fretes/saidas_combustivel/pagamentos_frete)
+      // pra trazer os campos do cálculo (peso×km×tkm, litros×preço, etc).
+      let q = supabase.from('transportadora_movimentos_detalhe').select('*').order('data', { ascending: false });
       if (transportadoraId) q = q.eq('transportadora_id', transportadoraId);
       if (mesReferencia) q = q.eq('mes_referencia', mesReferencia);
       if (tipo) q = q.eq('tipo', tipo);

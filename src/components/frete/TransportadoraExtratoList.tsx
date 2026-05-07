@@ -9,6 +9,7 @@ import Button from '../ui/Button';
 import {
   exportarExtratoExcel,
   exportarExtratoPDF,
+  formatBreakdown,
   TIPO_LABEL,
   TIPOS_CREDITO,
 } from '../../utils/extratoExport';
@@ -275,20 +276,24 @@ export default function TransportadoraExtratoList({
             <tbody className="divide-y divide-gray-100">
               {dados.map((m) => {
                 const isCredito = TIPOS_CREDITO.has(m.tipo);
+                const breakdown = formatBreakdown(m);
                 return (
                   <tr key={m.id} className="hover:bg-gray-50">
-                    <td className="px-3 py-2 text-gray-700 whitespace-nowrap">{fmtData(m.data)}</td>
-                    <td className="px-3 py-2">
+                    <td className="px-3 py-2 text-gray-700 whitespace-nowrap align-top">{fmtData(m.data)}</td>
+                    <td className="px-3 py-2 align-top">
                       <div className="text-gray-800 text-sm">{m.descricao ?? <span className="italic text-gray-400">(sem descrição)</span>}</div>
                       <div className="text-[10px] uppercase tracking-wide text-gray-400 mt-0.5">{TIPO_LABEL[m.tipo]}</div>
+                      {breakdown && (
+                        <div className="text-[11px] font-mono text-gray-500 mt-1">{breakdown}</div>
+                      )}
                     </td>
-                    <td className="px-3 py-2 text-right font-mono text-green-700">
+                    <td className="px-3 py-2 text-right font-mono text-green-700 align-top">
                       {isCredito ? fmtBRL(m.valor) : ''}
                     </td>
-                    <td className="px-3 py-2 text-right font-mono text-red-700">
+                    <td className="px-3 py-2 text-right font-mono text-red-700 align-top">
                       {isCredito ? '' : fmtBRL(m.valor)}
                     </td>
-                    <td className={`px-3 py-2 text-right font-mono font-semibold ${
+                    <td className={`px-3 py-2 text-right font-mono font-semibold align-top ${
                       m.saldoAcumulado >= 0 ? 'text-gray-800' : 'text-red-700'
                     }`}>
                       {fmtBRL(m.saldoAcumulado)}

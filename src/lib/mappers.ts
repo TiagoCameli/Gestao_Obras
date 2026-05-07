@@ -1381,6 +1381,16 @@ export function dbToTransportadoraMovimento(row: any): TransportadoraMovimento {
     abatidoEmPagamentoId: row.abatido_em_pagamento_id ?? null,
     createdAt: row.created_at,
     createdBy: row.created_by ?? null,
+    fretePesoToneladas: row.frete_peso_toneladas != null ? Number(row.frete_peso_toneladas) : null,
+    freteKmRodados: row.frete_km_rodados != null ? Number(row.frete_km_rodados) : null,
+    freteValorTkm: row.frete_valor_tkm != null ? Number(row.frete_valor_tkm) : null,
+    saidaLitros: row.saida_litros != null ? Number(row.saida_litros) : null,
+    saidaPrecoCombustivel: row.saida_preco_combustivel != null ? Number(row.saida_preco_combustivel) : null,
+    saidaPrecoCombustivelAreacre: row.saida_preco_combustivel_areacre != null ? Number(row.saida_preco_combustivel_areacre) : null,
+    saidaTaxaLitro: row.saida_taxa_litro != null ? Number(row.saida_taxa_litro) : null,
+    saidaPrecoMedioTanque: row.saida_preco_medio_tanque != null ? Number(row.saida_preco_medio_tanque) : null,
+    saidaTipoCombustivel: row.saida_tipo_combustivel ?? null,
+    pagamentoMetodo: row.pagamento_metodo ?? null,
   };
 }
 
