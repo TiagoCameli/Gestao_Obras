@@ -34,6 +34,14 @@ interface Props {
 type FiltroTipo = 'todos' | TipoConsumidorSaida;
 type FiltroOrigem = 'todas' | OrigemCombustivel;
 
+// Rótulo display da Origem — enum interno é ASCII ('requisicao'); na UI
+// mostra "Requisição" com cedilha (consistente com chip de filtro e form).
+const ORIGEM_LABEL: Record<OrigemCombustivel, string> = {
+  tanque: 'Tanque',
+  dinheiro: 'Dinheiro',
+  requisicao: 'Requisição',
+};
+
 function fmtBRL(n: number): string {
   return n.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 }
@@ -205,7 +213,7 @@ export default function SaidaCombustivelList({
                   <tr key={s.id} className="hover:bg-gray-50">
                     <td className="px-3 py-2 text-gray-700 whitespace-nowrap">{fmtData(s.data)}</td>
                     <td className="px-3 py-2">{consumidorNode}</td>
-                    <td className="px-3 py-2 text-gray-700 capitalize">{s.origem}</td>
+                    <td className="px-3 py-2 text-gray-700">{ORIGEM_LABEL[s.origem]}</td>
                     <td className="px-3 py-2 text-gray-700">{s.tanqueId ? (tanquesMap.get(s.tanqueId) ?? '—') : '—'}</td>
                     <td className="px-3 py-2 text-gray-700">{s.obraId ? (obrasMap.get(s.obraId) ?? '—') : '—'}</td>
                     <td className="px-3 py-2 text-gray-700">{combustMap.get(s.tipoCombustivel) ?? s.tipoCombustivel}</td>
