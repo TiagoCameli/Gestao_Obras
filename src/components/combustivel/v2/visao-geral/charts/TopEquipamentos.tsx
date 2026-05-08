@@ -1,8 +1,11 @@
 // G3 — Top equipamentos por consumo. Barras horizontais ranqueadas.
-// Click numa barra adiciona o equipamento ao filtro global.
+// Click numa barra normal → toggla equipamentoIds (cross-filter).
+// Click na barra "Não identificado" (sentinel) → onAtribuirSentinels
+// (mesma ação do banner: liga apenasSentinel + nav pra Saídas).
 
 import { useMemo, useState } from 'react';
 import { Bar, BarChart, Cell, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
+import { AlertTriangle } from 'lucide-react';
 import type { Equipamento, SaidaCombustivel } from '../../../../../types';
 import ChartCard from '../../shared/ChartCard';
 import EmptyState from '../../shared/EmptyState';
@@ -13,11 +16,18 @@ import { niceMax } from '../../shared/stats';
 import { useCombustivelFilter } from '../../filters/FilterContext';
 
 type Metrica = 'litros' | 'custo';
+const SENTINEL_ID = '_naoid';
+const SENTINEL_COR = '#d97706';      // amber-600
+const SENTINEL_COR_FILTRADO = '#b45309'; // amber-700
 
 interface Props {
   saidasNoPeriodo: SaidaCombustivel[];
   equipamentos: Equipamento[];
   topN?: number;
+  /** Quando o usuário clicar na barra/linha de sentinel — liga
+   *  apenasSentinel + nav pra Saídas. Opcional: se ausente, sentinel
+   *  fica visualmente presente mas click é no-op. */
+  onAtribuirSentinels?: () => void;
 }
 
 interface BarRow {
@@ -26,23 +36,38 @@ interface BarRow {
   codigo: string;
   litros: number;
   custo: number;
+  isSentinel: boolean;
+  qtdSaidas: number;
 }
 
-export default function TopEquipamentos({ saidasNoPeriodo, equipamentos, topN = 10 }: Props) {
+export default function TopEquipamentos({ saidasNoPeriodo, equipamentos, topN = 10, onAtribuirSentinels }: Props) {
   const { state, toggleEquipamento, hovered, setHovered } = useCombustivelFilter();
   const [metrica, setMetrica] = useState<Metrica>('litros');
 
   const { rows, max } = useMemo(() => {
-    const acc = new Map<string, { litros: number; custo: number }>();
+    const acc = new Map<string, { litros: number; custo: number; qtd: number }>();
     for (const s of saidasNoPeriodo) {
-      if (!s.equipamentoId || s.equipamentoId === 'desconhecido') continue;
-      const cur = acc.get(s.equipamentoId) ?? { litros: 0, custo: 0 };
+      const id = s.equipamentoId === 'desconhecido' ? SENTINEL_ID : s.equipamentoId;
+      if (!id) continue;
+      const cur = acc.get(id) ?? { litros: 0, custo: 0, qtd: 0 };
       cur.litros += s.litros;
       cur.custo += s.valorTotal;
-      acc.set(s.equipamentoId, cur);
+      cur.qtd += 1;
+      acc.set(id, cur);
     }
     const eqMap = new Map(equipamentos.map((e) => [e.id, e]));
     const list: BarRow[] = Array.from(acc.entries()).map(([id, v]) => {
+      if (id === SENTINEL_ID) {
+        return {
+          id,
+          nome: 'Não identificado',
+          codigo: `${v.qtd} saída${v.qtd !== 1 ? 's' : ''} sem ID`,
+          litros: v.litros,
+          custo: v.custo,
+          isSentinel: true,
+          qtdSaidas: v.qtd,
+        };
+      }
       const eq = eqMap.get(id);
       return {
         id,
@@ -50,6 +75,8 @@ export default function TopEquipamentos({ saidasNoPeriodo, equipamentos, topN = 
         codigo: eq?.codigoPatrimonio || eq?.tipo || '',
         litros: v.litros,
         custo: v.custo,
+        isSentinel: false,
+        qtdSaidas: v.qtd,
       };
     });
     list.sort((a, b) => (metrica === 'litros' ? b.litros - a.litros : b.custo - a.custo));
@@ -59,12 +86,18 @@ export default function TopEquipamentos({ saidasNoPeriodo, equipamentos, topN = 
   }, [saidasNoPeriodo, equipamentos, metrica, topN]);
 
   const empty = rows.length === 0;
-  // Quando temos menos de 3 itens, BarChart fica visualmente vazio (eixo
-  // gigante, 1-2 barrinhas). Renderiza como lista compacta.
   const useList = rows.length > 0 && rows.length < 3;
   const chartHeight = useList
     ? Math.max(140, rows.length * 56 + 16)
     : Math.max(180, rows.length * 30);
+
+  function handleRowClick(r: BarRow) {
+    if (r.isSentinel) {
+      if (onAtribuirSentinels) onAtribuirSentinels();
+      return;
+    }
+    toggleEquipamento(r.id);
+  }
 
   return (
     <ChartCard
@@ -97,28 +130,36 @@ export default function TopEquipamentos({ saidasNoPeriodo, equipamentos, topN = 
           {rows.map((r, i) => {
             const valor = r[metrica];
             const pct = max > 0 ? (valor / max) * 100 : 0;
-            const isFiltered = state.equipamentoIds.includes(r.id);
+            const isFiltered = !r.isSentinel && state.equipamentoIds.includes(r.id);
+            const sentinelBg = r.isSentinel
+              ? 'bg-[repeating-linear-gradient(45deg,var(--color-surface-2),var(--color-surface-2)_4px,var(--color-surface-1)_4px,var(--color-surface-1)_8px)]'
+              : '';
             return (
               <li
                 key={r.id}
-                onMouseEnter={() => setHovered({ type: 'equipamento', value: r.id })}
+                onMouseEnter={() => !r.isSentinel && setHovered({ type: 'equipamento', value: r.id })}
                 onMouseLeave={() => setHovered(null)}
-                onClick={() => toggleEquipamento(r.id)}
+                onClick={() => handleRowClick(r)}
                 className={`group flex items-center gap-3 px-3 py-2 rounded-lg cursor-pointer transition-colors ${
-                  isFiltered ? 'bg-[var(--color-accent-soft)]' : 'hover:bg-[var(--color-surface-2)]'
+                  isFiltered ? 'bg-[var(--color-accent-soft)]' : `${sentinelBg} hover:bg-[var(--color-surface-2)]`
                 }`}
               >
                 <div className="w-7 h-7 rounded-full bg-[var(--color-surface-2)] text-[11px] font-semibold flex items-center justify-center text-[var(--color-fg-muted)] shrink-0">
                   {i + 1}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <div className="text-sm font-medium text-[var(--color-fg)] truncate">{r.nome}</div>
+                  <div className={`text-sm font-medium truncate ${
+                    r.isSentinel ? 'text-amber-700 dark:text-amber-400 inline-flex items-center gap-1.5' : 'text-[var(--color-fg)]'
+                  }`}>
+                    {r.isSentinel && <AlertTriangle className="w-3.5 h-3.5 shrink-0" />}
+                    {r.nome}
+                  </div>
                   {r.codigo && (
                     <div className="text-[10px] font-mono text-[var(--color-fg-subtle)] truncate">{r.codigo}</div>
                   )}
                   <div className="mt-1 h-1.5 rounded-full bg-[var(--color-surface-2)] overflow-hidden">
                     <div
-                      className="h-full bg-[var(--color-accent)] transition-all"
+                      className={`h-full transition-all ${r.isSentinel ? 'bg-amber-500/70' : 'bg-[var(--color-accent)]'}`}
                       style={{ width: `${Math.max(pct, 4)}%` }}
                     />
                   </div>
@@ -163,9 +204,10 @@ export default function TopEquipamentos({ saidasNoPeriodo, equipamentos, topN = 
                   <ChartTooltip
                     title={r.nome}
                     lines={[
-                      { label: 'Volume', value: fmtL(r.litros), color: 'var(--color-accent)' },
+                      { label: 'Volume', value: fmtL(r.litros), color: r.isSentinel ? SENTINEL_COR : 'var(--color-accent)' },
                       { label: 'Custo', value: fmtBRL(r.custo) },
-                      ...(r.codigo ? [{ label: 'Código', value: r.codigo }] : []),
+                      ...(r.codigo ? [{ label: r.isSentinel ? 'Saídas' : 'Código', value: r.codigo }] : []),
+                      ...(r.isSentinel ? [{ label: '', value: 'Click → atribuir retroativamente' }] : []),
                     ]}
                   />
                 );
@@ -175,27 +217,35 @@ export default function TopEquipamentos({ saidasNoPeriodo, equipamentos, topN = 
               dataKey={metrica}
               radius={[0, 6, 6, 0]}
               animationDuration={300}
-              onClick={(d) => {
-                const id = (d as { payload: BarRow }).payload.id;
-                if (id) toggleEquipamento(id);
+              onClick={(d) => handleRowClick((d as { payload: BarRow }).payload)}
+              onMouseEnter={(d) => {
+                const r = (d as { payload: BarRow }).payload;
+                if (!r.isSentinel) setHovered({ type: 'equipamento', value: r.id });
               }}
-              onMouseEnter={(d) => setHovered({ type: 'equipamento', value: (d as { payload: BarRow }).payload.id })}
               onMouseLeave={() => setHovered(null)}
             >
               {rows.map((r) => {
-                const isFiltered = state.equipamentoIds.includes(r.id);
+                const isFiltered = !r.isSentinel && state.equipamentoIds.includes(r.id);
                 const dim =
-                  hovered && hovered.type === 'equipamento' && hovered.value !== r.id
+                  !r.isSentinel && hovered && hovered.type === 'equipamento' && hovered.value !== r.id
                     ? 0.4
-                    : state.equipamentoIds.length > 0 && !isFiltered
+                    : !r.isSentinel && state.equipamentoIds.length > 0 && !isFiltered
                       ? 0.4
                       : 1;
+                const fill = r.isSentinel
+                  ? SENTINEL_COR
+                  : isFiltered
+                    ? 'var(--color-accent-hover)'
+                    : 'var(--color-accent)';
                 return (
                   <Cell
                     key={r.id}
-                    fill={isFiltered ? 'var(--color-accent-hover)' : 'var(--color-accent)'}
+                    fill={fill}
                     fillOpacity={dim}
                     cursor="pointer"
+                    stroke={r.isSentinel ? SENTINEL_COR_FILTRADO : undefined}
+                    strokeWidth={r.isSentinel ? 1 : 0}
+                    strokeDasharray={r.isSentinel ? '3 2' : undefined}
                   />
                 );
               })}

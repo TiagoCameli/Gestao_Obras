@@ -72,6 +72,11 @@ export interface CombustivelFilterState {
   tanqueOrigemIds: string[];
   /** Tanque destino — só aparece na FilterBar quando aba=Transferências. */
   tanqueDestinoIds: string[];
+  /** "Apenas sem equipamento identificado" — força equipamentoId='desconhecido'.
+   *  Combina com outros filtros (intersect, não substitui). Ex: ?obras=X&sentinel=1
+   *  = sentinels da obra X. Ignora equipamentoIds quando true (mutuamente
+   *  excludentes). Só faz sentido em mode='proprios'. */
+  apenasSentinel: boolean;
 }
 
 export interface SavedView {

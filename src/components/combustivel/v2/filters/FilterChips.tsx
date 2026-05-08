@@ -63,6 +63,9 @@ export default function FilterChips({ obrasMap, equipamentosMap, insumosMap, tra
   for (const id of state.tanqueDestinoIds) {
     chips.push({ kind: 'tanque_destino', value: id, label: `Tanque destino: ${tanquesMap?.get(id) ?? id}` });
   }
+  if (state.apenasSentinel) {
+    chips.push({ kind: 'sentinel', value: '', label: 'Apenas sem equipamento' });
+  }
 
   return (
     <div className="flex flex-wrap items-center gap-1.5 px-3 sm:px-4 py-2 border-b border-[var(--color-border)] bg-[var(--color-surface-1)]">

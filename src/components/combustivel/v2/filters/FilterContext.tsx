@@ -44,6 +44,9 @@ interface FilterContextValue {
   setPlacas: (placas: string[]) => void;
   setTanqueOrigemIds: (ids: string[]) => void;
   setTanqueDestinoIds: (ids: string[]) => void;
+  /** Liga/desliga "apenas sem equipamento identificado". Combina com
+   *  outros filtros (intersect). Ignora equipamentoIds quando true. */
+  setApenasSentinel: (v: boolean) => void;
 
   /** Remove um valor específico (clique no chip ✕). */
   removeFilter: (kind: ChipKind, value: string) => void;
@@ -68,7 +71,8 @@ export type ChipKind =
   | 'transportadora'
   | 'placa'
   | 'tanque_origem'
-  | 'tanque_destino';
+  | 'tanque_destino'
+  | 'sentinel';
 
 const Ctx = createContext<FilterContextValue | null>(null);
 
@@ -141,6 +145,7 @@ export function CombustivelFilterProvider({ children }: { children: ReactNode })
   const setPlacas = useCallback((placas: string[]) => apply({ ...state, placas: placas }), [state, apply]);
   const setTanqueOrigemIds = useCallback((ids: string[]) => apply({ ...state, tanqueOrigemIds: ids }), [state, apply]);
   const setTanqueDestinoIds = useCallback((ids: string[]) => apply({ ...state, tanqueDestinoIds: ids }), [state, apply]);
+  const setApenasSentinel = useCallback((v: boolean) => apply({ ...state, apenasSentinel: v }), [state, apply]);
 
   const removeFilter = useCallback(
     (kind: ChipKind, value: string) => {
@@ -175,6 +180,9 @@ export function CombustivelFilterProvider({ children }: { children: ReactNode })
         case 'tanque_destino':
           apply({ ...state, tanqueDestinoIds: state.tanqueDestinoIds.filter((x) => x !== value) });
           break;
+        case 'sentinel':
+          apply({ ...state, apenasSentinel: false });
+          break;
       }
     },
     [state, apply],
@@ -207,6 +215,7 @@ export function CombustivelFilterProvider({ children }: { children: ReactNode })
       setPlacas,
       setTanqueOrigemIds,
       setTanqueDestinoIds,
+      setApenasSentinel,
       removeFilter,
       clearAll,
       hasActive: hasActiveFilters(state),
@@ -219,6 +228,7 @@ export function CombustivelFilterProvider({ children }: { children: ReactNode })
       toggleTransportadora, togglePlaca, toggleTanqueOrigem, toggleTanqueDestino,
       setObraIds, setEquipamentoIds, setTipoCombustiveis, setFornecedores, setOperadores,
       setTransportadoraIds, setPlacas, setTanqueOrigemIds, setTanqueDestinoIds,
+      setApenasSentinel,
       removeFilter, clearAll, hovered,
     ],
   );

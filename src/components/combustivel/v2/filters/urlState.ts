@@ -96,6 +96,7 @@ export function defaultFilterState(): CombustivelFilterState {
     placas: [],
     tanqueOrigemIds: [],
     tanqueDestinoIds: [],
+    apenasSentinel: false,
   };
 }
 
@@ -141,6 +142,7 @@ export function fromSearchParams(params: URLSearchParams): CombustivelFilterStat
     placas: parseList(params.get('placas')),
     tanqueOrigemIds: parseList(params.get('tan_orig')),
     tanqueDestinoIds: parseList(params.get('tan_dest')),
+    apenasSentinel: params.get('sentinel') === '1',
   };
 }
 
@@ -162,6 +164,7 @@ export function toSearchParams(s: CombustivelFilterState): URLSearchParams {
   if (s.placas.length) p.set('placas', listToParam(s.placas));
   if (s.tanqueOrigemIds.length) p.set('tan_orig', listToParam(s.tanqueOrigemIds));
   if (s.tanqueDestinoIds.length) p.set('tan_dest', listToParam(s.tanqueDestinoIds));
+  if (s.apenasSentinel) p.set('sentinel', '1');
   return p;
 }
 
@@ -177,6 +180,7 @@ export function hasActiveFilters(s: CombustivelFilterState): boolean {
     s.transportadoraIds.length > 0 ||
     s.placas.length > 0 ||
     s.tanqueOrigemIds.length > 0 ||
-    s.tanqueDestinoIds.length > 0
+    s.tanqueDestinoIds.length > 0 ||
+    s.apenasSentinel
   );
 }

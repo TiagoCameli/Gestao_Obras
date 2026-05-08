@@ -15,6 +15,7 @@ import type {
 } from '../../../../types';
 import { useCombustivelFilter } from '../filters/FilterContext';
 import KpisRow from './KpisRow';
+import SentinelBanner from './SentinelBanner';
 import EvolucaoTemporal, { type Granularidade } from './charts/EvolucaoTemporal';
 import MixCombustivel from './charts/MixCombustivel';
 import TopEquipamentos from './charts/TopEquipamentos';
@@ -33,6 +34,8 @@ interface Props {
   combustiveis: Insumo[];
   /** Quando o usuário pedir "Ver todos" → muda pra aba Saídas. */
   onVerTodasSaidas?: () => void;
+  /** "Atribuir agora" do banner sentinel → liga apenasSentinel + vai pra Saídas. */
+  onAtribuirSentinels?: () => void;
 }
 
 const TIPO_POR_MODE: Record<'proprios' | 'carretas', TipoConsumidorSaida> = {
@@ -90,6 +93,7 @@ export default function VisaoGeralTab({
   transportadoras,
   combustiveis,
   onVerTodasSaidas,
+  onAtribuirSentinels,
 }: Props) {
   const { state } = useCombustivelFilter();
   const autoG = useMemo(
@@ -107,6 +111,8 @@ export default function VisaoGeralTab({
 
   // Aplica filtros nas saídas: mode (tipoConsumidor) + período + obra +
   // tipoCombustível + operador, e os filtros específicos de cada mode.
+  // Sentinel mode (apenasSentinel=true) força equipamentoId='desconhecido'
+  // e ignora equipamentoIds (mutuamente excludentes).
   const saidasFiltradas = useMemo(() => {
     const obraSet = new Set(state.obraIds);
     const equipSet = new Set(state.equipamentoIds);
@@ -115,12 +121,13 @@ export default function VisaoGeralTab({
     const transpSet = new Set(state.transportadoraIds);
     const placaSet = new Set(state.placas.map((p) => p.toLowerCase()));
     return saidas.filter((s) => {
-      // Mode = filtra tipoConsumidor (exclui legados sem tipo definido).
       if (s.tipoConsumidor !== tipoConsumidorAlvo) return false;
       if (!isInRange(s.data, state.periodo.from, state.periodo.to)) return false;
       if (obraSet.size > 0 && (!s.obraId || !obraSet.has(s.obraId))) return false;
       if (state.mode === 'proprios') {
-        if (equipSet.size > 0) {
+        if (state.apenasSentinel) {
+          if (s.equipamentoId !== 'desconhecido') return false;
+        } else if (equipSet.size > 0) {
           const eq = s.equipamentoId && s.equipamentoId !== 'desconhecido' ? s.equipamentoId : null;
           if (!eq || !equipSet.has(eq)) return false;
         }
@@ -162,7 +169,9 @@ export default function VisaoGeralTab({
       if (!isInRange(s.data, periodoAnterior.from, periodoAnterior.to)) return false;
       if (obraSet.size > 0 && (!s.obraId || !obraSet.has(s.obraId))) return false;
       if (state.mode === 'proprios') {
-        if (equipSet.size > 0) {
+        if (state.apenasSentinel) {
+          if (s.equipamentoId !== 'desconhecido') return false;
+        } else if (equipSet.size > 0) {
           const eq = s.equipamentoId && s.equipamentoId !== 'desconhecido' ? s.equipamentoId : null;
           if (!eq || !equipSet.has(eq)) return false;
         }
@@ -178,6 +187,13 @@ export default function VisaoGeralTab({
 
   return (
     <div className="space-y-4">
+      {state.mode === 'proprios' && onAtribuirSentinels && (
+        <SentinelBanner
+          saidasFiltradas={saidasFiltradas}
+          onAtribuirAgora={onAtribuirSentinels}
+          suppressed={state.apenasSentinel}
+        />
+      )}
       <KpisRow
         mode={state.mode}
         saidasNoPeriodo={saidasFiltradas}
@@ -203,7 +219,11 @@ export default function VisaoGeralTab({
       {/* Linha 2: Top consumidores (varia por mode) + Custo por obra */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         {state.mode === 'proprios' ? (
-          <TopEquipamentos saidasNoPeriodo={saidasFiltradas} equipamentos={equipamentos} />
+          <TopEquipamentos
+            saidasNoPeriodo={saidasFiltradas}
+            equipamentos={equipamentos}
+            onAtribuirSentinels={onAtribuirSentinels}
+          />
         ) : (
           <TopCarretas saidasNoPeriodo={saidasFiltradas} transportadoras={transportadoras} />
         )}

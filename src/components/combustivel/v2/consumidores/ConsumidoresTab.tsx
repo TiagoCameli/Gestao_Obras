@@ -1,22 +1,23 @@
-// ObrasTab — primeira aba analítica fora da Visão Geral (F2.C).
-// Smoke-test do padrão "nova aba reusa primitivos": KpiCard, ChartCard,
-// CustoPorObra, Sparkline, EmptyState, bucketByDia.
-//
-// Filtragem inline (mesma lógica do VisaoGeralTab). Quando F2.B chegar,
-// extrai pra shared/filterApply.ts (3º consumer = momento do helper).
+// ConsumidoresTab — aba Equipamentos/Carretas (F2.B.1).
+// Mode-aware: rotula "Equipamentos" em proprios, "Carretas" em carretas.
+// Reusa TopEquipamentos/TopCarretas da Visão Geral pro top 10 visual.
+// Filtragem inline (mesma lógica do ObrasTab — refatora pra shared/
+// quando F2.D virar 4º consumer; F2.D ainda só lê entradas).
 
 import { useMemo } from 'react';
 import type {
   Equipamento,
   Fornecedor,
+  Insumo,
   Obra,
   SaidaCombustivel,
   TipoConsumidorSaida,
 } from '../../../../types';
 import { useCombustivelFilter } from '../filters/FilterContext';
-import KpisRowObras from './KpisRowObras';
-import ObrasRankingTable from './ObrasRankingTable';
-import CustoPorObra from '../visao-geral/charts/CustoPorObra';
+import KpisRowConsumidores from './KpisRowConsumidores';
+import ConsumidoresRankingTable from './ConsumidoresRankingTable';
+import TopEquipamentos from '../visao-geral/charts/TopEquipamentos';
+import TopCarretas from '../visao-geral/charts/TopCarretas';
 import EmptyState from '../shared/EmptyState';
 
 interface Props {
@@ -24,6 +25,10 @@ interface Props {
   obras: Obra[];
   equipamentos: Equipamento[];
   transportadoras: Fornecedor[];
+  combustiveis: Insumo[];
+  /** Click no row sentinel ou em qualquer atalho "atribuir" → liga
+   *  apenasSentinel + vai pra Saídas. */
+  onAtribuirSentinels: () => void;
 }
 
 const TIPO_POR_MODE: Record<'proprios' | 'carretas', TipoConsumidorSaida> = {
@@ -49,7 +54,12 @@ function shiftBackPeriodo(from: string, to: string): { from: string; to: string 
   return { from: fmt(newFrom), to: fmt(newTo) };
 }
 
-export default function ObrasTab({ saidas, obras, equipamentos }: Props) {
+export default function ConsumidoresTab({
+  saidas,
+  equipamentos,
+  transportadoras,
+  onAtribuirSentinels,
+}: Props) {
   const { state } = useCombustivelFilter();
   const tipoConsumidorAlvo = TIPO_POR_MODE[state.mode];
 
@@ -113,34 +123,47 @@ export default function ObrasTab({ saidas, obras, equipamentos }: Props) {
     });
   }, [saidas, periodoAnterior, state, tipoConsumidorAlvo]);
 
-  // Obras com saída no período (subset de `obras` pra ranking não pintar
-  // obras sem volume).
-  const obrasComSaida = useMemo(() => {
-    const ids = new Set(saidasFiltradas.map((s) => s.obraId).filter((id): id is string => Boolean(id)));
-    return obras.filter((o) => ids.has(o.id));
-  }, [saidasFiltradas, obras]);
+  if (saidasFiltradas.length === 0) {
+    return (
+      <EmptyState
+        description={
+          state.mode === 'proprios'
+            ? 'Nenhuma saída de equipamento próprio no período. Ajuste os filtros.'
+            : 'Nenhuma saída de carreta no período. Ajuste os filtros.'
+        }
+      />
+    );
+  }
 
   return (
     <div className="space-y-4">
-      <KpisRowObras
+      <KpisRowConsumidores
+        mode={state.mode}
         saidasNoPeriodo={saidasFiltradas}
         saidasPeriodoAnterior={saidasPeriodoAnterior}
-        obras={obras}
+        equipamentos={equipamentos}
+        transportadoras={transportadoras}
         periodo={state.periodo}
       />
 
-      <CustoPorObra saidasNoPeriodo={saidasFiltradas} obras={obras} />
-
-      {obrasComSaida.length > 0 ? (
-        <ObrasRankingTable
+      {state.mode === 'proprios' ? (
+        <TopEquipamentos
           saidasNoPeriodo={saidasFiltradas}
-          obras={obrasComSaida}
           equipamentos={equipamentos}
-          periodo={state.periodo}
+          onAtribuirSentinels={onAtribuirSentinels}
         />
       ) : (
-        <EmptyState description="Nenhuma obra com saída no período. Ajuste filtros ou amplie o range." />
+        <TopCarretas saidasNoPeriodo={saidasFiltradas} transportadoras={transportadoras} />
       )}
+
+      <ConsumidoresRankingTable
+        mode={state.mode}
+        saidasNoPeriodo={saidasFiltradas}
+        equipamentos={equipamentos}
+        transportadoras={transportadoras}
+        periodo={state.periodo}
+        onAtribuirSentinels={onAtribuirSentinels}
+      />
     </div>
   );
 }

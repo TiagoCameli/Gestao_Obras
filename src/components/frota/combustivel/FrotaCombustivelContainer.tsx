@@ -37,9 +37,9 @@ import FilterChips from '../../combustivel/v2/filters/FilterChips';
 import CombustivelTabsNav, { type CombustivelTabId } from '../../combustivel/v2/CombustivelTabsNav';
 import VisaoGeralTab from '../../combustivel/v2/visao-geral/VisaoGeralTab';
 import ObrasTab from '../../combustivel/v2/obras/ObrasTab';
+import ConsumidoresTab from '../../combustivel/v2/consumidores/ConsumidoresTab';
 import ModeSwitch from '../../combustivel/v2/ModeSwitch';
 import ComingSoon from '../../combustivel/v2/ComingSoon';
-import ConsumidoresPlaceholder from '../../combustivel/v2/ConsumidoresPlaceholder';
 
 type SubTab = CombustivelTabId;
 
@@ -65,7 +65,15 @@ function FrotaCombustivelContent() {
 
   // Filtros globais (URL state) — fonte única pras listas operacionais e
   // analíticas. Substitui o AbastecimentoFilters legado removido em F2.
-  const { state: filterState } = useCombustivelFilter();
+  const { state: filterState, setApenasSentinel } = useCombustivelFilter();
+
+  // Handler do banner sentinel + click no row "_naoid" do ranking.
+  // Liga apenasSentinel + navega pra Saídas. SubTab fora da URL hoje
+  // (limitação atual; F2.X depois).
+  const handleAtribuirSentinels = useCallback(() => {
+    setApenasSentinel(true);
+    setSubTab('saidas');
+  }, [setApenasSentinel]);
 
   const { data: obras = [] } = useObras();
   const { data: etapas = [] } = useEtapas();
@@ -191,7 +199,10 @@ function FrotaCombustivelContent() {
       if (!dentroPeriodo(s.data)) return false;
       if (filterState.obraIds.length > 0 && !(s.obraId && filterState.obraIds.includes(s.obraId))) return false;
       if (filterState.tipoCombustiveis.length > 0 && !filterState.tipoCombustiveis.includes(s.tipoCombustivel)) return false;
-      if (filterState.equipamentoIds.length > 0) {
+      // Sentinel mode: força sem-equipamento e ignora equipamentoIds.
+      if (filterState.apenasSentinel) {
+        if (s.equipamentoId !== 'desconhecido') return false;
+      } else if (filterState.equipamentoIds.length > 0) {
         if (!s.equipamentoId || !filterState.equipamentoIds.includes(s.equipamentoId)) return false;
       }
       if (filterState.transportadoraIds.length > 0) {
@@ -208,7 +219,7 @@ function FrotaCombustivelContent() {
       return true;
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [todasSaidas, tipoConsumidorAlvo, periodoFromTs, periodoToTs, filterState.obraIds, filterState.tipoCombustiveis, filterState.equipamentoIds, filterState.transportadoraIds, filterState.placas, filterState.operadores]);
+  }, [todasSaidas, tipoConsumidorAlvo, periodoFromTs, periodoToTs, filterState.obraIds, filterState.tipoCombustiveis, filterState.equipamentoIds, filterState.transportadoraIds, filterState.placas, filterState.operadores, filterState.apenasSentinel]);
 
   // Adapter pro shape Abastecimento legado (ExportarPDFModal). Filtra os
   // mesmos critérios da Saída — quando F4 entregar a aba Relatórios o modal
@@ -461,10 +472,20 @@ function FrotaCombustivelContent() {
           transportadoras={transportadoras}
           combustiveis={combustiveis}
           onVerTodasSaidas={() => setSubTab('saidas')}
+          onAtribuirSentinels={handleAtribuirSentinels}
         />
       )}
 
-      {subTab === 'consumidores' && <ConsumidoresPlaceholder />}
+      {subTab === 'consumidores' && (
+        <ConsumidoresTab
+          saidas={todasSaidas}
+          obras={obras}
+          equipamentos={todosEquipamentos}
+          transportadoras={transportadoras}
+          combustiveis={combustiveis}
+          onAtribuirSentinels={handleAtribuirSentinels}
+        />
+      )}
 
       {subTab === 'obras' && (
         <ObrasTab
