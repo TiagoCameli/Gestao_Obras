@@ -38,8 +38,10 @@ import CombustivelTabsNav, { type CombustivelTabId } from '../../combustivel/v2/
 import VisaoGeralTab from '../../combustivel/v2/visao-geral/VisaoGeralTab';
 import ObrasTab from '../../combustivel/v2/obras/ObrasTab';
 import ConsumidoresTab from '../../combustivel/v2/consumidores/ConsumidoresTab';
+import AtribuirSentinelModal from '../../combustivel/v2/atribuicao/AtribuirSentinelModal';
 import ModeSwitch from '../../combustivel/v2/ModeSwitch';
 import ComingSoon from '../../combustivel/v2/ComingSoon';
+import { ClipboardList } from 'lucide-react';
 
 type SubTab = CombustivelTabId;
 
@@ -166,6 +168,9 @@ function FrotaCombustivelContent() {
 
   // Exportar state
   const [modalExportarOpen, setModalExportarOpen] = useState(false);
+
+  // Atribuição retroativa em batch (F2.B.2)
+  const [modalAtribuirOpen, setModalAtribuirOpen] = useState(false);
 
   // Password gate
   const [senhaOpen, setSenhaOpen] = useState(false);
@@ -546,18 +551,40 @@ function FrotaCombustivelContent() {
       )}
 
       {subTab === 'saidas' && (
-        <SaidaCombustivelList
-          saidas={saidasFiltradas}
-          obras={obras}
-          depositos={depositosTodos}
-          equipamentos={todosEquipamentos}
-          transportadoras={transportadoras}
-          combustiveis={combustiveis}
-          onEdit={handleEditSaida}
-          onDelete={(id) => pedirSenha(() => handleDeleteSaida(id))}
-          canEdit={canEdit}
-          canDelete={canDelete}
-        />
+        <>
+          {/* F2.B.2: toolbar inline pra atribuição retroativa em batch.
+              Aparece só quando o usuário está olhando o subset sentinel
+              (apenasSentinel=true) e em mode=proprios. */}
+          {filterState.apenasSentinel && filterState.mode === 'proprios' && saidasFiltradas.length > 0 && (
+            <div className="mb-3 rounded-lg border border-amber-200 dark:border-amber-800/60 bg-amber-50 dark:bg-amber-950/40 px-4 py-2.5 flex items-center justify-between gap-3">
+              <div className="text-sm text-amber-800 dark:text-amber-200">
+                <span className="font-semibold tabular-nums">{saidasFiltradas.length}</span>{' '}
+                saída{saidasFiltradas.length !== 1 ? 's' : ''} sem equipamento no escopo atual.
+                Atribuir em lote economiza edição linha-a-linha.
+              </div>
+              <Button
+                type="button"
+                onClick={() => setModalAtribuirOpen(true)}
+                className="text-sm inline-flex items-center gap-1.5"
+              >
+                <ClipboardList className="w-4 h-4" />
+                Atribuir todas em lote ({saidasFiltradas.length})
+              </Button>
+            </div>
+          )}
+          <SaidaCombustivelList
+            saidas={saidasFiltradas}
+            obras={obras}
+            depositos={depositosTodos}
+            equipamentos={todosEquipamentos}
+            transportadoras={transportadoras}
+            combustiveis={combustiveis}
+            onEdit={handleEditSaida}
+            onDelete={(id) => pedirSenha(() => handleDeleteSaida(id))}
+            canEdit={canEdit}
+            canDelete={canDelete}
+          />
+        </>
       )}
 
       {subTab === 'transferencias' && (
@@ -654,6 +681,16 @@ function FrotaCombustivelContent() {
           }}
         />
       </Modal>
+
+      {/* Modal Atribuir Sentinel em batch (F2.B.2) */}
+      <AtribuirSentinelModal
+        open={modalAtribuirOpen}
+        onClose={() => setModalAtribuirOpen(false)}
+        saidasSentinel={saidasFiltradas}
+        equipamentos={todosEquipamentos}
+        depositos={depositosTodos}
+        obras={obras}
+      />
 
       {/* Modal Exportar Relatório */}
       <ExportarPDFModal
