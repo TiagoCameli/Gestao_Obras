@@ -251,6 +251,12 @@ export async function exportarExtratoExcel(
   const abastecimentos = movsMes
     .filter((m) => m.tipo === 'debito_abastecimento_transterra' || m.tipo === 'debito_abastecimento_emt')
     .sort(sortDesc);
+  // Créditos de tanque: outras transportadoras abastecem em tanque
+  // próprio da transportadora atual (típico Areacre como dona da
+  // Transterra). Sheet/página dedicada — em transportadoras que não
+  // são donas de tanque, lista vai vazia (mesma semântica de Abastecimentos
+  // pra Areacre).
+  const creditosTanque = movsMes.filter((m) => m.tipo === 'credito_abastecimento_transterra').sort(sortDesc);
   const pagamentos = movsMes.filter((m) => m.tipo === 'debito_pagamento_frete').sort(sortDesc);
   const ajustes = movsMes
     .filter((m) => m.tipo === 'ajuste_manual_credito' || m.tipo === 'ajuste_manual_debito')
@@ -271,6 +277,7 @@ export async function exportarExtratoExcel(
     { label: 'Total Movimentos', value: totais.qtd },
     { label: 'Fretes', value: fretes.length },
     { label: 'Abastecimentos', value: abastecimentos.length },
+    { label: 'Abast. Tanque', value: creditosTanque.length },
     { label: 'Pagamentos', value: pagamentos.length },
     { label: 'Ajustes', value: ajustes.length },
   ]);
@@ -369,6 +376,35 @@ export async function exportarExtratoExcel(
     },
   ]);
 
+  // ── Sheet "Abast. Tanque" (créditos quando outras transportadoras
+  //    abastecem em tanque próprio — ex: Areacre dona da Transterra) ──
+  const wsCredTq = wb.addWorksheet('Abast. Tanque', {
+    pageSetup: { paperSize: 9, orientation: 'landscape', fitToPage: true, fitToWidth: 1, margins: { left: 0.4, right: 0.4, top: 0.4, bottom: 0.4, header: 0.3, footer: 0.3 } },
+  });
+  renderExcelDetalhamento<TransportadoraMovimento>(wsCredTq, creditosTanque, [
+    { header: 'Data', key: 'data', width: 14, value: (m) => formatDateBR(m.data) },
+    { header: 'Combustível', key: 'comb', width: 22, value: (m) => insumoNome(m.saidaTipoCombustivel) },
+    {
+      header: 'Litros', key: 'litros', width: 12, align: 'right', numFmt: '#,##0',
+      value: (m) => m.saidaLitros ?? 0,
+      footerValue: (items) => items.reduce((s, m) => s + (m.saidaLitros ?? 0), 0),
+    },
+    {
+      // Crédito vem do preço cobrado pela dona do tanque (preco_combustivel_areacre).
+      header: 'Preço Tanque/L', key: 'preco', width: 16, align: 'right', numFmt: '"R$" #,##0.0000',
+      value: (m) => m.saidaPrecoCombustivelAreacre ?? 0,
+    },
+    { header: 'Placa', key: 'placa', width: 12, value: (m) => m.saidaPlaca ?? '' },
+    { header: 'Motorista', key: 'motorista', width: 22, value: (m) => m.saidaMotorista ?? '' },
+    { header: 'Observações', key: 'obs', width: 32, value: (m) => m.saidaObservacoes ?? '' },
+    {
+      header: 'Crédito', key: 'credito', width: 16, align: 'right', numFmt: '"R$" #,##0.00',
+      value: (m) => m.valor,
+      footerValue: (items) => items.reduce((s, m) => s + m.valor, 0),
+      emphasizeValue: true,
+    },
+  ]);
+
   // ── Sheet "Pagamentos" ──
   const wsPagto = wb.addWorksheet('Pagamentos', {
     pageSetup: { paperSize: 9, orientation: 'landscape', fitToPage: true, fitToWidth: 1, margins: { left: 0.4, right: 0.4, top: 0.4, bottom: 0.4, header: 0.3, footer: 0.3 } },
@@ -442,6 +478,16 @@ export function exportarExtratoPDF(
   const dados = prepararExtrato(movimentos, filtros);
   const totais = totaisFromList(dados);
 
+  // Subset de créditos de tanque pra página dedicada (típico Areacre).
+  // Em transportadoras sem tanque próprio, lista vazia → seção é
+  // suprimida (sem página em branco).
+  const movsMes = filtros.mesReferencia
+    ? movimentos.filter((m) => m.mesReferencia === filtros.mesReferencia)
+    : movimentos;
+  const creditosTanque = movsMes
+    .filter((m) => m.tipo === 'credito_abastecimento_transterra')
+    .sort((a, b) => b.data.localeCompare(a.data));
+
   const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
 
   let y = drawPdfBanner(doc, TITULO, `${transportadoraNome} · ${SUBTITULO}`);
@@ -488,6 +534,46 @@ export function exportarExtratoPDF(
     },
     MARCA
   );
+
+  // Página dedicada "Abast. Tanque" — só renderiza quando há entradas
+  // (transportadoras donas de tanque). Mantém paridade com sheet do Excel.
+  if (creditosTanque.length > 0) {
+    doc.addPage();
+    drawPdfDetailPageHeader(doc, 'Abastecimentos no tanque (créditos)', creditosTanque.length);
+    const headCT = ['Data', 'Combustível', 'Litros', 'Preço Tanque/L', 'Placa', 'Motorista', 'Crédito'];
+    const totalCT = creditosTanque.reduce((s, m) => s + m.valor, 0);
+    const totalLitrosCT = creditosTanque.reduce((s, m) => s + (m.saidaLitros ?? 0), 0);
+    const bodyCT = creditosTanque.map((m) => [
+      formatDateBR(m.data),
+      // Sem insumosMap no PDF (não recebido); usa id se vier sem nome.
+      m.saidaTipoCombustivel ?? '—',
+      m.saidaLitros != null ? m.saidaLitros.toLocaleString('pt-BR', { maximumFractionDigits: 0 }) : '—',
+      m.saidaPrecoCombustivelAreacre != null
+        ? `R$ ${m.saidaPrecoCombustivelAreacre.toLocaleString('pt-BR', { minimumFractionDigits: 4, maximumFractionDigits: 4 })}`
+        : '—',
+      m.saidaPlaca ?? '',
+      m.saidaMotorista ?? '',
+      fmtBRL(m.valor),
+    ]);
+    const footCT = ['', '', totalLitrosCT.toLocaleString('pt-BR', { maximumFractionDigits: 0 }), '', '', 'Total', fmtBRL(totalCT)];
+    drawPdfDetailTable(
+      doc,
+      20,
+      headCT,
+      bodyCT,
+      footCT,
+      {
+        0: { halign: 'left', cellWidth: 24 },
+        1: { halign: 'left', cellWidth: 50 },
+        2: { halign: 'right', cellWidth: 22 },
+        3: { halign: 'right', cellWidth: 32 },
+        4: { halign: 'left', cellWidth: 26 },
+        5: { halign: 'left', cellWidth: 50 },
+        6: { halign: 'right', cellWidth: 32 },
+      },
+      MARCA
+    );
+  }
 
   doc.save(makeFilename(`${SCOPE}_${transportadoraNome.toLowerCase().replace(/\s+/g, '_')}`, 'pdf'));
 }
