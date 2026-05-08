@@ -36,6 +36,7 @@ import FilterBar from '../../combustivel/v2/filters/FilterBar';
 import FilterChips from '../../combustivel/v2/filters/FilterChips';
 import CombustivelTabsNav, { type CombustivelTabId } from '../../combustivel/v2/CombustivelTabsNav';
 import VisaoGeralTab from '../../combustivel/v2/visao-geral/VisaoGeralTab';
+import ObrasTab from '../../combustivel/v2/obras/ObrasTab';
 import ModeSwitch from '../../combustivel/v2/ModeSwitch';
 import ComingSoon from '../../combustivel/v2/ComingSoon';
 import ConsumidoresPlaceholder from '../../combustivel/v2/ConsumidoresPlaceholder';
@@ -466,10 +467,11 @@ function FrotaCombustivelContent() {
       {subTab === 'consumidores' && <ConsumidoresPlaceholder />}
 
       {subTab === 'obras' && (
-        <ComingSoon
-          phase="F2"
-          title="Análise por Obra"
-          description="Custo por obra com top equipamentos consumidores, % do total da operação e drill-down por período."
+        <ObrasTab
+          saidas={todasSaidas}
+          obras={obras}
+          equipamentos={todosEquipamentos}
+          transportadoras={transportadoras}
         />
       )}
 
