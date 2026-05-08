@@ -219,9 +219,12 @@ export default function SaidaCombustivelForm({
   }, [origem, tanqueId, depositos, combustiveis, entradasCombustivel]);
 
   // Auto-seleciona combustível conforme o tanque escolhido.
+  // Em edição (initial !== undefined) preserva o valor salvo — caso o
+  // tanque já tenha trocado de combustível desde a saída, não sobrescreve.
   useEffect(() => {
+    if (initial) return;
     if (tipoCombustivelDoTanque) setTipoCombustivel(tipoCombustivelDoTanque);
-  }, [tipoCombustivelDoTanque]);
+  }, [tipoCombustivelDoTanque, initial]);
 
   // Carreta + tanque: precoCombustivel default = preço médio do tanque (usuário sobrescreve).
   useEffect(() => {

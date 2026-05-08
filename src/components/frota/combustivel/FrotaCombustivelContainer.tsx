@@ -31,10 +31,18 @@ import TransferenciaForm from '../../combustivel/TransferenciaForm';
 import TransferenciaList from '../../combustivel/TransferenciaList';
 import TanqueList from './TanqueList';
 import TanqueForm from './TanqueForm';
-import CombustivelDashboard from '../../combustivel/CombustivelDashboard';
 import ExportarPDFModal from '../../combustivel/ExportarPDFModal';
+// v2 — IA premium da página /combustivel (F1+)
+import { CombustivelFilterProvider } from '../../combustivel/v2/filters/FilterContext';
+import FilterBar from '../../combustivel/v2/filters/FilterBar';
+import FilterChips from '../../combustivel/v2/filters/FilterChips';
+import CombustivelTabsNav, { type CombustivelTabId } from '../../combustivel/v2/CombustivelTabsNav';
+import VisaoGeralTab from '../../combustivel/v2/visao-geral/VisaoGeralTab';
+import ModeSwitch from '../../combustivel/v2/ModeSwitch';
+import ComingSoon from '../../combustivel/v2/ComingSoon';
+import ConsumidoresPlaceholder from '../../combustivel/v2/ConsumidoresPlaceholder';
 
-type SubTab = 'dashboard' | 'tanques' | 'entradas' | 'saidas' | 'transferencias';
+type SubTab = CombustivelTabId;
 
 const FILTROS_VAZIOS: FiltrosAbastecimento = {
   obraId: '',
@@ -51,7 +59,7 @@ export default function FrotaCombustivelContainer() {
   const canCreateSaida = temAcao('criar_saida_combustivel');
   const canCreateTransferencia = temAcao('criar_transferencia_combustivel');
 
-  const [subTab, setSubTab] = useState<SubTab>('dashboard');
+  const [subTab, setSubTab] = useState<SubTab>('visao_geral');
 
   const { data: obras = [] } = useObras();
   const { data: etapas = [] } = useEtapas();
@@ -203,6 +211,42 @@ export default function FrotaCombustivelContainer() {
     return todasTransferencias.filter((t) => filtrarPorData(t.dataHora));
   }, [todasTransferencias, filtros]);
 
+  // Listas distinct pra alimentar o multi-select da FilterBar v2.
+  const fornecedoresDisponiveis = useMemo(() => {
+    const set = new Set<string>();
+    for (const e of todasEntradas) {
+      const v = (e.fornecedor || '').trim();
+      if (v) set.add(v);
+    }
+    return Array.from(set).sort((a, b) => a.localeCompare(b));
+  }, [todasEntradas]);
+
+  const operadoresDisponiveis = useMemo(() => {
+    const set = new Set<string>();
+    for (const s of todasSaidas) {
+      const v = (s.motorista || '').trim();
+      if (v) set.add(v);
+    }
+    return Array.from(set).sort((a, b) => a.localeCompare(b));
+  }, [todasSaidas]);
+
+  // Placas distinct (apenas saídas de carreta — onde placa faz sentido).
+  const placasDisponiveis = useMemo(() => {
+    const set = new Set<string>();
+    for (const s of todasSaidas) {
+      if (s.tipoConsumidor !== 'carreta_transportadora') continue;
+      const v = (s.placa || '').trim();
+      if (v) set.add(v);
+    }
+    return Array.from(set).sort((a, b) => a.localeCompare(b));
+  }, [todasSaidas]);
+
+  // Maps id→label pra resolver chips de filtro globais
+  const obrasMap = useMemo(() => new Map(obras.map((o) => [o.id, o.nome])), [obras]);
+  const equipamentosMap = useMemo(() => new Map(todosEquipamentos.map((e) => [e.id, e.nome])), [todosEquipamentos]);
+  const insumosMap = useMemo(() => new Map(todosInsumos.map((i) => [i.id, i.nome])), [todosInsumos]);
+  const transportadorasMap = useMemo(() => new Map(transportadoras.map((t) => [t.id, t.nome])), [transportadoras]);
+
   // Tanque handlers
   const handleSubmitTanque = useCallback(
     async (deposito: Deposito) => {
@@ -305,18 +349,16 @@ export default function FrotaCombustivelContainer() {
     [excluirTransferenciaMut]
   );
 
-  const subTabs: { key: SubTab; label: string }[] = [
-    { key: 'dashboard', label: 'Dashboard' },
-    { key: 'tanques', label: 'Tanques' },
-    { key: 'entradas', label: 'Entradas' },
-    { key: 'saidas', label: 'Saídas' },
-    { key: 'transferencias', label: 'Transferências' },
-  ];
+  // Saídas operacionais (sem dashboard / analítico / relatórios) ainda
+  // dependem do AbastecimentoFilters legado. Migra na F2.
+  const isOperacional =
+    subTab === 'entradas' || subTab === 'saidas' || subTab === 'transferencias';
 
   return (
-    <div className="space-y-6">
+    <CombustivelFilterProvider>
+    <div className="space-y-4">
       {/* Action buttons */}
-      <div className="flex flex-wrap gap-2">
+      <div className="flex flex-wrap gap-2 px-3 sm:px-4 pt-1">
         {canCreateEntrada && (
           <Button
             onClick={() => { setEditandoEntrada(null); setModalEntradaOpen(true); }}
@@ -350,44 +392,92 @@ export default function FrotaCombustivelContainer() {
         </Button>
       </div>
 
-      {/* Filtros */}
-      {subTab !== 'tanques' && subTab !== 'dashboard' && (
-        <AbastecimentoFilters
-          filtros={filtros}
-          onChange={setFiltros}
-          onClear={() => setFiltros(FILTROS_VAZIOS)}
-          obras={obras}
-        />
+      {/* Mode switch — separa "dois mundos" da operação (proprios vs carretas).
+          Compartilha tanques. */}
+      <div className="px-3 sm:px-4">
+        <ModeSwitch />
+      </div>
+
+      {/* Barra global de filtros (sticky) — dirige a Visão Geral.
+          Filtro legado das abas operacionais fica abaixo, apenas nelas. */}
+      <FilterBar
+        obras={obras}
+        equipamentos={todosEquipamentos}
+        combustiveis={combustiveis}
+        fornecedoresDisponiveis={fornecedoresDisponiveis}
+        operadoresDisponiveis={operadoresDisponiveis}
+        transportadoras={transportadoras}
+        placasDisponiveis={placasDisponiveis}
+      />
+      <FilterChips
+        obrasMap={obrasMap}
+        equipamentosMap={equipamentosMap}
+        insumosMap={insumosMap}
+        transportadorasMap={transportadorasMap}
+      />
+
+      {/* Filtro legado — só nas abas operacionais até F2 migrar elas. */}
+      {isOperacional && (
+        <div className="px-3 sm:px-4">
+          <AbastecimentoFilters
+            filtros={filtros}
+            onChange={setFiltros}
+            onClear={() => setFiltros(FILTROS_VAZIOS)}
+            obras={obras}
+          />
+        </div>
       )}
 
-      {/* Sub-tab navigation */}
-      <div className="flex gap-1 bg-gray-200 dark:bg-slate-700 rounded-lg p-1 w-fit overflow-x-auto">
-        {subTabs.map((t) => (
-          <button
-            key={t.key}
-            className={`px-4 py-2 rounded-md text-sm font-medium transition-colors whitespace-nowrap ${
-              subTab === t.key
-                ? 'bg-white dark:bg-slate-800 text-gray-800 dark:text-slate-200 shadow-sm'
-                : 'text-gray-600 dark:text-slate-400 hover:text-gray-800 dark:hover:text-slate-200'
-            }`}
-            onClick={() => setSubTab(t.key)}
-          >
-            {t.label}
-          </button>
-        ))}
+      {/* Sub-tab navigation v2 */}
+      <div className="px-3 sm:px-4">
+        <CombustivelTabsNav active={subTab} onChange={setSubTab} />
       </div>
 
       {/* Sub-tab content */}
-      {subTab === 'dashboard' && (
-        <CombustivelDashboard
-          abastecimentos={abastecimentosFiltrados}
-          entradas={entradasFiltradas}
-          todasEntradas={todasEntradas}
-          todosAbastecimentos={todosAbastecimentos}
-          transferencias={todasTransferencias}
+      <div className="px-3 sm:px-4">
+      {subTab === 'visao_geral' && (
+        <VisaoGeralTab
+          saidas={todasSaidas}
+          entradas={todasEntradas}
           obras={obras}
-          etapas={etapas}
-          depositos={depositosTodos}
+          equipamentos={todosEquipamentos}
+          transportadoras={transportadoras}
+          combustiveis={combustiveis}
+          onVerTodasSaidas={() => setSubTab('saidas')}
+        />
+      )}
+
+      {subTab === 'consumidores' && <ConsumidoresPlaceholder />}
+
+      {subTab === 'obras' && (
+        <ComingSoon
+          phase="F2"
+          title="Análise por Obra"
+          description="Custo por obra com top equipamentos consumidores, % do total da operação e drill-down por período."
+        />
+      )}
+
+      {subTab === 'fornecedores' && (
+        <ComingSoon
+          phase="F2"
+          title="Comparativo de Fornecedores"
+          description="R$/L de compra por fornecedor com mín / médio / máx, # de compras e tendência. Destaca o melhor preço do período."
+        />
+      )}
+
+      {subTab === 'anomalias' && (
+        <ComingSoon
+          phase="F3"
+          title="Anomalias e Insights"
+          description="Equipamentos com consumo crescente, fornecedores acima da média, detecção de gastos fora do padrão. Cálculo cliente-side via histórico de medição."
+        />
+      )}
+
+      {subTab === 'relatorios' && (
+        <ComingSoon
+          phase="F4"
+          title="Relatórios premium"
+          description="Templates dedicados (Mensal Consolidado, por Obra, por Equipamento, Anomalias, Raw export) com PDF e Excel multi-aba branded."
         />
       )}
 
@@ -437,6 +527,7 @@ export default function FrotaCombustivelContainer() {
           canDelete={canDelete}
         />
       )}
+      </div>
 
       {/* Password dialog */}
       <PasswordDialog
@@ -534,5 +625,6 @@ export default function FrotaCombustivelContainer() {
         depositos={depositosTodos}
       />
     </div>
+    </CombustivelFilterProvider>
   );
 }
