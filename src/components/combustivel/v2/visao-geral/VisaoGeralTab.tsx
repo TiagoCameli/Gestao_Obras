@@ -3,7 +3,7 @@
 // gráficos. Computa janela do "período anterior" (mesma duração) pra
 // trends.
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import type {
   EntradaCombustivel,
   Equipamento,
@@ -51,6 +51,23 @@ function diasNoPeriodo(p: { from: string; to: string }): number {
   return Math.round((t.getTime() - f.getTime()) / 86_400_000) + 1;
 }
 
+/** Granularidade automática pra Evolução Temporal — evita travar a UI
+ *  com 365 buckets de 'dia' em range "ano atual" (e ainda pior em ranges
+ *  multi-ano). Usuário pode sobrescrever com o toggle; mudança de período
+ *  re-avalia (caso típico: range diminui, volta pra 'dia' faz sentido).
+ *
+ *  Limites de borda escolhidos pra cobrir presets reais:
+ *    - 92 inclui qualquer trimestre (Q1=90, Q2=91, Q3/Q4=92).
+ *    - 731 inclui "2 anos exatos" (08/05/24 → 08/05/26 = 731 dias inclusivos). */
+function autoGranularidade(from: string, to: string): Granularidade {
+  const f = new Date(from + 'T00:00:00');
+  const t = new Date(to + 'T00:00:00');
+  const dias = Math.round((t.getTime() - f.getTime()) / 86_400_000) + 1;
+  if (dias > 731) return 'mes';      // >2 anos → bucket mensal
+  if (dias > 92) return 'semana';    // >92d e ≤2 anos → semanal
+  return 'dia';                      // ≤92d (cobre qualquer trimestre) → diário
+}
+
 function shiftBackPeriodo(from: string, to: string): { from: string; to: string } {
   const f = new Date(from + 'T00:00:00');
   const t = new Date(to + 'T00:00:00');
@@ -75,7 +92,17 @@ export default function VisaoGeralTab({
   onVerTodasSaidas,
 }: Props) {
   const { state } = useCombustivelFilter();
-  const [granularidade, setGranularidade] = useState<Granularidade>('dia');
+  const autoG = useMemo(
+    () => autoGranularidade(state.periodo.from, state.periodo.to),
+    [state.periodo.from, state.periodo.to],
+  );
+  const [granularidade, setGranularidade] = useState<Granularidade>(autoG);
+  // Mudança de período → re-aplica auto. Toggle manual continua disponível
+  // mas é "soft" (não persiste cross-period). Se isso virar irritante,
+  // adicionar flag "userOverrideActive" depois.
+  useEffect(() => {
+    setGranularidade(autoG);
+  }, [autoG]);
   const tipoConsumidorAlvo = TIPO_POR_MODE[state.mode];
 
   // Aplica filtros nas saídas: mode (tipoConsumidor) + período + obra +
