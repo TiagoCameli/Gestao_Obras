@@ -1220,6 +1220,7 @@ export function dbToSaidaCombustivel(row: any): SaidaCombustivel {
     createdAt: row.created_at,
     updatedAt: row.updated_at,
     createdBy: row.created_by ?? null,
+    updatedBy: row.updated_by ?? null,
   };
 }
 
@@ -1251,6 +1252,7 @@ export function saidaCombustivelToDb(s: SaidaCombustivel) {
     pago_em: s.pagoEm,
     movimento_id: s.movimentoId,
     created_by: s.createdBy,
+    updated_by: s.updatedBy,
     // created_at e updated_at: defaults do DB / trigger
   };
 }

@@ -434,6 +434,10 @@ export interface SaidaCombustivel {
   createdAt: string;
   updatedAt: string;
   createdBy: string | null;
+  /** Quem alterou por último — populado em UPDATEs (atribuição retroativa,
+   *  edição manual). NULL em saídas legadas e inserts. Adicionado em F5.A.0
+   *  (executado adiantado pra desbloquear F2.B.2 atribuição em batch). */
+  updatedBy: string | null;
 }
 
 // === Conta-corrente das Transportadoras ===

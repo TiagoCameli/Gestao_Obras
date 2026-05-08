@@ -372,6 +372,9 @@ export default function SaidaCombustivelForm({
         createdAt: initial?.createdAt ?? new Date().toISOString(),
         updatedAt: new Date().toISOString(),
         createdBy: initial?.createdBy ?? null,
+        // Container injeta updatedBy=usuario?.nome no path de atualização.
+        // Form passa pelo valor inicial (ou null em insert) sem opinar.
+        updatedBy: initial?.updatedBy ?? null,
       };
 
       await onSubmit(payload);

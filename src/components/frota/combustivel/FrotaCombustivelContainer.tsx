@@ -323,7 +323,9 @@ function FrotaCombustivelContent() {
   const handleSubmitSaida = useCallback(
     async (saida: SaidaCombustivel) => {
       if (editandoSaida) {
-        await atualizarSaidaMut.mutateAsync(saida);
+        // F5.A.0: rastreia quem alterou. Atribuição retroativa em batch
+        // (F2.B.2) também passa por aqui — todo UPDATE seta updated_by.
+        await atualizarSaidaMut.mutateAsync({ ...saida, updatedBy: usuario?.nome || null });
       } else {
         await adicionarSaidaMut.mutateAsync({ ...saida, createdBy: usuario?.nome || null });
       }
