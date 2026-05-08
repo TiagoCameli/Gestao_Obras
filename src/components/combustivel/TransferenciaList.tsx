@@ -27,7 +27,7 @@ export default function TransferenciaList({
   if (sorted.length === 0) {
     return (
       <div className="bg-white rounded-lg shadow p-8 text-center">
-        <p className="text-gray-500">Nenhuma transferencia registrada.</p>
+        <p className="text-gray-500">Nenhuma transferência registrada.</p>
       </div>
     );
   }
@@ -55,7 +55,7 @@ export default function TransferenciaList({
                   Valor
                 </th>
                 <th className="text-center px-4 py-3 text-white font-medium uppercase text-xs">
-                  Acoes
+                  Ações
                 </th>
               </tr>
             </thead>
@@ -104,8 +104,8 @@ export default function TransferenciaList({
           if (deleteId) onDelete(deleteId);
           setDeleteId(null);
         }}
-        title="Excluir Transferencia"
-        message="Tem certeza que deseja excluir esta transferencia? Os litros serao devolvidos ao tanque de origem e removidos do tanque de destino."
+        title="Excluir Transferência"
+        message="Tem certeza que deseja excluir esta transferência? Os litros serão devolvidos ao tanque de origem e removidos do tanque de destino."
       />
     </>
   );

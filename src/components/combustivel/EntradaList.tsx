@@ -58,7 +58,7 @@ export default function EntradaList({
                   Tanque
                 </th>
                 <th className="text-left px-4 py-3 text-white font-medium uppercase text-xs">
-                  Combustivel
+                  Combustível
                 </th>
                 <th className="text-left px-4 py-3 text-white font-medium uppercase text-xs">
                   Fornecedor
@@ -70,7 +70,7 @@ export default function EntradaList({
                   Valor
                 </th>
                 <th className="text-center px-4 py-3 text-white font-medium uppercase text-xs">
-                  Acoes
+                  Ações
                 </th>
               </tr>
             </thead>
@@ -131,7 +131,7 @@ export default function EntradaList({
           setDeleteId(null);
         }}
         title="Excluir Entrada"
-        message="Tem certeza que deseja excluir esta entrada? Os litros serao removidos do tanque."
+        message="Tem certeza que deseja excluir esta entrada? Os litros serão removidos do tanque."
       />
     </>
   );
