@@ -68,6 +68,10 @@ export interface CombustivelFilterState {
   transportadoraIds: string[];
   /** Aplica em mode='carretas' — texto livre. */
   placas: string[];
+  /** Tanque origem — só aparece na FilterBar quando aba=Transferências. */
+  tanqueOrigemIds: string[];
+  /** Tanque destino — só aparece na FilterBar quando aba=Transferências. */
+  tanqueDestinoIds: string[];
 }
 
 export interface SavedView {

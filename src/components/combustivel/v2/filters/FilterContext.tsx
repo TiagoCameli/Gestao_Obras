@@ -31,6 +31,8 @@ interface FilterContextValue {
   toggleOperador: (nome: string) => void;
   toggleTransportadora: (id: string) => void;
   togglePlaca: (placa: string) => void;
+  toggleTanqueOrigem: (id: string) => void;
+  toggleTanqueDestino: (id: string) => void;
 
   /** Substitui lista inteira (multi-select submete tudo de uma vez). */
   setObraIds: (ids: string[]) => void;
@@ -40,6 +42,8 @@ interface FilterContextValue {
   setOperadores: (nomes: string[]) => void;
   setTransportadoraIds: (ids: string[]) => void;
   setPlacas: (placas: string[]) => void;
+  setTanqueOrigemIds: (ids: string[]) => void;
+  setTanqueDestinoIds: (ids: string[]) => void;
 
   /** Remove um valor específico (clique no chip ✕). */
   removeFilter: (kind: ChipKind, value: string) => void;
@@ -62,7 +66,9 @@ export type ChipKind =
   | 'fornecedor'
   | 'operador'
   | 'transportadora'
-  | 'placa';
+  | 'placa'
+  | 'tanque_origem'
+  | 'tanque_destino';
 
 const Ctx = createContext<FilterContextValue | null>(null);
 
@@ -123,6 +129,8 @@ export function CombustivelFilterProvider({ children }: { children: ReactNode })
   const toggleOperador = useCallback((nome: string) => apply({ ...state, operadores: toggleInArray(state.operadores, nome) }), [state, apply]);
   const toggleTransportadora = useCallback((id: string) => apply({ ...state, transportadoraIds: toggleInArray(state.transportadoraIds, id) }), [state, apply]);
   const togglePlaca = useCallback((placa: string) => apply({ ...state, placas: toggleInArray(state.placas, placa) }), [state, apply]);
+  const toggleTanqueOrigem = useCallback((id: string) => apply({ ...state, tanqueOrigemIds: toggleInArray(state.tanqueOrigemIds, id) }), [state, apply]);
+  const toggleTanqueDestino = useCallback((id: string) => apply({ ...state, tanqueDestinoIds: toggleInArray(state.tanqueDestinoIds, id) }), [state, apply]);
 
   const setObraIds = useCallback((ids: string[]) => apply({ ...state, obraIds: ids }), [state, apply]);
   const setEquipamentoIds = useCallback((ids: string[]) => apply({ ...state, equipamentoIds: ids }), [state, apply]);
@@ -131,6 +139,8 @@ export function CombustivelFilterProvider({ children }: { children: ReactNode })
   const setOperadores = useCallback((nomes: string[]) => apply({ ...state, operadores: nomes }), [state, apply]);
   const setTransportadoraIds = useCallback((ids: string[]) => apply({ ...state, transportadoraIds: ids }), [state, apply]);
   const setPlacas = useCallback((placas: string[]) => apply({ ...state, placas: placas }), [state, apply]);
+  const setTanqueOrigemIds = useCallback((ids: string[]) => apply({ ...state, tanqueOrigemIds: ids }), [state, apply]);
+  const setTanqueDestinoIds = useCallback((ids: string[]) => apply({ ...state, tanqueDestinoIds: ids }), [state, apply]);
 
   const removeFilter = useCallback(
     (kind: ChipKind, value: string) => {
@@ -159,6 +169,12 @@ export function CombustivelFilterProvider({ children }: { children: ReactNode })
         case 'placa':
           apply({ ...state, placas: state.placas.filter((x) => x !== value) });
           break;
+        case 'tanque_origem':
+          apply({ ...state, tanqueOrigemIds: state.tanqueOrigemIds.filter((x) => x !== value) });
+          break;
+        case 'tanque_destino':
+          apply({ ...state, tanqueDestinoIds: state.tanqueDestinoIds.filter((x) => x !== value) });
+          break;
       }
     },
     [state, apply],
@@ -180,6 +196,8 @@ export function CombustivelFilterProvider({ children }: { children: ReactNode })
       toggleOperador,
       toggleTransportadora,
       togglePlaca,
+      toggleTanqueOrigem,
+      toggleTanqueDestino,
       setObraIds,
       setEquipamentoIds,
       setTipoCombustiveis,
@@ -187,6 +205,8 @@ export function CombustivelFilterProvider({ children }: { children: ReactNode })
       setOperadores,
       setTransportadoraIds,
       setPlacas,
+      setTanqueOrigemIds,
+      setTanqueDestinoIds,
       removeFilter,
       clearAll,
       hasActive: hasActiveFilters(state),
@@ -196,9 +216,9 @@ export function CombustivelFilterProvider({ children }: { children: ReactNode })
     [
       state, setState, setMode, setPreset, setPeriodoCustom,
       toggleObra, toggleEquipamento, toggleTipoCombustivel, toggleFornecedor, toggleOperador,
-      toggleTransportadora, togglePlaca,
+      toggleTransportadora, togglePlaca, toggleTanqueOrigem, toggleTanqueDestino,
       setObraIds, setEquipamentoIds, setTipoCombustiveis, setFornecedores, setOperadores,
-      setTransportadoraIds, setPlacas,
+      setTransportadoraIds, setPlacas, setTanqueOrigemIds, setTanqueDestinoIds,
       removeFilter, clearAll, hovered,
     ],
   );

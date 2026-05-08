@@ -6,11 +6,13 @@ import { useCombustivelFilter, type ChipKind } from './FilterContext';
 import { fmtPeriodo } from '../shared/formatters';
 
 interface Props {
-  /** Maps id→label pra resolver chips de FK soft (obras, equipamentos, tipos, transportadoras). */
+  /** Maps id→label pra resolver chips de FK soft (obras, equipamentos, tipos, transportadoras, tanques). */
   obrasMap: Map<string, string>;
   equipamentosMap: Map<string, string>;
   insumosMap: Map<string, string>;
   transportadorasMap: Map<string, string>;
+  /** Tanques — opcional, só aparece chip quando aba=Transferências usar esses filtros. */
+  tanquesMap?: Map<string, string>;
 }
 
 interface Chip {
@@ -19,7 +21,7 @@ interface Chip {
   label: string;
 }
 
-export default function FilterChips({ obrasMap, equipamentosMap, insumosMap, transportadorasMap }: Props) {
+export default function FilterChips({ obrasMap, equipamentosMap, insumosMap, transportadorasMap, tanquesMap }: Props) {
   const { state, removeFilter, clearAll, hasActive } = useCombustivelFilter();
 
   if (!hasActive) return null;
@@ -54,6 +56,12 @@ export default function FilterChips({ obrasMap, equipamentosMap, insumosMap, tra
   }
   for (const v of state.operadores) {
     chips.push({ kind: 'operador', value: v, label: `${labelOperador}: ${v}` });
+  }
+  for (const id of state.tanqueOrigemIds) {
+    chips.push({ kind: 'tanque_origem', value: id, label: `Tanque origem: ${tanquesMap?.get(id) ?? id}` });
+  }
+  for (const id of state.tanqueDestinoIds) {
+    chips.push({ kind: 'tanque_destino', value: id, label: `Tanque destino: ${tanquesMap?.get(id) ?? id}` });
   }
 
   return (

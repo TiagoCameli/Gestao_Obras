@@ -4,7 +4,8 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { Bookmark, Calendar, ChevronDown, Filter as FilterIcon } from 'lucide-react';
-import type { Equipamento, Fornecedor, Insumo, Obra } from '../../../../types';
+import type { Deposito, Equipamento, Fornecedor, Insumo, Obra } from '../../../../types';
+import type { CombustivelTabId } from '../CombustivelTabsNav';
 import { useCombustivelFilter } from './FilterContext';
 import Popover from './Popover';
 import PeriodoPanel from './PeriodoPanel';
@@ -28,6 +29,11 @@ interface Props {
   placasDisponiveis: string[];
   /** Mapa de empresas pra exibir nome se necessário (não obrigatório). */
   fornecedoresEntities?: Fornecedor[];
+  /** Tanques disponíveis — alimenta filtros condicionais (Transferências). */
+  depositos?: Deposito[];
+  /** Aba ativa — controla quais filtros aparecem (ex: tanque só em
+   *  Transferências; equipamento/transportadora respeitam mode em qualquer aba). */
+  activeTab?: CombustivelTabId;
 }
 
 function counted(label: string, n: number): string {
@@ -42,11 +48,14 @@ export default function FilterBar({
   operadoresDisponiveis,
   transportadoras,
   placasDisponiveis,
+  depositos = [],
+  activeTab,
 }: Props) {
   const f = useCombustivelFilter();
   const [savedViews, setSavedViews] = useState<SavedView[]>([]);
   const isProprios = f.state.mode === 'proprios';
   const isCarretas = f.state.mode === 'carretas';
+  const isTransferencias = activeTab === 'transferencias';
 
   useEffect(() => {
     setSavedViews(loadSavedViews());
@@ -90,6 +99,15 @@ export default function FilterBar({
   const placaOptions = useMemo(
     () => placasDisponiveis.map((p) => ({ id: p, label: p })),
     [placasDisponiveis],
+  );
+
+  const tanqueOptions = useMemo(
+    () =>
+      [...depositos]
+        .filter((d) => d.ativo !== false)
+        .sort((a, b) => a.nome.localeCompare(b.nome))
+        .map((d) => ({ id: d.id, label: d.nome })),
+    [depositos],
   );
 
   const fornOptions = useMemo(
@@ -226,6 +244,51 @@ export default function FilterBar({
               />
             )}
           </Popover>
+        )}
+
+        {/* Tanque origem / destino — só na aba Transferências (filtro
+            específico daquela operação; em outras abas não faz sentido). */}
+        {isTransferencias && tanqueOptions.length > 0 && (
+          <>
+            <Popover
+              trigger={(open) => (
+                <span className={`${triggerBase} ${f.state.tanqueOrigemIds.length > 0 || open ? triggerActive : triggerIdle}`}>
+                  <span className="whitespace-nowrap">{counted('Tanque origem', f.state.tanqueOrigemIds.length) || 'Tanque origem'}</span>
+                  <ChevronDown className="w-3 h-3 opacity-60" />
+                </span>
+              )}
+              minWidth={280}
+            >
+              {(close) => (
+                <MultiSelectPanel
+                  options={tanqueOptions}
+                  selected={f.state.tanqueOrigemIds}
+                  onApply={f.setTanqueOrigemIds}
+                  onClose={close}
+                  placeholder="Buscar tanque..."
+                />
+              )}
+            </Popover>
+            <Popover
+              trigger={(open) => (
+                <span className={`${triggerBase} ${f.state.tanqueDestinoIds.length > 0 || open ? triggerActive : triggerIdle}`}>
+                  <span className="whitespace-nowrap">{counted('Tanque destino', f.state.tanqueDestinoIds.length) || 'Tanque destino'}</span>
+                  <ChevronDown className="w-3 h-3 opacity-60" />
+                </span>
+              )}
+              minWidth={280}
+            >
+              {(close) => (
+                <MultiSelectPanel
+                  options={tanqueOptions}
+                  selected={f.state.tanqueDestinoIds}
+                  onApply={f.setTanqueDestinoIds}
+                  onClose={close}
+                  placeholder="Buscar tanque..."
+                />
+              )}
+            </Popover>
+          </>
         )}
 
         {/* Tipo combustível — chips inline (mais rápido que popover pra 4-5 itens) */}

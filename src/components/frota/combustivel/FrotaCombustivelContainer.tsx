@@ -4,7 +4,6 @@ import type {
   EntradaCombustivel,
   TransferenciaCombustivel,
   Deposito,
-  FiltrosAbastecimento,
   SaidaCombustivel,
 } from '../../../types';
 import { useObras } from '../../../hooks/useObras';
@@ -21,7 +20,6 @@ import { useAuth } from '../../../contexts/AuthContext';
 import Modal from '../../ui/Modal';
 import Button from '../../ui/Button';
 import PasswordDialog from '../../ui/PasswordDialog';
-import AbastecimentoFilters from '../../combustivel/AbastecimentoFilters';
 // Saída unificada (Fase 4)
 import SaidaCombustivelForm from '../../combustivel/SaidaCombustivelForm';
 import SaidaCombustivelList from '../../combustivel/SaidaCombustivelList';
@@ -32,8 +30,8 @@ import TransferenciaList from '../../combustivel/TransferenciaList';
 import TanqueList from './TanqueList';
 import TanqueForm from './TanqueForm';
 import ExportarPDFModal from '../../combustivel/ExportarPDFModal';
-// v2 — IA premium da página /combustivel (F1+)
-import { CombustivelFilterProvider } from '../../combustivel/v2/filters/FilterContext';
+// v2 — IA premium da página /combustivel (F1+, filtros globais em F2)
+import { CombustivelFilterProvider, useCombustivelFilter } from '../../combustivel/v2/filters/FilterContext';
 import FilterBar from '../../combustivel/v2/filters/FilterBar';
 import FilterChips from '../../combustivel/v2/filters/FilterChips';
 import CombustivelTabsNav, { type CombustivelTabId } from '../../combustivel/v2/CombustivelTabsNav';
@@ -44,14 +42,17 @@ import ConsumidoresPlaceholder from '../../combustivel/v2/ConsumidoresPlaceholde
 
 type SubTab = CombustivelTabId;
 
-const FILTROS_VAZIOS: FiltrosAbastecimento = {
-  obraId: '',
-  tipoCombustivel: '',
-  dataInicio: '',
-  dataFim: '',
-};
-
+/** Wrapper raiz — apenas monta o Provider de filtros pra que o Content
+ *  possa consumir `useCombustivelFilter()`. Toda a lógica está no Content. */
 export default function FrotaCombustivelContainer() {
+  return (
+    <CombustivelFilterProvider>
+      <FrotaCombustivelContent />
+    </CombustivelFilterProvider>
+  );
+}
+
+function FrotaCombustivelContent() {
   const { temAcao, usuario } = useAuth();
   const canEdit = temAcao('editar_combustivel');
   const canDelete = temAcao('excluir_combustivel');
@@ -60,6 +61,10 @@ export default function FrotaCombustivelContainer() {
   const canCreateTransferencia = temAcao('criar_transferencia_combustivel');
 
   const [subTab, setSubTab] = useState<SubTab>('visao_geral');
+
+  // Filtros globais (URL state) — fonte única pras listas operacionais e
+  // analíticas. Substitui o AbastecimentoFilters legado removido em F2.
+  const { state: filterState } = useCombustivelFilter();
 
   const { data: obras = [] } = useObras();
   const { data: etapas = [] } = useEtapas();
@@ -72,9 +77,8 @@ export default function FrotaCombustivelContainer() {
   const { data: depositosOperacionais = [] } = useDepositos();
   // Saídas via tabela unificada (Fase 3) — fonte canônica.
   const { data: todasSaidas = [] } = useSaidasCombustivel();
-  // Adapter inline pro shape Abastecimento legado (CombustivelDashboard
-  // ignora via _abastLegacy; ExportarPDFModal ainda consome). Será removido
-  // quando ExportarPDFModal migrar pra SaidaCombustivel (Commit 5).
+  // Adapter inline pro shape Abastecimento legado (ExportarPDFModal ainda
+  // consome — será removido quando F4 entregar a aba Relatórios).
   const todosAbastecimentos: Abastecimento[] = useMemo(
     () => todasSaidas.map((s) => ({
       id: s.id,
@@ -136,9 +140,6 @@ export default function FrotaCombustivelContainer() {
   const adicionarTransferenciaMut = useAdicionarTransferenciaCombustivel();
   const excluirTransferenciaMut = useExcluirTransferenciaCombustivel();
 
-  // Filtros
-  const [filtros, setFiltros] = useState<FiltrosAbastecimento>(FILTROS_VAZIOS);
-
   // Tanque state
   const [modalTanqueOpen, setModalTanqueOpen] = useState(false);
   const [editandoTanque, setEditandoTanque] = useState<Deposito | null>(null);
@@ -170,46 +171,74 @@ export default function FrotaCombustivelContainer() {
     setSenhaOpen(true);
   }
 
-  // Filter helpers
-  function filtrarPorData(dataHora: string): boolean {
-    if (filtros.dataInicio && new Date(dataHora) < new Date(filtros.dataInicio)) return false;
-    if (filtros.dataFim && new Date(dataHora) > new Date(filtros.dataFim + 'T23:59:59')) return false;
-    return true;
+  // Filtragem das listas operacionais — agora consome filterState (Context)
+  // em vez do legado <AbastecimentoFilters>. Default 30d herdado do preset
+  // 'ultimos_30' resolve o "lista abre com tudo".
+  const periodoFromTs = useMemo(() => new Date(filterState.periodo.from + 'T00:00:00').getTime(), [filterState.periodo.from]);
+  const periodoToTs = useMemo(() => new Date(filterState.periodo.to + 'T23:59:59').getTime(), [filterState.periodo.to]);
+
+  function dentroPeriodo(iso: string): boolean {
+    const t = new Date(iso).getTime();
+    return t >= periodoFromTs && t <= periodoToTs;
   }
 
-  // Filtro shape antigo (Abastecimento.dataHora) — usado pelo Dashboard +
-  // ExportarPDFModal que ainda recebem o shape antigo via shim.
-  const abastecimentosFiltrados = useMemo(() => {
-    return todosAbastecimentos.filter((a) => {
-      if (filtros.obraId && a.obraId !== filtros.obraId) return false;
-      if (filtros.tipoCombustivel && a.tipoCombustivel !== filtros.tipoCombustivel) return false;
-      if (!filtrarPorData(a.dataHora)) return false;
-      return true;
-    });
-  }, [todosAbastecimentos, filtros]);
+  const tipoConsumidorAlvo = filterState.mode === 'proprios' ? 'equipamento_proprio' : 'carreta_transportadora';
 
-  // Saídas no shape novo (SaidaCombustivel.data) — alimenta SaidaCombustivelList.
   const saidasFiltradas = useMemo(() => {
     return todasSaidas.filter((s) => {
-      if (filtros.obraId && s.obraId !== filtros.obraId) return false;
-      if (filtros.tipoCombustivel && s.tipoCombustivel !== filtros.tipoCombustivel) return false;
-      if (!filtrarPorData(s.data)) return false;
+      if (s.tipoConsumidor !== tipoConsumidorAlvo) return false;
+      if (!dentroPeriodo(s.data)) return false;
+      if (filterState.obraIds.length > 0 && !(s.obraId && filterState.obraIds.includes(s.obraId))) return false;
+      if (filterState.tipoCombustiveis.length > 0 && !filterState.tipoCombustiveis.includes(s.tipoCombustivel)) return false;
+      if (filterState.equipamentoIds.length > 0) {
+        if (!s.equipamentoId || !filterState.equipamentoIds.includes(s.equipamentoId)) return false;
+      }
+      if (filterState.transportadoraIds.length > 0) {
+        if (!s.transportadoraId || !filterState.transportadoraIds.includes(s.transportadoraId)) return false;
+      }
+      if (filterState.placas.length > 0) {
+        const placa = (s.placa || '').trim();
+        if (!placa || !filterState.placas.includes(placa)) return false;
+      }
+      if (filterState.operadores.length > 0) {
+        const op = (s.motorista || '').trim();
+        if (!op || !filterState.operadores.includes(op)) return false;
+      }
       return true;
     });
-  }, [todasSaidas, filtros]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [todasSaidas, tipoConsumidorAlvo, periodoFromTs, periodoToTs, filterState.obraIds, filterState.tipoCombustiveis, filterState.equipamentoIds, filterState.transportadoraIds, filterState.placas, filterState.operadores]);
+
+  // Adapter pro shape Abastecimento legado (ExportarPDFModal). Filtra os
+  // mesmos critérios da Saída — quando F4 entregar a aba Relatórios o modal
+  // legado morre junto com esse adapter.
+  const abastecimentosFiltrados = useMemo(() => {
+    const ids = new Set(saidasFiltradas.map((s) => s.id));
+    return todosAbastecimentos.filter((a) => ids.has(a.id));
+  }, [todosAbastecimentos, saidasFiltradas]);
 
   const entradasFiltradas = useMemo(() => {
     return todasEntradas.filter((e) => {
-      // Entradas são globais — sem filtro por obra.
-      if (filtros.tipoCombustivel && e.tipoCombustivel !== filtros.tipoCombustivel) return false;
-      if (!filtrarPorData(e.dataHora)) return false;
+      if (!dentroPeriodo(e.dataHora)) return false;
+      if (filterState.tipoCombustiveis.length > 0 && !filterState.tipoCombustiveis.includes(e.tipoCombustivel)) return false;
+      if (filterState.fornecedores.length > 0) {
+        const f = (e.fornecedor || '').trim();
+        if (!f || !filterState.fornecedores.includes(f)) return false;
+      }
       return true;
     });
-  }, [todasEntradas, filtros]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [todasEntradas, periodoFromTs, periodoToTs, filterState.tipoCombustiveis, filterState.fornecedores]);
 
   const transferenciasFiltradas = useMemo(() => {
-    return todasTransferencias.filter((t) => filtrarPorData(t.dataHora));
-  }, [todasTransferencias, filtros]);
+    return todasTransferencias.filter((t) => {
+      if (!dentroPeriodo(t.dataHora)) return false;
+      if (filterState.tanqueOrigemIds.length > 0 && !filterState.tanqueOrigemIds.includes(t.depositoOrigemId)) return false;
+      if (filterState.tanqueDestinoIds.length > 0 && !filterState.tanqueDestinoIds.includes(t.depositoDestinoId)) return false;
+      return true;
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [todasTransferencias, periodoFromTs, periodoToTs, filterState.tanqueOrigemIds, filterState.tanqueDestinoIds]);
 
   // Listas distinct pra alimentar o multi-select da FilterBar v2.
   const fornecedoresDisponiveis = useMemo(() => {
@@ -246,6 +275,7 @@ export default function FrotaCombustivelContainer() {
   const equipamentosMap = useMemo(() => new Map(todosEquipamentos.map((e) => [e.id, e.nome])), [todosEquipamentos]);
   const insumosMap = useMemo(() => new Map(todosInsumos.map((i) => [i.id, i.nome])), [todosInsumos]);
   const transportadorasMap = useMemo(() => new Map(transportadoras.map((t) => [t.id, t.nome])), [transportadoras]);
+  const tanquesMap = useMemo(() => new Map(depositosTodos.map((d) => [d.id, d.nome])), [depositosTodos]);
 
   // Tanque handlers
   const handleSubmitTanque = useCallback(
@@ -349,13 +379,7 @@ export default function FrotaCombustivelContainer() {
     [excluirTransferenciaMut]
   );
 
-  // Saídas operacionais (sem dashboard / analítico / relatórios) ainda
-  // dependem do AbastecimentoFilters legado. Migra na F2.
-  const isOperacional =
-    subTab === 'entradas' || subTab === 'saidas' || subTab === 'transferencias';
-
   return (
-    <CombustivelFilterProvider>
     <div className="space-y-4">
       {/* Action buttons */}
       <div className="flex flex-wrap gap-2 px-3 sm:px-4 pt-1">
@@ -398,8 +422,9 @@ export default function FrotaCombustivelContainer() {
         <ModeSwitch />
       </div>
 
-      {/* Barra global de filtros (sticky) — dirige a Visão Geral.
-          Filtro legado das abas operacionais fica abaixo, apenas nelas. */}
+      {/* Barra global de filtros (sticky) — fonte única em toda a página
+          (analítico + operacional). Tanque origem/destino só aparecem na
+          aba Transferências. */}
       <FilterBar
         obras={obras}
         equipamentos={todosEquipamentos}
@@ -408,25 +433,16 @@ export default function FrotaCombustivelContainer() {
         operadoresDisponiveis={operadoresDisponiveis}
         transportadoras={transportadoras}
         placasDisponiveis={placasDisponiveis}
+        depositos={depositosTodos}
+        activeTab={subTab}
       />
       <FilterChips
         obrasMap={obrasMap}
         equipamentosMap={equipamentosMap}
         insumosMap={insumosMap}
         transportadorasMap={transportadorasMap}
+        tanquesMap={tanquesMap}
       />
-
-      {/* Filtro legado — só nas abas operacionais até F2 migrar elas. */}
-      {isOperacional && (
-        <div className="px-3 sm:px-4">
-          <AbastecimentoFilters
-            filtros={filtros}
-            onChange={setFiltros}
-            onClear={() => setFiltros(FILTROS_VAZIOS)}
-            obras={obras}
-          />
-        </div>
-      )}
 
       {/* Sub-tab navigation v2 */}
       <div className="px-3 sm:px-4">
@@ -625,6 +641,5 @@ export default function FrotaCombustivelContainer() {
         depositos={depositosTodos}
       />
     </div>
-    </CombustivelFilterProvider>
   );
 }
