@@ -358,6 +358,20 @@ function FrotaCombustivelContent() {
     [excluirSaidaMut]
   );
 
+  // F3.B — atribuição inline de equipamento via drawer de Anomalia D1.
+  // Usa update existente (sem distinção de "novo" handler) com updatedBy
+  // marcado pra rastro de auditoria (mesmo padrão de F2.B.2).
+  const handleAtribuirEquipamento = useCallback(
+    async (saida: SaidaCombustivel, equipamentoId: string) => {
+      await atualizarSaidaMut.mutateAsync({
+        ...saida,
+        equipamentoId,
+        updatedBy: usuario?.nome || null,
+      });
+    },
+    [atualizarSaidaMut, usuario]
+  );
+
   // Entrada handlers
   const handleSubmitEntrada = useCallback(
     async (data: EntradaCombustivel) => {
@@ -516,8 +530,12 @@ function FrotaCombustivelContent() {
           saidasFiltradas={saidasFiltradas}
           saidasTodas={todasSaidas}
           equipamentos={todosEquipamentos}
+          transportadoras={transportadoras}
           obras={obras}
           combustiveis={combustiveis}
+          onEditSaida={handleEditSaida}
+          onDeleteSaida={(id) => pedirSenha(() => handleDeleteSaida(id))}
+          onAtribuirEquipamento={handleAtribuirEquipamento}
         />
       )}
 

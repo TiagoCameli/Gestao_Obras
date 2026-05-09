@@ -4,10 +4,11 @@
 // detector) e empty-state positivo quando 0. Sem drawer/ação ainda
 // (esperando F3.B). detectAnomalias() é puro e memoizado.
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { AlertCircle, AlertTriangle, Info, Search, ShieldCheck } from 'lucide-react';
 import type {
   Equipamento,
+  Fornecedor,
   Insumo,
   Obra,
   SaidaCombustivel,
@@ -21,6 +22,7 @@ import {
   type Severidade,
 } from './detect';
 import { useCombustivelFilter } from '../filters/FilterContext';
+import AnomaliaDrawer from './AnomaliaDrawer';
 
 interface Props {
   /** Saídas filtradas pelo recorte UI (mode + período + obra + ...). */
@@ -29,8 +31,14 @@ interface Props {
    *  fixos do banco completo. */
   saidasTodas: SaidaCombustivel[];
   equipamentos: Equipamento[];
+  transportadoras: Fornecedor[];
   obras: Obra[];
   combustiveis: Insumo[];
+  /** Callbacks dispatch pra mutations — owners são o container que tem
+   *  acesso aos React Query hooks + password dialog. */
+  onEditSaida: (s: SaidaCombustivel) => void;
+  onDeleteSaida: (id: string) => void;
+  onAtribuirEquipamento: (saida: SaidaCombustivel, equipamentoId: string) => Promise<void>;
 }
 
 const SEVERITY_STYLES: Record<Severidade, {
@@ -70,13 +78,18 @@ export default function AnomaliasTab({
   saidasFiltradas,
   saidasTodas,
   equipamentos,
+  transportadoras,
   obras,
   combustiveis,
+  onEditSaida,
+  onDeleteSaida,
+  onAtribuirEquipamento,
 }: Props) {
   const { state } = useCombustivelFilter();
   const [busca, setBusca] = useState('');
   const [sevFiltro, setSevFiltro] = useState<Set<Severidade>>(new Set());
   const [detFiltro, setDetFiltro] = useState<Set<DetectorId>>(new Set());
+  const [selectedId, setSelectedId] = useState<string | null>(null);
 
   const combustivelNome = useMemo(
     () => new Map(combustiveis.map((c) => [c.id, c.nome])),
@@ -102,6 +115,22 @@ export default function AnomaliasTab({
     }
     return result;
   }, [saidasFiltradas, saidasTodas, equipamentos, combustivelNome, obraNome]);
+
+  // Auto-close: quando a anomalia selecionada some da lista (ID determinístico
+  // não está mais presente), significa "resolvida" via mutation. Drawer fecha.
+  // Se a anomalia ainda existe (ex: D4 com 3 dups → user excluiu 1 → 2 ainda
+  // formam dup), drawer permanece aberto com conteúdo recalculado.
+  useEffect(() => {
+    if (!selectedId) return;
+    if (!anomalias.some((a) => a.id === selectedId)) {
+      setSelectedId(null);
+    }
+  }, [anomalias, selectedId]);
+
+  const selectedAnomalia = useMemo(
+    () => (selectedId ? anomalias.find((a) => a.id === selectedId) ?? null : null),
+    [anomalias, selectedId],
+  );
 
   const counts = useMemo(() => {
     const sev: Record<Severidade, number> = { critical: 0, warning: 0, info: 0 };
@@ -273,10 +302,26 @@ export default function AnomaliasTab({
               )}
             </div>
           ) : (
-            filtradas.map((a) => <AnomaliaRow key={a.id} a={a} />)
+            filtradas.map((a) => (
+              <AnomaliaRow key={a.id} a={a} onClick={() => setSelectedId(a.id)} />
+            ))
           )}
         </section>
       </div>
+
+      <AnomaliaDrawer
+        anomalia={selectedAnomalia}
+        open={selectedId !== null}
+        onClose={() => setSelectedId(null)}
+        saidasTodas={saidasTodas}
+        obras={obras}
+        equipamentos={equipamentos}
+        transportadoras={transportadoras}
+        combustiveis={combustiveis}
+        onEditSaida={onEditSaida}
+        onDeleteSaida={onDeleteSaida}
+        onAtribuirEquipamento={onAtribuirEquipamento}
+      />
     </div>
   );
 }
@@ -293,13 +338,17 @@ function Header({ total, mode }: { total: number; mode: 'proprios' | 'carretas' 
   );
 }
 
-function AnomaliaRow({ a }: { a: Anomalia }) {
+function AnomaliaRow({ a, onClick }: { a: Anomalia; onClick: () => void }) {
   const styles = SEVERITY_STYLES[a.severity];
   const Icon = styles.icon;
   const dataLabel = a.data.split('-').reverse().join('/');
 
   return (
-    <div className={`rounded-xl border ${styles.border} bg-[var(--color-surface-1)] p-3 flex items-start gap-3`}>
+    <button
+      type="button"
+      onClick={onClick}
+      className={`w-full text-left rounded-xl border ${styles.border} bg-[var(--color-surface-1)] p-3 flex items-start gap-3 transition-colors hover:bg-[var(--color-surface-2)]/40 focus:outline-none focus:ring-2 focus:ring-[var(--color-ring)]`}
+    >
       <div className={`shrink-0 w-9 h-9 rounded-full ${styles.badgeBg} flex items-center justify-center`}>
         <Icon className={`w-4 h-4 ${styles.iconColor}`} />
       </div>
@@ -328,6 +377,6 @@ function AnomaliaRow({ a }: { a: Anomalia }) {
           </p>
         )}
       </div>
-    </div>
+    </button>
   );
 }
