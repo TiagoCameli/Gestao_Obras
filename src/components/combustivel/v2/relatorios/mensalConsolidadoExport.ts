@@ -38,6 +38,13 @@ const TITULO = 'Combustível · Relatório Mensal Consolidado';
 const SUBTITULO_BASE = 'Visão executiva de consumo, custo e operação';
 const MARCA = 'Gestão de Obras · Combustível';
 
+/** PNGs (dataURL) capturados pelo modal antes de chamar o exportador.
+ *  F4.A.2.1: 2 charts (Top Equipamentos + EvolucaoTemporal). */
+export interface ChartImagens {
+  topEquipamentos?: string;
+  evolucaoTemporal?: string;
+}
+
 interface ConsolidadoInput {
   /** Mês referência no formato YYYY-MM. */
   mesReferencia: string;
@@ -47,6 +54,9 @@ interface ConsolidadoInput {
   transportadoras: Fornecedor[];
   obras: Obra[];
   combustiveis: Insumo[];
+  /** PNGs dos gráficos pra embed no PDF. Opcional — se ausente, o PDF
+   *  renderiza só as tabelas (compatível com o caminho atual). */
+  charts?: ChartImagens;
 }
 
 interface Agg {
@@ -276,13 +286,22 @@ export function exportarMensalConsolidadoPDF(input: ConsolidadoInput): void {
     );
   }
 
-  // ── Página 2: Top Equipamentos próprios ──
+  // ── Página 2: Top Equipamentos próprios (chart + table) ──
   if (data.topEquipamentos.length > 0) {
     doc.addPage();
     drawPdfDetailPageHeader(doc, 'Top 10 equipamentos próprios', data.topEquipamentos.length);
+    let yEq = 20;
+    if (input.charts?.topEquipamentos) {
+      const pageWmm = doc.internal.pageSize.getWidth();
+      const imgW = 240;
+      const imgH = imgW * (360 / 800); // 108mm — alinha com CHART_DIMENSIONS
+      const x = (pageWmm - imgW) / 2;
+      doc.addImage(input.charts.topEquipamentos, 'PNG', x, yEq, imgW, imgH);
+      yEq += imgH + 4;
+    }
     drawPdfDetailTable(
       doc,
-      20,
+      yEq,
       ['#', 'Equipamento', 'Código', 'Saídas', 'Litros', 'Custo', 'R$/L'],
       data.topEquipamentos.map((r, i) => [
         String(i + 1),
@@ -310,13 +329,22 @@ export function exportarMensalConsolidadoPDF(input: ConsolidadoInput): void {
     );
   }
 
-  // ── Página 3: Top Carretas ──
-  if (data.topCarretas.length > 0) {
+  // ── Página 3: Evolução temporal (chart) + Top Carretas (table) ──
+  if (data.topCarretas.length > 0 || input.charts?.evolucaoTemporal) {
     doc.addPage();
-    drawPdfDetailPageHeader(doc, 'Top 10 carretas', data.topCarretas.length);
-    drawPdfDetailTable(
+    drawPdfDetailPageHeader(doc, 'Evolução do mês + Top 10 carretas', data.topCarretas.length);
+    let yC = 20;
+    if (input.charts?.evolucaoTemporal) {
+      const pageWmm = doc.internal.pageSize.getWidth();
+      const imgW = 240;
+      const imgH = imgW * (280 / 800); // 84mm
+      const x = (pageWmm - imgW) / 2;
+      doc.addImage(input.charts.evolucaoTemporal, 'PNG', x, yC, imgW, imgH);
+      yC += imgH + 6;
+    }
+    if (data.topCarretas.length > 0) drawPdfDetailTable(
       doc,
-      20,
+      yC,
       ['#', 'Placa', 'Transportadora', 'Saídas', 'Litros', 'Custo', 'R$/L'],
       data.topCarretas.map((r, i) => [
         String(i + 1),

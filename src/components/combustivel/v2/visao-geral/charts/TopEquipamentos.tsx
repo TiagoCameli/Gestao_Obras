@@ -28,6 +28,9 @@ interface Props {
    *  apenasSentinel + nav pra Saídas. Opcional: se ausente, sentinel
    *  fica visualmente presente mas click é no-op. */
   onAtribuirSentinels?: () => void;
+  /** Desliga animação Recharts (usado pela captura PDF F4.A.2 — captura
+   *  precisa do estado final imediato). */
+  disableAnimation?: boolean;
 }
 
 interface BarRow {
@@ -40,7 +43,7 @@ interface BarRow {
   qtdSaidas: number;
 }
 
-export default function TopEquipamentos({ saidasNoPeriodo, equipamentos, topN = 10, onAtribuirSentinels }: Props) {
+export default function TopEquipamentos({ saidasNoPeriodo, equipamentos, topN = 10, onAtribuirSentinels, disableAnimation = false }: Props) {
   const { state, toggleEquipamento, hovered, setHovered } = useCombustivelFilter();
   const [metrica, setMetrica] = useState<Metrica>('litros');
 
@@ -216,7 +219,8 @@ export default function TopEquipamentos({ saidasNoPeriodo, equipamentos, topN = 
             <Bar
               dataKey={metrica}
               radius={[0, 6, 6, 0]}
-              animationDuration={300}
+              animationDuration={disableAnimation ? 0 : 300}
+              isAnimationActive={!disableAnimation}
               onClick={(d) => handleRowClick((d as { payload: BarRow }).payload)}
               onMouseEnter={(d) => {
                 const r = (d as { payload: BarRow }).payload;

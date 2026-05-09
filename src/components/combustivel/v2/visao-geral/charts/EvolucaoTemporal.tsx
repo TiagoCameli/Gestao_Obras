@@ -30,6 +30,8 @@ interface Props {
   periodo: { from: string; to: string };
   granularidade: Granularidade;
   onChangeGranularidade: (g: Granularidade) => void;
+  /** Desliga animação Recharts (usado pela captura PDF F4.A.2). */
+  disableAnimation?: boolean;
 }
 
 interface Bucket {
@@ -129,6 +131,7 @@ export default function EvolucaoTemporal({
   periodo,
   granularidade,
   onChangeGranularidade,
+  disableAnimation = false,
 }: Props) {
   const { setPeriodoCustom } = useCombustivelFilter();
 
@@ -228,7 +231,8 @@ export default function EvolucaoTemporal({
               fill="var(--color-accent)"
               fillOpacity={0.6}
               radius={[4, 4, 0, 0]}
-              animationDuration={300}
+              animationDuration={disableAnimation ? 0 : 300}
+              isAnimationActive={!disableAnimation}
             />
             <Line
               yAxisId="R$"
@@ -239,7 +243,8 @@ export default function EvolucaoTemporal({
               strokeWidth={1.75}
               dot={{ r: 2.5, fill: '#1A1A1A' }}
               activeDot={{ r: 4 }}
-              animationDuration={300}
+              animationDuration={disableAnimation ? 0 : 300}
+              isAnimationActive={!disableAnimation}
             />
           </ComposedChart>
         </ResponsiveContainer>

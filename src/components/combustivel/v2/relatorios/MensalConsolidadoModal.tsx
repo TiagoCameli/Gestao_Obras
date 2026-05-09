@@ -1,5 +1,11 @@
 // Modal de parâmetros do template "Mensal Consolidado".
 // Período = 1 mês (default mes_anterior). Aciona PDF ou Excel.
+//
+// F4.A.2.1: PDF embeda 2 PNGs de gráficos (Top Equipamentos +
+// EvolucaoTemporal). Mount-on-demand via flag `rendering` — ao clicar
+// PDF, o modal monta <RelatorioCharts> off-screen, espera próximos
+// frames + fonts.ready, captura SVGs em PNG dataURL, desmonta, e
+// chama o exportador com os PNGs.
 
 import { useEffect, useMemo, useState } from 'react';
 import { Download, FileSpreadsheet, FileText, Loader2, X } from 'lucide-react';
@@ -15,7 +21,10 @@ import Button from '../../../ui/Button';
 import {
   exportarMensalConsolidadoExcel,
   exportarMensalConsolidadoPDF,
+  type ChartImagens,
 } from './mensalConsolidadoExport';
+import RelatorioCharts from './RelatorioCharts';
+import { svgElementToPngDataUrl } from './pdf/svgToPng';
 
 interface Props {
   open: boolean;
@@ -61,11 +70,14 @@ export default function MensalConsolidadoModal({
 }: Props) {
   const [mes, setMes] = useState<string>(mesAnteriorIso());
   const [generating, setGenerating] = useState<'pdf' | 'xlsx' | null>(null);
+  /** Quando true, RelatorioCharts é montado off-screen pra captura. */
+  const [renderingCharts, setRenderingCharts] = useState(false);
 
   useEffect(() => {
     if (open) {
       setMes(mesAnteriorIso());
       setGenerating(null);
+      setRenderingCharts(false);
     }
   }, [open]);
 
@@ -78,7 +90,50 @@ export default function MensalConsolidadoModal({
     return entradas.filter((e) => e.dataHora.slice(0, 7) === mes);
   }, [entradas, mes]);
 
+  // Período do mês selecionado pra alimentar EvolucaoTemporal.
+  const periodoMes = useMemo(() => {
+    const [ano, mm] = mes.split('-');
+    const last = new Date(Number(ano), Number(mm), 0).getDate();
+    return { from: `${ano}-${mm}-01`, to: `${ano}-${mm}-${String(last).padStart(2, '0')}` };
+  }, [mes]);
+
   if (!open) return null;
+
+  /** Espera 2 RAFs (commit + paint) seguidos, depois fonts + buffer pra
+   *  Recharts terminar layout. Animação já está disabled via prop. */
+  async function waitChartsReady(bufferMs = 120): Promise<void> {
+    await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+    await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+    if (typeof document.fonts?.ready === 'object' && 'then' in document.fonts.ready) {
+      await document.fonts.ready;
+    }
+    await new Promise<void>((resolve) => setTimeout(resolve, bufferMs));
+  }
+
+  async function captureChartImages(): Promise<ChartImagens> {
+    const result: ChartImagens = {};
+    const topEqSvg = document.querySelector(
+      '[data-relatorio-charts] [data-chart="top-equipamentos"] svg',
+    ) as SVGElement | null;
+    const evolSvg = document.querySelector(
+      '[data-relatorio-charts] [data-chart="evolucao-temporal"] svg',
+    ) as SVGElement | null;
+    if (topEqSvg) {
+      try {
+        result.topEquipamentos = await svgElementToPngDataUrl(topEqSvg, 'auto', 'auto');
+      } catch (e) {
+        console.warn('captureChartImages: falha em topEquipamentos', e);
+      }
+    }
+    if (evolSvg) {
+      try {
+        result.evolucaoTemporal = await svgElementToPngDataUrl(evolSvg, 'auto', 'auto');
+      } catch (e) {
+        console.warn('captureChartImages: falha em evolucaoTemporal', e);
+      }
+    }
+    return result;
+  }
 
   async function handleGerar(formato: 'pdf' | 'xlsx') {
     setGenerating(formato);
@@ -93,13 +148,20 @@ export default function MensalConsolidadoModal({
     };
     try {
       if (formato === 'pdf') {
-        exportarMensalConsolidadoPDF(input);
+        // Mount-on-demand: RelatorioCharts entra no DOM, espera frames,
+        // captura PNGs, depois desmonta.
+        setRenderingCharts(true);
+        await waitChartsReady();
+        const charts = await captureChartImages();
+        setRenderingCharts(false);
+        exportarMensalConsolidadoPDF({ ...input, charts });
       } else {
         await exportarMensalConsolidadoExcel(input);
       }
     } catch (e) {
       console.error('Erro ao gerar relatório', e);
       alert('Falha ao gerar o relatório. Tente novamente.');
+      setRenderingCharts(false);
     } finally {
       setGenerating(null);
     }
@@ -158,7 +220,22 @@ export default function MensalConsolidadoModal({
               Sem movimentação no mês selecionado. Escolha outro mês.
             </div>
           )}
+
+          {generating === 'pdf' && (
+            <div className="rounded-lg bg-[var(--color-accent-soft)] border border-[var(--color-accent)]/30 px-3 py-2 text-xs text-[var(--color-accent-fg)] flex items-center gap-2">
+              <Loader2 className="w-3.5 h-3.5 animate-spin shrink-0" />
+              <span>Gerando relatório com gráficos…</span>
+            </div>
+          )}
         </div>
+
+        {renderingCharts && (
+          <RelatorioCharts
+            saidasNoMes={saidasNoMes}
+            equipamentos={equipamentos}
+            periodo={periodoMes}
+          />
+        )}
 
         <div className="px-5 py-3 border-t border-[var(--color-border)] bg-[var(--color-surface-2)]/40 flex items-center justify-end gap-2">
           <Button
