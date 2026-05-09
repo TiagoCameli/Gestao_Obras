@@ -36,6 +36,9 @@ import FilterBar from '../../combustivel/v2/filters/FilterBar';
 import FilterChips from '../../combustivel/v2/filters/FilterChips';
 import CombustivelTabsNav, { type CombustivelTabId } from '../../combustivel/v2/CombustivelTabsNav';
 import VisaoGeralTab from '../../combustivel/v2/visao-geral/VisaoGeralTab';
+import ErrorState from '../../combustivel/v2/shared/ErrorState';
+import SkeletonBlock from '../../combustivel/v2/shared/SkeletonBlock';
+import CombustivelErrorBoundary from '../../combustivel/v2/shared/CombustivelErrorBoundary';
 import ObrasTab from '../../combustivel/v2/obras/ObrasTab';
 import ConsumidoresTab from '../../combustivel/v2/consumidores/ConsumidoresTab';
 import FornecedoresTab from '../../combustivel/v2/fornecedores/FornecedoresTab';
@@ -53,13 +56,16 @@ import { ClipboardList } from 'lucide-react';
 
 type SubTab = CombustivelTabId;
 
-/** Wrapper raiz — apenas monta o Provider de filtros pra que o Content
- *  possa consumir `useCombustivelFilter()`. Toda a lógica está no Content. */
+/** Wrapper raiz — Error Boundary + Provider de filtros. ErrorBoundary captura
+ *  erros runtime que escapem dos try/catch locais (último recurso anti-white
+ *  screen). Provider expõe useCombustivelFilter pro Content. */
 export default function FrotaCombustivelContainer() {
   return (
-    <CombustivelFilterProvider>
-      <FrotaCombustivelContent />
-    </CombustivelFilterProvider>
+    <CombustivelErrorBoundary>
+      <CombustivelFilterProvider>
+        <FrotaCombustivelContent />
+      </CombustivelFilterProvider>
+    </CombustivelErrorBoundary>
   );
 }
 
@@ -107,7 +113,8 @@ function FrotaCombustivelContent() {
   const { data: depositosTodos = [] } = useDepositos({ incluirExternos: true });
   const { data: depositosOperacionais = [] } = useDepositos();
   // Saídas via tabela unificada (Fase 3) — fonte canônica.
-  const { data: todasSaidas = [] } = useSaidasCombustivel();
+  const saidasQuery = useSaidasCombustivel();
+  const todasSaidas = saidasQuery.data ?? [];
   // Adapter inline pro shape Abastecimento legado (ExportarPDFModal ainda
   // consome — será removido quando F4 entregar a aba Relatórios).
   const todosAbastecimentos: Abastecimento[] = useMemo(
@@ -134,8 +141,30 @@ function FrotaCombustivelContent() {
     })),
     [todasSaidas]
   );
-  const { data: todasEntradas = [] } = useEntradasCombustivel();
-  const { data: todasTransferencias = [] } = useTransferenciasCombustivel();
+  const entradasQuery = useEntradasCombustivel();
+  const todasEntradas = entradasQuery.data ?? [];
+  const transferenciasQuery = useTransferenciasCombustivel();
+  const todasTransferencias = transferenciasQuery.data ?? [];
+
+  // F6.A — agrega loading/error das 3 queries críticas do módulo. KPI/charts
+  // precisam de saídas+entradas+transfers pra render meaningful; quando todas
+  // estão carregando inicialmente OU alguma falhou, mostra estado dedicado em
+  // vez do chrome vazio (que confunde). Equipamentos/obras/etc são auxiliares
+  // (já cacheadas globalmente em outros módulos) — não bloqueiam.
+  const isLoadingCore =
+    saidasQuery.isLoading || entradasQuery.isLoading || transferenciasQuery.isLoading;
+  const isErrorCore =
+    saidasQuery.isError || entradasQuery.isError || transferenciasQuery.isError;
+  const errorCoreMessage =
+    saidasQuery.error?.message ||
+    entradasQuery.error?.message ||
+    transferenciasQuery.error?.message ||
+    null;
+  const refetchCore = () => {
+    saidasQuery.refetch();
+    entradasQuery.refetch();
+    transferenciasQuery.refetch();
+  };
   const { data: todosEquipamentos = [] } = useEquipamentos();
   const { data: todosFornecedores = [] } = useFornecedores();
   const { data: todosInsumos = [] } = useInsumos();
@@ -583,9 +612,43 @@ function FrotaCombustivelContent() {
         <CombustivelTabsNav active={subTab} onChange={setSubTab} />
       </div>
 
+      {/* F6.A — error banner global pra queries críticas. Aparece no topo
+          do conteúdo, mantém tabs/filtros visíveis pra user reagir.
+          Compact mode pq é inline acima do conteúdo. */}
+      {isErrorCore && (
+        <div className="px-3 sm:px-4 pt-3">
+          <div className="rounded-xl border border-[var(--color-danger)]/30 bg-[var(--color-surface-1)]">
+            <ErrorState
+              size="compact"
+              title="Falha ao carregar dados de combustível"
+              description="Algumas informações podem estar desatualizadas. Tente recarregar."
+              errorMessage={errorCoreMessage ?? undefined}
+              onRetry={refetchCore}
+            />
+          </div>
+        </div>
+      )}
+
       {/* Sub-tab content */}
       <div className="px-3 sm:px-4">
-      {subTab === 'visao_geral' && (
+      {/* F6.A — Skeleton inicial enquanto core queries carregam (1ª vez).
+          Mantém shell de tabs/filtros pro user já navegar; só substitui o
+          painel inferior por placeholders. Refetch silencioso (já com cache)
+          NÃO mostra skeleton — só isLoading inicial. */}
+      {isLoadingCore && !isErrorCore && (
+        <div className="space-y-4 pt-2" aria-busy="true" aria-label="Carregando dados">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <SkeletonBlock key={i} height={120} />
+            ))}
+          </div>
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+            <SkeletonBlock className="lg:col-span-2" height={280} />
+            <SkeletonBlock height={280} />
+          </div>
+        </div>
+      )}
+      {!isLoadingCore && subTab === 'visao_geral' && (
         <VisaoGeralTab
           saidas={todasSaidas}
           entradas={todasEntradas}
@@ -600,7 +663,7 @@ function FrotaCombustivelContent() {
         />
       )}
 
-      {subTab === 'consumidores' && (
+      {!isLoadingCore && subTab === 'consumidores' && (
         <ConsumidoresTab
           saidas={todasSaidas}
           obras={obras}
@@ -611,7 +674,7 @@ function FrotaCombustivelContent() {
         />
       )}
 
-      {subTab === 'obras' && (
+      {!isLoadingCore && subTab === 'obras' && (
         <ObrasTab
           saidas={todasSaidas}
           obras={obras}
@@ -620,11 +683,11 @@ function FrotaCombustivelContent() {
         />
       )}
 
-      {subTab === 'fornecedores' && (
+      {!isLoadingCore && subTab === 'fornecedores' && (
         <FornecedoresTab entradas={todasEntradas} />
       )}
 
-      {subTab === 'anomalias' && (
+      {!isLoadingCore && subTab === 'anomalias' && (
         <AnomaliasTab
           saidasFiltradas={saidasFiltradas}
           saidasTodas={todasSaidas}
@@ -647,7 +710,7 @@ function FrotaCombustivelContent() {
         />
       )}
 
-      {subTab === 'relatorios' && (
+      {!isLoadingCore && subTab === 'relatorios' && (
         <RelatoriosTab
           saidas={todasSaidas}
           entradas={todasEntradas}
@@ -660,7 +723,7 @@ function FrotaCombustivelContent() {
         />
       )}
 
-      {subTab === 'tanques' && (
+      {!isLoadingCore && subTab === 'tanques' && (
         <TanqueList
           depositos={
             filterState.tanqueIds.length > 0
@@ -676,7 +739,7 @@ function FrotaCombustivelContent() {
         />
       )}
 
-      {subTab === 'entradas' && (
+      {!isLoadingCore && subTab === 'entradas' && (
         <EntradaList
           entradas={entradasFiltradas}
           depositos={depositosTodos}
@@ -691,7 +754,7 @@ function FrotaCombustivelContent() {
         />
       )}
 
-      {subTab === 'saidas' && (
+      {!isLoadingCore && subTab === 'saidas' && (
         <>
           {/* F2.B.2: toolbar inline pra atribuição retroativa em batch.
               Aparece só quando o usuário está olhando o subset sentinel
@@ -728,7 +791,7 @@ function FrotaCombustivelContent() {
         </>
       )}
 
-      {subTab === 'transferencias' && (
+      {!isLoadingCore && subTab === 'transferencias' && (
         <TransferenciaList
           transferencias={transferenciasFiltradas}
           depositos={depositosTodos}
