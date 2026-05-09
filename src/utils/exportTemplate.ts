@@ -51,10 +51,14 @@ export const PDF_RGB = {
 
 const MESES_CURTOS = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
 
-/** Format ISO date (yyyy-mm-dd) to dd/mm/yyyy. Returns `-` when input is empty. */
+/** Format ISO date (yyyy-mm-dd) or timestamptz (yyyy-mm-ddTHH:MM:SS+TZ) to
+ *  dd/mm/yyyy. Returns `-` when input is empty. Bug histórico (corrigido):
+ *  versão anterior fazia split('-') direto e concatenava T/hora no dia. */
 export function formatDateBR(iso: string): string {
   if (!iso) return '-';
-  const [y, m, d] = iso.split('-');
+  // Corta a parte de hora/timezone se for timestamptz.
+  const datePart = iso.length > 10 ? iso.slice(0, 10) : iso;
+  const [y, m, d] = datePart.split('-');
   if (!y || !m || !d) return iso;
   return `${d}/${m}/${y}`;
 }
