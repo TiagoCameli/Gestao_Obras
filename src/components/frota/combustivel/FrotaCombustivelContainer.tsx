@@ -44,6 +44,11 @@ import AtribuirSentinelModal from '../../combustivel/v2/atribuicao/AtribuirSenti
 import ModeSwitch from '../../combustivel/v2/ModeSwitch';
 import AnomaliasTab from '../../combustivel/v2/anomalias/AnomaliasTab';
 import type { Severidade } from '../../combustivel/v2/anomalias/detect';
+import {
+  useAnomaliasChecks,
+  useMarcarAnomaliaVerificada,
+  useDesfazerVerificacaoAnomalia,
+} from '../../../hooks/useAnomaliasChecks';
 import { ClipboardList } from 'lucide-react';
 
 type SubTab = CombustivelTabId;
@@ -407,6 +412,49 @@ function FrotaCombustivelContent() {
     [excluirSaidaMut]
   );
 
+  // F3.D — Anomalias verificadas (check). Hook + mutations + handlers wrapados
+  // em pedirSenha pra dar feedback (toast). Sem confirmMessage porque marcar
+  // como verificada é ação não-destrutiva (reversível via "Desfazer").
+  const { data: anomaliasChecks } = useAnomaliasChecks();
+  const marcarVerificadaMut = useMarcarAnomaliaVerificada();
+  const desfazerVerificacaoMut = useDesfazerVerificacaoAnomalia();
+  const handleMarcarVerificada = useCallback(
+    (anomaliaId: string) => {
+      // prompt nativo pra motivo opcional (ETs F6 swap por modal). Cancelar
+      // (=null) aborta toda a operação; vazio só não preenche motivo.
+      const motivo = window.prompt('Por que essa anomalia está OK? (opcional)');
+      if (motivo === null) return;
+      pedirSenha(
+        async () => {
+          await marcarVerificadaMut.mutateAsync({
+            anomaliaId,
+            checkedBy: usuario?.nome ?? null,
+            motivo: motivo.trim() || null,
+          });
+        },
+        {
+          successMessage: 'Anomalia marcada como verificada.',
+          errorMessage: 'Falha ao marcar anomalia. Tente novamente.',
+        },
+      );
+    },
+    [marcarVerificadaMut, usuario?.nome],
+  );
+  const handleDesfazerVerificacao = useCallback(
+    (anomaliaId: string) => {
+      pedirSenha(
+        async () => {
+          await desfazerVerificacaoMut.mutateAsync(anomaliaId);
+        },
+        {
+          successMessage: 'Verificação desfeita.',
+          errorMessage: 'Falha ao desfazer verificação. Tente novamente.',
+        },
+      );
+    },
+    [desfazerVerificacaoMut],
+  );
+
   // F3.B — atribuição inline de equipamento via drawer de Anomalia D1.
   // Usa update existente (sem distinção de "novo" handler) com updatedBy
   // marcado pra rastro de auditoria (mesmo padrão de F2.B.2).
@@ -548,6 +596,7 @@ function FrotaCombustivelContent() {
           onVerTodasSaidas={() => setSubTab('saidas')}
           onAtribuirSentinels={handleAtribuirSentinels}
           onNavigateToAnomalias={handleNavigateToAnomalias}
+          anomaliasChecks={anomaliasChecks}
         />
       )}
 
@@ -592,6 +641,9 @@ function FrotaCombustivelContent() {
           onAtribuirEquipamento={handleAtribuirEquipamento}
           severityPrefill={anomaliasSeverityPrefill}
           onConsumeSeverityPrefill={() => setAnomaliasSeverityPrefill(null)}
+          anomaliasChecks={anomaliasChecks}
+          onMarcarVerificada={handleMarcarVerificada}
+          onDesfazerVerificacao={handleDesfazerVerificacao}
         />
       )}
 

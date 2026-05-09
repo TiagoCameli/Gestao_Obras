@@ -44,6 +44,11 @@ interface Props {
    *  re-aplicar em re-renders triviais. */
   severityPrefill?: Severidade[] | null;
   onConsumeSeverityPrefill?: () => void;
+  /** F3.D.2 — Map de checks vindos do hook useAnomaliasChecks no container.
+   *  Drawer consome via lookup pra renderizar banner "Verificada". */
+  anomaliasChecks?: Map<string, import('../../../../hooks/useAnomaliasChecks').AnomaliaCheck>;
+  onMarcarVerificada?: (anomaliaId: string) => void;
+  onDesfazerVerificacao?: (anomaliaId: string) => void;
 }
 
 const SEVERITY_STYLES: Record<Severidade, {
@@ -91,12 +96,19 @@ export default function AnomaliasTab({
   onAtribuirEquipamento,
   severityPrefill,
   onConsumeSeverityPrefill,
+  anomaliasChecks,
+  onMarcarVerificada,
+  onDesfazerVerificacao,
 }: Props) {
   const { state } = useCombustivelFilter();
   const [busca, setBusca] = useState('');
   const [sevFiltro, setSevFiltro] = useState<Set<Severidade>>(new Set());
   const [detFiltro, setDetFiltro] = useState<Set<DetectorId>>(new Set());
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  // F3.D.3 — toggle "Mostrar verificadas" (default OFF). Quando OFF,
+  // anomalias com check ficam escondidas da lista (mas continuam contadas
+  // num badge separado: "X / Y verificadas"). KPI #6 também reflete isso.
+  const [mostrarVerificadas, setMostrarVerificadas] = useState(false);
 
   // F3.C.1 — Aplica pré-filtro vindo do KPI da VG (uma vez por trigger).
   // Container chama onConsumeSeverityPrefill() pra limpar o prop, evitando
@@ -150,25 +162,35 @@ export default function AnomaliasTab({
     [anomalias, selectedId],
   );
 
+  // F3.D.3 — counts considerando o toggle "Mostrar verificadas". Quando OFF
+  // (default), counts da sidebar refletem só não-verificadas. checksCount
+  // separado pra mostrar "X / N verificadas" no badge do header.
   const counts = useMemo(() => {
     const sev: Record<Severidade, number> = { critical: 0, warning: 0, info: 0 };
     const det: Record<DetectorId, number> = { D1: 0, D2: 0, D3: 0, D4: 0, D5: 0 };
+    let verificadasCount = 0;
     for (const a of anomalias) {
+      const isChecked = anomaliasChecks?.has(a.id) ?? false;
+      if (isChecked) verificadasCount++;
+      // Quando toggle OFF, exclui verificadas das contagens da sidebar
+      if (!mostrarVerificadas && isChecked) continue;
       sev[a.severity]++;
       det[a.detector]++;
     }
-    return { sev, det };
-  }, [anomalias]);
+    return { sev, det, verificadasCount };
+  }, [anomalias, anomaliasChecks, mostrarVerificadas]);
 
   const filtradas = useMemo(() => {
     const q = busca.trim().toLowerCase();
     return anomalias.filter((a) => {
+      // F3.D.3 — esconde verificadas quando toggle OFF
+      if (!mostrarVerificadas && (anomaliasChecks?.has(a.id) ?? false)) return false;
       if (sevFiltro.size > 0 && !sevFiltro.has(a.severity)) return false;
       if (detFiltro.size > 0 && !detFiltro.has(a.detector)) return false;
       if (q && !`${a.title} ${a.description}`.toLowerCase().includes(q)) return false;
       return true;
     });
-  }, [anomalias, sevFiltro, detFiltro, busca]);
+  }, [anomalias, sevFiltro, detFiltro, busca, mostrarVerificadas, anomaliasChecks]);
 
   function toggleSev(s: Severidade) {
     setSevFiltro((cur) => {
@@ -282,6 +304,27 @@ export default function AnomaliasTab({
             </div>
           </div>
 
+          {/* F3.D.3 — toggle "Mostrar verificadas" */}
+          {counts.verificadasCount > 0 && (
+            <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-1)] p-3">
+              <label className="flex items-center gap-2 text-xs text-[var(--color-fg)] cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={mostrarVerificadas}
+                  onChange={(e) => setMostrarVerificadas(e.target.checked)}
+                  className="w-3.5 h-3.5 accent-[var(--color-accent)]"
+                />
+                <span className="flex-1">Mostrar verificadas</span>
+                <span className="tabular-nums text-[var(--color-success)] font-semibold">
+                  {counts.verificadasCount}
+                </span>
+              </label>
+              <p className="text-[10px] text-[var(--color-fg-muted)] mt-1.5 italic leading-tight">
+                Anomalias revisadas e marcadas como OK ficam fora da lista por padrão.
+              </p>
+            </div>
+          )}
+
           {hasFiltros && (
             <button
               type="button"
@@ -339,6 +382,9 @@ export default function AnomaliasTab({
         onEditSaida={onEditSaida}
         onDeleteSaida={onDeleteSaida}
         onAtribuirEquipamento={onAtribuirEquipamento}
+        verificada={selectedAnomalia ? anomaliasChecks?.get(selectedAnomalia.id) ?? null : null}
+        onMarcarVerificada={onMarcarVerificada}
+        onDesfazerVerificacao={onDesfazerVerificacao}
       />
     </div>
   );

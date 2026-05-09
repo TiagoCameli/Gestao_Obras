@@ -10,6 +10,7 @@ import KpiCard from './KpiCard';
 import { fmtBRL, fmtBRLCompact, fmtL, fmtLCompact, fmtNumDec } from '../shared/formatters';
 import { bucketByDia, media, pctChange } from '../shared/stats';
 import { detectAnomalias, type Severidade } from '../anomalias/detect';
+import type { AnomaliaCheck } from '../../../../hooks/useAnomaliasChecks';
 
 interface Props {
   mode: ConsumidorMode;
@@ -29,6 +30,9 @@ interface Props {
   periodo: { from: string; to: string };
   /** Click no KPI Anomalias → navega aba Anomalias com pré-filtro de severity. */
   onClickAnomalias?: (severityPrefill: Severidade[]) => void;
+  /** F3.D.3 — Map de anomalias verificadas. Quando definido, KPI #6 subtrai
+   *  verificadas do count critical+warning (foca no que ainda exige atenção). */
+  anomaliasChecks?: Map<string, AnomaliaCheck>;
 }
 
 export default function KpisRow({
@@ -42,6 +46,7 @@ export default function KpisRow({
   obras,
   periodo,
   onClickAnomalias,
+  anomaliasChecks,
 }: Props) {
   // KPI #6 — Anomalias críticas + atenção (D5 info é rotineiro, fica fora)
   const combustivelNome = useMemo(
@@ -62,12 +67,18 @@ export default function KpisRow({
     });
     let critical = 0;
     let warning = 0;
+    let verificadas = 0;
     for (const a of result) {
+      // F3.D.3 — verificadas saem do KPI (foco no que ainda exige atenção)
+      if (anomaliasChecks?.has(a.id)) {
+        verificadas++;
+        continue;
+      }
       if (a.severity === 'critical') critical++;
       else if (a.severity === 'warning') warning++;
     }
-    return { critical, warning, total: critical + warning };
-  }, [saidasNoPeriodo, saidasTodas, equipamentos, combustivelNome, obraNome]);
+    return { critical, warning, total: critical + warning, verificadas };
+  }, [saidasNoPeriodo, saidasTodas, equipamentos, combustivelNome, obraNome, anomaliasChecks]);
   // Cor do card: vermelho se há crítica, amber se só warnings, verde se 0.
   const anomAccent: 'danger' | 'warning' | 'success' =
     anomaliasStats.critical > 0

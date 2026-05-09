@@ -14,7 +14,7 @@
 // lista (id determinístico) — significa "resolvida" → drawer fecha.
 
 import { useEffect, useMemo, useState } from 'react';
-import { AlertCircle, AlertTriangle, Info, Pencil } from 'lucide-react';
+import { AlertCircle, AlertTriangle, CheckCircle2, Info, Pencil, Undo2 } from 'lucide-react';
 import type {
   Equipamento,
   Fornecedor,
@@ -32,6 +32,7 @@ import {
   type Severidade,
 } from './detect';
 import SaidasAfetadasList from './SaidasAfetadasList';
+import type { AnomaliaCheck } from '../../../../hooks/useAnomaliasChecks';
 
 interface Props {
   anomalia: Anomalia | null;
@@ -49,6 +50,12 @@ interface Props {
   onDeleteSaida: (id: string) => void;
   /** D1: atribui equipamento a 1 saída. Promise pra drawer mostrar loading. */
   onAtribuirEquipamento: (saida: SaidaCombustivel, equipamentoId: string) => Promise<void>;
+  /** F3.D.2 — check status da anomalia atual (null = não verificada). */
+  verificada?: AnomaliaCheck | null;
+  /** F3.D.2 — handler de "marcar verificada" (caller pede motivo opcional + grava). */
+  onMarcarVerificada?: (anomaliaId: string) => void;
+  /** F3.D.2 — handler de "desfazer verificação". */
+  onDesfazerVerificacao?: (anomaliaId: string) => void;
 }
 
 const SEVERITY_STYLES: Record<Severidade, {
@@ -77,6 +84,18 @@ const SEVERITY_STYLES: Record<Severidade, {
   },
 };
 
+function fmtDataHoraBR(iso: string): string {
+  if (!iso) return '—';
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return iso;
+  const dd = String(d.getDate()).padStart(2, '0');
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const yy = String(d.getFullYear()).slice(2);
+  const hh = String(d.getHours()).padStart(2, '0');
+  const mi = String(d.getMinutes()).padStart(2, '0');
+  return `${dd}/${mm}/${yy} ${hh}:${mi}`;
+}
+
 export default function AnomaliaDrawer({
   anomalia,
   open,
@@ -89,6 +108,9 @@ export default function AnomaliaDrawer({
   onEditSaida,
   onDeleteSaida,
   onAtribuirEquipamento,
+  verificada,
+  onMarcarVerificada,
+  onDesfazerVerificacao,
 }: Props) {
   // Estado local do form D1 (combobox + "Atribuir" inline)
   const [equipSelecionado, setEquipSelecionado] = useState<string>('');
@@ -234,6 +256,50 @@ export default function AnomaliaDrawer({
             )}
           </div>
         </div>
+
+        {/* F3.D.2 — banner "verificada" ou botão "Marcar verificada" */}
+        {verificada ? (
+          <div className="rounded-lg border border-[var(--color-success)]/30 bg-[var(--color-success-soft)] p-3 flex items-start gap-3">
+            <CheckCircle2 className="w-5 h-5 text-[var(--color-success)] shrink-0 mt-0.5" />
+            <div className="flex-1 min-w-0">
+              <div className="text-[11px] font-semibold uppercase tracking-wide text-[var(--color-success-fg)]">
+                Verificada
+              </div>
+              <p className="text-sm text-[var(--color-fg)] mt-0.5">
+                {verificada.checkedBy ? `por ${verificada.checkedBy} · ` : ''}
+                {fmtDataHoraBR(verificada.checkedAt)}
+              </p>
+              {verificada.motivo && (
+                <p className="text-[11px] text-[var(--color-fg-muted)] italic mt-1">
+                  "{verificada.motivo}"
+                </p>
+              )}
+            </div>
+            {onDesfazerVerificacao && (
+              <Button
+                type="button"
+                onClick={() => onDesfazerVerificacao(anomalia.id)}
+                className="text-xs inline-flex items-center gap-1 shrink-0"
+                variant="secondary"
+              >
+                <Undo2 className="w-3.5 h-3.5" />
+                Desfazer
+              </Button>
+            )}
+          </div>
+        ) : onMarcarVerificada ? (
+          <div className="flex justify-end">
+            <Button
+              type="button"
+              onClick={() => onMarcarVerificada(anomalia.id)}
+              className="text-xs inline-flex items-center gap-1.5"
+              variant="secondary"
+            >
+              <CheckCircle2 className="w-3.5 h-3.5" />
+              Marcar como verificada
+            </Button>
+          </div>
+        ) : null}
 
         {/* Lista compacta de saídas afetadas */}
         <div>
