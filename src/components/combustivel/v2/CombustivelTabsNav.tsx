@@ -53,7 +53,7 @@ function buildGroups(consumidoresLabel: string): GroupDef[] {
         { key: 'consumidores', label: consumidoresLabel },
         { key: 'obras', label: 'Obras' },
         { key: 'fornecedores', label: 'Fornecedores' },
-        { key: 'anomalias', label: 'Anomalias', soon: true },
+        { key: 'anomalias', label: 'Anomalias' },
       ],
     },
     { label: '', tabs: [{ key: 'relatorios', label: 'Relatórios' }] },

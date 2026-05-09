@@ -42,7 +42,7 @@ import FornecedoresTab from '../../combustivel/v2/fornecedores/FornecedoresTab';
 import RelatoriosTab from '../../combustivel/v2/relatorios/RelatoriosTab';
 import AtribuirSentinelModal from '../../combustivel/v2/atribuicao/AtribuirSentinelModal';
 import ModeSwitch from '../../combustivel/v2/ModeSwitch';
-import ComingSoon from '../../combustivel/v2/ComingSoon';
+import AnomaliasTab from '../../combustivel/v2/anomalias/AnomaliasTab';
 import { ClipboardList } from 'lucide-react';
 
 type SubTab = CombustivelTabId;
@@ -512,10 +512,12 @@ function FrotaCombustivelContent() {
       )}
 
       {subTab === 'anomalias' && (
-        <ComingSoon
-          phase="F3"
-          title="Anomalias e Insights"
-          description="Equipamentos com consumo crescente, fornecedores acima da média, detecção de gastos fora do padrão. Cálculo cliente-side via histórico de medição."
+        <AnomaliasTab
+          saidasFiltradas={saidasFiltradas}
+          saidasTodas={todasSaidas}
+          equipamentos={todosEquipamentos}
+          obras={obras}
+          combustiveis={combustiveis}
         />
       )}
 
