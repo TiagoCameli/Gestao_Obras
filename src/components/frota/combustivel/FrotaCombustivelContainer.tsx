@@ -39,6 +39,7 @@ import VisaoGeralTab from '../../combustivel/v2/visao-geral/VisaoGeralTab';
 import ObrasTab from '../../combustivel/v2/obras/ObrasTab';
 import ConsumidoresTab from '../../combustivel/v2/consumidores/ConsumidoresTab';
 import FornecedoresTab from '../../combustivel/v2/fornecedores/FornecedoresTab';
+import RelatoriosTab from '../../combustivel/v2/relatorios/RelatoriosTab';
 import AtribuirSentinelModal from '../../combustivel/v2/atribuicao/AtribuirSentinelModal';
 import ModeSwitch from '../../combustivel/v2/ModeSwitch';
 import ComingSoon from '../../combustivel/v2/ComingSoon';
@@ -517,10 +518,13 @@ function FrotaCombustivelContent() {
       )}
 
       {subTab === 'relatorios' && (
-        <ComingSoon
-          phase="F4"
-          title="Relatórios premium"
-          description="Templates dedicados (Mensal Consolidado, por Obra, por Equipamento, Anomalias, Raw export) com PDF e Excel multi-aba branded."
+        <RelatoriosTab
+          saidas={todasSaidas}
+          entradas={todasEntradas}
+          equipamentos={todosEquipamentos}
+          transportadoras={transportadoras}
+          obras={obras}
+          combustiveis={combustiveis}
         />
       )}
 

@@ -56,7 +56,7 @@ function buildGroups(consumidoresLabel: string): GroupDef[] {
         { key: 'anomalias', label: 'Anomalias', soon: true },
       ],
     },
-    { label: '', tabs: [{ key: 'relatorios', label: 'Relatórios', soon: true }] },
+    { label: '', tabs: [{ key: 'relatorios', label: 'Relatórios' }] },
   ];
 }
 
