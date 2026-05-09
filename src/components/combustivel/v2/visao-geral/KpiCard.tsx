@@ -33,7 +33,29 @@ interface Props {
   tooltip?: string;
   /** Quando ausência de dado, exibe placeholder em vez do valor. */
   empty?: boolean;
+  /** Quando definido, transforma o card em botão clicável (navega pra
+   *  outra aba, abre modal, etc). Padrão: card estático. */
+  onClick?: () => void;
+  /** Sobrescreve a cor do círculo do ícone — usado pra dar peso visual
+   *  no KPI #6 Anomalias (vermelho se há crítica, amber se só warning,
+   *  verde se 0). Padrão: 'accent' (azul). */
+  accent?: 'accent' | 'danger' | 'warning' | 'success';
 }
+
+// Map accent → CSS vars do círculo do ícone. 'accent' (default) usa o
+// azul institucional do app; demais usam tokens semânticos já definidos.
+const ACCENT_BG: Record<NonNullable<Props['accent']>, string> = {
+  accent: 'bg-[var(--color-accent-soft)]',
+  danger: 'bg-[var(--color-danger-soft)]',
+  warning: 'bg-[var(--color-warning-soft)]',
+  success: 'bg-[var(--color-success-soft)]',
+};
+const ACCENT_FG: Record<NonNullable<Props['accent']>, string> = {
+  accent: 'text-[var(--color-accent)]',
+  danger: 'text-[var(--color-danger)]',
+  warning: 'text-[var(--color-warning)]',
+  success: 'text-[var(--color-success)]',
+};
 
 export default function KpiCard({
   label,
@@ -47,6 +69,8 @@ export default function KpiCard({
   icon: Icon,
   tooltip,
   empty = false,
+  onClick,
+  accent = 'accent',
 }: Props) {
   let trendNode: ReactNode = null;
 
@@ -102,16 +126,29 @@ export default function KpiCard({
     );
   }
 
+  // Quando clicável, vira <button> com cursor-pointer e ring focus visível.
+  // Mantém o mesmo layout interno (apenas wrapper muda) pra preservar tipografia
+  // e espaçamento. Hover já existente continua aplicando.
+  const Wrapper: 'button' | 'div' = onClick ? 'button' : 'div';
+  const wrapperProps = onClick
+    ? {
+        onClick,
+        type: 'button' as const,
+        className:
+          'group rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface-1)] p-5 shadow-[var(--shadow-xs)] transition-all duration-200 ease-out hover:-translate-y-0.5 hover:shadow-[var(--shadow-md)] cursor-pointer text-left w-full focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]/40',
+      }
+    : {
+        className:
+          'group rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface-1)] p-5 shadow-[var(--shadow-xs)] transition-all duration-200 ease-out hover:-translate-y-0.5 hover:shadow-[var(--shadow-md)]',
+      };
+
   return (
-    <div
-      className="group rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface-1)] p-5 shadow-[var(--shadow-xs)] transition-all duration-200 ease-out hover:-translate-y-0.5 hover:shadow-[var(--shadow-md)]"
-      title={tooltip}
-    >
+    <Wrapper {...wrapperProps} title={tooltip}>
       <div className="flex items-start justify-between gap-2">
         <div className="flex items-center gap-2 min-w-0">
           {Icon && (
-            <div className="w-8 h-8 rounded-full bg-[var(--color-accent-soft)] flex items-center justify-center shrink-0">
-              <Icon className="w-4 h-4 text-[var(--color-accent)]" />
+            <div className={`w-8 h-8 rounded-full ${ACCENT_BG[accent]} flex items-center justify-center shrink-0`}>
+              <Icon className={`w-4 h-4 ${ACCENT_FG[accent]}`} />
             </div>
           )}
           <div className="text-[10px] uppercase tracking-wider text-[var(--color-fg-muted)] font-semibold truncate">
@@ -144,6 +181,6 @@ export default function KpiCard({
         )}
         {trendNode}
       </div>
-    </div>
+    </Wrapper>
   );
 }

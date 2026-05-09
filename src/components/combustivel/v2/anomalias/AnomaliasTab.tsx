@@ -39,6 +39,11 @@ interface Props {
   onEditSaida: (s: SaidaCombustivel) => void;
   onDeleteSaida: (id: string) => void;
   onAtribuirEquipamento: (saida: SaidaCombustivel, equipamentoId: string) => Promise<void>;
+  /** F3.C.1 — pré-filtro vindo do KPI #6 da VG. Aplicado uma vez no mount/
+   *  quando muda; container limpa via onConsumeSeverityPrefill pra não
+   *  re-aplicar em re-renders triviais. */
+  severityPrefill?: Severidade[] | null;
+  onConsumeSeverityPrefill?: () => void;
 }
 
 const SEVERITY_STYLES: Record<Severidade, {
@@ -84,12 +89,25 @@ export default function AnomaliasTab({
   onEditSaida,
   onDeleteSaida,
   onAtribuirEquipamento,
+  severityPrefill,
+  onConsumeSeverityPrefill,
 }: Props) {
   const { state } = useCombustivelFilter();
   const [busca, setBusca] = useState('');
   const [sevFiltro, setSevFiltro] = useState<Set<Severidade>>(new Set());
   const [detFiltro, setDetFiltro] = useState<Set<DetectorId>>(new Set());
   const [selectedId, setSelectedId] = useState<string | null>(null);
+
+  // F3.C.1 — Aplica pré-filtro vindo do KPI da VG (uma vez por trigger).
+  // Container chama onConsumeSeverityPrefill() pra limpar o prop, evitando
+  // re-aplicação em renders subsequentes (ex: filtros mudando, refresh do
+  // React Query). Set inválido vira no-op.
+  useEffect(() => {
+    if (severityPrefill && severityPrefill.length > 0) {
+      setSevFiltro(new Set(severityPrefill));
+      onConsumeSeverityPrefill?.();
+    }
+  }, [severityPrefill, onConsumeSeverityPrefill]);
 
   const combustivelNome = useMemo(
     () => new Map(combustiveis.map((c) => [c.id, c.nome])),

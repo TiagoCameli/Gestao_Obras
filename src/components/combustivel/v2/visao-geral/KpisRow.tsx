@@ -3,12 +3,13 @@
 // sparkline (série diária do próprio KPI no período atual).
 
 import { useMemo } from 'react';
-import { Droplet, Wallet, Gauge, Truck, Crown, Wrench } from 'lucide-react';
-import type { Equipamento, Fornecedor, SaidaCombustivel } from '../../../../types';
+import { Droplet, Wallet, Gauge, Truck, Crown, Wrench, AlertTriangle } from 'lucide-react';
+import type { Equipamento, Fornecedor, Insumo, Obra, SaidaCombustivel } from '../../../../types';
 import type { ConsumidorMode } from '../filters/types';
 import KpiCard from './KpiCard';
 import { fmtBRL, fmtBRLCompact, fmtL, fmtLCompact, fmtNumDec } from '../shared/formatters';
 import { bucketByDia, media, pctChange } from '../shared/stats';
+import { detectAnomalias, type Severidade } from '../anomalias/detect';
 
 interface Props {
   mode: ConsumidorMode;
@@ -16,21 +17,77 @@ interface Props {
   saidasNoPeriodo: SaidaCombustivel[];
   /** Mesmas saídas pra janela imediatamente anterior (mesma duração) — pra delta vs período. */
   saidasPeriodoAnterior: SaidaCombustivel[];
+  /** Saídas TODAS — D3 (hist 90d) e D5 (gap 60d) precisam do banco completo. */
+  saidasTodas: SaidaCombustivel[];
   /** Equipamentos pra resolver nome do "Maior consumidor" em mode='proprios'. */
   equipamentos: Equipamento[];
   /** Transportadoras pra resolver nome em mode='carretas'. */
   transportadoras: Fornecedor[];
+  /** Catálogos pra resolver nomes de combustíveis e obras nas anomalias. */
+  combustiveis: Insumo[];
+  obras: Obra[];
   periodo: { from: string; to: string };
+  /** Click no KPI Anomalias → navega aba Anomalias com pré-filtro de severity. */
+  onClickAnomalias?: (severityPrefill: Severidade[]) => void;
 }
 
 export default function KpisRow({
   mode,
   saidasNoPeriodo,
   saidasPeriodoAnterior,
+  saidasTodas,
   equipamentos,
   transportadoras,
+  combustiveis,
+  obras,
   periodo,
+  onClickAnomalias,
 }: Props) {
+  // KPI #6 — Anomalias críticas + atenção (D5 info é rotineiro, fica fora)
+  const combustivelNome = useMemo(
+    () => new Map(combustiveis.map((c) => [c.id, c.nome])),
+    [combustiveis],
+  );
+  const obraNome = useMemo(
+    () => new Map(obras.map((o) => [o.id, o.nome])),
+    [obras],
+  );
+  const anomaliasStats = useMemo(() => {
+    const result = detectAnomalias({
+      saidasNoPeriodo,
+      saidasTodas,
+      equipamentos,
+      combustivelNome,
+      obraNome,
+    });
+    let critical = 0;
+    let warning = 0;
+    for (const a of result) {
+      if (a.severity === 'critical') critical++;
+      else if (a.severity === 'warning') warning++;
+    }
+    return { critical, warning, total: critical + warning };
+  }, [saidasNoPeriodo, saidasTodas, equipamentos, combustivelNome, obraNome]);
+  // Cor do card: vermelho se há crítica, amber se só warnings, verde se 0.
+  const anomAccent: 'danger' | 'warning' | 'success' =
+    anomaliasStats.critical > 0
+      ? 'danger'
+      : anomaliasStats.warning > 0
+        ? 'warning'
+        : 'success';
+  const anomHint =
+    anomaliasStats.total === 0
+      ? 'Nenhuma detectada'
+      : [
+          anomaliasStats.critical > 0
+            ? `${anomaliasStats.critical} crítica${anomaliasStats.critical > 1 ? 's' : ''}`
+            : null,
+          anomaliasStats.warning > 0
+            ? `${anomaliasStats.warning} atenção`
+            : null,
+        ]
+          .filter(Boolean)
+          .join(' · ');
   const kpis = useMemo(() => {
     // Totais período atual
     let volume = 0;
@@ -190,7 +247,7 @@ export default function KpisRow({
   const trEquip = pickTrend(kpis.deltaConsumidores, kpis.qtdConsumidoresAnt, 'count', kpis.diffConsumidores);
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-3">
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3">
       <KpiCard
         label="Volume total"
         value={fmtLCompact(kpis.volume)}
@@ -243,6 +300,21 @@ export default function KpisRow({
         icon={Crown}
         tooltip={tooltipMaior}
         empty={!kpis.maiorLabel}
+      />
+      <KpiCard
+        label="Anomalias"
+        value={fmtNumDec(anomaliasStats.total, 0)}
+        hint={anomHint}
+        icon={AlertTriangle}
+        accent={anomAccent}
+        tooltip="Anomalias críticas e de atenção detectadas no período (D1-D4). D5 informativos não contam aqui."
+        onClick={
+          onClickAnomalias && anomaliasStats.total > 0
+            ? () => onClickAnomalias(['critical', 'warning'])
+            : onClickAnomalias
+              ? () => onClickAnomalias([])
+              : undefined
+        }
       />
     </div>
   );

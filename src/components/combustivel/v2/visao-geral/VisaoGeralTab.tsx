@@ -36,6 +36,8 @@ interface Props {
   onVerTodasSaidas?: () => void;
   /** "Atribuir agora" do banner sentinel → liga apenasSentinel + vai pra Saídas. */
   onAtribuirSentinels?: () => void;
+  /** Click no KPI #6 Anomalias → vai pra aba Anomalias com pré-filtro de severity. */
+  onNavigateToAnomalias?: (severityPrefill: import('../anomalias/detect').Severidade[]) => void;
 }
 
 const TIPO_POR_MODE: Record<'proprios' | 'carretas', TipoConsumidorSaida> = {
@@ -94,6 +96,7 @@ export default function VisaoGeralTab({
   combustiveis,
   onVerTodasSaidas,
   onAtribuirSentinels,
+  onNavigateToAnomalias,
 }: Props) {
   const { state } = useCombustivelFilter();
   const autoG = useMemo(
@@ -204,9 +207,13 @@ export default function VisaoGeralTab({
         mode={state.mode}
         saidasNoPeriodo={saidasFiltradas}
         saidasPeriodoAnterior={saidasPeriodoAnterior}
+        saidasTodas={saidas}
         equipamentos={equipamentos}
         transportadoras={transportadoras}
+        combustiveis={combustiveis}
+        obras={obras}
         periodo={state.periodo}
+        onClickAnomalias={onNavigateToAnomalias}
       />
 
       {/* Linha 1: Evolução (8 col) + Mix (4 col) */}

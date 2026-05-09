@@ -43,6 +43,7 @@ import RelatoriosTab from '../../combustivel/v2/relatorios/RelatoriosTab';
 import AtribuirSentinelModal from '../../combustivel/v2/atribuicao/AtribuirSentinelModal';
 import ModeSwitch from '../../combustivel/v2/ModeSwitch';
 import AnomaliasTab from '../../combustivel/v2/anomalias/AnomaliasTab';
+import type { Severidade } from '../../combustivel/v2/anomalias/detect';
 import { ClipboardList } from 'lucide-react';
 
 type SubTab = CombustivelTabId;
@@ -78,6 +79,18 @@ function FrotaCombustivelContent() {
     setApenasSentinel(true);
     setSubTab('saidas');
   }, [setApenasSentinel]);
+
+  // F3.C.1 — Pré-filtro de severity quando user clica no KPI Anomalias da VG.
+  // Quando vira !=null, AnomaliasTab consome via useEffect e zera de volta
+  // pra null, evitando re-aplicar em re-renders.
+  const [anomaliasSeverityPrefill, setAnomaliasSeverityPrefill] = useState<Severidade[] | null>(null);
+  const handleNavigateToAnomalias = useCallback(
+    (severityPrefill: Severidade[]) => {
+      setAnomaliasSeverityPrefill(severityPrefill.length > 0 ? severityPrefill : null);
+      setSubTab('anomalias');
+    },
+    [],
+  );
 
   const { data: obras = [] } = useObras();
   const { data: etapas = [] } = useEtapas();
@@ -498,6 +511,7 @@ function FrotaCombustivelContent() {
           combustiveis={combustiveis}
           onVerTodasSaidas={() => setSubTab('saidas')}
           onAtribuirSentinels={handleAtribuirSentinels}
+          onNavigateToAnomalias={handleNavigateToAnomalias}
         />
       )}
 
@@ -536,6 +550,8 @@ function FrotaCombustivelContent() {
           onEditSaida={handleEditSaida}
           onDeleteSaida={(id) => pedirSenha(() => handleDeleteSaida(id))}
           onAtribuirEquipamento={handleAtribuirEquipamento}
+          severityPrefill={anomaliasSeverityPrefill}
+          onConsumeSeverityPrefill={() => setAnomaliasSeverityPrefill(null)}
         />
       )}
 
