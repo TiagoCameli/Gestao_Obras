@@ -113,9 +113,14 @@ export async function svgElementToPngDataUrl(
   try {
     const img = new Image();
     img.decoding = 'async';
+    // Timeout de safety: regressões silenciosas no Recharts/browser podem
+    // fazer img.onload nunca disparar (e onerror também não em alguns
+    // casos), travando o modal indefinidamente. 5s é generoso pra um
+    // SVG inline.
     await new Promise<void>((resolve, reject) => {
-      img.onload = () => resolve();
-      img.onerror = () => reject(new Error('SVG image load failed'));
+      const timer = setTimeout(() => reject(new Error('SVG load timeout (5s)')), 5000);
+      img.onload = () => { clearTimeout(timer); resolve(); };
+      img.onerror = () => { clearTimeout(timer); reject(new Error('SVG image load failed')); };
       img.src = url;
     });
 

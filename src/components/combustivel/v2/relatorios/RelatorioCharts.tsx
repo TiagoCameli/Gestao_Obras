@@ -51,9 +51,12 @@ export default function RelatorioCharts({ saidasNoMes, equipamentos, periodo }: 
         // garantir que cliques na área off-screen não atinjam os charts
         // (que têm onClick em barras).
         pointerEvents: 'none',
-        // Width auto evita que o container fique colado em 0; chart
-        // dimensions vêm dos wrappers internos.
-        width: 'max-content',
+        // Width/height EXPLÍCITOS — sem isso, position:fixed + max-content
+        // gera getBoundingClientRect retornando -1×-1 em alguns browsers,
+        // o que faz Recharts ResponsiveContainer warnar "width(-1)" e
+        // nunca medir o SVG. Soma das alturas dos charts internos + folga.
+        width: 1000,
+        height: 800,
         // z-index alto: permanece acima de qualquer overlay no DOM mesmo
         // que clipping fosse problema.
         zIndex: 9999,
