@@ -3,32 +3,38 @@
 // cards conforme cada template chegar.
 
 import { useState } from 'react';
-import { CalendarDays, FileText, ClipboardList, FileSpreadsheet, Settings2 } from 'lucide-react';
+import { CalendarDays, FileText, ClipboardList, FileSpreadsheet, Settings2, Database } from 'lucide-react';
 import type {
+  Deposito,
   EntradaCombustivel,
   Equipamento,
   Fornecedor,
   Insumo,
   Obra,
   SaidaCombustivel,
+  TransferenciaCombustivel,
 } from '../../../../types';
 import MensalConsolidadoModal from './MensalConsolidadoModal';
 import PorObraModal from './PorObraModal';
 import PorEquipamentoModal from './PorEquipamentoModal';
+import RawExportModal from './RawExportModal';
 
 interface Props {
   saidas: SaidaCombustivel[];
   entradas: EntradaCombustivel[];
+  transferencias: TransferenciaCombustivel[];
   equipamentos: Equipamento[];
   transportadoras: Fornecedor[];
   obras: Obra[];
   combustiveis: Insumo[];
+  depositos: Deposito[];
 }
 
 export default function RelatoriosTab(props: Props) {
   const [modalMensal, setModalMensal] = useState(false);
   const [modalPorObra, setModalPorObra] = useState(false);
   const [modalPorEquipamento, setModalPorEquipamento] = useState(false);
+  const [modalRawExport, setModalRawExport] = useState(false);
 
   return (
     <div className="space-y-4">
@@ -118,21 +124,29 @@ export default function RelatoriosTab(props: Props) {
           </div>
         </button>
 
-        {/* F4.C: Raw Export (em breve) */}
-        <div className="rounded-2xl border border-dashed border-[var(--color-border)] bg-[var(--color-surface-2)]/30 p-5 opacity-60">
+        {/* F4.C: Raw Export */}
+        <button
+          type="button"
+          onClick={() => setModalRawExport(true)}
+          className="group rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface-1)] p-5 text-left shadow-[var(--shadow-xs)] transition-all duration-200 ease-out hover:-translate-y-0.5 hover:shadow-[var(--shadow-md)] hover:border-[var(--color-accent)]"
+        >
           <div className="flex items-center gap-3 mb-3">
-            <div className="w-10 h-10 rounded-xl bg-[var(--color-surface-2)] flex items-center justify-center">
-              <FileSpreadsheet className="w-5 h-5 text-[var(--color-fg-subtle)]" />
+            <div className="w-10 h-10 rounded-xl bg-[var(--color-accent-soft)] flex items-center justify-center">
+              <Database className="w-5 h-5 text-[var(--color-accent)]" />
             </div>
             <div>
-              <div className="text-sm font-semibold text-[var(--color-fg-muted)]">Raw export</div>
-              <div className="text-[11px] text-[var(--color-fg-subtle)]">Em breve · F4.C</div>
+              <div className="text-sm font-semibold text-[var(--color-fg)]">Raw export</div>
+              <div className="text-[11px] text-[var(--color-fg-muted)]">Dado cru multi-aba</div>
             </div>
           </div>
-          <p className="text-xs text-[var(--color-fg-subtle)] leading-relaxed italic">
-            Excel multi-aba com todas as saídas, entradas e transferências do período (sem agregações).
+          <p className="text-xs text-[var(--color-fg-muted)] leading-relaxed mb-3">
+            Excel com todas as saídas, entradas, transferências e cadastros do mês. FKs
+            resolvidas pra nome humano. Sem agregações.
           </p>
-        </div>
+          <div className="flex items-center gap-1.5 text-[11px] text-[var(--color-fg-subtle)]">
+            <FileSpreadsheet className="w-3 h-3" /> Excel · 5 sheets
+          </div>
+        </button>
       </div>
 
       <MensalConsolidadoModal
@@ -166,6 +180,19 @@ export default function RelatoriosTab(props: Props) {
         transportadoras={props.transportadoras}
         obras={props.obras}
         combustiveis={props.combustiveis}
+      />
+
+      <RawExportModal
+        open={modalRawExport}
+        onClose={() => setModalRawExport(false)}
+        saidas={props.saidas}
+        entradas={props.entradas}
+        transferencias={props.transferencias}
+        obras={props.obras}
+        equipamentos={props.equipamentos}
+        transportadoras={props.transportadoras}
+        combustiveis={props.combustiveis}
+        depositos={props.depositos}
       />
     </div>
   );

@@ -523,10 +523,12 @@ function FrotaCombustivelContent() {
         <RelatoriosTab
           saidas={todasSaidas}
           entradas={todasEntradas}
+          transferencias={todasTransferencias}
           equipamentos={todosEquipamentos}
           transportadoras={transportadoras}
           obras={obras}
           combustiveis={combustiveis}
+          depositos={depositosTodos}
         />
       )}
 
