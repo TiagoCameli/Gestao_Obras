@@ -31,6 +31,7 @@ interface FilterContextValue {
   toggleOperador: (nome: string) => void;
   toggleTransportadora: (id: string) => void;
   togglePlaca: (placa: string) => void;
+  toggleTanque: (id: string) => void;
   toggleTanqueOrigem: (id: string) => void;
   toggleTanqueDestino: (id: string) => void;
 
@@ -42,6 +43,7 @@ interface FilterContextValue {
   setOperadores: (nomes: string[]) => void;
   setTransportadoraIds: (ids: string[]) => void;
   setPlacas: (placas: string[]) => void;
+  setTanqueIds: (ids: string[]) => void;
   setTanqueOrigemIds: (ids: string[]) => void;
   setTanqueDestinoIds: (ids: string[]) => void;
   /** Liga/desliga "apenas sem equipamento identificado". Combina com
@@ -70,6 +72,7 @@ export type ChipKind =
   | 'operador'
   | 'transportadora'
   | 'placa'
+  | 'tanque'
   | 'tanque_origem'
   | 'tanque_destino'
   | 'sentinel';
@@ -133,6 +136,7 @@ export function CombustivelFilterProvider({ children }: { children: ReactNode })
   const toggleOperador = useCallback((nome: string) => apply({ ...state, operadores: toggleInArray(state.operadores, nome) }), [state, apply]);
   const toggleTransportadora = useCallback((id: string) => apply({ ...state, transportadoraIds: toggleInArray(state.transportadoraIds, id) }), [state, apply]);
   const togglePlaca = useCallback((placa: string) => apply({ ...state, placas: toggleInArray(state.placas, placa) }), [state, apply]);
+  const toggleTanque = useCallback((id: string) => apply({ ...state, tanqueIds: toggleInArray(state.tanqueIds, id) }), [state, apply]);
   const toggleTanqueOrigem = useCallback((id: string) => apply({ ...state, tanqueOrigemIds: toggleInArray(state.tanqueOrigemIds, id) }), [state, apply]);
   const toggleTanqueDestino = useCallback((id: string) => apply({ ...state, tanqueDestinoIds: toggleInArray(state.tanqueDestinoIds, id) }), [state, apply]);
 
@@ -143,6 +147,7 @@ export function CombustivelFilterProvider({ children }: { children: ReactNode })
   const setOperadores = useCallback((nomes: string[]) => apply({ ...state, operadores: nomes }), [state, apply]);
   const setTransportadoraIds = useCallback((ids: string[]) => apply({ ...state, transportadoraIds: ids }), [state, apply]);
   const setPlacas = useCallback((placas: string[]) => apply({ ...state, placas: placas }), [state, apply]);
+  const setTanqueIds = useCallback((ids: string[]) => apply({ ...state, tanqueIds: ids }), [state, apply]);
   const setTanqueOrigemIds = useCallback((ids: string[]) => apply({ ...state, tanqueOrigemIds: ids }), [state, apply]);
   const setTanqueDestinoIds = useCallback((ids: string[]) => apply({ ...state, tanqueDestinoIds: ids }), [state, apply]);
   const setApenasSentinel = useCallback((v: boolean) => apply({ ...state, apenasSentinel: v }), [state, apply]);
@@ -174,6 +179,9 @@ export function CombustivelFilterProvider({ children }: { children: ReactNode })
         case 'placa':
           apply({ ...state, placas: state.placas.filter((x) => x !== value) });
           break;
+        case 'tanque':
+          apply({ ...state, tanqueIds: state.tanqueIds.filter((x) => x !== value) });
+          break;
         case 'tanque_origem':
           apply({ ...state, tanqueOrigemIds: state.tanqueOrigemIds.filter((x) => x !== value) });
           break;
@@ -204,6 +212,7 @@ export function CombustivelFilterProvider({ children }: { children: ReactNode })
       toggleOperador,
       toggleTransportadora,
       togglePlaca,
+      toggleTanque,
       toggleTanqueOrigem,
       toggleTanqueDestino,
       setObraIds,
@@ -213,6 +222,7 @@ export function CombustivelFilterProvider({ children }: { children: ReactNode })
       setOperadores,
       setTransportadoraIds,
       setPlacas,
+      setTanqueIds,
       setTanqueOrigemIds,
       setTanqueDestinoIds,
       setApenasSentinel,
@@ -225,9 +235,9 @@ export function CombustivelFilterProvider({ children }: { children: ReactNode })
     [
       state, setState, setMode, setPreset, setPeriodoCustom,
       toggleObra, toggleEquipamento, toggleTipoCombustivel, toggleFornecedor, toggleOperador,
-      toggleTransportadora, togglePlaca, toggleTanqueOrigem, toggleTanqueDestino,
+      toggleTransportadora, togglePlaca, toggleTanque, toggleTanqueOrigem, toggleTanqueDestino,
       setObraIds, setEquipamentoIds, setTipoCombustiveis, setFornecedores, setOperadores,
-      setTransportadoraIds, setPlacas, setTanqueOrigemIds, setTanqueDestinoIds,
+      setTransportadoraIds, setPlacas, setTanqueIds, setTanqueOrigemIds, setTanqueDestinoIds,
       setApenasSentinel,
       removeFilter, clearAll, hovered,
     ],

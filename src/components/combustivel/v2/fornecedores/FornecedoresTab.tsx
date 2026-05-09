@@ -44,13 +44,15 @@ export default function FornecedoresTab({ entradas }: Props) {
   const entradasFiltradas = useMemo(() => {
     const tipoSet = new Set(state.tipoCombustiveis);
     const fornSet = new Set(state.fornecedores.map((f) => f.toLowerCase()));
+    const tanqueSet = new Set(state.tanqueIds);
     return entradas.filter((e) => {
       if (!isInRange(e.dataHora, state.periodo.from, state.periodo.to)) return false;
       if (tipoSet.size > 0 && (!e.tipoCombustivel || !tipoSet.has(e.tipoCombustivel))) return false;
       if (fornSet.size > 0 && !fornSet.has((e.fornecedor || '').trim().toLowerCase())) return false;
+      if (tanqueSet.size > 0 && (!e.depositoId || !tanqueSet.has(e.depositoId))) return false;
       return true;
     });
-  }, [entradas, state.periodo.from, state.periodo.to, state.tipoCombustiveis, state.fornecedores]);
+  }, [entradas, state.periodo.from, state.periodo.to, state.tipoCombustiveis, state.fornecedores, state.tanqueIds]);
 
   const periodoAnterior = useMemo(
     () => shiftBackPeriodo(state.periodo.from, state.periodo.to),
@@ -59,13 +61,15 @@ export default function FornecedoresTab({ entradas }: Props) {
   const entradasPeriodoAnterior = useMemo(() => {
     const tipoSet = new Set(state.tipoCombustiveis);
     const fornSet = new Set(state.fornecedores.map((f) => f.toLowerCase()));
+    const tanqueSet = new Set(state.tanqueIds);
     return entradas.filter((e) => {
       if (!isInRange(e.dataHora, periodoAnterior.from, periodoAnterior.to)) return false;
       if (tipoSet.size > 0 && (!e.tipoCombustivel || !tipoSet.has(e.tipoCombustivel))) return false;
       if (fornSet.size > 0 && !fornSet.has((e.fornecedor || '').trim().toLowerCase())) return false;
+      if (tanqueSet.size > 0 && (!e.depositoId || !tanqueSet.has(e.depositoId))) return false;
       return true;
     });
-  }, [entradas, periodoAnterior, state.tipoCombustiveis, state.fornecedores]);
+  }, [entradas, periodoAnterior, state.tipoCombustiveis, state.fornecedores, state.tanqueIds]);
 
   if (entradasFiltradas.length === 0) {
     return <EmptyState description="Nenhuma entrada de combustível no período. Ajuste os filtros." />;

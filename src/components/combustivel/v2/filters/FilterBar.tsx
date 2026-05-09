@@ -246,6 +246,31 @@ export default function FilterBar({
           </Popover>
         )}
 
+        {/* Tanque (genérico) — visível em todas as abas exceto Transferências
+            (que tem origem/destino próprios). Aplica em saídas (s.tanqueId)
+            e em entradas (e.depositoId). */}
+        {!isTransferencias && tanqueOptions.length > 0 && (
+          <Popover
+            trigger={(open) => (
+              <span className={`${triggerBase} ${f.state.tanqueIds.length > 0 || open ? triggerActive : triggerIdle}`}>
+                <span className="whitespace-nowrap">{counted('Tanque', f.state.tanqueIds.length) || 'Tanque'}</span>
+                <ChevronDown className="w-3 h-3 opacity-60" />
+              </span>
+            )}
+            minWidth={280}
+          >
+            {(close) => (
+              <MultiSelectPanel
+                options={tanqueOptions}
+                selected={f.state.tanqueIds}
+                onApply={f.setTanqueIds}
+                onClose={close}
+                placeholder="Buscar tanque..."
+              />
+            )}
+          </Popover>
+        )}
+
         {/* Tanque origem / destino — só na aba Transferências (filtro
             específico daquela operação; em outras abas não faz sentido). */}
         {isTransferencias && tanqueOptions.length > 0 && (

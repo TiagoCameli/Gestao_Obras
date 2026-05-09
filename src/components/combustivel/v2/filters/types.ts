@@ -68,6 +68,10 @@ export interface CombustivelFilterState {
   transportadoraIds: string[];
   /** Aplica em mode='carretas' — texto livre. */
   placas: string[];
+  /** Tanque genérico — aplica em saídas (s.tanqueId) e entradas (e.depositoId).
+   *  Visível em todas as abas, exceto Transferências (que tem origem/destino
+   *  específicos). Funciona em ambos os modes. */
+  tanqueIds: string[];
   /** Tanque origem — só aparece na FilterBar quando aba=Transferências. */
   tanqueOrigemIds: string[];
   /** Tanque destino — só aparece na FilterBar quando aba=Transferências. */

@@ -120,10 +120,12 @@ export default function VisaoGeralTab({
     const opSet = new Set(state.operadores);
     const transpSet = new Set(state.transportadoraIds);
     const placaSet = new Set(state.placas.map((p) => p.toLowerCase()));
+    const tanqueSet = new Set(state.tanqueIds);
     return saidas.filter((s) => {
       if (s.tipoConsumidor !== tipoConsumidorAlvo) return false;
       if (!isInRange(s.data, state.periodo.from, state.periodo.to)) return false;
       if (obraSet.size > 0 && (!s.obraId || !obraSet.has(s.obraId))) return false;
+      if (tanqueSet.size > 0 && (!s.tanqueId || !tanqueSet.has(s.tanqueId))) return false;
       if (state.mode === 'proprios') {
         if (state.apenasSentinel) {
           if (s.equipamentoId !== 'desconhecido') return false;
@@ -144,10 +146,12 @@ export default function VisaoGeralTab({
   const entradasFiltradas = useMemo(() => {
     const tipoSet = new Set(state.tipoCombustiveis);
     const fornSet = new Set(state.fornecedores.map((f) => f.toLowerCase()));
+    const tanqueSet = new Set(state.tanqueIds);
     return entradas.filter((e) => {
       if (!isInRange(e.dataHora, state.periodo.from, state.periodo.to)) return false;
       if (tipoSet.size > 0 && (!e.tipoCombustivel || !tipoSet.has(e.tipoCombustivel))) return false;
       if (fornSet.size > 0 && !fornSet.has((e.fornecedor || '').trim().toLowerCase())) return false;
+      if (tanqueSet.size > 0 && (!e.depositoId || !tanqueSet.has(e.depositoId))) return false;
       return true;
     });
   }, [entradas, state]);
@@ -164,10 +168,12 @@ export default function VisaoGeralTab({
     const opSet = new Set(state.operadores);
     const transpSet = new Set(state.transportadoraIds);
     const placaSet = new Set(state.placas.map((p) => p.toLowerCase()));
+    const tanqueSet = new Set(state.tanqueIds);
     return saidas.filter((s) => {
       if (s.tipoConsumidor !== tipoConsumidorAlvo) return false;
       if (!isInRange(s.data, periodoAnterior.from, periodoAnterior.to)) return false;
       if (obraSet.size > 0 && (!s.obraId || !obraSet.has(s.obraId))) return false;
+      if (tanqueSet.size > 0 && (!s.tanqueId || !tanqueSet.has(s.tanqueId))) return false;
       if (state.mode === 'proprios') {
         if (state.apenasSentinel) {
           if (s.equipamentoId !== 'desconhecido') return false;

@@ -94,6 +94,7 @@ export function defaultFilterState(): CombustivelFilterState {
     operadores: [],
     transportadoraIds: [],
     placas: [],
+    tanqueIds: [],
     tanqueOrigemIds: [],
     tanqueDestinoIds: [],
     apenasSentinel: false,
@@ -140,6 +141,7 @@ export function fromSearchParams(params: URLSearchParams): CombustivelFilterStat
     operadores: parseList(params.get('ops')),
     transportadoraIds: parseList(params.get('transp')),
     placas: parseList(params.get('placas')),
+    tanqueIds: parseList(params.get('tanques')),
     tanqueOrigemIds: parseList(params.get('tan_orig')),
     tanqueDestinoIds: parseList(params.get('tan_dest')),
     apenasSentinel: params.get('sentinel') === '1',
@@ -162,6 +164,7 @@ export function toSearchParams(s: CombustivelFilterState): URLSearchParams {
   if (s.operadores.length) p.set('ops', listToParam(s.operadores));
   if (s.transportadoraIds.length) p.set('transp', listToParam(s.transportadoraIds));
   if (s.placas.length) p.set('placas', listToParam(s.placas));
+  if (s.tanqueIds.length) p.set('tanques', listToParam(s.tanqueIds));
   if (s.tanqueOrigemIds.length) p.set('tan_orig', listToParam(s.tanqueOrigemIds));
   if (s.tanqueDestinoIds.length) p.set('tan_dest', listToParam(s.tanqueDestinoIds));
   if (s.apenasSentinel) p.set('sentinel', '1');
@@ -179,6 +182,7 @@ export function hasActiveFilters(s: CombustivelFilterState): boolean {
     s.operadores.length > 0 ||
     s.transportadoraIds.length > 0 ||
     s.placas.length > 0 ||
+    s.tanqueIds.length > 0 ||
     s.tanqueOrigemIds.length > 0 ||
     s.tanqueDestinoIds.length > 0 ||
     s.apenasSentinel

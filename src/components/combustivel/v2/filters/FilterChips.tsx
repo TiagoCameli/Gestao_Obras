@@ -57,6 +57,9 @@ export default function FilterChips({ obrasMap, equipamentosMap, insumosMap, tra
   for (const v of state.operadores) {
     chips.push({ kind: 'operador', value: v, label: `${labelOperador}: ${v}` });
   }
+  for (const id of state.tanqueIds) {
+    chips.push({ kind: 'tanque', value: id, label: `Tanque: ${tanquesMap?.get(id) ?? id}` });
+  }
   for (const id of state.tanqueOrigemIds) {
     chips.push({ kind: 'tanque_origem', value: id, label: `Tanque origem: ${tanquesMap?.get(id) ?? id}` });
   }
