@@ -191,12 +191,41 @@ function FrotaCombustivelContent() {
   const [senhaOpen, setSenhaOpen] = useState(false);
   const [senhaAction, setSenhaAction] = useState<(() => void) | null>(null);
 
-  function pedirSenha(action: () => void) {
+  // F3.D-fix: pedirSenha agora aceita opts:
+  // - confirmMessage: confirma com window.confirm() ANTES de rodar (usado em deletes
+  //   pra dar freio mesmo no admin bypass).
+  // - successMessage / errorMessage: alerta o usuário pós-execução. Resolve o
+  //   silent fail histórico onde mutate.mutateAsync rejeitada vinha sem feedback
+  //   (action() era fire-and-forget no admin bypass; toast nunca aparecia).
+  // Sem opts = comportamento legado (preserva edit/atribuir flows).
+  type SenhaOpts = {
+    confirmMessage?: string;
+    successMessage?: string;
+    errorMessage?: string;
+  };
+  function pedirSenha(action: () => void | Promise<void>, opts?: SenhaOpts) {
+    const wrappedAction = async () => {
+      try {
+        await action();
+        if (opts?.successMessage) {
+          // Sem lib de toast no projeto — usar alert pra feedback visível.
+          // Quando F6 trouxer toast lib, trocar aqui (1 ponto).
+          alert(opts.successMessage);
+        }
+      } catch (e) {
+        console.error('[combustivel] ação falhou', e);
+        const msg = opts?.errorMessage ?? 'Operação falhou. Verifique o console e tente novamente.';
+        alert(msg);
+      }
+    };
     if (usuario?.cargo === 'Administrador') {
-      action();
+      if (opts?.confirmMessage && !window.confirm(opts.confirmMessage)) {
+        return;
+      }
+      void wrappedAction();
       return;
     }
-    setSenhaAction(() => action);
+    setSenhaAction(() => wrappedAction);
     setSenhaOpen(true);
   }
 
@@ -334,9 +363,16 @@ function FrotaCombustivelContent() {
 
   const handleDeleteTanque = useCallback(
     async (id: string) => {
-      pedirSenha(async () => {
-        await excluirDepositoMut.mutateAsync(id);
-      });
+      pedirSenha(
+        async () => {
+          await excluirDepositoMut.mutateAsync(id);
+        },
+        {
+          confirmMessage: 'Confirma exclusão deste tanque? Ação não pode ser desfeita.',
+          successMessage: 'Tanque excluído.',
+          errorMessage: 'Falha ao excluir tanque. Verifique se há saídas/entradas vinculadas.',
+        },
+      );
     },
     [excluirDepositoMut]
   );
@@ -548,7 +584,11 @@ function FrotaCombustivelContent() {
           obras={obras}
           combustiveis={combustiveis}
           onEditSaida={handleEditSaida}
-          onDeleteSaida={(id) => pedirSenha(() => handleDeleteSaida(id))}
+          onDeleteSaida={(id) => pedirSenha(() => handleDeleteSaida(id), {
+            confirmMessage: 'Confirma exclusão desta saída? Ação não pode ser desfeita.',
+            successMessage: 'Saída excluída.',
+            errorMessage: 'Falha ao excluir saída. Verifique sua conexão e tente novamente.',
+          })}
           onAtribuirEquipamento={handleAtribuirEquipamento}
           severityPrefill={anomaliasSeverityPrefill}
           onConsumeSeverityPrefill={() => setAnomaliasSeverityPrefill(null)}
@@ -589,7 +629,11 @@ function FrotaCombustivelContent() {
           entradas={entradasFiltradas}
           depositos={depositosTodos}
           onEdit={handleEditEntrada}
-          onDelete={(id) => pedirSenha(() => handleDeleteEntrada(id))}
+          onDelete={(id) => pedirSenha(() => handleDeleteEntrada(id), {
+            confirmMessage: 'Confirma exclusão desta entrada? Ação não pode ser desfeita.',
+            successMessage: 'Entrada excluída.',
+            errorMessage: 'Falha ao excluir entrada. Verifique sua conexão e tente novamente.',
+          })}
           canEdit={canEdit}
           canDelete={canDelete}
         />
@@ -636,7 +680,11 @@ function FrotaCombustivelContent() {
         <TransferenciaList
           transferencias={transferenciasFiltradas}
           depositos={depositosTodos}
-          onDelete={(id) => pedirSenha(() => handleDeleteTransferencia(id))}
+          onDelete={(id) => pedirSenha(() => handleDeleteTransferencia(id), {
+            confirmMessage: 'Confirma exclusão desta transferência? Ação não pode ser desfeita.',
+            successMessage: 'Transferência excluída.',
+            errorMessage: 'Falha ao excluir transferência. Verifique sua conexão e tente novamente.',
+          })}
           canDelete={canDelete}
         />
       )}
