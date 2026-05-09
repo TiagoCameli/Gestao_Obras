@@ -36,6 +36,9 @@ import {
   sanitizeFilenamePart,
 } from '../../../../utils/exportTemplate';
 import type { ChartImagens } from './mensalConsolidadoExport';
+import type { Anomalia } from '../anomalias/detect';
+import { drawAnomaliasSlot } from './pdf/anomaliasSlot';
+import { renderExcelAnomaliasSheet } from './anomaliasExcelSheet';
 
 const TITULO = 'Combustível · Relatório Por Obra';
 const SUBTITULO_BASE = 'Detalhamento de consumo escopado por obra';
@@ -52,6 +55,8 @@ interface PorObraInput {
   transportadoras: Fornecedor[];
   combustiveis: Insumo[];
   charts?: ChartImagens;
+  /** F3.C.2 — Anomalias do escopo (saídasObra). */
+  anomalias?: Anomalia[];
 }
 
 interface Agg { litros: number; custo: number; qtd: number; }
@@ -425,17 +430,8 @@ export function exportarPorObraPDF(input: PorObraInput): void {
     );
   }
 
-  // Slot Anomalias placeholder — F3 retrofit sem refactor.
-  const pageH = doc.internal.pageSize.getHeight();
-  const yAnom = pageH - 50;
-  drawPdfSectionTitle(doc, yAnom, 'ANOMALIAS DETECTADAS');
-  doc.setTextColor(...PDF_RGB.cinzaMedio);
-  doc.setFont('helvetica', 'italic');
-  doc.setFontSize(9);
-  doc.text(
-    'Detecção em desenvolvimento — disponível na próxima versão.',
-    10, yAnom + 6,
-  );
+  // F3.C.2 — Slot Anomalias populated.
+  drawAnomaliasSlot(doc, input.anomalias ?? [], MARCA);
 
   doc.save(nomeArquivo(input, 'pdf'));
 }
@@ -551,6 +547,9 @@ export async function exportarPorObraExcel(input: PorObraInput): Promise<void> {
     { header: 'Custo', key: 'custo', width: 18, align: 'right', numFmt: '"R$" #,##0.00', value: (r) => r.custo, footerValue: (items) => items.reduce((s, r) => s + r.custo, 0) },
     { header: 'R$/L médio', key: 'rpl', width: 14, align: 'right', numFmt: '"R$" #,##0.0000', value: (r) => r.rPorL },
   ]);
+
+  // F3.C.2 — Sheet "Anomalias" do escopo da obra
+  renderExcelAnomaliasSheet(wb, input.anomalias ?? []);
 
   // Save
   const buffer = await wb.xlsx.writeBuffer();

@@ -33,6 +33,9 @@ import {
   renderExcelDetalhamento,
   renderExcelSectionTitle,
 } from '../../../../utils/exportTemplate';
+import type { Anomalia } from '../anomalias/detect';
+import { drawAnomaliasSlot } from './pdf/anomaliasSlot';
+import { renderExcelAnomaliasSheet } from './anomaliasExcelSheet';
 
 const TITULO = 'Combustível · Relatório Mensal Consolidado';
 const SUBTITULO_BASE = 'Visão executiva de consumo, custo e operação';
@@ -57,6 +60,9 @@ interface ConsolidadoInput {
   /** PNGs dos gráficos pra embed no PDF. Opcional — se ausente, o PDF
    *  renderiza só as tabelas (compatível com o caminho atual). */
   charts?: ChartImagens;
+  /** F3.C.2 — Anomalias do escopo do mês. Quando ausente, slot fica
+   *  com mensagem positiva ("Nenhuma anomalia detectada"). */
+  anomalias?: Anomalia[];
 }
 
 interface Agg {
@@ -442,18 +448,9 @@ export function exportarMensalConsolidadoPDF(input: ConsolidadoInput): void {
     );
   }
 
-  // Slot Anomalias placeholder (F3 vai popular)
-  // y2 já cresceu pela tabela acima; pega valor estimado conservador
-  const pageH = doc.internal.pageSize.getHeight();
-  const yAnom = pageH - 50;
-  drawPdfSectionTitle(doc, yAnom, 'ANOMALIAS DETECTADAS');
-  doc.setTextColor(...PDF_RGB.cinzaMedio);
-  doc.setFont('helvetica', 'italic');
-  doc.setFontSize(9);
-  doc.text(
-    'Detecção em desenvolvimento — disponível na próxima versão.',
-    10, yAnom + 6,
-  );
+  // F3.C.2 — Slot Anomalias populated. 0 anomalias = inline positivo,
+  // 1+ = nova página dedicada com top 10.
+  drawAnomaliasSlot(doc, input.anomalias ?? [], MARCA);
 
   doc.save(nomeArquivo(input.mesReferencia, 'pdf'));
 }
@@ -558,15 +555,8 @@ export async function exportarMensalConsolidadoExcel(input: ConsolidadoInput): P
     { header: 'R$/L médio', key: 'rpl', width: 14, align: 'right', numFmt: '"R$" #,##0.0000', value: (r) => r.rPorL },
   ]);
 
-  // ── Sheet "Anomalias" (placeholder, F3 popula depois) ──
-  const wsAnom = wb.addWorksheet('Anomalias', {
-    properties: { tabColor: { argb: BRAND.amarelo } },
-  });
-  wsAnom.getCell('A1').value = 'Anomalias detectadas';
-  wsAnom.getCell('A1').font = { bold: true, size: 14, color: { argb: BRAND.verdeEscuro } };
-  wsAnom.getCell('A3').value = 'Detecção em desenvolvimento — disponível na próxima versão (F3).';
-  wsAnom.getCell('A3').font = { italic: true, size: 11, color: { argb: BRAND.cinzaMedio } };
-  wsAnom.getColumn('A').width = 80;
+  // ── Sheet "Anomalias" (F3.C.2) — helper compartilhado entre os 3 exports
+  renderExcelAnomaliasSheet(wb, input.anomalias ?? []);
 
   // Save
   const buffer = await wb.xlsx.writeBuffer();

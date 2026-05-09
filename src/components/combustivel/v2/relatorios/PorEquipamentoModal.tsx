@@ -23,6 +23,7 @@ import {
 } from './porEquipamentoExport';
 import RelatorioCharts from './RelatorioCharts';
 import { settleAndCapture } from './pdf/captureCharts';
+import { detectAnomalias } from '../anomalias/detect';
 
 interface Props {
   open: boolean;
@@ -145,6 +146,17 @@ export default function PorEquipamentoModal({
   async function handleGerar(formato: 'pdf' | 'xlsx') {
     if (!equipSelecionado) return;
     setGenerating(formato);
+    // F3.C.2 — Anomalias do escopo. detectAnomalias precisa do banco
+    // completo pra D3 (90d hist) e D5 (60d gap).
+    const combustivelNome = new Map(combustiveis.map((c) => [c.id, c.nome]));
+    const obraNome = new Map(obras.map((o) => [o.id, o.nome]));
+    const anomalias = detectAnomalias({
+      saidasNoPeriodo: saidasEquip,
+      saidasTodas: saidas,
+      equipamentos,
+      combustivelNome,
+      obraNome,
+    });
     const input = {
       equipamento: equipSelecionado,
       from,
@@ -153,6 +165,7 @@ export default function PorEquipamentoModal({
       entradasNoPeriodo,
       obras,
       combustiveis,
+      anomalias,
     };
     try {
       if (formato === 'pdf') {

@@ -20,6 +20,7 @@ import { fmtBRL } from '../../../../utils/exportTemplate';
 import { exportarPorObraExcel, exportarPorObraPDF } from './porObraExport';
 import RelatorioCharts from './RelatorioCharts';
 import { settleAndCapture } from './pdf/captureCharts';
+import { detectAnomalias } from '../anomalias/detect';
 
 interface Props {
   open: boolean;
@@ -123,6 +124,17 @@ export default function PorObraModal({
   async function handleGerar(formato: 'pdf' | 'xlsx') {
     if (!obraSelecionada) return;
     setGenerating(formato);
+    // F3.C.2 — Anomalias do escopo: detectAnomalias precisa do hist 90d (D3)
+    // e gap 60d (D5), por isso recebe saidas (banco completo) também.
+    const combustivelNome = new Map(combustiveis.map((c) => [c.id, c.nome]));
+    const obraNome = new Map(obras.map((o) => [o.id, o.nome]));
+    const anomalias = detectAnomalias({
+      saidasNoPeriodo: saidasObra,
+      saidasTodas: saidas,
+      equipamentos,
+      combustivelNome,
+      obraNome,
+    });
     const input = {
       obra: obraSelecionada,
       mesReferencia: mes,
@@ -131,6 +143,7 @@ export default function PorObraModal({
       equipamentos,
       transportadoras,
       combustiveis,
+      anomalias,
     };
     try {
       if (formato === 'pdf') {

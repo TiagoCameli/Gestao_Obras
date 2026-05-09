@@ -29,6 +29,7 @@ import {
 } from './mensalConsolidadoExport';
 import RelatorioCharts from './RelatorioCharts';
 import { settleAndCapture } from './pdf/captureCharts';
+import { detectAnomalias } from '../anomalias/detect';
 
 interface Props {
   open: boolean;
@@ -93,6 +94,22 @@ export default function MensalConsolidadoModal({
     return entradas.filter((e) => e.dataHora.slice(0, 7) === mes);
   }, [entradas, mes]);
 
+  // F3.C.2 — Anomalias do mês. detectAnomalias é puro, então calcula só
+  // quando precisa (no momento do click). Preferimos NÃO memoizar aqui
+  // pra não custar re-renders quando user mexe no preview do mês — o
+  // modal é só formulário, o cálculo acontece no handleGerar.
+  const computeAnomalias = () => {
+    const combustivelNome = new Map(combustiveis.map((c) => [c.id, c.nome]));
+    const obraNome = new Map(obras.map((o) => [o.id, o.nome]));
+    return detectAnomalias({
+      saidasNoPeriodo: saidasNoMes,
+      saidasTodas: saidas,
+      equipamentos,
+      combustivelNome,
+      obraNome,
+    });
+  };
+
   // Período do mês selecionado pra alimentar EvolucaoTemporal.
   const periodoMes = useMemo(() => {
     const [ano, mm] = mes.split('-');
@@ -102,6 +119,7 @@ export default function MensalConsolidadoModal({
 
   async function handleGerar(formato: 'pdf' | 'xlsx') {
     setGenerating(formato);
+    const anomalias = computeAnomalias();
     const input = {
       mesReferencia: mes,
       saidasNoMes,
@@ -110,6 +128,7 @@ export default function MensalConsolidadoModal({
       transportadoras,
       obras,
       combustiveis,
+      anomalias,
     };
     try {
       if (formato === 'pdf') {
