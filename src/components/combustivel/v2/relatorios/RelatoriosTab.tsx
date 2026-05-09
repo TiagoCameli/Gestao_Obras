@@ -3,7 +3,7 @@
 // cards conforme cada template chegar.
 
 import { useState } from 'react';
-import { CalendarDays, FileText, ClipboardList, FileSpreadsheet } from 'lucide-react';
+import { CalendarDays, FileText, ClipboardList, FileSpreadsheet, Settings2 } from 'lucide-react';
 import type {
   EntradaCombustivel,
   Equipamento,
@@ -14,6 +14,7 @@ import type {
 } from '../../../../types';
 import MensalConsolidadoModal from './MensalConsolidadoModal';
 import PorObraModal from './PorObraModal';
+import PorEquipamentoModal from './PorEquipamentoModal';
 
 interface Props {
   saidas: SaidaCombustivel[];
@@ -27,6 +28,7 @@ interface Props {
 export default function RelatoriosTab(props: Props) {
   const [modalMensal, setModalMensal] = useState(false);
   const [modalPorObra, setModalPorObra] = useState(false);
+  const [modalPorEquipamento, setModalPorEquipamento] = useState(false);
 
   return (
     <div className="space-y-4">
@@ -90,21 +92,31 @@ export default function RelatoriosTab(props: Props) {
           </div>
         </button>
 
-        {/* F4.B: Por Equipamento (em breve) */}
-        <div className="rounded-2xl border border-dashed border-[var(--color-border)] bg-[var(--color-surface-2)]/30 p-5 opacity-60">
+        {/* F4.B.2: Por Equipamento */}
+        <button
+          type="button"
+          onClick={() => setModalPorEquipamento(true)}
+          className="group rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface-1)] p-5 text-left shadow-[var(--shadow-xs)] transition-all duration-200 ease-out hover:-translate-y-0.5 hover:shadow-[var(--shadow-md)] hover:border-[var(--color-accent)]"
+        >
           <div className="flex items-center gap-3 mb-3">
-            <div className="w-10 h-10 rounded-xl bg-[var(--color-surface-2)] flex items-center justify-center">
-              <ClipboardList className="w-5 h-5 text-[var(--color-fg-subtle)]" />
+            <div className="w-10 h-10 rounded-xl bg-[var(--color-accent-soft)] flex items-center justify-center">
+              <Settings2 className="w-5 h-5 text-[var(--color-accent)]" />
             </div>
             <div>
-              <div className="text-sm font-semibold text-[var(--color-fg-muted)]">Por Equipamento</div>
-              <div className="text-[11px] text-[var(--color-fg-subtle)]">Em breve · F4.B</div>
+              <div className="text-sm font-semibold text-[var(--color-fg)]">Por Equipamento</div>
+              <div className="text-[11px] text-[var(--color-fg-muted)]">Histórico escopado</div>
             </div>
           </div>
-          <p className="text-xs text-[var(--color-fg-subtle)] leading-relaxed italic">
-            Histórico de consumo de um equipamento, R$/L, obras frequentes, médias do período.
+          <p className="text-xs text-[var(--color-fg-muted)] leading-relaxed mb-3">
+            Histórico de consumo de um equipamento em range arbitrário: KPIs, evolução temporal,
+            obras frequentes, fornecedores. Default: últimos 90 dias.
           </p>
-        </div>
+          <div className="flex items-center gap-1.5 text-[11px] text-[var(--color-fg-subtle)]">
+            <FileText className="w-3 h-3" /> PDF
+            <span>·</span>
+            <FileSpreadsheet className="w-3 h-3" /> Excel
+          </div>
+        </button>
 
         {/* F4.C: Raw Export (em breve) */}
         <div className="rounded-2xl border border-dashed border-[var(--color-border)] bg-[var(--color-surface-2)]/30 p-5 opacity-60">
@@ -137,6 +149,17 @@ export default function RelatoriosTab(props: Props) {
       <PorObraModal
         open={modalPorObra}
         onClose={() => setModalPorObra(false)}
+        saidas={props.saidas}
+        entradas={props.entradas}
+        equipamentos={props.equipamentos}
+        transportadoras={props.transportadoras}
+        obras={props.obras}
+        combustiveis={props.combustiveis}
+      />
+
+      <PorEquipamentoModal
+        open={modalPorEquipamento}
+        onClose={() => setModalPorEquipamento(false)}
         saidas={props.saidas}
         entradas={props.entradas}
         equipamentos={props.equipamentos}
