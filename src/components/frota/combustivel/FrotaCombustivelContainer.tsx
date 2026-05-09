@@ -206,6 +206,7 @@ function FrotaCombustivelContent() {
       if (!dentroPeriodo(s.data)) return false;
       if (filterState.obraIds.length > 0 && !(s.obraId && filterState.obraIds.includes(s.obraId))) return false;
       if (filterState.tipoCombustiveis.length > 0 && !filterState.tipoCombustiveis.includes(s.tipoCombustivel)) return false;
+      if (filterState.tanqueIds.length > 0 && !(s.tanqueId && filterState.tanqueIds.includes(s.tanqueId))) return false;
       // Sentinel mode: força sem-equipamento e ignora equipamentoIds.
       if (filterState.apenasSentinel) {
         if (s.equipamentoId !== 'desconhecido') return false;
@@ -226,7 +227,7 @@ function FrotaCombustivelContent() {
       return true;
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [todasSaidas, tipoConsumidorAlvo, periodoFromTs, periodoToTs, filterState.obraIds, filterState.tipoCombustiveis, filterState.equipamentoIds, filterState.transportadoraIds, filterState.placas, filterState.operadores, filterState.apenasSentinel]);
+  }, [todasSaidas, tipoConsumidorAlvo, periodoFromTs, periodoToTs, filterState.obraIds, filterState.tipoCombustiveis, filterState.tanqueIds, filterState.equipamentoIds, filterState.transportadoraIds, filterState.placas, filterState.operadores, filterState.apenasSentinel]);
 
   // Adapter pro shape Abastecimento legado (ExportarPDFModal). Filtra os
   // mesmos critérios da Saída — quando F4 entregar a aba Relatórios o modal
@@ -240,6 +241,7 @@ function FrotaCombustivelContent() {
     return todasEntradas.filter((e) => {
       if (!dentroPeriodo(e.dataHora)) return false;
       if (filterState.tipoCombustiveis.length > 0 && !filterState.tipoCombustiveis.includes(e.tipoCombustivel)) return false;
+      if (filterState.tanqueIds.length > 0 && !(e.depositoId && filterState.tanqueIds.includes(e.depositoId))) return false;
       if (filterState.fornecedores.length > 0) {
         const f = (e.fornecedor || '').trim();
         if (!f || !filterState.fornecedores.includes(f)) return false;
@@ -247,7 +249,7 @@ function FrotaCombustivelContent() {
       return true;
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [todasEntradas, periodoFromTs, periodoToTs, filterState.tipoCombustiveis, filterState.fornecedores]);
+  }, [todasEntradas, periodoFromTs, periodoToTs, filterState.tipoCombustiveis, filterState.tanqueIds, filterState.fornecedores]);
 
   const transferenciasFiltradas = useMemo(() => {
     return todasTransferencias.filter((t) => {
@@ -530,7 +532,11 @@ function FrotaCombustivelContent() {
 
       {subTab === 'tanques' && (
         <TanqueList
-          depositos={depositosTodos}
+          depositos={
+            filterState.tanqueIds.length > 0
+              ? depositosTodos.filter((d) => filterState.tanqueIds.includes(d.id))
+              : depositosTodos
+          }
           onEdit={handleEditTanque}
           onDelete={(id) => handleDeleteTanque(id)}
           canEdit={canEdit}

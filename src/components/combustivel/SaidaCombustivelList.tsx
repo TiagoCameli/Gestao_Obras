@@ -1,14 +1,13 @@
-// SaidaCombustivelList — lista unificada de saídas de combustível (Fase 4).
+// SaidaCombustivelList — lista unificada de saídas de combustível.
 //
-// Substitui AbastecimentoList + AbastecimentoExternoList. Filtros chip
-// internos cobrem o split antigo (Tanque/Dinheiro/Requisição) e o tipo
-// de consumidor (Equipamento/Carreta).
+// Substitui AbastecimentoList + AbastecimentoExternoList. Filtros (tipo
+// de consumidor, origem, tanque, etc.) vêm da FilterBar global v2 — esta
+// lista renderiza apenas o que recebe via prop `saidas`.
 
-import { useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import { Settings2, Truck, AlertCircle, Pencil, Trash2 } from 'lucide-react';
 import type {
   SaidaCombustivel,
-  TipoConsumidorSaida,
   OrigemCombustivel,
   Obra,
   Deposito,
@@ -31,11 +30,8 @@ interface Props {
   canDelete?: boolean;
 }
 
-type FiltroTipo = 'todos' | TipoConsumidorSaida;
-type FiltroOrigem = 'todas' | OrigemCombustivel;
-
 // Rótulo display da Origem — enum interno é ASCII ('requisicao'); na UI
-// mostra "Requisição" com cedilha (consistente com chip de filtro e form).
+// mostra "Requisição" com cedilha (consistente com form).
 const ORIGEM_LABEL: Record<OrigemCombustivel, string> = {
   tanque: 'Tanque',
   dinheiro: 'Dinheiro',
@@ -67,9 +63,6 @@ export default function SaidaCombustivelList({
   canEdit = true,
   canDelete = true,
 }: Props) {
-  const [filtroTipo, setFiltroTipo] = useState<FiltroTipo>('todos');
-  const [filtroOrigem, setFiltroOrigem] = useState<FiltroOrigem>('todas');
-
   // Maps pra resolver nomes
   const obrasMap = useMemo(() => new Map(obras.map((o) => [o.id, o.nome])), [obras]);
   const tanquesMap = useMemo(() => new Map(depositos.map((d) => [d.id, d.apelido || d.nome])), [depositos]);
@@ -77,78 +70,14 @@ export default function SaidaCombustivelList({
   const transpMap = useMemo(() => new Map(transportadoras.map((t) => [t.id, t.nome])), [transportadoras]);
   const combustMap = useMemo(() => new Map(combustiveis.map((c) => [c.id, c.nome])), [combustiveis]);
 
-  const filtradas = useMemo(() => {
-    return saidas.filter((s) => {
-      if (filtroTipo !== 'todos' && s.tipoConsumidor !== filtroTipo) return false;
-      if (filtroOrigem !== 'todas' && s.origem !== filtroOrigem) return false;
-      return true;
-    });
-  }, [saidas, filtroTipo, filtroOrigem]);
-
-  const totalLitros = useMemo(() => filtradas.reduce((acc, s) => acc + s.litros, 0), [filtradas]);
-  const totalValor = useMemo(() => filtradas.reduce((acc, s) => acc + s.valorTotal, 0), [filtradas]);
-
-  function chip<T extends string>(value: T, label: string, current: T, setter: (v: T) => void, count?: number) {
-    const ativo = value === current;
-    return (
-      <button
-        key={value}
-        type="button"
-        onClick={() => setter(value)}
-        className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${
-          ativo
-            ? 'bg-emt-verde text-white'
-            : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-        }`}
-      >
-        {label}
-        {count != null && <span className="ml-1.5 opacity-70">({count})</span>}
-      </button>
-    );
-  }
-
-  // Counts pros chips
-  const countsTipo = useMemo(() => {
-    const c = { todos: saidas.length, equipamento_proprio: 0, carreta_transportadora: 0 };
-    for (const s of saidas) c[s.tipoConsumidor]++;
-    return c;
-  }, [saidas]);
-  const countsOrigem = useMemo(() => {
-    const c = { todas: saidas.length, tanque: 0, dinheiro: 0, requisicao: 0 };
-    for (const s of saidas) c[s.origem]++;
-    return c;
-  }, [saidas]);
+  const totalLitros = useMemo(() => saidas.reduce((acc, s) => acc + s.litros, 0), [saidas]);
+  const totalValor = useMemo(() => saidas.reduce((acc, s) => acc + s.valorTotal, 0), [saidas]);
 
   return (
     <div className="space-y-4">
-      {/* Filtros chips */}
-      <div className="rounded-xl border border-gray-200 bg-white p-3 sm:p-4 space-y-3">
-        <div>
-          <div className="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-2">
-            Tipo de Consumidor
-          </div>
-          <div className="flex gap-2 flex-wrap">
-            {chip<FiltroTipo>('todos', 'Todos', filtroTipo, setFiltroTipo, countsTipo.todos)}
-            {chip<FiltroTipo>('equipamento_proprio', 'Equipamento', filtroTipo, setFiltroTipo, countsTipo.equipamento_proprio)}
-            {chip<FiltroTipo>('carreta_transportadora', 'Carreta', filtroTipo, setFiltroTipo, countsTipo.carreta_transportadora)}
-          </div>
-        </div>
-        <div>
-          <div className="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-2">
-            Origem
-          </div>
-          <div className="flex gap-2 flex-wrap">
-            {chip<FiltroOrigem>('todas', 'Todas', filtroOrigem, setFiltroOrigem, countsOrigem.todas)}
-            {chip<FiltroOrigem>('tanque', 'Tanque', filtroOrigem, setFiltroOrigem, countsOrigem.tanque)}
-            {chip<FiltroOrigem>('dinheiro', 'Dinheiro', filtroOrigem, setFiltroOrigem, countsOrigem.dinheiro)}
-            {chip<FiltroOrigem>('requisicao', 'Requisição', filtroOrigem, setFiltroOrigem, countsOrigem.requisicao)}
-          </div>
-        </div>
-      </div>
-
       {/* Resumo */}
       <div className="text-sm text-gray-600 px-1">
-        <span className="font-semibold text-gray-800">{filtradas.length}</span> saída{filtradas.length !== 1 ? 's' : ''}
+        <span className="font-semibold text-gray-800">{saidas.length}</span> saída{saidas.length !== 1 ? 's' : ''}
         {' · '}
         <span className="font-semibold">{totalLitros.toLocaleString('pt-BR')} L</span>
         {' · '}
@@ -156,7 +85,7 @@ export default function SaidaCombustivelList({
       </div>
 
       {/* Tabela */}
-      {filtradas.length === 0 ? (
+      {saidas.length === 0 ? (
         <div className="rounded-xl border border-dashed border-gray-300 bg-gray-50 py-12 text-center text-gray-500 text-sm">
           Nenhuma saída para os filtros atuais.
         </div>
@@ -177,7 +106,7 @@ export default function SaidaCombustivelList({
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
-              {filtradas.map((s) => {
+              {saidas.map((s) => {
                 let consumidorNode;
                 if (s.tipoConsumidor === 'equipamento_proprio') {
                   if (s.equipamentoId === 'desconhecido') {
