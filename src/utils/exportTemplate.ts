@@ -93,6 +93,18 @@ export function makeFilename(scope: string, ext: 'xlsx' | 'pdf'): string {
   return `${scope}-${stamp}.${ext}`;
 }
 
+/** Sanitiza string pra ser usada como parte de filename — substitui chars
+ *  inválidos em filesystems Windows/macOS (/, \, :, *, ?, ", <, >, |) por
+ *  hífen e colapsa espaços múltiplos. Útil pra concatenar nomes de obra,
+ *  equipamento, transportadora etc. em filenames de relatórios. */
+export function sanitizeFilenamePart(s: string): string {
+  return s
+    // eslint-disable-next-line no-useless-escape
+    .replace(/[\/\\:*?"<>|]/g, '-')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
 /** Current generated-at stamp in pt-BR, e.g. "Gerado em 20/04/2026 às 14:32". */
 export function generatedAtStamp(): string {
   const now = new Date();

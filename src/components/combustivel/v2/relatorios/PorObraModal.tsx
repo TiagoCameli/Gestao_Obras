@@ -1,19 +1,11 @@
-// Modal de parâmetros do template "Mensal Consolidado".
-// Período = 1 mês (default mes_anterior). Aciona PDF ou Excel.
-//
-// F4.A.2.1 (always-mounted strategy): RelatorioCharts renderiza off-screen
-// SEMPRE enquanto este componente está montado (mesmo com `open=false`).
-// Charts ficam prontos pra captura instantânea quando o usuário clicar em
-// PDF — sem precisar de mount-on-demand + waitForReady polling, que tinha
-// race conditions com React 19 concurrent (flushSync causava infinite
-// render loop em algum dos charts; sem flushSync, o setState ficava
-// pendente e timers/RAFs zumbis travavam o capture).
-//
-// Custo: 2 Recharts em background enquanto o usuário está na aba
-// Relatórios. Negligível — VisaoGeralTab já renderiza 6.
+// Modal de parâmetros do template "Por Obra" (F4.B.1).
+// Combobox single-select pra obra + month input. Charts montados off-screen
+// (always-mounted, mesmo padrão do MensalConsolidadoModal) — captura via
+// settleAndCapture com containerKey específico pra coexistir com Mensal
+// na árvore de RelatóriosTab.
 
 import { useEffect, useMemo, useState } from 'react';
-import { Download, FileSpreadsheet, FileText, Loader2, X } from 'lucide-react';
+import { Download, FileSpreadsheet, Loader2, X, ClipboardList } from 'lucide-react';
 import type {
   EntradaCombustivel,
   Equipamento,
@@ -23,10 +15,9 @@ import type {
   SaidaCombustivel,
 } from '../../../../types';
 import Button from '../../../ui/Button';
-import {
-  exportarMensalConsolidadoExcel,
-  exportarMensalConsolidadoPDF,
-} from './mensalConsolidadoExport';
+import FilterCombobox from '../../../ui/FilterCombobox';
+import { fmtBRL } from '../../../../utils/exportTemplate';
+import { exportarPorObraExcel, exportarPorObraPDF } from './porObraExport';
 import RelatorioCharts from './RelatorioCharts';
 import { settleAndCapture } from './pdf/captureCharts';
 
@@ -40,6 +31,8 @@ interface Props {
   obras: Obra[];
   combustiveis: Insumo[];
 }
+
+const CONTAINER_KEY = 'por-obra';
 
 function mesAnteriorIso(): string {
   const d = new Date();
@@ -62,9 +55,7 @@ function mesAnoLabel(mes: string): string {
   return `${meses[idx]} de ${ano}`;
 }
 
-const CONTAINER_KEY = 'mensal-consolidado';
-
-export default function MensalConsolidadoModal({
+export default function PorObraModal({
   open,
   onClose,
   saidas,
@@ -74,51 +65,79 @@ export default function MensalConsolidadoModal({
   obras,
   combustiveis,
 }: Props) {
+  const [obraId, setObraId] = useState<string>('');
   const [mes, setMes] = useState<string>(mesAnteriorIso());
   const [generating, setGenerating] = useState<'pdf' | 'xlsx' | null>(null);
 
   useEffect(() => {
     if (open) {
+      setObraId('');
       setMes(mesAnteriorIso());
       setGenerating(null);
     }
   }, [open]);
 
-  // Subset filtrado pelo mês — saída.data e entrada.dataHora começam com YYYY-MM-DD
-  const saidasNoMes = useMemo(() => {
-    return saidas.filter((s) => s.data.slice(0, 7) === mes);
-  }, [saidas, mes]);
+  // Lista de opções pra combobox — só obras que têm saídas (ranking de relevância).
+  const obraOptions = useMemo(() => {
+    return [...obras]
+      .filter((o) => o.status !== 'concluida' || saidas.some((s) => s.obraId === o.id))
+      .sort((a, b) => a.nome.localeCompare(b.nome))
+      .map((o) => ({ value: o.id, label: o.nome }));
+  }, [obras, saidas]);
+
+  const obraSelecionada = useMemo(
+    () => obras.find((o) => o.id === obraId) ?? null,
+    [obras, obraId],
+  );
+
+  // Saídas filtradas: pelo obraId + mês. Ambos os modos (próprios + carretas)
+  // — o relatório quer cobertura completa do consumo NA obra.
+  const saidasObra = useMemo(() => {
+    if (!obraId) return [];
+    return saidas.filter(
+      (s) => s.obraId === obraId && s.data.slice(0, 7) === mes,
+    );
+  }, [saidas, obraId, mes]);
 
   const entradasNoMes = useMemo(() => {
     return entradas.filter((e) => e.dataHora.slice(0, 7) === mes);
   }, [entradas, mes]);
 
-  // Período do mês selecionado pra alimentar EvolucaoTemporal.
+  // Período (1 mês) pra alimentar EvolucaoTemporal off-screen.
   const periodoMes = useMemo(() => {
     const [ano, mm] = mes.split('-');
     const last = new Date(Number(ano), Number(mm), 0).getDate();
     return { from: `${ano}-${mm}-01`, to: `${ano}-${mm}-${String(last).padStart(2, '0')}` };
   }, [mes]);
 
+  // Métricas de pré-visualização do escopo selecionado
+  const previewLitros = useMemo(
+    () => saidasObra.reduce((acc, s) => acc + s.litros, 0),
+    [saidasObra],
+  );
+  const previewCusto = useMemo(
+    () => saidasObra.reduce((acc, s) => acc + s.valorTotal, 0),
+    [saidasObra],
+  );
+
   async function handleGerar(formato: 'pdf' | 'xlsx') {
+    if (!obraSelecionada) return;
     setGenerating(formato);
     const input = {
+      obra: obraSelecionada,
       mesReferencia: mes,
-      saidasNoMes,
+      saidasObra,
       entradasNoMes,
       equipamentos,
       transportadoras,
-      obras,
       combustiveis,
     };
     try {
       if (formato === 'pdf') {
-        // Charts já montados off-screen (always-mounted). settleAndCapture
-        // dá yield ao event loop + captura PNGs.
         const charts = await settleAndCapture(CONTAINER_KEY);
-        exportarMensalConsolidadoPDF({ ...input, charts });
+        exportarPorObraPDF({ ...input, charts });
       } else {
-        await exportarMensalConsolidadoExcel(input);
+        await exportarPorObraExcel(input);
       }
     } catch (e) {
       console.error('Erro ao gerar relatório', e);
@@ -128,17 +147,17 @@ export default function MensalConsolidadoModal({
     }
   }
 
-  const empty = saidasNoMes.length === 0 && entradasNoMes.length === 0;
+  const empty = !obraId || saidasObra.length === 0;
 
   return (
     <>
-      {/* Charts always-mounted off-screen pra captura instantânea do PDF.
-          Renderizam mesmo quando o modal está fechado — custo de 2 Recharts
-          em background é negligível e elimina toda a complexidade de
-          mount-on-demand + timing fragile do React 19 concurrent. */}
+      {/* Always-mounted off-screen — captura instantânea quando o usuário
+          clica PDF. Sem mount-on-demand pra evitar race conditions com
+          React 19 concurrent. Container key dedicado pra coexistir com
+          o Mensal Consolidado na árvore. */}
       <RelatorioCharts
         containerKey={CONTAINER_KEY}
-        saidasNoMes={saidasNoMes}
+        saidasNoMes={saidasObra}
         equipamentos={equipamentos}
         periodo={periodoMes}
       />
@@ -153,11 +172,11 @@ export default function MensalConsolidadoModal({
             <div className="px-5 py-3.5 border-b border-[var(--color-border)] flex items-start justify-between">
               <div>
                 <h2 className="text-base font-semibold text-[var(--color-fg)] flex items-center gap-2">
-                  <FileText className="w-4 h-4 text-[var(--color-accent)]" />
-                  Mensal Consolidado
+                  <ClipboardList className="w-4 h-4 text-[var(--color-accent)]" />
+                  Por Obra
                 </h2>
                 <p className="text-xs text-[var(--color-fg-muted)] mt-0.5">
-                  Visão executiva do mês — KPIs, top 10 equipamentos/carretas/obras, fornecedores
+                  Detalhamento de uma obra específica em 1 mês — saídas, equipamentos, fornecedores
                 </p>
               </div>
               <button
@@ -173,11 +192,23 @@ export default function MensalConsolidadoModal({
 
             <div className="px-5 py-4 space-y-4">
               <div>
-                <label htmlFor="mes-input" className="block text-xs font-semibold uppercase tracking-wide text-[var(--color-fg-muted)] mb-1.5">
+                <label className="block text-xs font-semibold uppercase tracking-wide text-[var(--color-fg-muted)] mb-1.5">
+                  Obra
+                </label>
+                <FilterCombobox
+                  value={obraId}
+                  onChange={setObraId}
+                  options={obraOptions}
+                  placeholder="Buscar obra…"
+                />
+              </div>
+
+              <div>
+                <label htmlFor="mes-input-obra" className="block text-xs font-semibold uppercase tracking-wide text-[var(--color-fg-muted)] mb-1.5">
                   Mês de referência
                 </label>
                 <input
-                  id="mes-input"
+                  id="mes-input-obra"
                   type="month"
                   value={mes}
                   onChange={(e) => setMes(e.target.value)}
@@ -185,13 +216,23 @@ export default function MensalConsolidadoModal({
                   className="w-full h-10 px-3 text-sm rounded-lg bg-[var(--color-surface-1)] text-[var(--color-fg)] border border-[var(--color-border)] focus:outline-none focus:border-[var(--color-accent)]"
                 />
                 <p className="text-[11px] text-[var(--color-fg-muted)] mt-1">
-                  {mesAnoLabel(mes)} · {saidasNoMes.length} saída{saidasNoMes.length !== 1 ? 's' : ''} · {entradasNoMes.length} entrada{entradasNoMes.length !== 1 ? 's' : ''}
+                  {mesAnoLabel(mes)}
+                  {obraId && (
+                    <>
+                      {' · '}
+                      <span className="font-semibold tabular-nums">{saidasObra.length}</span> saída{saidasObra.length !== 1 ? 's' : ''}
+                      {' · '}
+                      <span className="font-semibold tabular-nums">{previewLitros.toLocaleString('pt-BR', { maximumFractionDigits: 0 })} L</span>
+                      {' · '}
+                      <span className="font-semibold tabular-nums">{fmtBRL(previewCusto)}</span>
+                    </>
+                  )}
                 </p>
               </div>
 
-              {empty && (
+              {obraId && saidasObra.length === 0 && (
                 <div className="rounded-lg bg-amber-50 border border-amber-200 px-3 py-2 text-xs text-amber-800">
-                  Sem movimentação no mês selecionado. Escolha outro mês.
+                  Sem saídas para esta obra no mês selecionado. Escolha outra combinação.
                 </div>
               )}
 

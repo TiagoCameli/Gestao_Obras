@@ -29,15 +29,19 @@ export const CHART_DIMENSIONS = {
 } as const;
 
 interface Props {
+  /** Identificador único pra scope da captura — quando múltiplos modais
+   *  coexistem (ex: Mensal + Por Obra), cada um deve passar uma key
+   *  distinta. captureChartImages usa [data-relatorio-charts="<key>"]. */
+  containerKey: string;
   saidasNoMes: SaidaCombustivel[];
   equipamentos: Equipamento[];
   periodo: { from: string; to: string };
 }
 
-export default function RelatorioCharts({ saidasNoMes, equipamentos, periodo }: Props) {
+export default function RelatorioCharts({ containerKey, saidasNoMes, equipamentos, periodo }: Props) {
   return (
     <div
-      data-relatorio-charts
+      data-relatorio-charts={containerKey}
       aria-hidden
       style={{
         // Fixed (não absolute) pra escapar de qualquer overflow:hidden no

@@ -13,6 +13,7 @@ import type {
   SaidaCombustivel,
 } from '../../../../types';
 import MensalConsolidadoModal from './MensalConsolidadoModal';
+import PorObraModal from './PorObraModal';
 
 interface Props {
   saidas: SaidaCombustivel[];
@@ -25,6 +26,7 @@ interface Props {
 
 export default function RelatoriosTab(props: Props) {
   const [modalMensal, setModalMensal] = useState(false);
+  const [modalPorObra, setModalPorObra] = useState(false);
 
   return (
     <div className="space-y-4">
@@ -62,21 +64,31 @@ export default function RelatoriosTab(props: Props) {
           </div>
         </button>
 
-        {/* F4.B: Por Obra (em breve) */}
-        <div className="rounded-2xl border border-dashed border-[var(--color-border)] bg-[var(--color-surface-2)]/30 p-5 opacity-60">
+        {/* F4.B.1: Por Obra */}
+        <button
+          type="button"
+          onClick={() => setModalPorObra(true)}
+          className="group rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface-1)] p-5 text-left shadow-[var(--shadow-xs)] transition-all duration-200 ease-out hover:-translate-y-0.5 hover:shadow-[var(--shadow-md)] hover:border-[var(--color-accent)]"
+        >
           <div className="flex items-center gap-3 mb-3">
-            <div className="w-10 h-10 rounded-xl bg-[var(--color-surface-2)] flex items-center justify-center">
-              <ClipboardList className="w-5 h-5 text-[var(--color-fg-subtle)]" />
+            <div className="w-10 h-10 rounded-xl bg-[var(--color-accent-soft)] flex items-center justify-center">
+              <ClipboardList className="w-5 h-5 text-[var(--color-accent)]" />
             </div>
             <div>
-              <div className="text-sm font-semibold text-[var(--color-fg-muted)]">Por Obra</div>
-              <div className="text-[11px] text-[var(--color-fg-subtle)]">Em breve · F4.B</div>
+              <div className="text-sm font-semibold text-[var(--color-fg)]">Por Obra</div>
+              <div className="text-[11px] text-[var(--color-fg-muted)]">Detalhamento escopado</div>
             </div>
           </div>
-          <p className="text-xs text-[var(--color-fg-subtle)] leading-relaxed italic">
-            Detalhamento de uma obra específica: saídas, custo, equipamentos, fornecedores associados.
+          <p className="text-xs text-[var(--color-fg-muted)] leading-relaxed mb-3">
+            Saídas detalhadas de uma obra específica num mês: KPIs, top equipamentos,
+            evolução temporal e fornecedores ativos. Default: mês anterior.
           </p>
-        </div>
+          <div className="flex items-center gap-1.5 text-[11px] text-[var(--color-fg-subtle)]">
+            <FileText className="w-3 h-3" /> PDF
+            <span>·</span>
+            <FileSpreadsheet className="w-3 h-3" /> Excel
+          </div>
+        </button>
 
         {/* F4.B: Por Equipamento (em breve) */}
         <div className="rounded-2xl border border-dashed border-[var(--color-border)] bg-[var(--color-surface-2)]/30 p-5 opacity-60">
@@ -114,6 +126,17 @@ export default function RelatoriosTab(props: Props) {
       <MensalConsolidadoModal
         open={modalMensal}
         onClose={() => setModalMensal(false)}
+        saidas={props.saidas}
+        entradas={props.entradas}
+        equipamentos={props.equipamentos}
+        transportadoras={props.transportadoras}
+        obras={props.obras}
+        combustiveis={props.combustiveis}
+      />
+
+      <PorObraModal
+        open={modalPorObra}
+        onClose={() => setModalPorObra(false)}
         saidas={props.saidas}
         entradas={props.entradas}
         equipamentos={props.equipamentos}
