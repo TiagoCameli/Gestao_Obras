@@ -35,6 +35,9 @@ export interface Deposito {
   /** true = depósito controlado por terceiro, sem estoque interno. Triggers no DB
    *  bloqueiam entradas_combustivel e transferencias_combustivel envolvendo ele. */
   ehExterno: boolean;
+  /** F9 — Anexos. Fotos do tanque + arquivos (manual técnico, certificado de calibração). */
+  fotoUrls?: string[] | null;
+  arquivoUrls?: string[] | null;
 }
 
 export type OrigemCombustivel = 'tanque' | 'dinheiro' | 'requisicao';
@@ -77,6 +80,9 @@ export interface EntradaCombustivel {
   notaFiscal: string;
   observacoes: string;
   criadoPor: string;
+  /** F9 — Anexos. Fotos (tanque pós-abastecimento, ticket) + arquivos (NF-e PDF, comprovante). */
+  fotoUrls?: string[] | null;
+  arquivoUrls?: string[] | null;
 }
 
 export type TipoMedicao = 'horimetro' | 'odometro' | 'km';
@@ -156,6 +162,9 @@ export interface TransferenciaCombustivel {
   valorTotal: number;
   observacoes: string;
   criadoPor: string;
+  /** F9 — Anexos. Comprovante de transferência interna + foto do nível antes/depois. */
+  fotoUrls?: string[] | null;
+  arquivoUrls?: string[] | null;
 }
 
 export interface Fornecedor {
@@ -422,6 +431,8 @@ export interface SaidaCombustivel {
   valorTotal: number;
 
   fotoUrls: string[] | null;
+  /** F9 — Arquivos (PDF/xlsx/docx). Complementa fotoUrls (imagens). */
+  arquivoUrls?: string[] | null;
   observacoes: string | null;
 
   pago: boolean | null;

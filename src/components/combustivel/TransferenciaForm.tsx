@@ -6,6 +6,7 @@ import Input from '../ui/Input';
 import Select from '../ui/Select';
 import Button from '../ui/Button';
 import ImportExcelModal, { parseStr, parseNumero, type ParsedRow } from '../ui/ImportExcelModal';
+import AnexosUploader from './AnexosUploader';
 
 interface TransferenciaFormProps {
   onSubmit: (data: TransferenciaCombustivel) => void;
@@ -43,6 +44,10 @@ export default function TransferenciaForm({
   const [quantidadeLitros, setQuantidadeLitros] = useState('');
   const [valorTotal, setValorTotal] = useState('');
   const [observacoes, setObservacoes] = useState('');
+  // F9 — Anexos
+  const [fotoUrls, setFotoUrls] = useState<string[]>([]);
+  const [arquivoUrls, setArquivoUrls] = useState<string[]>([]);
+  const [pastaId] = useState(() => gerarId());
 
   const depositoOrigem = depositos.find((d) => d.id === depositoOrigemId);
   const depositoDestino = depositos.find((d) => d.id === depositoDestinoId);
@@ -171,7 +176,7 @@ export default function TransferenciaForm({
   function handleSubmit(e: FormEvent) {
     e.preventDefault();
     onSubmit({
-      id: gerarId(),
+      id: pastaId,
       dataHora,
       depositoOrigemId,
       depositoDestinoId,
@@ -179,6 +184,8 @@ export default function TransferenciaForm({
       valorTotal: parseFloat(valorTotal) || 0,
       observacoes,
       criadoPor: '',
+      fotoUrls,
+      arquivoUrls,
     });
   }
 
@@ -342,6 +349,15 @@ export default function TransferenciaForm({
           placeholder="Alguma observação sobre a transferência..."
         />
       </div>
+
+      {/* F9 — Anexos: foto do nível antes/depois, comprovante de transferência */}
+      <AnexosUploader
+        fotoUrls={fotoUrls}
+        arquivoUrls={arquivoUrls}
+        onChangeFotos={setFotoUrls}
+        onChangeArquivos={setArquivoUrls}
+        pastaId={`transferencia/${pastaId}`}
+      />
 
       <div className="flex justify-end gap-3 pt-2">
         <Button variant="secondary" type="button" onClick={onCancel}>

@@ -33,7 +33,7 @@ import Input from '../ui/Input';
 import Select from '../ui/Select';
 import FilterCombobox from '../ui/FilterCombobox';
 import Button from '../ui/Button';
-import FotoCaptureUploader from './FotoCaptureUploader';
+import AnexosUploader from './AnexosUploader';
 import { useAdicionarInsumo } from '../../hooks/useInsumos';
 
 interface Props {
@@ -111,6 +111,7 @@ export default function SaidaCombustivelForm({
   );
   const [observacoes, setObservacoes] = useState(initial?.observacoes ?? '');
   const [fotoUrls, setFotoUrls] = useState<string[]>(initial?.fotoUrls ?? []);
+  const [arquivoUrls, setArquivoUrls] = useState<string[]>(initial?.arquivoUrls ?? []);
 
   // ── Estado: equipamento próprio ──
   const [equipamentoId, setEquipamentoId] = useState(
@@ -382,6 +383,7 @@ export default function SaidaCombustivelForm({
         precoUnitario,
         valorTotal,
         fotoUrls: fotoUrls.length > 0 ? fotoUrls : null,
+        arquivoUrls: arquivoUrls.length > 0 ? arquivoUrls : [],
         observacoes: observacoes || null,
         pago: origem === 'requisicao' ? pago : null,
         pagoEm: origem === 'requisicao' && pagoEm ? pagoEm : null,
@@ -402,7 +404,7 @@ export default function SaidaCombustivelForm({
       litros, precoMedioTanque, taxaLitro, precoUnitario, valorTotal,
       precoCombustivelNum, precoCombustivelAreacreNum, precoUnitarioManual,
       tanqueExterno,
-      fotoUrls, observacoes, pago, pagoEm, onSubmit,
+      fotoUrls, arquivoUrls, observacoes, pago, pagoEm, onSubmit,
     ]
   );
 
@@ -838,12 +840,14 @@ export default function SaidaCombustivelForm({
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
           <Camera className="w-4 h-4" />
-          Foto (opcional)
+          Anexos (opcional)
         </label>
-        <FotoCaptureUploader
-          fotosUrls={fotoUrls}
-          onChange={setFotoUrls}
-          pastaId={initial?.id ?? 'novo'}
+        <AnexosUploader
+          fotoUrls={fotoUrls}
+          arquivoUrls={arquivoUrls}
+          onChangeFotos={setFotoUrls}
+          onChangeArquivos={setArquivoUrls}
+          pastaId={`saida/${initial?.id ?? 'novo'}`}
         />
       </div>
 

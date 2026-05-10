@@ -6,6 +6,7 @@ import Input from '../ui/Input';
 import Select from '../ui/Select';
 import Button from '../ui/Button';
 import ImportExcelModal, { parseStr, parseNumero, type ParsedRow } from '../ui/ImportExcelModal';
+import AnexosUploader from './AnexosUploader';
 
 interface EntradaFormProps {
   initial?: EntradaCombustivel | null;
@@ -84,6 +85,13 @@ export default function EntradaForm({
   const [fornecedor, setFornecedor] = useState(initial?.fornecedor || '');
   const [notaFiscal, setNotaFiscal] = useState(initial?.notaFiscal || '');
   const [observacoes, setObservacoes] = useState(initial?.observacoes || '');
+  // F9 — Anexos
+  const [fotoUrls, setFotoUrls] = useState<string[]>(initial?.fotoUrls ?? []);
+  const [arquivoUrls, setArquivoUrls] = useState<string[]>(initial?.arquivoUrls ?? []);
+  // pastaId estável pra agrupar uploads no Storage. Em modo edit usa o id da
+  // entrada; em modo create gera um id temporário antes do submit (depois
+  // o handleSubmit usa esse mesmo id, garantindo consistência).
+  const [pastaId] = useState(() => initial?.id || gerarId());
 
   // Tanques são globais (Fase 6) — lista todos os ativos.
   const depositos = allDepositos.filter((d) => d.ativo !== false);
@@ -191,7 +199,7 @@ export default function EntradaForm({
   function handleSubmit(e: FormEvent) {
     e.preventDefault();
     onSubmit({
-      id: initial?.id || gerarId(),
+      id: initial?.id || pastaId,
       dataHora,
       depositoId,
       tipoCombustivel,
@@ -201,6 +209,8 @@ export default function EntradaForm({
       notaFiscal,
       observacoes,
       criadoPor: initial?.criadoPor || '',
+      fotoUrls,
+      arquivoUrls,
     });
   }
 
@@ -463,6 +473,16 @@ export default function EntradaForm({
           placeholder="Alguma observação..."
         />
       </div>
+
+      {/* F9 — Anexos: foto da NF, ticket de pesagem, comprovante (PDF), etc */}
+      <AnexosUploader
+        fotoUrls={fotoUrls}
+        arquivoUrls={arquivoUrls}
+        onChangeFotos={setFotoUrls}
+        onChangeArquivos={setArquivoUrls}
+        pastaId={`entrada/${pastaId}`}
+      />
+
       <div className="flex justify-end gap-3 pt-2">
         <Button variant="secondary" type="button" onClick={onCancel}>
           Cancelar

@@ -10,7 +10,7 @@
 // acidentes em saídas que o user só queria conferir.
 
 import { useMemo } from 'react';
-import { Pencil, Trash2, Settings2, Truck, AlertCircle, Camera, Wallet, Droplet, Gauge, MapPin, Container, FileText, User, Calendar } from 'lucide-react';
+import { Pencil, Trash2, Settings2, Truck, AlertCircle, Camera, Wallet, Droplet, Gauge, MapPin, Container, FileText, User, Calendar, Paperclip } from 'lucide-react';
 import type {
   SaidaCombustivel,
   Obra,
@@ -60,6 +60,16 @@ function fmtDataHora(iso: string): string {
   if (isNaN(d.getTime())) return iso;
   const pad = (n: number) => String(n).padStart(2, '0');
   return `${pad(d.getDate())}/${pad(d.getMonth() + 1)}/${d.getFullYear()} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+/** F9 — Extrai nome do arquivo a partir da signed URL do Supabase Storage.
+ *  Path inclui timestamp prefix "1234567890-" que removemos pra display. */
+function fileNameFromUrl(url: string): string {
+  const m = url.match(/\/object\/sign\/[^/]+\/([^?]+)/);
+  if (!m) return url;
+  const path = decodeURIComponent(m[1]);
+  const last = path.split('/').pop() || path;
+  return last.replace(/^\d+-/, '');
 }
 
 interface FieldProps {
@@ -314,6 +324,35 @@ export default function SaidaDetalhesDrawer({
                 </a>
               ))}
             </div>
+          </div>
+        )}
+
+        {/* F9 — Arquivos (PDF, xlsx, docx) — lista clicável com nome legível */}
+        {saida.arquivoUrls && saida.arquivoUrls.length > 0 && (
+          <div>
+            <div className="flex items-center gap-1.5 text-[10px] uppercase tracking-wide text-[var(--color-fg-muted)] font-semibold mb-2">
+              <Paperclip className="w-3 h-3" />
+              Arquivos ({saida.arquivoUrls.length})
+            </div>
+            <ul className="space-y-1.5">
+              {saida.arquivoUrls.map((url, i) => (
+                <li
+                  key={url + i}
+                  className="flex items-center gap-2 px-3 py-2 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-1)] hover:bg-[var(--color-surface-2)] transition-colors"
+                >
+                  <FileText aria-hidden className="w-4 h-4 text-[var(--color-fg-muted)] shrink-0" />
+                  <a
+                    href={url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex-1 min-w-0 text-sm text-[var(--color-fg)] hover:text-[var(--color-accent)] truncate"
+                    title={fileNameFromUrl(url)}
+                  >
+                    {fileNameFromUrl(url)}
+                  </a>
+                </li>
+              ))}
+            </ul>
           </div>
         )}
       </div>

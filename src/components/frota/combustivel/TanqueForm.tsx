@@ -2,6 +2,7 @@ import { useState } from 'react';
 import type { Deposito } from '../../../types';
 import Button from '../../ui/Button';
 import Input from '../../ui/Input';
+import AnexosUploader from '../../combustivel/AnexosUploader';
 
 interface TanqueFormProps {
   initial?: Deposito | null;
@@ -15,6 +16,10 @@ export default function TanqueForm({ initial, onSubmit, onCancel }: TanqueFormPr
   const [nivelAtualLitros, setNivelAtualLitros] = useState(initial?.nivelAtualLitros?.toString() ?? '0');
   const [ativo, setAtivo] = useState(initial?.ativo ?? true);
   const [salvando, setSalvando] = useState(false);
+  // F9 — Anexos: foto do tanque, manual técnico, certificado de calibração
+  const [fotoUrls, setFotoUrls] = useState<string[]>(initial?.fotoUrls ?? []);
+  const [arquivoUrls, setArquivoUrls] = useState<string[]>(initial?.arquivoUrls ?? []);
+  const [pastaId] = useState(() => initial?.id ?? Date.now().toString(36) + Math.random().toString(36).slice(2, 7));
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -22,7 +27,7 @@ export default function TanqueForm({ initial, onSubmit, onCancel }: TanqueFormPr
     setSalvando(true);
     try {
       await onSubmit({
-        id: initial?.id ?? Date.now().toString(36) + Math.random().toString(36).slice(2, 7),
+        id: initial?.id ?? pastaId,
         nome: nome.trim(),
         capacidadeLitros: parseFloat(capacidadeLitros) || 0,
         nivelAtualLitros: parseFloat(nivelAtualLitros) || 0,
@@ -31,6 +36,8 @@ export default function TanqueForm({ initial, onSubmit, onCancel }: TanqueFormPr
         ehExterno: initial?.ehExterno ?? false,
         transportadoraProprietariaId: initial?.transportadoraProprietariaId ?? null,
         apelido: initial?.apelido ?? null,
+        fotoUrls,
+        arquivoUrls,
       });
     } finally {
       setSalvando(false);
@@ -82,6 +89,15 @@ export default function TanqueForm({ initial, onSubmit, onCancel }: TanqueFormPr
           Tanque ativo
         </label>
       )}
+
+      {/* F9 — Anexos: foto do tanque, manual técnico, certificado de calibração */}
+      <AnexosUploader
+        fotoUrls={fotoUrls}
+        arquivoUrls={arquivoUrls}
+        onChangeFotos={setFotoUrls}
+        onChangeArquivos={setArquivoUrls}
+        pastaId={`tanque/${pastaId}`}
+      />
 
       <div className="flex justify-end gap-3 pt-2">
         <Button type="button" variant="secondary" onClick={onCancel}>

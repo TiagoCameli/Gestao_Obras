@@ -112,6 +112,8 @@ export function dbToDeposito(row: any): Deposito {
     transportadoraProprietariaId: row.transportadora_proprietaria_id ?? null,
     apelido: row.apelido ?? null,
     ehExterno: row.eh_externo ?? false,
+    fotoUrls: row.foto_urls ?? [],
+    arquivoUrls: row.arquivo_urls ?? [],
   };
 }
 
@@ -126,6 +128,8 @@ export function depositoToDb(d: Deposito) {
     transportadora_proprietaria_id: d.transportadoraProprietariaId,
     apelido: d.apelido,
     eh_externo: d.ehExterno,
+    foto_urls: d.fotoUrls ?? [],
+    arquivo_urls: d.arquivoUrls ?? [],
   };
 }
 
@@ -146,6 +150,8 @@ export function dbToEntradaCombustivel(row: any): EntradaCombustivel {
     notaFiscal: row.nota_fiscal,
     observacoes: row.observacoes,
     criadoPor: row.criado_por ?? '',
+    fotoUrls: row.foto_urls ?? [],
+    arquivoUrls: row.arquivo_urls ?? [],
   };
 }
 
@@ -161,6 +167,8 @@ export function entradaCombustivelToDb(e: EntradaCombustivel) {
     nota_fiscal: e.notaFiscal,
     observacoes: e.observacoes,
     criado_por: e.criadoPor,
+    foto_urls: e.fotoUrls ?? [],
+    arquivo_urls: e.arquivoUrls ?? [],
   };
 }
 
@@ -255,6 +263,8 @@ export function dbToTransferenciaCombustivel(row: any): TransferenciaCombustivel
     valorTotal: Number(row.valor_total),
     observacoes: row.observacoes,
     criadoPor: row.criado_por ?? '',
+    fotoUrls: row.foto_urls ?? [],
+    arquivoUrls: row.arquivo_urls ?? [],
   };
 }
 
@@ -268,6 +278,8 @@ export function transferenciaCombustivelToDb(t: TransferenciaCombustivel) {
     valor_total: t.valorTotal,
     observacoes: t.observacoes,
     criado_por: t.criadoPor,
+    foto_urls: t.fotoUrls ?? [],
+    arquivo_urls: t.arquivoUrls ?? [],
   };
 }
 
@@ -1213,6 +1225,7 @@ export function dbToSaidaCombustivel(row: any): SaidaCombustivel {
     precoUnitario: Number(row.preco_unitario),
     valorTotal: Number(row.valor_total),
     fotoUrls: row.foto_urls ?? null,
+    arquivoUrls: row.arquivo_urls ?? [],
     observacoes: row.observacoes ?? null,
     pago: row.pago,
     pagoEm: row.pago_em ?? null,
@@ -1247,6 +1260,7 @@ export function saidaCombustivelToDb(s: SaidaCombustivel) {
     preco_unitario: s.precoUnitario,
     valor_total: s.valorTotal,
     foto_urls: s.fotoUrls,
+    arquivo_urls: s.arquivoUrls ?? [],
     observacoes: s.observacoes,
     pago: s.pago,
     pago_em: s.pagoEm,

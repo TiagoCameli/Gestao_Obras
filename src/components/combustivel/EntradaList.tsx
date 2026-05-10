@@ -5,6 +5,7 @@ import { useFornecedores } from '../../hooks/useFornecedores';
 import { formatCurrency, formatDateTime } from '../../utils/formatters';
 import Button from '../ui/Button';
 import ConfirmDialog from '../ui/ConfirmDialog';
+import AnexosBadge from './AnexosBadge';
 
 interface EntradaListProps {
   entradas: EntradaCombustivel[];
@@ -94,7 +95,8 @@ export default function EntradaList({
                       {formatCurrency(e.valorTotal)}
                     </td>
                     <td className="px-4 py-3 text-center">
-                      <div className="flex justify-center gap-2">
+                      <div className="flex justify-center items-center gap-2">
+                        <AnexosBadge fotoUrls={e.fotoUrls} arquivoUrls={e.arquivoUrls} />
                         {canEdit && (
                           <Button
                             variant="ghost"

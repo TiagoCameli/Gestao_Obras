@@ -3,6 +3,7 @@ import type { Deposito } from '../../../types';
 import Button from '../../ui/Button';
 import ConfirmDialog from '../../ui/ConfirmDialog';
 import { useState } from 'react';
+import AnexosBadge from '../../combustivel/AnexosBadge';
 
 interface TanqueListProps {
   depositos: Deposito[];
@@ -71,15 +72,18 @@ export default function TanqueList({
                   <div>
                     <h3 className="font-semibold text-gray-800 dark:text-slate-200">{d.nome}</h3>
                   </div>
-                  <span
-                    className={`text-xs px-2 py-0.5 rounded-full font-medium ${
-                      d.ativo
-                        ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
-                        : 'bg-gray-100 text-gray-500 dark:bg-slate-700 dark:text-slate-400'
-                    }`}
-                  >
-                    {d.ativo ? 'Ativo' : 'Inativo'}
-                  </span>
+                  <div className="flex items-center gap-1.5">
+                    <AnexosBadge fotoUrls={d.fotoUrls} arquivoUrls={d.arquivoUrls} />
+                    <span
+                      className={`text-xs px-2 py-0.5 rounded-full font-medium ${
+                        d.ativo
+                          ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
+                          : 'bg-gray-100 text-gray-500 dark:bg-slate-700 dark:text-slate-400'
+                      }`}
+                    >
+                      {d.ativo ? 'Ativo' : 'Inativo'}
+                    </span>
+                  </div>
                 </div>
 
                 {/* Progress bar */}

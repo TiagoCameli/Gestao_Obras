@@ -3,6 +3,7 @@ import type { Deposito, TransferenciaCombustivel } from '../../types';
 import { formatCurrency, formatDateTime } from '../../utils/formatters';
 import Button from '../ui/Button';
 import ConfirmDialog from '../ui/ConfirmDialog';
+import AnexosBadge from './AnexosBadge';
 
 interface TransferenciaListProps {
   transferencias: TransferenciaCombustivel[];
@@ -79,15 +80,18 @@ export default function TransferenciaList({
                       {formatCurrency(t.valorTotal)}
                     </td>
                     <td className="px-4 py-3 text-center">
-                      {canDelete && (
-                        <Button
-                          variant="ghost"
-                          className="text-xs px-2 py-1 text-red-600 hover:bg-red-50"
-                          onClick={() => setDeleteId(t.id)}
-                        >
-                          Excluir
-                        </Button>
-                      )}
+                      <div className="flex justify-center items-center gap-2">
+                        <AnexosBadge fotoUrls={t.fotoUrls} arquivoUrls={t.arquivoUrls} />
+                        {canDelete && (
+                          <Button
+                            variant="ghost"
+                            className="text-xs px-2 py-1 text-red-600 hover:bg-red-50"
+                            onClick={() => setDeleteId(t.id)}
+                          >
+                            Excluir
+                          </Button>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 );
