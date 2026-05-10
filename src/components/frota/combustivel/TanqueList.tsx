@@ -13,6 +13,8 @@ interface TanqueListProps {
   canDelete: boolean;
   onNovo: () => void;
   canCreate: boolean;
+  /** F8.5.3 — click numa card (fora dos botões) abre drawer detalhes. */
+  onSelect?: (d: Deposito) => void;
 }
 
 export default function TanqueList({
@@ -23,6 +25,7 @@ export default function TanqueList({
   canDelete,
   onNovo,
   canCreate,
+  onSelect,
 }: TanqueListProps) {
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
 
@@ -63,10 +66,14 @@ export default function TanqueList({
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {tanquesOrdenados.map((d) => {
             const pct = getNivelPercent(d);
+            const cardClickable = !!onSelect;
             return (
               <div
                 key={d.id}
-                className="bg-white dark:bg-slate-800 rounded-lg shadow p-4 border border-gray-100 dark:border-slate-700"
+                className={`bg-white dark:bg-slate-800 rounded-lg shadow p-4 border border-gray-100 dark:border-slate-700 transition-colors ${
+                  cardClickable ? 'cursor-pointer hover:border-emt-verde dark:hover:border-emt-verde' : ''
+                }`}
+                onClick={cardClickable ? () => onSelect!(d) : undefined}
               >
                 <div className="flex items-start justify-between mb-3">
                   <div>
@@ -104,7 +111,7 @@ export default function TanqueList({
                 </div>
 
                 {/* Actions */}
-                <div className="flex gap-2 mt-3">
+                <div className="flex gap-2 mt-3" onClick={(ev) => ev.stopPropagation()}>
                   {canEdit && (
                     <button
                       onClick={() => onEdit(d)}

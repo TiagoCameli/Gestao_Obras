@@ -9,6 +9,8 @@ interface TransferenciaListProps {
   transferencias: TransferenciaCombustivel[];
   depositos: Deposito[];
   onDelete: (id: string) => void;
+  /** F8.5.2 — click numa row (fora dos botões) abre drawer detalhes. */
+  onSelect?: (t: TransferenciaCombustivel) => void;
   canDelete?: boolean;
 }
 
@@ -16,6 +18,7 @@ export default function TransferenciaList({
   transferencias,
   depositos,
   onDelete,
+  onSelect,
   canDelete = true,
 }: TransferenciaListProps) {
   const [deleteId, setDeleteId] = useState<string | null>(null);
@@ -64,8 +67,13 @@ export default function TransferenciaList({
               {sorted.map((t) => {
                 const origem = depositosMap.get(t.depositoOrigemId);
                 const destino = depositosMap.get(t.depositoDestinoId);
+                const rowClickable = !!onSelect;
                 return (
-                  <tr key={t.id} className="hover:bg-emt-verde-claro">
+                  <tr
+                    key={t.id}
+                    className={`hover:bg-emt-verde-claro ${rowClickable ? 'cursor-pointer' : ''}`}
+                    onClick={rowClickable ? () => onSelect!(t) : undefined}
+                  >
                     <td className="px-4 py-3">{formatDateTime(t.dataHora)}</td>
                     <td className="px-4 py-3">
                       {origem?.nome || '-'}
@@ -79,7 +87,7 @@ export default function TransferenciaList({
                     <td className="px-4 py-3 text-right font-medium">
                       {formatCurrency(t.valorTotal)}
                     </td>
-                    <td className="px-4 py-3 text-center">
+                    <td className="px-4 py-3 text-center" onClick={(ev) => ev.stopPropagation()}>
                       <div className="flex justify-center items-center gap-2">
                         <AnexosBadge fotoUrls={t.fotoUrls} arquivoUrls={t.arquivoUrls} />
                         {canDelete && (

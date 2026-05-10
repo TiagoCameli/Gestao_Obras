@@ -25,10 +25,13 @@ import SaidaCombustivelList from '../../combustivel/SaidaCombustivelList';
 import SaidaDetalhesDrawer from '../../combustivel/SaidaDetalhesDrawer';
 import EntradaForm from '../../combustivel/EntradaForm';
 import EntradaList from '../../combustivel/EntradaList';
+import EntradaDetalhesDrawer from '../../combustivel/EntradaDetalhesDrawer';
 import TransferenciaForm from '../../combustivel/TransferenciaForm';
 import TransferenciaList from '../../combustivel/TransferenciaList';
+import TransferenciaDetalhesDrawer from '../../combustivel/TransferenciaDetalhesDrawer';
 import TanqueList from './TanqueList';
 import TanqueForm from './TanqueForm';
+import TanqueDetalhesDrawer from './TanqueDetalhesDrawer';
 // v2 — IA premium da página /combustivel (F1+, filtros globais em F2)
 import { CombustivelFilterProvider, useCombustivelFilter } from '../../combustivel/v2/filters/FilterContext';
 import FilterBar from '../../combustivel/v2/filters/FilterBar';
@@ -187,9 +190,16 @@ function FrotaCombustivelContent() {
   // Entrada state
   const [modalEntradaOpen, setModalEntradaOpen] = useState(false);
   const [editandoEntrada, setEditandoEntrada] = useState<EntradaCombustivel | null>(null);
+  // F8.5.1 — Drawer read-only de detalhes da Entrada (mesmo padrão da Saída).
+  const [entradaDetalhes, setEntradaDetalhes] = useState<EntradaCombustivel | null>(null);
 
   // Transferencia state
   const [modalTransferenciaOpen, setModalTransferenciaOpen] = useState(false);
+  // F8.5.2 — Drawer read-only de detalhes da Transferência.
+  const [transferenciaDetalhes, setTransferenciaDetalhes] = useState<TransferenciaCombustivel | null>(null);
+
+  // F8.5.3 — Drawer read-only de detalhes do Tanque (Depósito).
+  const [tanqueDetalhes, setTanqueDetalhes] = useState<Deposito | null>(null);
 
   // Atribuição retroativa em batch (F2.B.2)
   const [modalAtribuirOpen, setModalAtribuirOpen] = useState(false);
@@ -708,6 +718,7 @@ function FrotaCombustivelContent() {
           canDelete={canDelete}
           onNovo={() => { setEditandoTanque(null); setModalTanqueOpen(true); }}
           canCreate={canCreateEntrada}
+          onSelect={setTanqueDetalhes}
         />
       )}
 
@@ -721,6 +732,7 @@ function FrotaCombustivelContent() {
             successMessage: 'Entrada excluída.',
             errorMessage: 'Falha ao excluir entrada. Verifique sua conexão e tente novamente.',
           })}
+          onSelect={setEntradaDetalhes}
           canEdit={canEdit}
           canDelete={canDelete}
         />
@@ -777,6 +789,7 @@ function FrotaCombustivelContent() {
             successMessage: 'Transferência excluída.',
             errorMessage: 'Falha ao excluir transferência. Verifique sua conexão e tente novamente.',
           })}
+          onSelect={setTransferenciaDetalhes}
           canDelete={canDelete}
         />
       )}
@@ -801,6 +814,49 @@ function FrotaCombustivelContent() {
           successMessage: 'Saída excluída.',
           errorMessage: 'Falha ao excluir saída. Verifique sua conexão e tente novamente.',
         })}
+        canEdit={canEdit}
+        canDelete={canDelete}
+      />
+
+      {/* F8.5.1 — Drawer read-only de detalhes da Entrada. */}
+      <EntradaDetalhesDrawer
+        entrada={entradaDetalhes}
+        open={entradaDetalhes !== null}
+        onClose={() => setEntradaDetalhes(null)}
+        depositos={depositosTodos}
+        combustiveis={combustiveis}
+        fornecedores={todosFornecedores}
+        onEdit={handleEditEntrada}
+        onDelete={(id) => pedirSenha(() => handleDeleteEntrada(id), {
+          confirmMessage: 'Confirma exclusão desta entrada? Ação não pode ser desfeita.',
+          successMessage: 'Entrada excluída.',
+          errorMessage: 'Falha ao excluir entrada. Verifique sua conexão e tente novamente.',
+        })}
+        canEdit={canEdit}
+        canDelete={canDelete}
+      />
+
+      {/* F8.5.2 — Drawer read-only de detalhes da Transferência. */}
+      <TransferenciaDetalhesDrawer
+        transferencia={transferenciaDetalhes}
+        open={transferenciaDetalhes !== null}
+        onClose={() => setTransferenciaDetalhes(null)}
+        depositos={depositosTodos}
+        onDelete={(id) => pedirSenha(() => handleDeleteTransferencia(id), {
+          confirmMessage: 'Confirma exclusão desta transferência? Ação não pode ser desfeita.',
+          successMessage: 'Transferência excluída.',
+          errorMessage: 'Falha ao excluir transferência. Verifique sua conexão e tente novamente.',
+        })}
+        canDelete={canDelete}
+      />
+
+      {/* F8.5.3 — Drawer read-only de detalhes do Tanque (Depósito). */}
+      <TanqueDetalhesDrawer
+        tanque={tanqueDetalhes}
+        open={tanqueDetalhes !== null}
+        onClose={() => setTanqueDetalhes(null)}
+        onEdit={handleEditTanque}
+        onDelete={(id) => handleDeleteTanque(id)}
         canEdit={canEdit}
         canDelete={canDelete}
       />
