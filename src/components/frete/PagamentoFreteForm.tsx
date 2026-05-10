@@ -7,6 +7,7 @@ import Button from '../ui/Button';
 import ImportExcelModal, { parseStr, parseNumero, parseData, type ParsedRow } from '../ui/ImportExcelModal';
 import PagamentoAbatimentoCard from './PagamentoAbatimentoCard';
 import { supabase } from '../../lib/supabase';
+import AnexosUploader from '../combustivel/AnexosUploader';
 
 function PagoPorCombobox({ id, opcoes, value, onChange }: {
   id: string;
@@ -135,6 +136,9 @@ export default function PagamentoFreteForm({
   const [notaFiscal, setNotaFiscal] = useState(initial?.notaFiscal || '');
   const [pagoPor, setPagoPor] = useState(initial?.pagoPor || '');
   const [observacoes, setObservacoes] = useState(initial?.observacoes || '');
+  // FF.3 — Anexos universais (comprovantes de pix/boleto/transferência).
+  const [fotoUrls, setFotoUrls] = useState<string[]>(initial?.fotoUrls ?? []);
+  const [arquivoUrls, setArquivoUrls] = useState<string[]>(initial?.arquivoUrls ?? []);
 
   // Dividir entre meses
   const [dividir, setDividir] = useState(false);
@@ -258,6 +262,9 @@ export default function PagamentoFreteForm({
         pagoPor,
         observacoes,
         criadoPor: '',
+        // FF.3 — Anexos compartilhados entre todas as parcelas (mesmo comprovante).
+        fotoUrls,
+        arquivoUrls,
       }));
       onSubmitBatch(items);
       // Abatimento NÃO aplicado a parcelas — múltiplos pagamentos não têm
@@ -277,6 +284,9 @@ export default function PagamentoFreteForm({
         pagoPor,
         observacoes,
         criadoPor: initial?.criadoPor || '',
+        // FF.3 — Anexos universais.
+        fotoUrls,
+        arquivoUrls,
       });
 
       // Marca os débitos de combustível como abatidos por este pagamento.
@@ -539,6 +549,16 @@ export default function PagamentoFreteForm({
           placeholder="Alguma observação..."
         />
       </div>
+
+      {/* FF.3 — Anexos universais (comprovantes de pagamento). */}
+      <AnexosUploader
+        fotoUrls={fotoUrls}
+        arquivoUrls={arquivoUrls}
+        onChangeFotos={setFotoUrls}
+        onChangeArquivos={setArquivoUrls}
+        pastaId={`pagamento-frete/${initial?.id ?? 'novo'}`}
+      />
+
       <div className="flex justify-end gap-3 pt-2">
         <Button variant="secondary" type="button" onClick={onCancel}>
           Cancelar

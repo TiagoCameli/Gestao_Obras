@@ -21,20 +21,24 @@ import ConfirmDialog from '../components/ui/ConfirmDialog';
 import PasswordDialog from '../components/ui/PasswordDialog';
 import FreteForm from '../components/frete/FreteForm';
 import FreteList from '../components/frete/FreteList';
+import FreteDetalhesDrawer from '../components/frete/FreteDetalhesDrawer';
 import PagamentoFreteForm from '../components/frete/PagamentoFreteForm';
 import PagamentoFreteList from '../components/frete/PagamentoFreteList';
+import PagamentoFreteDetalhesDrawer from '../components/frete/PagamentoFreteDetalhesDrawer';
 import FreteDashboard from '../components/frete/FreteDashboard';
 import PedidoMaterialForm from '../components/frete/PedidoMaterialForm';
 import PedidoMaterialList from '../components/frete/PedidoMaterialList';
+import PedidoMaterialDetalhesDrawer from '../components/frete/PedidoMaterialDetalhesDrawer';
+import LixeiraFreteTab from '../components/frete/LixeiraFreteTab';
 // Conta Corrente — Modal novo da Fase 4
 import TransportadoraExtratoModal from '../components/frete/TransportadoraExtratoModal';
 import { exportarFretesPDF, exportarFretesExcel } from '../utils/freteExport';
 import ImportAtualizacaoFretesModal from '../components/frete/ImportAtualizacaoFretesModal';
 import { exportarPedidosMaterialExcel, exportarPedidosMaterialPDF } from '../utils/pedidosMaterialExport';
 import FilterBar from '../components/frete/FilterBar';
-import { Truck, Sparkles, BarChart3, Wallet, Wallet2, PackageSearch } from 'lucide-react';
+import { Truck, Sparkles, BarChart3, Wallet, Wallet2, PackageSearch, Trash2 } from 'lucide-react';
 
-type Tab = 'dashboard' | 'fretes' | 'pagamentos' | 'conta_corrente' | 'pedidos';
+type Tab = 'dashboard' | 'fretes' | 'pagamentos' | 'conta_corrente' | 'pedidos' | 'lixeira';
 
 export default function Frete() {
   const { temAcao, usuario } = useAuth();
@@ -43,7 +47,7 @@ export default function Frete() {
   const canDelete = temAcao('excluir_frete');
 
   const [searchParams, setSearchParams] = useSearchParams();
-  const validTabs: Tab[] = ['dashboard', 'fretes', 'pagamentos', 'conta_corrente', 'pedidos'];
+  const validTabs: Tab[] = ['dashboard', 'fretes', 'pagamentos', 'conta_corrente', 'pedidos', 'lixeira'];
   const tabParam = searchParams.get('tab') as Tab | null;
   const tab: Tab = tabParam && validTabs.includes(tabParam) ? tabParam : 'dashboard';
   const setTab = useCallback((t: Tab) => setSearchParams({ tab: t }, { replace: true }), [setSearchParams]);
@@ -112,6 +116,11 @@ export default function Frete() {
 
   // Frete delete state
   const [deleteId, setDeleteId] = useState<string | null>(null);
+
+  // FF.6 — Drawers de detalhes read-only (Frete / Pagamento / Pedido).
+  const [freteDetalhes, setFreteDetalhes] = useState<FreteType | null>(null);
+  const [pagamentoDetalhes, setPagamentoDetalhes] = useState<PagamentoFrete | null>(null);
+  const [pedidoDetalhes, setPedidoDetalhes] = useState<PedidoMaterial | null>(null);
 
   // Import atualização modal
   const [importAtualizacaoOpen, setImportAtualizacaoOpen] = useState(false);
@@ -272,6 +281,10 @@ export default function Frete() {
     { key: 'pagamentos', label: 'Pagamentos', icon: <Wallet className="h-3.5 w-3.5" /> },
     { key: 'conta_corrente', label: 'Conta Corrente', icon: <Wallet2 className="h-3.5 w-3.5" /> },
     { key: 'pedidos', label: 'Pedidos', icon: <PackageSearch className="h-3.5 w-3.5" /> },
+    // FF.7 — Aba Lixeira admin-only.
+    ...(usuario?.cargo === 'Administrador'
+      ? [{ key: 'lixeira' as Tab, label: 'Lixeira', icon: <Trash2 className="h-3.5 w-3.5" /> }]
+      : []),
   ];
 
   return (
@@ -438,6 +451,7 @@ export default function Frete() {
             onUpdateDataChegada={canEdit ? async (frete, dataChegada) => {
               await atualizarMutation.mutateAsync({ ...frete, dataChegada });
             } : undefined}
+            onSelect={setFreteDetalhes}
             canEdit={canEdit}
             canDelete={canDelete}
           />
@@ -480,6 +494,7 @@ export default function Frete() {
             filtroDataFim={pagFiltroDataFim}
             onEdit={(pag) => pedirSenha(() => { setPagEditando(pag); setPagModalOpen(true); })}
             onDelete={(id) => pedirSenha(() => setPagDeleteId(id))}
+            onSelect={setPagamentoDetalhes}
             canEdit={canEdit}
             canDelete={canDelete}
           />
@@ -616,10 +631,21 @@ export default function Frete() {
             filtroDataFim={pedidoFiltroDataFim}
             onEdit={(pedido) => pedirSenha(() => { setPedidoEditando(pedido); setPedidoModalOpen(true); })}
             onDelete={(id) => pedirSenha(() => setPedidoDeleteId(id))}
+            onSelect={setPedidoDetalhes}
             canEdit={canEdit}
             canDelete={canDelete}
           />
         </>
+      )}
+
+      {/* FF.7 — Aba Lixeira admin-only (validação extra de cargo aqui pra
+          evitar render se o tab veio via URL manualmente). */}
+      {tab === 'lixeira' && usuario?.cargo === 'Administrador' && (
+        <LixeiraFreteTab
+          obras={obras}
+          fornecedores={fornecedores}
+          insumos={insumosAtivos}
+        />
       )}
 
       {/* Modal Frete Form */}
@@ -849,6 +875,42 @@ export default function Frete() {
             await atualizarMutation.mutateAsync(frete as FreteType);
           }
         }}
+      />
+
+      {/* FF.6 — Drawers de detalhes read-only. Cada um delega ações Editar/Excluir
+          aos handlers que já passam pelo pedirSenha + confirm pattern. */}
+      <FreteDetalhesDrawer
+        frete={freteDetalhes}
+        open={freteDetalhes !== null}
+        onClose={() => setFreteDetalhes(null)}
+        obras={obras}
+        insumos={insumosAtivos}
+        onEdit={(f) => pedirSenha(() => { setEditando(f); setModalOpen(true); })}
+        onDelete={(id) => pedirSenha(() => setDeleteId(id))}
+        canEdit={canEdit}
+        canDelete={canDelete}
+      />
+
+      <PagamentoFreteDetalhesDrawer
+        pagamento={pagamentoDetalhes}
+        open={pagamentoDetalhes !== null}
+        onClose={() => setPagamentoDetalhes(null)}
+        onEdit={(p) => pedirSenha(() => { setPagEditando(p); setPagModalOpen(true); })}
+        onDelete={(id) => pedirSenha(() => setPagDeleteId(id))}
+        canEdit={canEdit}
+        canDelete={canDelete}
+      />
+
+      <PedidoMaterialDetalhesDrawer
+        pedido={pedidoDetalhes}
+        open={pedidoDetalhes !== null}
+        onClose={() => setPedidoDetalhes(null)}
+        fornecedores={fornecedores}
+        insumos={insumosAtivos}
+        onEdit={(p) => pedirSenha(() => { setPedidoEditando(p); setPedidoModalOpen(true); })}
+        onDelete={(id) => pedirSenha(() => setPedidoDeleteId(id))}
+        canEdit={canEdit}
+        canDelete={canDelete}
       />
     </div>
   );

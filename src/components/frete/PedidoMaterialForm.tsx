@@ -4,6 +4,7 @@ import Input from '../ui/Input';
 import Select from '../ui/Select';
 import Button from '../ui/Button';
 import ImportExcelModal, { parseStr, parseNumero, parseData, type ParsedRow } from '../ui/ImportExcelModal';
+import AnexosUploader from '../combustivel/AnexosUploader';
 
 interface PedidoMaterialFormProps {
   initial?: PedidoMaterial | null;
@@ -39,6 +40,9 @@ export default function PedidoMaterialForm({
     initial?.itens?.length ? initial.itens : [{ ...EMPTY_ITEM }]
   );
   const [observacoes, setObservacoes] = useState(initial?.observacoes || '');
+  // FF.3 — Anexos universais (cotação, NF do fornecedor, proposta).
+  const [fotoUrls, setFotoUrls] = useState<string[]>(initial?.fotoUrls ?? []);
+  const [arquivoUrls, setArquivoUrls] = useState<string[]>(initial?.arquivoUrls ?? []);
 
   // Import Excel
   const [importModalOpen, setImportModalOpen] = useState(false);
@@ -186,6 +190,9 @@ export default function PedidoMaterialForm({
       itens,
       observacoes,
       criadoPor: initial?.criadoPor || '',
+      // FF.3 — anexos universais.
+      fotoUrls,
+      arquivoUrls,
     });
   }
 
@@ -348,6 +355,15 @@ export default function PedidoMaterialForm({
           placeholder="Alguma observação..."
         />
       </div>
+
+      {/* FF.3 — Anexos universais (cotação, NF do fornecedor, proposta). */}
+      <AnexosUploader
+        fotoUrls={fotoUrls}
+        arquivoUrls={arquivoUrls}
+        onChangeFotos={setFotoUrls}
+        onChangeArquivos={setArquivoUrls}
+        pastaId={`pedido-material/${initial?.id ?? 'novo'}`}
+      />
 
       <div className="flex justify-end gap-3 pt-2">
         <Button variant="secondary" type="button" onClick={onCancel}>

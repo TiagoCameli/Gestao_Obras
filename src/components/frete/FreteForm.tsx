@@ -5,6 +5,7 @@ import Select from '../ui/Select';
 import Button from '../ui/Button';
 import { useAdicionarLocalidade } from '../../hooks/useLocalidades';
 import ImportExcelModal, { parseStr, parseNumero, parseData, type ParsedRow } from '../ui/ImportExcelModal';
+import AnexosUploader from '../combustivel/AnexosUploader';
 
 interface FreteFormProps {
   initial?: Frete | null;
@@ -56,6 +57,31 @@ export default function FreteForm({
   const [placaCarreta, setPlacaCarreta] = useState(initial?.placaCarreta || '');
   const [motorista, setMotorista] = useState(initial?.motorista || '');
   const [observacoes, setObservacoes] = useState(initial?.observacoes || '');
+  // FF.3 — Anexos universais (fotos + arquivos) + foto destacada da chegada.
+  const [fotoUrls, setFotoUrls] = useState<string[]>(initial?.fotoUrls ?? []);
+  const [arquivoUrls, setArquivoUrls] = useState<string[]>(initial?.arquivoUrls ?? []);
+  const [fotoChegadaUrls, setFotoChegadaUrls] = useState<string[]>(
+    initial?.fotoChegadaUrl ? [initial.fotoChegadaUrl] : []
+  );
+
+  // FF.3-bis — Auto-preencher data de chegada quando foto da chegada é
+  // adicionada. Lógica:
+  //   - transição [] → [url] dispara o autofill (não é "sumiu e voltou").
+  //   - só preenche se dataChegada estiver vazia (respeita edição manual).
+  //   - usa data LOCAL do dispositivo (espelha o stamp da foto, que também
+  //     usa horário local).
+  // Comportamento intencional: se user remover a foto, dataChegada continua
+  // preenchida — ele pode limpar manualmente se quiser.
+  function handleFotoChegadaChange(novas: string[]) {
+    if (fotoChegadaUrls.length === 0 && novas.length > 0 && !dataChegada) {
+      const hoje = new Date();
+      const yyyy = hoje.getFullYear();
+      const mm = String(hoje.getMonth() + 1).padStart(2, '0');
+      const dd = String(hoje.getDate()).padStart(2, '0');
+      setDataChegada(`${yyyy}-${mm}-${dd}`);
+    }
+    setFotoChegadaUrls(novas);
+  }
 
   // Inline nova localidade
   const [listaLocalidades, setListaLocalidades] = useState<Localidade[]>(localidades);
@@ -229,6 +255,10 @@ export default function FreteForm({
       motorista,
       observacoes,
       criadoPor: initial?.criadoPor || '',
+      // FF.3 — anexos universais + foto chegada destacada.
+      fotoUrls,
+      arquivoUrls,
+      fotoChegadaUrl: fotoChegadaUrls[0] ?? null,
     });
   }
 
@@ -523,6 +553,37 @@ export default function FreteForm({
           placeholder="Alguma observação..."
         />
       </div>
+      {/* FF.3 — Foto da Chegada (slot dedicado destacado). Identifica visualmente
+          que a carga chegou no destino. Reusa AnexosUploader com hideArquivos
+          (só fotos) — o validador de limite QTD_MAX permite até 8, mas a UX
+          aqui é "1 foto principal" — extras podem ir nos Anexos abaixo. */}
+      <div className="rounded-lg border-2 border-dashed border-emt-verde/40 bg-emt-verde/5 p-4">
+        <div className="flex items-center gap-2 mb-3">
+          <span className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-emt-verde/20 text-emt-verde text-xs font-bold">📦</span>
+          <div>
+            <h3 className="text-sm font-semibold text-gray-800">Foto da Chegada da Carga</h3>
+            <p className="text-xs text-gray-500">Registra com GPS + horário que a carga chegou no destino.</p>
+          </div>
+        </div>
+        <AnexosUploader
+          fotoUrls={fotoChegadaUrls}
+          arquivoUrls={[]}
+          onChangeFotos={handleFotoChegadaChange}
+          onChangeArquivos={() => {}}
+          pastaId={`frete-chegada/${initial?.id ?? 'novo'}`}
+          hideArquivos
+        />
+      </div>
+
+      {/* FF.3 — Anexos universais (outras fotos + arquivos: NF, comprovantes). */}
+      <AnexosUploader
+        fotoUrls={fotoUrls}
+        arquivoUrls={arquivoUrls}
+        onChangeFotos={setFotoUrls}
+        onChangeArquivos={setArquivoUrls}
+        pastaId={`frete/${initial?.id ?? 'novo'}`}
+      />
+
       <div className="flex justify-end gap-3 pt-2">
         <Button variant="secondary" type="button" onClick={onCancel}>
           Cancelar

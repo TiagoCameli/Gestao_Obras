@@ -12,6 +12,8 @@ interface PedidoMaterialListProps {
   filtroDataFim?: string;
   onEdit: (pedido: PedidoMaterial) => void;
   onDelete: (id: string) => void;
+  /** FF.6 — click numa row (fora dos botões/expand) abre drawer detalhes. */
+  onSelect?: (p: PedidoMaterial) => void;
   canEdit?: boolean;
   canDelete?: boolean;
 }
@@ -30,6 +32,7 @@ export default function PedidoMaterialList({
   filtroDataFim = '',
   onEdit,
   onDelete,
+  onSelect,
   canEdit = true,
   canDelete = true,
 }: PedidoMaterialListProps) {
@@ -117,6 +120,15 @@ export default function PedidoMaterialList({
                       </td>
                       <td className="px-4 py-3 text-center" onClick={(e) => e.stopPropagation()}>
                         <div className="flex justify-center gap-2">
+                          {onSelect && (
+                            <Button
+                              variant="ghost"
+                              className="text-xs px-2 py-1"
+                              onClick={() => onSelect(pedido)}
+                            >
+                              Detalhes
+                            </Button>
+                          )}
                           {canEdit && (
                             <Button
                               variant="ghost"

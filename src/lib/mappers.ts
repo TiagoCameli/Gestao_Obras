@@ -560,6 +560,17 @@ export function dbToFrete(row: any): Frete {
     valorMaterial: Number(row.valor_material ?? 0),
     observacoes: row.observacoes,
     criadoPor: row.criado_por ?? '',
+    // FF.3 — anexos + foto chegada.
+    fotoUrls: Array.isArray(row.foto_urls) ? row.foto_urls : [],
+    arquivoUrls: Array.isArray(row.arquivo_urls) ? row.arquivo_urls : [],
+    fotoChegadaUrl: row.foto_chegada_url ?? null,
+    // FF.1 — audit fields (read-only no client; preenchidos por triggers).
+    createdAt: row.created_at ?? null,
+    createdBy: row.created_by ?? null,
+    updatedAt: row.updated_at ?? null,
+    updatedBy: row.updated_by ?? null,
+    deletedAt: row.deleted_at ?? null,
+    deletedBy: row.deleted_by ?? null,
   };
 }
 
@@ -584,6 +595,16 @@ export function freteToDb(f: Frete) {
     valor_material: f.valorMaterial,
     observacoes: f.observacoes,
     criado_por: f.criadoPor,
+    // FF.3 — anexos + foto chegada.
+    foto_urls: f.fotoUrls ?? [],
+    arquivo_urls: f.arquivoUrls ?? [],
+    foto_chegada_url: f.fotoChegadaUrl ?? null,
+    // FF.1 — audit (created_by/updated_by/deleted_by setados explicitamente
+    // pelos hooks de mutate; demais (created_at/updated_at) ficam pro DB).
+    created_by: f.createdBy ?? null,
+    updated_by: f.updatedBy ?? null,
+    deleted_at: f.deletedAt ?? null,
+    deleted_by: f.deletedBy ?? null,
   };
 }
 
@@ -604,6 +625,16 @@ export function dbToPagamentoFrete(row: any): PagamentoFrete {
     pagoPor: row.pago_por ?? '',
     observacoes: row.observacoes,
     criadoPor: row.criado_por ?? '',
+    // FF.3 — anexos.
+    fotoUrls: Array.isArray(row.foto_urls) ? row.foto_urls : [],
+    arquivoUrls: Array.isArray(row.arquivo_urls) ? row.arquivo_urls : [],
+    // FF.1 — audit.
+    createdAt: row.created_at ?? null,
+    createdBy: row.created_by ?? null,
+    updatedAt: row.updated_at ?? null,
+    updatedBy: row.updated_by ?? null,
+    deletedAt: row.deleted_at ?? null,
+    deletedBy: row.deleted_by ?? null,
   };
 }
 
@@ -621,6 +652,14 @@ export function pagamentoFreteToDb(p: PagamentoFrete) {
     pago_por: p.pagoPor,
     observacoes: p.observacoes,
     criado_por: p.criadoPor,
+    // FF.3 — anexos.
+    foto_urls: p.fotoUrls ?? [],
+    arquivo_urls: p.arquivoUrls ?? [],
+    // FF.1 — audit.
+    created_by: p.createdBy ?? null,
+    updated_by: p.updatedBy ?? null,
+    deleted_at: p.deletedAt ?? null,
+    deleted_by: p.deletedBy ?? null,
   };
 }
 
@@ -738,6 +777,16 @@ export function dbToPedidoMaterial(row: any): PedidoMaterial {
     itens: Array.isArray(rawItens) ? rawItens.map(dbToItemPedidoMaterial) : [],
     observacoes: row.observacoes ?? '',
     criadoPor: row.criado_por ?? '',
+    // FF.3 — anexos.
+    fotoUrls: Array.isArray(row.foto_urls) ? row.foto_urls : [],
+    arquivoUrls: Array.isArray(row.arquivo_urls) ? row.arquivo_urls : [],
+    // FF.1 — audit.
+    createdAt: row.created_at ?? null,
+    createdBy: row.created_by ?? null,
+    updatedAt: row.updated_at ?? null,
+    updatedBy: row.updated_by ?? null,
+    deletedAt: row.deleted_at ?? null,
+    deletedBy: row.deleted_by ?? null,
   };
 }
 
@@ -749,6 +798,14 @@ export function pedidoMaterialToDb(p: PedidoMaterial) {
     itens: p.itens.map(itemPedidoMaterialToDb),
     observacoes: p.observacoes,
     criado_por: p.criadoPor,
+    // FF.3 — anexos.
+    foto_urls: p.fotoUrls ?? [],
+    arquivo_urls: p.arquivoUrls ?? [],
+    // FF.1 — audit.
+    created_by: p.createdBy ?? null,
+    updated_by: p.updatedBy ?? null,
+    deleted_at: p.deletedAt ?? null,
+    deleted_by: p.deletedBy ?? null,
   };
 }
 

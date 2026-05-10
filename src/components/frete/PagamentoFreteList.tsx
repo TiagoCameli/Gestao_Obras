@@ -28,6 +28,8 @@ interface PagamentoFreteListProps {
   filtroDataFim?: string;
   onEdit: (pagamento: PagamentoFrete) => void;
   onDelete: (id: string) => void;
+  /** FF.6 — click numa row (fora dos botões) abre drawer detalhes. */
+  onSelect?: (p: PagamentoFrete) => void;
   canEdit?: boolean;
   canDelete?: boolean;
 }
@@ -42,6 +44,7 @@ export default function PagamentoFreteList({
   filtroDataFim = '',
   onEdit,
   onDelete,
+  onSelect,
   canEdit = true,
   canDelete = true,
 }: PagamentoFreteListProps) {
@@ -95,8 +98,18 @@ export default function PagamentoFreteList({
               </tr>
             </thead>
             <tbody className="divide-y divide-[var(--color-border)] [&>tr:nth-child(even)]:bg-[var(--color-surface-2)]">
-              {paginados.map((pag) => (
-                <tr key={pag.id} className="hover:bg-[var(--color-accent-soft)] transition-colors">
+              {paginados.map((pag) => {
+                const rowClickable = !!onSelect;
+                return (
+                <tr
+                  key={pag.id}
+                  className={`hover:bg-[var(--color-accent-soft)] transition-colors ${rowClickable ? 'cursor-pointer' : ''}`}
+                  onClick={rowClickable ? (ev) => {
+                    const t = ev.target as HTMLElement;
+                    if (t.closest('button,a,input,select,textarea')) return;
+                    onSelect!(pag);
+                  } : undefined}
+                >
                   <td className="px-4 py-3 text-gray-800 whitespace-nowrap">
                     {pag.data ? new Date(pag.data + 'T00:00:00').toLocaleDateString('pt-BR') : '-'}
                   </td>
@@ -134,7 +147,8 @@ export default function PagamentoFreteList({
                     </div>
                   </td>
                 </tr>
-              ))}
+                );
+              })}
             </tbody>
             <tfoot>
               <tr className="bg-gray-50 font-semibold">

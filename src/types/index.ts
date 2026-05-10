@@ -354,6 +354,17 @@ export interface Frete {
   valorMaterial: number;
   observacoes: string;
   criadoPor: string;
+  // FF.3 — Anexos universais + foto destacada de chegada da carga.
+  fotoUrls?: string[] | null;
+  arquivoUrls?: string[] | null;
+  fotoChegadaUrl?: string | null;
+  // FF.1 — Audit fields (preenchidos por triggers no DB).
+  createdAt?: string | null;
+  createdBy?: string | null;
+  updatedAt?: string | null;
+  updatedBy?: string | null;
+  deletedAt?: string | null;
+  deletedBy?: string | null;
 }
 
 export interface FiltrosFrete {
@@ -383,6 +394,16 @@ export interface PagamentoFrete {
   pagoPor: string;
   observacoes: string;
   criadoPor: string;
+  // FF.3 — Anexos universais (comprovantes de pagamento).
+  fotoUrls?: string[] | null;
+  arquivoUrls?: string[] | null;
+  // FF.1 — Audit fields.
+  createdAt?: string | null;
+  createdBy?: string | null;
+  updatedAt?: string | null;
+  updatedBy?: string | null;
+  deletedAt?: string | null;
+  deletedBy?: string | null;
 }
 
 export type CategoriaAbastecimentoCarreta = 'transterra' | 'emt';
@@ -564,6 +585,16 @@ export interface PedidoMaterial {
   itens: ItemPedidoMaterial[];
   observacoes: string;
   criadoPor: string;
+  // FF.3 — Anexos universais (cotação, NF do fornecedor).
+  fotoUrls?: string[] | null;
+  arquivoUrls?: string[] | null;
+  // FF.1 — Audit fields.
+  createdAt?: string | null;
+  createdBy?: string | null;
+  updatedAt?: string | null;
+  updatedBy?: string | null;
+  deletedAt?: string | null;
+  deletedBy?: string | null;
 }
 
 export interface AuditLogEntry {

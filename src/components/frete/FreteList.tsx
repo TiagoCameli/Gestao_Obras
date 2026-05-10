@@ -65,6 +65,8 @@ interface FreteListProps {
   onEdit: (frete: Frete) => void;
   onDelete: (id: string) => void;
   onUpdateDataChegada?: (frete: Frete, dataChegada: string) => void;
+  /** FF.6 — click numa row (fora dos botões) abre drawer detalhes. */
+  onSelect?: (f: Frete) => void;
   canEdit?: boolean;
   canDelete?: boolean;
 }
@@ -77,6 +79,7 @@ export default function FreteList({
   onEdit,
   onDelete,
   onUpdateDataChegada,
+  onSelect,
   canEdit = true,
   canDelete = true,
 }: FreteListProps) {
@@ -150,8 +153,19 @@ export default function FreteList({
               </tr>
             </thead>
             <tbody className="divide-y divide-[var(--color-border)] [&>tr:nth-child(even)]:bg-[var(--color-surface-2)]">
-              {paginados.map((frete) => (
-                <tr key={frete.id} className="hover:bg-[var(--color-accent-soft)] transition-colors">
+              {paginados.map((frete) => {
+                const rowClickable = !!onSelect;
+                return (
+                <tr
+                  key={frete.id}
+                  className={`hover:bg-[var(--color-accent-soft)] transition-colors ${rowClickable ? 'cursor-pointer' : ''}`}
+                  onClick={rowClickable ? (ev) => {
+                    // Ignora cliques no input editável da DataChegada para não roubar foco/abrir drawer.
+                    const target = ev.target as HTMLElement;
+                    if (target.closest('input,button,a,select,textarea')) return;
+                    onSelect!(frete);
+                  } : undefined}
+                >
                   <td className="px-4 py-3 text-gray-800 whitespace-nowrap">
                     {frete.data ? new Date(frete.data + 'T00:00:00').toLocaleDateString('pt-BR') : '-'}
                   </td>
@@ -201,7 +215,8 @@ export default function FreteList({
                     </div>
                   </td>
                 </tr>
-              ))}
+                );
+              })}
             </tbody>
             <tfoot>
               <tr className="bg-gray-50 font-semibold">
