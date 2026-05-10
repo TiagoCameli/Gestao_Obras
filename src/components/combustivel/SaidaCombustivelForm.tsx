@@ -313,22 +313,39 @@ export default function SaidaCombustivelForm({
   }, [tipoConsumidor, transportadoraId, transportadoras, tanqueSelecionado, litros, valorTotal, origem, creditoAreacreValor, margemEmt]);
 
   // ── Validação ──
-  const isValid = useMemo(() => {
-    if (!data) return false;
-    if (!obraId) return false; // paridade com legado
-    if (!tipoCombustivel) return false;
-    if (litros <= 0) return false;
-    if (precoUnitario <= 0) return false;
-
+  // F5.B.1 — em vez de bool, retorna lista de campos faltantes pra exibir feedback.
+  // isValid deriva de length === 0; banner inline lista o que falta com nome humano.
+  const camposFaltantes = useMemo(() => {
+    const faltam: string[] = [];
+    if (!data) faltam.push('Data e hora');
+    if (!obraId) faltam.push('Obra');
+    if (!tipoCombustivel) faltam.push('Combustível');
+    if (litros <= 0) faltam.push('Litros');
+    if (precoUnitario <= 0) faltam.push('Preço unitário');
     if (tipoConsumidor === 'equipamento_proprio') {
-      if (!equipamentoId) return false;
+      if (!equipamentoId) faltam.push('Equipamento');
     } else {
-      if (!transportadoraId) return false;
+      if (!transportadoraId) faltam.push('Transportadora');
     }
-
-    if (origem === 'tanque' && !tanqueId) return false;
-    return true;
+    if (origem === 'tanque' && !tanqueId) faltam.push('Tanque');
+    return faltam;
   }, [data, obraId, tipoCombustivel, litros, precoUnitario, tipoConsumidor, equipamentoId, transportadoraId, origem, tanqueId]);
+  const isValid = camposFaltantes.length === 0;
+
+  // F5.B.2 — sanity warnings (não bloqueiam submit; sinalizam valores absurdos
+  // que costumam ser erros de digitação). Thresholds calibrados pelo histórico
+  // do BR-364: maior abastecimento real ~5000L (usina) e ~R$ 31k. 1000L+ ou
+  // R$10k+ em saída individual costuma ser zero a mais — vale confirmar.
+  const sanityWarnings = useMemo(() => {
+    const warnings: string[] = [];
+    if (litros >= 1000) {
+      warnings.push(`${litros.toLocaleString('pt-BR')} L é um volume alto — confirme antes de salvar.`);
+    }
+    if (valorTotal >= 10000) {
+      warnings.push(`${fmtBRL(valorTotal)} é um valor alto — confirme antes de salvar.`);
+    }
+    return warnings;
+  }, [litros, valorTotal]);
 
   // ── Submit ──
   const handleSubmit = useCallback(
@@ -850,6 +867,33 @@ export default function SaidaCombustivelForm({
             onChange={(e) => setPagoEm(e.target.value ? `${e.target.value}:00` : '')}
             disabled={!pago}
           />
+        </div>
+      )}
+
+      {/* F5.B.2 — sanity warnings (não bloqueiam, só alertam) */}
+      {sanityWarnings.length > 0 && (
+        <div className="rounded-lg border border-[var(--color-warning)]/40 bg-[var(--color-warning-soft)] p-3 space-y-1">
+          {sanityWarnings.map((w, i) => (
+            <div
+              key={i}
+              className="text-xs text-[var(--color-warning-fg)] flex items-start gap-1.5"
+            >
+              <span aria-hidden>!</span>
+              <span>{w}</span>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* F5.B.1 — feedback do que falta preencher (substitui o silent disabled) */}
+      {camposFaltantes.length > 0 && (
+        <div className="rounded-lg border border-dashed border-[var(--color-border)] bg-[var(--color-surface-2)]/40 p-3">
+          <p className="text-xs font-semibold uppercase tracking-wide text-[var(--color-fg-muted)] mb-1.5">
+            Para salvar, preencha:
+          </p>
+          <p className="text-sm text-[var(--color-fg)]">
+            {camposFaltantes.join(' · ')}
+          </p>
         </div>
       )}
 

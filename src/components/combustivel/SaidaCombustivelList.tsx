@@ -26,6 +26,8 @@ interface Props {
   combustiveis: Insumo[];
   onEdit?: (s: SaidaCombustivel) => void;
   onDelete?: (id: string) => void;
+  /** F5.A — click numa row (fora dos botões) abre drawer read-only de detalhes. */
+  onSelect?: (s: SaidaCombustivel) => void;
   canEdit?: boolean;
   canDelete?: boolean;
 }
@@ -60,6 +62,7 @@ export default function SaidaCombustivelList({
   combustiveis,
   onEdit,
   onDelete,
+  onSelect,
   canEdit = true,
   canDelete = true,
 }: Props) {
@@ -138,8 +141,16 @@ export default function SaidaCombustivelList({
                   );
                 }
 
+                // F5.A — row inteira clicável quando onSelect existe (abre drawer
+                // read-only). Botões de ação param a propagação pra não disparar
+                // o onSelect ao mesmo tempo.
+                const rowClickable = !!onSelect;
                 return (
-                  <tr key={s.id} className="hover:bg-gray-50">
+                  <tr
+                    key={s.id}
+                    className={`hover:bg-gray-50 ${rowClickable ? 'cursor-pointer' : ''}`}
+                    onClick={rowClickable ? () => onSelect!(s) : undefined}
+                  >
                     <td className="px-3 py-2 text-gray-700 whitespace-nowrap">{fmtData(s.data)}</td>
                     <td className="px-3 py-2">{consumidorNode}</td>
                     <td className="px-3 py-2 text-gray-700">{ORIGEM_LABEL[s.origem]}</td>
@@ -150,7 +161,7 @@ export default function SaidaCombustivelList({
                     <td className="px-3 py-2 text-right text-gray-800 font-mono font-semibold">{fmtBRL(s.valorTotal)}</td>
                     {(canEdit || canDelete) && (
                       <td className="px-3 py-2 text-right">
-                        <div className="inline-flex gap-1">
+                        <div className="inline-flex gap-1" onClick={(e) => e.stopPropagation()}>
                           {canEdit && onEdit && (
                             <Button variant="secondary" className="text-xs px-2 py-1" onClick={() => onEdit(s)} aria-label="Editar">
                               <Pencil className="w-3.5 h-3.5" />

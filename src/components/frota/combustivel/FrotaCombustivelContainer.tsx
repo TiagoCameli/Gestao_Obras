@@ -23,6 +23,7 @@ import PasswordDialog from '../../ui/PasswordDialog';
 // Saída unificada (Fase 4)
 import SaidaCombustivelForm from '../../combustivel/SaidaCombustivelForm';
 import SaidaCombustivelList from '../../combustivel/SaidaCombustivelList';
+import SaidaDetalhesDrawer from '../../combustivel/SaidaDetalhesDrawer';
 import EntradaForm from '../../combustivel/EntradaForm';
 import EntradaList from '../../combustivel/EntradaList';
 import TransferenciaForm from '../../combustivel/TransferenciaForm';
@@ -207,6 +208,8 @@ function FrotaCombustivelContent() {
   // Saida state (modelo unificado Fase 3/4)
   const [modalSaidaOpen, setModalSaidaOpen] = useState(false);
   const [editandoSaida, setEditandoSaida] = useState<SaidaCombustivel | null>(null);
+  // F5.A — Drawer read-only de detalhes da Saída (preview sem modo edit).
+  const [saidaDetalhes, setSaidaDetalhes] = useState<SaidaCombustivel | null>(null);
 
   // Entrada state
   const [modalEntradaOpen, setModalEntradaOpen] = useState(false);
@@ -784,7 +787,12 @@ function FrotaCombustivelContent() {
             transportadoras={transportadoras}
             combustiveis={combustiveis}
             onEdit={handleEditSaida}
-            onDelete={(id) => pedirSenha(() => handleDeleteSaida(id))}
+            onDelete={(id) => pedirSenha(() => handleDeleteSaida(id), {
+              confirmMessage: 'Confirma exclusão desta saída? Ação não pode ser desfeita.',
+              successMessage: 'Saída excluída.',
+              errorMessage: 'Falha ao excluir saída. Verifique sua conexão e tente novamente.',
+            })}
+            onSelect={setSaidaDetalhes}
             canEdit={canEdit}
             canDelete={canDelete}
           />
@@ -804,6 +812,29 @@ function FrotaCombustivelContent() {
         />
       )}
       </div>
+
+      {/* F5.A — Drawer read-only de detalhes da Saída. Click em row da
+          SaidaCombustivelList abre. Botões Editar/Excluir delegam aos
+          handlers que já tratam pedirSenha + confirm + toast. */}
+      <SaidaDetalhesDrawer
+        saida={saidaDetalhes}
+        open={saidaDetalhes !== null}
+        onClose={() => setSaidaDetalhes(null)}
+        obras={obras}
+        etapas={etapas}
+        depositos={depositosTodos}
+        equipamentos={todosEquipamentos}
+        transportadoras={transportadoras}
+        combustiveis={combustiveis}
+        onEdit={handleEditSaida}
+        onDelete={(id) => pedirSenha(() => handleDeleteSaida(id), {
+          confirmMessage: 'Confirma exclusão desta saída? Ação não pode ser desfeita.',
+          successMessage: 'Saída excluída.',
+          errorMessage: 'Falha ao excluir saída. Verifique sua conexão e tente novamente.',
+        })}
+        canEdit={canEdit}
+        canDelete={canDelete}
+      />
 
       {/* Password dialog */}
       <PasswordDialog
