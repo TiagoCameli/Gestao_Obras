@@ -2,12 +2,17 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '../lib/supabase';
 import { dbToEntradaCombustivel, entradaCombustivelToDb } from '../lib/mappers';
 import type { EntradaCombustivel } from '../types';
+import { useAuth } from '../contexts/AuthContext';
 
 export function useEntradasCombustivel() {
   return useQuery({
     queryKey: ['entradas_combustivel'],
     queryFn: async () => {
-      const { data, error } = await supabase.from('entradas_combustivel').select('*');
+      // F8.4 — soft delete: filtra deleted_at IS NULL (registros ativos).
+      const { data, error } = await supabase
+        .from('entradas_combustivel')
+        .select('*')
+        .is('deleted_at', null);
       if (error) throw error;
       return (data ?? []).map(dbToEntradaCombustivel);
     },
@@ -47,9 +52,17 @@ export function useAtualizarEntradaCombustivel() {
 
 export function useExcluirEntradaCombustivel() {
   const qc = useQueryClient();
+  const { usuario } = useAuth();
   return useMutation({
+    // F8.4 — soft delete: marca deleted_at + deleted_by em vez de DELETE.
     mutationFn: async (id: string) => {
-      const { error } = await supabase.from('entradas_combustivel').delete().eq('id', id);
+      const { error } = await supabase
+        .from('entradas_combustivel')
+        .update({
+          deleted_at: new Date().toISOString(),
+          deleted_by: usuario?.nome ?? null,
+        })
+        .eq('id', id);
       if (error) throw error;
     },
     onSuccess: () => {

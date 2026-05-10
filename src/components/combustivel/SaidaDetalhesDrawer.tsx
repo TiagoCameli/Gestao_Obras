@@ -9,8 +9,8 @@
 // Padrão deliberado: drawer é leitura, modal é escrita. Evita salvar
 // acidentes em saídas que o user só queria conferir.
 
-import { useMemo } from 'react';
-import { Pencil, Trash2, Settings2, Truck, AlertCircle, Camera, Wallet, Droplet, Gauge, MapPin, Container, FileText, User, Calendar, Paperclip } from 'lucide-react';
+import { useMemo, useState } from 'react';
+import { Pencil, Trash2, Settings2, Truck, AlertCircle, Camera, Wallet, Droplet, Gauge, MapPin, Container, FileText, User, Calendar, Paperclip, History } from 'lucide-react';
 import type {
   SaidaCombustivel,
   Obra,
@@ -23,6 +23,7 @@ import type {
 } from '../../types';
 import Drawer from '../ui/Drawer';
 import Button from '../ui/Button';
+import HistoricoTimeline from './HistoricoTimeline';
 
 interface Props {
   saida: SaidaCombustivel | null;
@@ -117,6 +118,14 @@ export default function SaidaDetalhesDrawer({
   const transpMap = useMemo(() => new Map(transportadoras.map((t) => [t.id, t.nome])), [transportadoras]);
   const combustMap = useMemo(() => new Map(combustiveis.map((c) => [c.id, c.nome])), [combustiveis]);
 
+  // F8.3 — tabs Detalhes / Histórico
+  const [tab, setTab] = useState<'detalhes' | 'historico'>('detalhes');
+  // Resolvers pra HistoricoTimeline humanizar IDs em diffs (equip_id → nome).
+  const equipamentosNomeMap = useMemo(
+    () => new Map(equipamentos.map((e) => [e.id, e.codigoPatrimonio ? `${e.codigoPatrimonio} · ${e.nome}` : e.nome])),
+    [equipamentos],
+  );
+
   if (!saida) {
     return (
       <Drawer open={open} onClose={onClose} title="Saída de combustível" subtitle="Detalhes" width="lg">
@@ -195,6 +204,46 @@ export default function SaidaDetalhesDrawer({
       width="lg"
       footer={footer}
     >
+      {/* F8.3 — tabs Detalhes / Histórico */}
+      <div className="flex gap-1 mb-4 border-b border-[var(--color-border)]">
+        <button
+          type="button"
+          onClick={() => setTab('detalhes')}
+          className={`px-3 py-2 text-sm font-medium transition-colors border-b-2 -mb-px ${
+            tab === 'detalhes'
+              ? 'text-[var(--color-fg)] border-[var(--color-accent)]'
+              : 'text-[var(--color-fg-muted)] border-transparent hover:text-[var(--color-fg)]'
+          }`}
+        >
+          Detalhes
+        </button>
+        <button
+          type="button"
+          onClick={() => setTab('historico')}
+          className={`inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium transition-colors border-b-2 -mb-px ${
+            tab === 'historico'
+              ? 'text-[var(--color-fg)] border-[var(--color-accent)]'
+              : 'text-[var(--color-fg-muted)] border-transparent hover:text-[var(--color-fg)]'
+          }`}
+        >
+          <History className="w-3.5 h-3.5" />
+          Histórico
+        </button>
+      </div>
+
+      {tab === 'historico' && (
+        <HistoricoTimeline
+          alvoId={saida.id}
+          resolvers={{
+            equipamentos: equipamentosNomeMap,
+            obras: obrasMap,
+            tanques: tanquesMap,
+            combustiveis: combustMap,
+          }}
+        />
+      )}
+
+      {tab === 'detalhes' && (
       <div className="space-y-5">
         {/* KPIs no topo: Litros · Valor · R$/L · Origem */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
@@ -356,6 +405,7 @@ export default function SaidaDetalhesDrawer({
           </div>
         )}
       </div>
+      )}
     </Drawer>
   );
 }

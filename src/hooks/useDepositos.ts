@@ -3,6 +3,7 @@ import { useCallback } from 'react';
 import { supabase } from '../lib/supabase';
 import { dbToDeposito, depositoToDb } from '../lib/mappers';
 import type { Deposito } from '../types';
+import { useAuth } from '../contexts/AuthContext';
 
 /**
  * Lista depósitos. Por default oculta depósitos externos (eh_externo=true) —
@@ -26,7 +27,11 @@ export function useDepositos(options?: { incluirExternos?: boolean }) {
   return useQuery({
     queryKey: ['depositos'],
     queryFn: async () => {
-      const { data, error } = await supabase.from('depositos').select('*');
+      // F8.4 — soft delete: filtra deleted_at IS NULL.
+      const { data, error } = await supabase
+        .from('depositos')
+        .select('*')
+        .is('deleted_at', null);
       if (error) throw error;
       return (data ?? []).map(dbToDeposito);
     },
@@ -64,9 +69,17 @@ export function useAtualizarDeposito() {
 
 export function useExcluirDeposito() {
   const qc = useQueryClient();
+  const { usuario } = useAuth();
   return useMutation({
+    // F8.4 — soft delete: marca deleted_at + deleted_by em vez de DELETE.
     mutationFn: async (id: string) => {
-      const { error } = await supabase.from('depositos').delete().eq('id', id);
+      const { error } = await supabase
+        .from('depositos')
+        .update({
+          deleted_at: new Date().toISOString(),
+          deleted_by: usuario?.nome ?? null,
+        })
+        .eq('id', id);
       if (error) throw error;
     },
     onSuccess: () => {

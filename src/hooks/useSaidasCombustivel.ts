@@ -20,9 +20,12 @@ export function useSaidasCombustivel() {
   return useQuery({
     queryKey: ['saidas_combustivel'],
     queryFn: async () => {
+      // F8.4 — soft delete: filtra deleted_at IS NULL (registros ativos).
+      // Pra ver lixeira (admin), usar useSaidasCombustivelDeletadas (TBD).
       const { data, error } = await supabase
         .from('saidas_combustivel')
         .select('*')
+        .is('deleted_at', null)
         .order('data', { ascending: false });
       if (error) throw error;
       return (data ?? []).map(dbToSaidaCombustivel);
@@ -124,9 +127,19 @@ export function useAtualizarSaidasCombustivelBatch() {
 
 export function useExcluirSaidaCombustivel() {
   const qc = useQueryClient();
+  const { usuario } = useAuth();
   return useMutation({
+    // F8.4 — soft delete: marca deleted_at + deleted_by em vez de DELETE.
+    // Trigger DB grava entry no audit_log com tipo "saidas_combustivel_delete".
+    // Restore via UPDATE deleted_at = NULL (admin, futuro).
     mutationFn: async (id: string) => {
-      const { error } = await supabase.from('saidas_combustivel').delete().eq('id', id);
+      const { error } = await supabase
+        .from('saidas_combustivel')
+        .update({
+          deleted_at: new Date().toISOString(),
+          deleted_by: usuario?.nome ?? null,
+        })
+        .eq('id', id);
       if (error) throw error;
     },
     onSuccess: () => invalidateAll(qc),
