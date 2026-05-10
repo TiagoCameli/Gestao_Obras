@@ -120,7 +120,7 @@ export function drawAnomaliasSlot(
       a.description,
     ]),
     rest > 0
-      ? ['', '', '', `+${rest} adicional${rest > 1 ? 'is' : ''} no escopo`, '']
+      ? ['', '', '', `+${rest} ${rest > 1 ? 'adicionais' : 'adicional'} no escopo`, '']
       : ['', '', '', '', ''],
     {
       0: { halign: 'center', cellWidth: 24 },

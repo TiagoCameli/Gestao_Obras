@@ -1,4 +1,4 @@
-import { useEffect, type ReactNode } from 'react';
+import { useEffect, useRef, type ReactNode } from 'react';
 
 interface DrawerProps {
   open: boolean;
@@ -25,10 +25,17 @@ export default function Drawer({
   footer,
   width = 'lg',
 }: DrawerProps) {
+  // F6.B — A11y: foca no botão Fechar quando o drawer abre. Pra usuários
+  // de teclado/screen reader, isso garante que Tab cycle começa de um
+  // ponto previsível (atalho intuitivo: ESC pra cancelar, Tab pra próximo).
+  const closeBtnRef = useRef<HTMLButtonElement>(null);
+
   useEffect(() => {
     if (!open) return;
     const prev = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
+    // Foco no botão close após mount (RAF garante render completo)
+    requestAnimationFrame(() => closeBtnRef.current?.focus());
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') onClose();
     };
@@ -72,10 +79,11 @@ export default function Drawer({
             )}
           </div>
           <button
+            ref={closeBtnRef}
             type="button"
             onClick={onClose}
             aria-label="Fechar"
-            className="shrink-0 w-9 h-9 inline-flex items-center justify-center rounded-lg text-[var(--color-fg-subtle)] hover:text-[var(--color-fg)] hover:bg-[var(--color-surface-2)] transition-colors"
+            className="shrink-0 w-9 h-9 inline-flex items-center justify-center rounded-lg text-[var(--color-fg-subtle)] hover:text-[var(--color-fg)] hover:bg-[var(--color-surface-2)] transition-colors focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]/40"
           >
             <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M18 6L6 18M6 6l12 12" />

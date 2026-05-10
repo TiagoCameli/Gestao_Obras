@@ -415,7 +415,7 @@ export function exportarMensalConsolidadoPDF(input: ConsolidadoInput): void {
 
   // Página 5: Anomalias placeholder + Fornecedores
   doc.addPage();
-  drawPdfDetailPageHeader(doc, 'Fornecedores e Anomalias', data.fornecedores.length);
+  drawPdfDetailPageHeader(doc, 'Fornecedores', data.fornecedores.length);
 
   let y2 = 18;
   if (data.fornecedores.length > 0) {

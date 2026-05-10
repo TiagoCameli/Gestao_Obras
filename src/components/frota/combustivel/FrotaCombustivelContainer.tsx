@@ -1,6 +1,5 @@
 import { useState, useCallback, useMemo } from 'react';
 import type {
-  Abastecimento,
   EntradaCombustivel,
   TransferenciaCombustivel,
   Deposito,
@@ -30,7 +29,6 @@ import TransferenciaForm from '../../combustivel/TransferenciaForm';
 import TransferenciaList from '../../combustivel/TransferenciaList';
 import TanqueList from './TanqueList';
 import TanqueForm from './TanqueForm';
-import ExportarPDFModal from '../../combustivel/ExportarPDFModal';
 // v2 — IA premium da página /combustivel (F1+, filtros globais em F2)
 import { CombustivelFilterProvider, useCombustivelFilter } from '../../combustivel/v2/filters/FilterContext';
 import FilterBar from '../../combustivel/v2/filters/FilterBar';
@@ -116,32 +114,6 @@ function FrotaCombustivelContent() {
   // Saídas via tabela unificada (Fase 3) — fonte canônica.
   const saidasQuery = useSaidasCombustivel();
   const todasSaidas = saidasQuery.data ?? [];
-  // Adapter inline pro shape Abastecimento legado (ExportarPDFModal ainda
-  // consome — será removido quando F4 entregar a aba Relatórios).
-  const todosAbastecimentos: Abastecimento[] = useMemo(
-    () => todasSaidas.map((s) => ({
-      id: s.id,
-      dataHora: s.data,
-      tipoCombustivel: s.tipoCombustivel ?? '',
-      quantidadeLitros: s.litros,
-      valorTotal: s.valorTotal,
-      obraId: s.obraId ?? '',
-      etapaId: s.etapaId ?? '',
-      alocacoes: s.alocacoes ?? [],
-      depositoId: s.tanqueId ?? '',
-      equipamentoId: (s.equipamentoId === 'desconhecido' ? '' : (s.equipamentoId ?? '')),
-      veiculo: '',
-      fotosUrls: s.fotoUrls ?? [],
-      observacoes: s.observacoes ?? '',
-      criadoPor: s.createdBy ?? '',
-      origemCombustivel: s.origem,
-      fornecedor: '',
-      pago: s.pago ?? false,
-      dataPagamento: s.pagoEm ?? '',
-      pagoPor: '',
-    })),
-    [todasSaidas]
-  );
   const entradasQuery = useEntradasCombustivel();
   const todasEntradas = entradasQuery.data ?? [];
   const transferenciasQuery = useTransferenciasCombustivel();
@@ -217,9 +189,6 @@ function FrotaCombustivelContent() {
 
   // Transferencia state
   const [modalTransferenciaOpen, setModalTransferenciaOpen] = useState(false);
-
-  // Exportar state
-  const [modalExportarOpen, setModalExportarOpen] = useState(false);
 
   // Atribuição retroativa em batch (F2.B.2)
   const [modalAtribuirOpen, setModalAtribuirOpen] = useState(false);
@@ -307,14 +276,6 @@ function FrotaCombustivelContent() {
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [todasSaidas, tipoConsumidorAlvo, periodoFromTs, periodoToTs, filterState.obraIds, filterState.tipoCombustiveis, filterState.tanqueIds, filterState.equipamentoIds, filterState.transportadoraIds, filterState.placas, filterState.operadores, filterState.apenasSentinel]);
-
-  // Adapter pro shape Abastecimento legado (ExportarPDFModal). Filtra os
-  // mesmos critérios da Saída — quando F4 entregar a aba Relatórios o modal
-  // legado morre junto com esse adapter.
-  const abastecimentosFiltrados = useMemo(() => {
-    const ids = new Set(saidasFiltradas.map((s) => s.id));
-    return todosAbastecimentos.filter((a) => ids.has(a.id));
-  }, [todosAbastecimentos, saidasFiltradas]);
 
   const entradasFiltradas = useMemo(() => {
     return todasEntradas.filter((e) => {
@@ -573,13 +534,6 @@ function FrotaCombustivelContent() {
             + Nova Transferência
           </Button>
         )}
-        <Button
-          variant="secondary"
-          onClick={() => setModalExportarOpen(true)}
-          className="text-sm"
-        >
-          Exportar Relatório
-        </Button>
       </div>
 
       {/* Mode switch — separa "dois mundos" da operação (proprios vs carretas).
@@ -931,16 +885,6 @@ function FrotaCombustivelContent() {
         obras={obras}
       />
 
-      {/* Modal Exportar Relatório */}
-      <ExportarPDFModal
-        open={modalExportarOpen}
-        onClose={() => setModalExportarOpen(false)}
-        abastecimentos={abastecimentosFiltrados}
-        entradas={entradasFiltradas}
-        transferencias={transferenciasFiltradas}
-        obras={obras}
-        depositos={depositosTodos}
-      />
     </div>
   );
 }

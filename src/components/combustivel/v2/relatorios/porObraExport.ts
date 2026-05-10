@@ -397,7 +397,7 @@ export function exportarPorObraPDF(input: PorObraInput): void {
   // mesma página dos Fornecedores (yAnom = pageH - 50). Tentativa
   // anterior com doc.addPage() dedicado não vingou (página não saiu).
   doc.addPage();
-  drawPdfDetailPageHeader(doc, 'Fornecedores e Anomalias', data.fornecedores.length);
+  drawPdfDetailPageHeader(doc, 'Fornecedores', data.fornecedores.length);
 
   if (data.fornecedores.length > 0) {
     let yF = 18;

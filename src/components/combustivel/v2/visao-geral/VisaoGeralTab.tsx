@@ -47,9 +47,17 @@ const TIPO_POR_MODE: Record<'proprios' | 'carretas', TipoConsumidorSaida> = {
   carretas: 'carreta_transportadora',
 };
 
+// F6/tech-debt #34 fix — isInRange usa getTime() pra respeitar TZ local do
+// browser. Antes usava `iso.slice(0, 10)` que pegava a data UTC do timestamp;
+// saídas em 21:00-23:59 BRT (TZ local UTC-3) caíam no dia seguinte UTC e o
+// slice descartava elas indevidamente. Isso causava divergência com Container
+// (que sempre usou getTime — local time aware), gerando 84 vs 80 anomalias
+// no KPI #6 da VG vs aba Anomalias. Padronizado em todo lugar agora.
 function isInRange(iso: string, from: string, to: string): boolean {
-  const dia = iso.slice(0, 10);
-  return dia >= from && dia <= to;
+  const t = new Date(iso).getTime();
+  const fromTs = new Date(from + 'T00:00:00').getTime();
+  const toTs = new Date(to + 'T23:59:59').getTime();
+  return t >= fromTs && t <= toTs;
 }
 
 function diasNoPeriodo(p: { from: string; to: string }): number {

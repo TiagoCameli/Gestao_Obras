@@ -98,24 +98,29 @@ export default function PorEquipamentoModal({
     [equipamentos, equipId],
   );
 
+  // Tech-debt #34 fix — usar getTime() (TZ local) em vez de slice(0, 10) (UTC),
+  // mesma razão do fix em VisaoGeralTab.isInRange. Saídas em 21:00-23:59 BRT
+  // caem em UTC do dia seguinte; slice(UTC) rejeitava elas indevidamente.
+  const fromTs = useMemo(() => new Date(from + 'T00:00:00').getTime(), [from]);
+  const toTs = useMemo(() => new Date(to + 'T23:59:59').getTime(), [to]);
+
   // Saídas filtradas: tipoConsumidor='equipamento_proprio' + equipId + range.
   const saidasEquip = useMemo(() => {
     if (!equipId) return [];
-    return saidas.filter(
-      (s) =>
-        s.tipoConsumidor === 'equipamento_proprio' &&
-        s.equipamentoId === equipId &&
-        s.data.slice(0, 10) >= from &&
-        s.data.slice(0, 10) <= to,
-    );
-  }, [saidas, equipId, from, to]);
+    return saidas.filter((s) => {
+      if (s.tipoConsumidor !== 'equipamento_proprio') return false;
+      if (s.equipamentoId !== equipId) return false;
+      const t = new Date(s.data).getTime();
+      return t >= fromTs && t <= toTs;
+    });
+  }, [saidas, equipId, fromTs, toTs]);
 
   const entradasNoPeriodo = useMemo(() => {
     return entradas.filter((e) => {
-      const d = e.dataHora.slice(0, 10);
-      return d >= from && d <= to;
+      const t = new Date(e.dataHora).getTime();
+      return t >= fromTs && t <= toTs;
     });
-  }, [entradas, from, to]);
+  }, [entradas, fromTs, toTs]);
 
   const periodo = useMemo(() => ({ from, to }), [from, to]);
 

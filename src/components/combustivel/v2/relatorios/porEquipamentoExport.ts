@@ -301,7 +301,7 @@ export function exportarPorEquipamentoPDF(input: PorEquipamentoInput): void {
   // Padrão Mensal/PorObra: Anomalias renderiza no pé da mesma página
   // dos Fornecedores (yAnom = pageH - 50).
   doc.addPage();
-  drawPdfDetailPageHeader(doc, 'Fornecedores e Anomalias', data.fornecedores.length);
+  drawPdfDetailPageHeader(doc, 'Fornecedores', data.fornecedores.length);
 
   if (data.fornecedores.length > 0) {
     let yF = 18;

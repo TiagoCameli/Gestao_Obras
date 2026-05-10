@@ -1,4 +1,4 @@
-import { useEffect, type ReactNode } from 'react';
+import { useEffect, useRef, type ReactNode } from 'react';
 
 interface ModalProps {
   open: boolean;
@@ -15,16 +15,25 @@ const sizeClasses = {
 };
 
 export default function Modal({ open, onClose, title, children, size = 'default' }: ModalProps) {
+  // F6.B — A11y: dialog ganha role="dialog" + aria-modal="true" + aria-labelledby
+  // pra screen readers anunciarem corretamente. ESC fecha (faltava). useRef pro
+  // título permite linkar com aria-labelledby.
+  const titleId = useRef(`modal-title-${Math.random().toString(36).slice(2, 8)}`);
+
   useEffect(() => {
     if (open) {
       document.body.style.overflow = 'hidden';
-    } else {
-      document.body.style.overflow = '';
+      const onKey = (e: KeyboardEvent) => {
+        if (e.key === 'Escape') onClose();
+      };
+      window.addEventListener('keydown', onKey);
+      return () => {
+        document.body.style.overflow = '';
+        window.removeEventListener('keydown', onKey);
+      };
     }
-    return () => {
-      document.body.style.overflow = '';
-    };
-  }, [open]);
+    document.body.style.overflow = '';
+  }, [open, onClose]);
 
   if (!open) return null;
 
@@ -33,8 +42,12 @@ export default function Modal({ open, onClose, title, children, size = 'default'
       <div
         className="fixed inset-0 bg-black/40 backdrop-blur-[2px] dark:bg-black/70"
         onClick={onClose}
+        aria-hidden="true"
       />
       <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId.current}
         className={
           'relative bg-[var(--color-surface-1)] text-[var(--color-fg)] ' +
           'sm:rounded-2xl shadow-[var(--shadow-xl)] ' +
@@ -50,7 +63,10 @@ export default function Modal({ open, onClose, title, children, size = 'default'
             'sticky top-0 bg-[var(--color-surface-1)]/95 backdrop-blur-sm z-10'
           }
         >
-          <h2 className="text-base sm:text-lg font-semibold text-[var(--color-fg)] tracking-tight">
+          <h2
+            id={titleId.current}
+            className="text-base sm:text-lg font-semibold text-[var(--color-fg)] tracking-tight"
+          >
             {title}
           </h2>
           <button
