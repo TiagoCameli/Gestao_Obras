@@ -35,6 +35,45 @@ export function useAdicionarTransferenciaCombustivel() {
   });
 }
 
+// F10 — Lixeira
+export function useTransferenciasCombustivelDeletadas() {
+  return useQuery({
+    queryKey: ['transferencias_combustivel', 'deletadas'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('transferencias_combustivel')
+        .select('*')
+        .not('deleted_at', 'is', null)
+        .order('deleted_at', { ascending: false })
+        .limit(200);
+      if (error) throw error;
+      return (data ?? []).map((row: { deleted_at: string | null; deleted_by: string | null }) => ({
+        ...dbToTransferenciaCombustivel(row),
+        deletedAt: row.deleted_at,
+        deletedBy: row.deleted_by,
+      }));
+    },
+  });
+}
+
+export function useRestaurarTransferenciaCombustivel() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase
+        .from('transferencias_combustivel')
+        .update({ deleted_at: null, deleted_by: null })
+        .eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['transferencias_combustivel'] });
+      qc.invalidateQueries({ queryKey: ['transferencias_combustivel', 'deletadas'] });
+      qc.invalidateQueries({ queryKey: ['depositos'] });
+    },
+  });
+}
+
 export function useExcluirTransferenciaCombustivel() {
   const qc = useQueryClient();
   const { usuario } = useAuth();

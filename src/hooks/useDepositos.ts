@@ -67,6 +67,44 @@ export function useAtualizarDeposito() {
   });
 }
 
+// F10 — Lixeira
+export function useDepositosDeletados() {
+  return useQuery({
+    queryKey: ['depositos', 'deletados'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('depositos')
+        .select('*')
+        .not('deleted_at', 'is', null)
+        .order('deleted_at', { ascending: false })
+        .limit(200);
+      if (error) throw error;
+      return (data ?? []).map((row: { deleted_at: string | null; deleted_by: string | null }) => ({
+        ...dbToDeposito(row),
+        deletedAt: row.deleted_at,
+        deletedBy: row.deleted_by,
+      }));
+    },
+  });
+}
+
+export function useRestaurarDeposito() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase
+        .from('depositos')
+        .update({ deleted_at: null, deleted_by: null })
+        .eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['depositos'] });
+      qc.invalidateQueries({ queryKey: ['depositos', 'deletados'] });
+    },
+  });
+}
+
 export function useExcluirDeposito() {
   const qc = useQueryClient();
   const { usuario } = useAuth();

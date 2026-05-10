@@ -35,6 +35,7 @@ import FilterBar from '../../combustivel/v2/filters/FilterBar';
 import FilterChips from '../../combustivel/v2/filters/FilterChips';
 import CombustivelTabsNav, { type CombustivelTabId } from '../../combustivel/v2/CombustivelTabsNav';
 import VisaoGeralTab from '../../combustivel/v2/visao-geral/VisaoGeralTab';
+import LixeiraTab from '../../combustivel/v2/lixeira/LixeiraTab';
 import ErrorState from '../../combustivel/v2/shared/ErrorState';
 import SkeletonBlock from '../../combustivel/v2/shared/SkeletonBlock';
 import CombustivelErrorBoundary from '../../combustivel/v2/shared/CombustivelErrorBoundary';
@@ -566,7 +567,11 @@ function FrotaCombustivelContent() {
 
       {/* Sub-tab navigation v2 */}
       <div className="px-3 sm:px-4">
-        <CombustivelTabsNav active={subTab} onChange={setSubTab} />
+        <CombustivelTabsNav
+          active={subTab}
+          onChange={setSubTab}
+          isAdmin={usuario?.cargo === 'Administrador'}
+        />
       </div>
 
       {/* F6.A — error banner global pra queries críticas. Aparece no topo
@@ -676,6 +681,16 @@ function FrotaCombustivelContent() {
           transportadoras={transportadoras}
           obras={obras}
           combustiveis={combustiveis}
+          depositos={depositosTodos}
+        />
+      )}
+
+      {/* F10 — Aba Lixeira admin-only. Lê deletados das 4 entidades operacionais
+          e oferece botão Restaurar (UPDATE deleted_at = NULL). */}
+      {!isLoadingCore && subTab === 'lixeira' && usuario?.cargo === 'Administrador' && (
+        <LixeiraTab
+          equipamentos={todosEquipamentos}
+          obras={obras}
           depositos={depositosTodos}
         />
       )}

@@ -50,6 +50,45 @@ export function useAtualizarEntradaCombustivel() {
   });
 }
 
+// F10 — Lixeira
+export function useEntradasCombustivelDeletadas() {
+  return useQuery({
+    queryKey: ['entradas_combustivel', 'deletadas'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('entradas_combustivel')
+        .select('*')
+        .not('deleted_at', 'is', null)
+        .order('deleted_at', { ascending: false })
+        .limit(200);
+      if (error) throw error;
+      return (data ?? []).map((row: { deleted_at: string | null; deleted_by: string | null }) => ({
+        ...dbToEntradaCombustivel(row),
+        deletedAt: row.deleted_at,
+        deletedBy: row.deleted_by,
+      }));
+    },
+  });
+}
+
+export function useRestaurarEntradaCombustivel() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase
+        .from('entradas_combustivel')
+        .update({ deleted_at: null, deleted_by: null })
+        .eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['entradas_combustivel'] });
+      qc.invalidateQueries({ queryKey: ['entradas_combustivel', 'deletadas'] });
+      qc.invalidateQueries({ queryKey: ['depositos'] });
+    },
+  });
+}
+
 export function useExcluirEntradaCombustivel() {
   const qc = useQueryClient();
   const { usuario } = useAuth();

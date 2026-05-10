@@ -20,7 +20,8 @@ export type CombustivelTabId =
   | 'obras'
   | 'fornecedores'
   | 'anomalias'
-  | 'relatorios';
+  | 'relatorios'
+  | 'lixeira';
 
 interface TabDef {
   key: CombustivelTabId;
@@ -35,8 +36,8 @@ interface GroupDef {
   tabs: TabDef[];
 }
 
-function buildGroups(consumidoresLabel: string): GroupDef[] {
-  return [
+function buildGroups(consumidoresLabel: string, isAdmin: boolean): GroupDef[] {
+  const groups: GroupDef[] = [
     { label: '', tabs: [{ key: 'visao_geral', label: 'Visão Geral' }] },
     {
       label: 'Operacional',
@@ -58,17 +59,24 @@ function buildGroups(consumidoresLabel: string): GroupDef[] {
     },
     { label: '', tabs: [{ key: 'relatorios', label: 'Relatórios' }] },
   ];
+  // F10 — Lixeira admin-only no fim do nav
+  if (isAdmin) {
+    groups.push({ label: '', tabs: [{ key: 'lixeira', label: 'Lixeira' }] });
+  }
+  return groups;
 }
 
 interface Props {
   active: CombustivelTabId;
   onChange: (key: CombustivelTabId) => void;
+  /** F10 — quando true, mostra subtab Lixeira no fim do nav. */
+  isAdmin?: boolean;
 }
 
-export default function CombustivelTabsNav({ active, onChange }: Props) {
+export default function CombustivelTabsNav({ active, onChange, isAdmin = false }: Props) {
   const { state } = useCombustivelFilter();
   const consumidoresLabel = state.mode === 'carretas' ? 'Carretas' : 'Equipamentos';
-  const groups = buildGroups(consumidoresLabel);
+  const groups = buildGroups(consumidoresLabel, isAdmin);
   return (
     <nav
       aria-label="Seções do módulo Combustível"

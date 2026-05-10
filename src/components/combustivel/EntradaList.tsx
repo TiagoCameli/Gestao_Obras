@@ -12,6 +12,8 @@ interface EntradaListProps {
   depositos: Deposito[];
   onEdit: (entrada: EntradaCombustivel) => void;
   onDelete: (id: string) => void;
+  /** F8.5.1 — click numa row (fora dos botões) abre drawer detalhes. */
+  onSelect?: (e: EntradaCombustivel) => void;
   canEdit?: boolean;
   canDelete?: boolean;
 }
@@ -21,6 +23,7 @@ export default function EntradaList({
   depositos,
   onEdit,
   onDelete,
+  onSelect,
   canEdit = true,
   canDelete = true,
 }: EntradaListProps) {
@@ -78,8 +81,13 @@ export default function EntradaList({
             <tbody className="divide-y divide-gray-100 [&>tr:nth-child(even)]:bg-emt-cinza-claro">
               {sorted.map((e) => {
                 const dep = depositosMap.get(e.depositoId);
+                const rowClickable = !!onSelect;
                 return (
-                  <tr key={e.id} className="hover:bg-emt-verde-claro">
+                  <tr
+                    key={e.id}
+                    className={`hover:bg-emt-verde-claro ${rowClickable ? 'cursor-pointer' : ''}`}
+                    onClick={rowClickable ? () => onSelect!(e) : undefined}
+                  >
                     <td className="px-4 py-3">{formatDateTime(e.dataHora)}</td>
                     <td className="px-4 py-3">{dep?.nome || '-'}</td>
                     <td className="px-4 py-3">
@@ -94,7 +102,7 @@ export default function EntradaList({
                     <td className="px-4 py-3 text-right font-medium">
                       {formatCurrency(e.valorTotal)}
                     </td>
-                    <td className="px-4 py-3 text-center">
+                    <td className="px-4 py-3 text-center" onClick={(ev) => ev.stopPropagation()}>
                       <div className="flex justify-center items-center gap-2">
                         <AnexosBadge fotoUrls={e.fotoUrls} arquivoUrls={e.arquivoUrls} />
                         {canEdit && (
