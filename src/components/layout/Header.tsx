@@ -10,6 +10,7 @@ const links: { to: string; label: string; acao?: string }[] = [
   { to: '/cadastros', label: 'Cadastros', acao: 'ver_cadastros' },
   { to: '/frete', label: 'Frete', acao: 'ver_frete' },
   { to: '/frota', label: 'Frota', acao: 'ver_frota' },
+  { to: '/manutencao', label: 'Manutenção', acao: 'ver_frota' },
   { to: '/combustivel', label: 'Combustível', acao: 'ver_frota' },
   { to: '/apontamento', label: 'Apontamento RH', acao: 'ver_apontamento_rh' },
   { to: '/medicao', label: 'Medição', acao: 'ver_medicao' },
@@ -19,6 +20,7 @@ const links: { to: string; label: string; acao?: string }[] = [
 function isActive(pathname: string, to: string): boolean {
   if (to === '/') return pathname === '/';
   if (to === '/cadastros') return pathname === '/cadastros' || pathname.startsWith('/cadastros/');
+  if (to === '/manutencao') return pathname === '/manutencao' || pathname.startsWith('/manutencao/');
   return pathname === to;
 }
 

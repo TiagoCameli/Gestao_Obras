@@ -15,6 +15,7 @@ import EtapasPage from './modules/cadastros/EtapasPage';
 import Frete from './pages/Frete';
 import Funcionarios from './pages/Funcionarios';
 import Frota from './pages/Frota';
+import Manutencao from './pages/Manutencao';
 import Combustivel from './pages/Combustivel';
 import Login from './pages/Login';
 import AcessoNegado from './pages/AcessoNegado';
@@ -77,6 +78,8 @@ export default function App() {
               <Route path="/cadastros/:slug" element={<ProtectedRoute modulo="cadastros"><EntityCadastroRoute /></ProtectedRoute>} />
               <Route path="/frete" element={<ProtectedRoute modulo="frete"><Frete /></ProtectedRoute>} />
               <Route path="/frota" element={<ProtectedRoute modulo="frota"><Frota /></ProtectedRoute>} />
+              <Route path="/manutencao" element={<ProtectedRoute modulo="frota"><Manutencao /></ProtectedRoute>} />
+              <Route path="/manutencao/os" element={<ProtectedRoute modulo="frota"><Manutencao /></ProtectedRoute>} />
               <Route path="/combustivel" element={<ProtectedRoute modulo="frota"><Combustivel /></ProtectedRoute>} />
               <Route path="/funcionarios" element={<ProtectedRoute modulo="funcionarios"><Funcionarios /></ProtectedRoute>} />
               <Route path="/apontamento" element={<ProtectedRoute modulo="apontamento_rh"><ApontamentoPage /></ProtectedRoute>} />
