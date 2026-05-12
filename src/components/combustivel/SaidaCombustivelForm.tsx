@@ -15,11 +15,12 @@
 // estão preenchidos — evita ruído visual com 0×0.
 
 import { useCallback, useMemo, useState, useEffect, type FormEvent } from 'react';
-import { Truck, Settings2, Camera } from 'lucide-react';
+import { Truck, Settings2, Camera, Gauge } from 'lucide-react';
 import type {
   SaidaCombustivel,
   TipoConsumidorSaida,
   OrigemCombustivel,
+  TipoMedicao,
   Obra,
   EtapaObra,
   Deposito,
@@ -35,6 +36,19 @@ import FilterCombobox from '../ui/FilterCombobox';
 import Button from '../ui/Button';
 import AnexosUploader from './AnexosUploader';
 import { useAdicionarInsumo } from '../../hooks/useInsumos';
+import { useMedicaoAtual } from '../../hooks/useMedicoesEquipamento';
+
+const TIPO_MEDICAO_LABEL: Record<TipoMedicao, string> = {
+  horimetro: 'Horímetro',
+  odometro: 'Odômetro',
+  km: 'Km',
+};
+
+const TIPO_MEDICAO_UNIDADE: Record<TipoMedicao, string> = {
+  horimetro: 'h',
+  odometro: 'km',
+  km: 'km',
+};
 
 interface Props {
   initial?: SaidaCombustivel | null;
@@ -118,6 +132,13 @@ export default function SaidaCombustivelForm({
     initial?.equipamentoId === 'desconhecido' ? '' : (initial?.equipamentoId ?? '')
   );
 
+  // ── Estado: medição (horímetro/odômetro/km) no abastecimento ──
+  // PR2 Marco 0 — captura a leitura do painel no momento da saída.
+  // Aparece apenas quando: tipoConsumidor='equipamento_proprio' e equipamentoId definido.
+  const [medicaoStr, setMedicaoStr] = useState(
+    initial?.medicaoNoAbastecimento != null ? String(initial.medicaoNoAbastecimento) : ''
+  );
+
   // ── Estado: carreta ──
   const [transportadoraId, setTransportadoraId] = useState(initial?.transportadoraId ?? '');
   const [placa, setPlaca] = useState(initial?.placa ?? '');
@@ -165,6 +186,37 @@ export default function SaidaCombustivelForm({
     () => equipamentos.filter((e) => e.ativo !== false && e.id !== 'desconhecido'),
     [equipamentos]
   );
+
+  // ── Equipamento selecionado e tipo de medição derivado ──
+  const equipamentoSelecionado = useMemo(
+    () => equipamentos.find((e) => e.id === equipamentoId) ?? null,
+    [equipamentos, equipamentoId]
+  );
+
+  const tipoMedicaoEquipamento: TipoMedicao | null = useMemo(() => {
+    if (!equipamentoSelecionado) return null;
+    const t = equipamentoSelecionado.tipoMedicao;
+    if (t === 'horimetro' || t === 'odometro' || t === 'km') return t;
+    return null;
+  }, [equipamentoSelecionado]);
+
+  // Carrega a última leitura do equipamento (view v_equipamento_medicao_atual).
+  // Em edição não mostra alerta de inconsistência (a edição pode estar corrigindo a própria leitura).
+  const { data: medicaoAtual } = useMedicaoAtual(
+    tipoConsumidor === 'equipamento_proprio' ? equipamentoId : null
+  );
+
+  const medicaoValor = parseFloat(medicaoStr.replace(',', '.'));
+  const medicaoValida = Number.isFinite(medicaoValor) && medicaoValor >= 0;
+
+  const medicaoAlerta = useMemo(() => {
+    if (!medicaoValida || !medicaoAtual || initial) return null;
+    if (medicaoValor < medicaoAtual.medicaoAtual) {
+      const unidade = TIPO_MEDICAO_UNIDADE[medicaoAtual.tipoMedicao];
+      return `A última leitura registrada foi ${medicaoAtual.medicaoAtual.toLocaleString('pt-BR')} ${unidade}. Confirme se o valor está correto.`;
+    }
+    return null;
+  }, [medicaoValida, medicaoValor, medicaoAtual, initial]);
 
   // Transportadoras: já filtradas eh_transportadora=true pelo container (assumido).
   // Tanques são globais (Fase 6) — único filtro contextual:
@@ -358,6 +410,17 @@ export default function SaidaCombustivelForm({
         ? [{ etapaId, percentual: 100 }]
         : null;
 
+      // Medição: só registra quando tipoConsumidor='equipamento_proprio',
+      // o equipamento tem tipoMedicao definido e o operador informou um valor válido.
+      const medicaoEfetiva: number | null =
+        tipoConsumidor === 'equipamento_proprio'
+          && tipoMedicaoEquipamento
+          && medicaoValida
+          ? medicaoValor
+          : null;
+      const tipoMedicaoEfetivo: TipoMedicao | null =
+        medicaoEfetiva != null ? tipoMedicaoEquipamento : null;
+
       const payload: SaidaCombustivel = {
         id: initial?.id ?? gerarId(),
         data: data.length === 16 ? `${data}:00` : data, // garante seconds
@@ -388,6 +451,8 @@ export default function SaidaCombustivelForm({
         pago: origem === 'requisicao' ? pago : null,
         pagoEm: origem === 'requisicao' && pagoEm ? pagoEm : null,
         movimentoId: initial?.movimentoId ?? null,
+        medicaoNoAbastecimento: medicaoEfetiva,
+        tipoMedicaoSnapshot: tipoMedicaoEfetivo,
         createdAt: initial?.createdAt ?? new Date().toISOString(),
         updatedAt: new Date().toISOString(),
         createdBy: initial?.createdBy ?? null,
@@ -403,7 +468,7 @@ export default function SaidaCombustivelForm({
       transportadoraId, placa, motorista, obraId, etapaId, tipoCombustivel,
       litros, precoMedioTanque, taxaLitro, precoUnitario, valorTotal,
       precoCombustivelNum, precoCombustivelAreacreNum, precoUnitarioManual,
-      tanqueExterno,
+      tanqueExterno, tipoMedicaoEquipamento, medicaoValida, medicaoValor,
       fotoUrls, arquivoUrls, observacoes, pago, pagoEm, onSubmit,
     ]
   );
@@ -512,22 +577,61 @@ export default function SaidaCombustivelForm({
         />
 
         {tipoConsumidor === 'equipamento_proprio' ? (
-          <div>
-            <label htmlFor="saidaEquip" className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">
-              Equipamento <span className="text-red-500">*</span>
-            </label>
-            <FilterCombobox
-              value={equipamentoId}
-              onChange={setEquipamentoId}
-              options={equipamentosVisiveis.map((eq) => ({
-                value: eq.id,
-                label: eq.codigoPatrimonio
-                  ? `${eq.codigoPatrimonio} — ${eq.nome}`
-                  : eq.nome,
-              }))}
-              placeholder="Buscar equipamento por código ou nome"
-            />
-          </div>
+          <>
+            <div>
+              <label htmlFor="saidaEquip" className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">
+                Equipamento <span className="text-red-500">*</span>
+              </label>
+              <FilterCombobox
+                value={equipamentoId}
+                onChange={(v) => { setEquipamentoId(v); setMedicaoStr(''); }}
+                options={equipamentosVisiveis.map((eq) => ({
+                  value: eq.id,
+                  label: eq.codigoPatrimonio
+                    ? `${eq.codigoPatrimonio} — ${eq.nome}`
+                    : eq.nome,
+                }))}
+                placeholder="Buscar equipamento por código ou nome"
+              />
+            </div>
+            {equipamentoId && tipoMedicaoEquipamento && (
+              <div>
+                <label
+                  htmlFor="saidaMedicao"
+                  className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1 flex items-center gap-1.5"
+                >
+                  <Gauge className="w-4 h-4 text-gray-500" />
+                  {TIPO_MEDICAO_LABEL[tipoMedicaoEquipamento]} no abastecimento
+                  <span className="ml-1 text-xs text-gray-400 font-normal">({TIPO_MEDICAO_UNIDADE[tipoMedicaoEquipamento]})</span>
+                </label>
+                <input
+                  id="saidaMedicao"
+                  type="number"
+                  step={tipoMedicaoEquipamento === 'horimetro' ? '0.1' : '1'}
+                  min="0"
+                  value={medicaoStr}
+                  onChange={(e) => setMedicaoStr(e.target.value)}
+                  placeholder={
+                    medicaoAtual
+                      ? `Última: ${medicaoAtual.medicaoAtual.toLocaleString('pt-BR')} ${TIPO_MEDICAO_UNIDADE[medicaoAtual.tipoMedicao]}`
+                      : 'Leitura atual do painel'
+                  }
+                  className="w-full h-[38px] rounded-lg px-3 py-2 text-sm bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-600 text-gray-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-emt-verde"
+                />
+                {medicaoAtual && !medicaoStr && (
+                  <p className="mt-1 text-xs text-gray-500 dark:text-slate-400">
+                    Última leitura registrada: {medicaoAtual.medicaoAtual.toLocaleString('pt-BR')}{' '}
+                    {TIPO_MEDICAO_UNIDADE[medicaoAtual.tipoMedicao]}
+                  </p>
+                )}
+                {medicaoAlerta && (
+                  <p className="mt-1 text-xs text-[var(--color-warning-fg)]">
+                    {medicaoAlerta}
+                  </p>
+                )}
+              </div>
+            )}
+          </>
         ) : (
           <>
             <Select

@@ -1258,6 +1258,9 @@ export function dbToSaidaCombustivel(row: any): SaidaCombustivel {
     pago: row.pago,
     pagoEm: row.pago_em ?? null,
     movimentoId: row.movimento_id ?? null,
+    medicaoNoAbastecimento:
+      row.medicao_no_abastecimento != null ? Number(row.medicao_no_abastecimento) : null,
+    tipoMedicaoSnapshot: row.tipo_medicao_snapshot ?? null,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
     createdBy: row.created_by ?? null,
@@ -1293,6 +1296,8 @@ export function saidaCombustivelToDb(s: SaidaCombustivel) {
     pago: s.pago,
     pago_em: s.pagoEm,
     movimento_id: s.movimentoId,
+    medicao_no_abastecimento: s.medicaoNoAbastecimento,
+    tipo_medicao_snapshot: s.tipoMedicaoSnapshot,
     created_by: s.createdBy,
     updated_by: s.updatedBy,
     // created_at e updated_at: defaults do DB / trigger

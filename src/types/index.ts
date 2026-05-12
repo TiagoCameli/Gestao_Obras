@@ -463,6 +463,14 @@ export interface SaidaCombustivel {
    *  NULL quando tipoConsumidor='equipamento_proprio'. */
   movimentoId: string | null;
 
+  /** Leitura do horímetro/odômetro/km do equipamento no momento do abastecimento.
+   *  Trigger no DB sincroniza em medicoes_equipamento (origem='abastecimento').
+   *  NULL quando: tipoConsumidor='carreta_transportadora' ou operador não informou. */
+  medicaoNoAbastecimento: number | null;
+  /** Snapshot do tipo no momento da saída. Independente de mudanças posteriores
+   *  em equipamentos.tipo_medicao. */
+  tipoMedicaoSnapshot: TipoMedicao | null;
+
   createdAt: string;
   updatedAt: string;
   createdBy: string | null;
