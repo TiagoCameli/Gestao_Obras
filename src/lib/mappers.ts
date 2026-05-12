@@ -38,6 +38,7 @@ import type {
   HistoricoStatusEquipamento,
   EspecificacoesEquipamento,
   FiltrosEquipamento,
+  FinanceiroEquipamento,
   StatusEquipamento,
   SaidaCombustivel,
   TransportadoraMovimento,
@@ -1233,6 +1234,73 @@ export function medicaoEquipamentoToDb(m: MedicaoEquipamento) {
     foto_urls: m.fotoUrls,
     arquivo_urls: m.arquivoUrls,
     created_by: m.createdBy,
+  };
+}
+
+// ── Financeiro do Equipamento (PR7 - Marco 1) ──
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function dbToFinanceiroEquipamento(row: any): FinanceiroEquipamento {
+  return {
+    equipamentoId: row.equipamento_id ?? '',
+    valorAquisicao: row.valor_aquisicao != null ? Number(row.valor_aquisicao) : null,
+    fornecedorAquisicaoId: row.fornecedor_aquisicao_id ?? null,
+    nfAquisicao: row.nf_aquisicao ?? '',
+    formaAquisicao: row.forma_aquisicao ?? null,
+    bancoFinanciador: row.banco_financiador ?? '',
+    valorParcela: row.valor_parcela != null ? Number(row.valor_parcela) : null,
+    prestacoesTotal: row.prestacoes_total != null ? Number(row.prestacoes_total) : null,
+    prestacoesPagas: row.prestacoes_pagas != null ? Number(row.prestacoes_pagas) : null,
+    valorMercadoAtual: row.valor_mercado_atual != null ? Number(row.valor_mercado_atual) : null,
+    vidaUtilMeses: row.vida_util_meses != null ? Number(row.vida_util_meses) : null,
+    valorResidualEstimado: row.valor_residual_estimado != null ? Number(row.valor_residual_estimado) : null,
+    locadoraId: row.locadora_id ?? null,
+    contratoNumero: row.contrato_numero ?? '',
+    valorMensal: row.valor_mensal != null ? Number(row.valor_mensal) : null,
+    vigenciaInicio: row.vigencia_inicio ?? null,
+    vigenciaFim: row.vigencia_fim ?? null,
+    indexador: row.indexador ?? null,
+    manutencaoInclusa: !!row.manutencao_inclusa,
+    combustivelIncluso: !!row.combustivel_incluso,
+    operadorIncluso: !!row.operador_incluso,
+    horasMinimasMensais: row.horas_minimas_mensais != null ? Number(row.horas_minimas_mensais) : null,
+    observacoes: row.observacoes ?? '',
+    arquivoUrls: row.arquivo_urls ?? [],
+    createdAt: row.created_at ?? '',
+    createdBy: row.created_by ?? '',
+    updatedAt: row.updated_at ?? '',
+    updatedBy: row.updated_by ?? '',
+  };
+}
+
+export function financeiroEquipamentoToDb(f: FinanceiroEquipamento) {
+  return {
+    equipamento_id: f.equipamentoId,
+    valor_aquisicao: f.valorAquisicao,
+    fornecedor_aquisicao_id: f.fornecedorAquisicaoId,
+    nf_aquisicao: f.nfAquisicao,
+    forma_aquisicao: f.formaAquisicao,
+    banco_financiador: f.bancoFinanciador,
+    valor_parcela: f.valorParcela,
+    prestacoes_total: f.prestacoesTotal,
+    prestacoes_pagas: f.prestacoesPagas,
+    valor_mercado_atual: f.valorMercadoAtual,
+    vida_util_meses: f.vidaUtilMeses,
+    valor_residual_estimado: f.valorResidualEstimado,
+    locadora_id: f.locadoraId,
+    contrato_numero: f.contratoNumero,
+    valor_mensal: f.valorMensal,
+    vigencia_inicio: f.vigenciaInicio,
+    vigencia_fim: f.vigenciaFim,
+    indexador: f.indexador,
+    manutencao_inclusa: f.manutencaoInclusa,
+    combustivel_incluso: f.combustivelIncluso,
+    operador_incluso: f.operadorIncluso,
+    horas_minimas_mensais: f.horasMinimasMensais,
+    observacoes: f.observacoes,
+    arquivo_urls: f.arquivoUrls,
+    created_by: f.createdBy,
+    updated_by: f.updatedBy,
   };
 }
 

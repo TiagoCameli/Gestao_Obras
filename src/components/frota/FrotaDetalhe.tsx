@@ -7,6 +7,7 @@ import { getStatusOption } from './StatusDropdown';
 import DocumentosEquipamentoSection from './documentos/DocumentosEquipamentoSection';
 import FotosEquipamentoGaleria from './FotosEquipamentoGaleria';
 import EspecificacoesEquipamentoSection from './especificacoes/EspecificacoesEquipamentoSection';
+import FinanceiroEquipamentoSection from './financeiro/FinanceiroEquipamentoSection';
 
 interface FrotaDetalheProps {
   equipamento: Equipamento;
@@ -174,6 +175,8 @@ export default function FrotaDetalhe({ equipamento: eq, empresas, fornecedores, 
       </section>
 
       <EspecificacoesEquipamentoSection equipamento={eq} />
+
+      <FinanceiroEquipamentoSection equipamento={eq} fornecedores={fornecedores} />
 
       <DocumentosEquipamentoSection
         equipamentoId={eq.id}

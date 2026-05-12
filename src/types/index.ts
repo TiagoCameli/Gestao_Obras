@@ -834,6 +834,45 @@ export interface HistoricoMedicao {
   criadoPor: string;
 }
 
+// === Financeiro do Equipamento (PR7 - Marco 1) ===
+
+export type FormaAquisicao = 'a_vista' | 'financiado' | 'consorcio' | 'leasing' | 'outro';
+export type IndexadorContrato = 'IPCA' | 'IGPM' | 'INPC' | 'prefixado' | 'outro';
+
+export interface FinanceiroEquipamento {
+  equipamentoId: string;
+  // Próprios
+  valorAquisicao: number | null;
+  fornecedorAquisicaoId: string | null;
+  nfAquisicao: string;
+  formaAquisicao: FormaAquisicao | null;
+  bancoFinanciador: string;
+  valorParcela: number | null;
+  prestacoesTotal: number | null;
+  prestacoesPagas: number | null;
+  valorMercadoAtual: number | null;
+  vidaUtilMeses: number | null;
+  valorResidualEstimado: number | null;
+  // Alugados
+  locadoraId: string | null;
+  contratoNumero: string;
+  valorMensal: number | null;
+  vigenciaInicio: string | null;
+  vigenciaFim: string | null;
+  indexador: IndexadorContrato | null;
+  manutencaoInclusa: boolean;
+  combustivelIncluso: boolean;
+  operadorIncluso: boolean;
+  horasMinimasMensais: number | null;
+  // Comum
+  observacoes: string;
+  arquivoUrls: string[];
+  createdAt: string;
+  createdBy: string;
+  updatedAt: string;
+  updatedBy: string;
+}
+
 // === Especificações Técnicas do Equipamento (PR6 - Marco 1) ===
 
 /** Códigos OEM dos filtros do equipamento. Chaves convencionadas:
