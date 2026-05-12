@@ -5,6 +5,7 @@ import Button from '../ui/Button';
 import { Pencil, Building2, Hash, Calendar, Gauge, Tag, Key, Trash2 } from 'lucide-react';
 import { getStatusOption } from './StatusDropdown';
 import DocumentosEquipamentoSection from './documentos/DocumentosEquipamentoSection';
+import FotosEquipamentoGaleria from './FotosEquipamentoGaleria';
 
 interface FrotaDetalheProps {
   equipamento: Equipamento;
@@ -136,6 +137,9 @@ export default function FrotaDetalhe({ equipamento: eq, empresas, fornecedores, 
           </div>
         </div>
       </header>
+
+      {/* Galeria de fotos */}
+      <FotosEquipamentoGaleria fotoUrls={eq.fotoUrls ?? []} nomeEquipamento={eq.nome} />
 
       {/* Grid de campos */}
       <section>

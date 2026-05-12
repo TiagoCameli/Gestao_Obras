@@ -121,6 +121,8 @@ export const equipamentosConfig: EntityConfig<Equipamento> = {
     dataAquisicao: '',
     dataVenda: '',
     criadoPor: '',
+    fotoUrls: [],
+    arquivoUrls: [],
   }),
 
   hooks: {
@@ -237,6 +239,8 @@ export const equipamentosConfig: EntityConfig<Equipamento> = {
         dataAquisicao: String(d.dataAquisicao ?? ''),
         dataVenda: String(d.dataVenda ?? ''),
         criadoPor,
+        fotoUrls: [],
+        arquivoUrls: [],
       };
     },
   },

@@ -198,6 +198,8 @@ export function dbToEquipamento(row: any): Equipamento {
     dataAquisicao: row.data_aquisicao ?? '',
     dataVenda: row.data_venda ?? '',
     criadoPor: row.criado_por ?? '',
+    fotoUrls: row.foto_urls ?? [],
+    arquivoUrls: row.arquivo_urls ?? [],
   };
 }
 
@@ -220,6 +222,8 @@ export function equipamentoToDb(e: Equipamento) {
     data_aquisicao: e.dataAquisicao,
     data_venda: e.dataVenda,
     criado_por: e.criadoPor,
+    foto_urls: e.fotoUrls,
+    arquivo_urls: e.arquivoUrls,
   };
 }
 

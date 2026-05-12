@@ -255,6 +255,8 @@ function EquipamentoForm({
       dataAquisicao,
       dataVenda,
       criadoPor: initial?.criadoPor || '',
+      fotoUrls: initial?.fotoUrls ?? [],
+      arquivoUrls: initial?.arquivoUrls ?? [],
     });
   }
 

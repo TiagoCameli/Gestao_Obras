@@ -130,6 +130,11 @@ export interface Equipamento {
   dataAquisicao: string;
   dataVenda: string;
   criadoPor: string;
+  /** Fotos do equipamento (frente, lateral, painel, plaqueta, chassi).
+   *  Diferente de fotos de OS/documentos — são as fotos "do equipamento". */
+  fotoUrls: string[];
+  /** Arquivos vinculados (manual técnico, ficha do fabricante). */
+  arquivoUrls: string[];
 }
 
 export type TipoInsumo = string;

@@ -7,6 +7,8 @@ import Select from '../ui/Select';
 import Button from '../ui/Button';
 import SearchableSelect from '../ui/SearchableSelect';
 import ImportEquipamentosModal from '../obras/ImportEquipamentosModal';
+import AnexosUploader from '../combustivel/AnexosUploader';
+import { Camera } from 'lucide-react';
 
 function gerarId(): string {
   return Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
@@ -59,6 +61,8 @@ export default function EquipamentoFormFrota({ initial, onSubmit, onCancel, empr
   const [ativo, setAtivo] = useState(initial?.ativo !== false);
   const [dataAquisicao, setDataAquisicao] = useState(initial?.dataAquisicao || '');
   const [dataVenda, setDataVenda] = useState(initial?.dataVenda || '');
+  const [fotoUrls, setFotoUrls] = useState<string[]>(initial?.fotoUrls ?? []);
+  const [arquivoUrls, setArquivoUrls] = useState<string[]>(initial?.arquivoUrls ?? []);
   const [importModalOpen, setImportModalOpen] = useState(false);
   const [toastMsg, setToastMsg] = useState('');
 
@@ -154,6 +158,8 @@ export default function EquipamentoFormFrota({ initial, onSubmit, onCancel, empr
       dataAquisicao,
       dataVenda,
       criadoPor: initial?.criadoPor || '',
+      fotoUrls,
+      arquivoUrls,
     });
   }
 
@@ -379,6 +385,23 @@ export default function EquipamentoFormFrota({ initial, onSubmit, onCancel, empr
           </button>
         </div>
       </div>
+      <div>
+        <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2 flex items-center gap-2">
+          <Camera className="w-4 h-4" />
+          Fotos e anexos do equipamento
+        </label>
+        <p className="text-xs text-[var(--color-fg-muted)] mb-3">
+          Frente, lateral, painel, plaqueta de identificação, chassi. Manuais técnicos como arquivo.
+        </p>
+        <AnexosUploader
+          fotoUrls={fotoUrls}
+          arquivoUrls={arquivoUrls}
+          onChangeFotos={setFotoUrls}
+          onChangeArquivos={setArquivoUrls}
+          pastaId={`equipamento/${initial?.id ?? 'novo'}`}
+        />
+      </div>
+
       <div className="flex justify-end gap-3 pt-2">
         <Button variant="secondary" type="button" onClick={onCancel}>
           Cancelar
