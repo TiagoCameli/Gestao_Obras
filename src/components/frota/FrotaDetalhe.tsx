@@ -6,6 +6,7 @@ import { Pencil, Building2, Hash, Calendar, Gauge, Tag, Key, Trash2 } from 'luci
 import { getStatusOption } from './StatusDropdown';
 import DocumentosEquipamentoSection from './documentos/DocumentosEquipamentoSection';
 import FotosEquipamentoGaleria from './FotosEquipamentoGaleria';
+import EspecificacoesEquipamentoSection from './especificacoes/EspecificacoesEquipamentoSection';
 
 interface FrotaDetalheProps {
   equipamento: Equipamento;
@@ -171,6 +172,8 @@ export default function FrotaDetalhe({ equipamento: eq, empresas, fornecedores, 
           {eq.dataVenda && <Campo label="Data de venda" valor={formatarData(eq.dataVenda)} icon={Calendar} />}
         </div>
       </section>
+
+      <EspecificacoesEquipamentoSection equipamento={eq} />
 
       <DocumentosEquipamentoSection
         equipamentoId={eq.id}

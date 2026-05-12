@@ -834,6 +834,40 @@ export interface HistoricoMedicao {
   criadoPor: string;
 }
 
+// === Especificações Técnicas do Equipamento (PR6 - Marco 1) ===
+
+/** Códigos OEM dos filtros do equipamento. Chaves convencionadas:
+ *  oleo, ar, combustivel, hidraulico, cabine, separador. Outras chaves
+ *  são aceitas para casos especiais (ureia, transmissao, etc.). */
+export type FiltrosEquipamento = Record<string, string>;
+
+export interface EspecificacoesEquipamento {
+  equipamentoId: string;
+  capacidadeTanqueL: number | null;
+  capacidadeOleoMotorL: number | null;
+  tipoOleoMotor: string;
+  capacidadeOleoHidraulicoL: number | null;
+  tipoOleoHidraulico: string;
+  capacidadeOleoTransmissaoL: number | null;
+  tipoOleoTransmissao: string;
+  capacidadeOleoDiferencialL: number | null;
+  capacidadeArrefecedorL: number | null;
+  pneuMedida: string;
+  pneuQtd: number | null;
+  bateriaEspecificacao: string;
+  bateriaQtd: number | null;
+  filtros: FiltrosEquipamento;
+  consumoEsperadoLH: number | null;
+  consumoEsperadoKmL: number | null;
+  garantiaFimData: string | null;
+  garantiaFimMedicao: number | null;
+  observacoesTecnicas: string;
+  createdAt: string;
+  createdBy: string;
+  updatedAt: string;
+  updatedBy: string;
+}
+
 // === Histórico de Status de Equipamento (PR4 - Marco 0) ===
 
 export interface HistoricoStatusEquipamento {

@@ -36,6 +36,8 @@ import type {
   MedicaoEquipamento,
   DocumentoEquipamento,
   HistoricoStatusEquipamento,
+  EspecificacoesEquipamento,
+  FiltrosEquipamento,
   StatusEquipamento,
   SaidaCombustivel,
   TransportadoraMovimento,
@@ -1231,6 +1233,65 @@ export function medicaoEquipamentoToDb(m: MedicaoEquipamento) {
     foto_urls: m.fotoUrls,
     arquivo_urls: m.arquivoUrls,
     created_by: m.createdBy,
+  };
+}
+
+// ── Especificações Técnicas do Equipamento (PR6 - Marco 1) ──
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function dbToEspecificacoesEquipamento(row: any): EspecificacoesEquipamento {
+  return {
+    equipamentoId: row.equipamento_id ?? '',
+    capacidadeTanqueL: row.capacidade_tanque_l != null ? Number(row.capacidade_tanque_l) : null,
+    capacidadeOleoMotorL: row.capacidade_oleo_motor_l != null ? Number(row.capacidade_oleo_motor_l) : null,
+    tipoOleoMotor: row.tipo_oleo_motor ?? '',
+    capacidadeOleoHidraulicoL: row.capacidade_oleo_hidraulico_l != null ? Number(row.capacidade_oleo_hidraulico_l) : null,
+    tipoOleoHidraulico: row.tipo_oleo_hidraulico ?? '',
+    capacidadeOleoTransmissaoL: row.capacidade_oleo_transmissao_l != null ? Number(row.capacidade_oleo_transmissao_l) : null,
+    tipoOleoTransmissao: row.tipo_oleo_transmissao ?? '',
+    capacidadeOleoDiferencialL: row.capacidade_oleo_diferencial_l != null ? Number(row.capacidade_oleo_diferencial_l) : null,
+    capacidadeArrefecedorL: row.capacidade_arrefecedor_l != null ? Number(row.capacidade_arrefecedor_l) : null,
+    pneuMedida: row.pneu_medida ?? '',
+    pneuQtd: row.pneu_qtd != null ? Number(row.pneu_qtd) : null,
+    bateriaEspecificacao: row.bateria_especificacao ?? '',
+    bateriaQtd: row.bateria_qtd != null ? Number(row.bateria_qtd) : null,
+    filtros: (row.filtros ?? {}) as FiltrosEquipamento,
+    consumoEsperadoLH: row.consumo_esperado_l_h != null ? Number(row.consumo_esperado_l_h) : null,
+    consumoEsperadoKmL: row.consumo_esperado_km_l != null ? Number(row.consumo_esperado_km_l) : null,
+    garantiaFimData: row.garantia_fim_data ?? null,
+    garantiaFimMedicao: row.garantia_fim_medicao != null ? Number(row.garantia_fim_medicao) : null,
+    observacoesTecnicas: row.observacoes_tecnicas ?? '',
+    createdAt: row.created_at ?? '',
+    createdBy: row.created_by ?? '',
+    updatedAt: row.updated_at ?? '',
+    updatedBy: row.updated_by ?? '',
+  };
+}
+
+export function especificacoesEquipamentoToDb(e: EspecificacoesEquipamento) {
+  return {
+    equipamento_id: e.equipamentoId,
+    capacidade_tanque_l: e.capacidadeTanqueL,
+    capacidade_oleo_motor_l: e.capacidadeOleoMotorL,
+    tipo_oleo_motor: e.tipoOleoMotor,
+    capacidade_oleo_hidraulico_l: e.capacidadeOleoHidraulicoL,
+    tipo_oleo_hidraulico: e.tipoOleoHidraulico,
+    capacidade_oleo_transmissao_l: e.capacidadeOleoTransmissaoL,
+    tipo_oleo_transmissao: e.tipoOleoTransmissao,
+    capacidade_oleo_diferencial_l: e.capacidadeOleoDiferencialL,
+    capacidade_arrefecedor_l: e.capacidadeArrefecedorL,
+    pneu_medida: e.pneuMedida,
+    pneu_qtd: e.pneuQtd,
+    bateria_especificacao: e.bateriaEspecificacao,
+    bateria_qtd: e.bateriaQtd,
+    filtros: e.filtros,
+    consumo_esperado_l_h: e.consumoEsperadoLH,
+    consumo_esperado_km_l: e.consumoEsperadoKmL,
+    garantia_fim_data: e.garantiaFimData,
+    garantia_fim_medicao: e.garantiaFimMedicao,
+    observacoes_tecnicas: e.observacoesTecnicas,
+    created_by: e.createdBy,
+    updated_by: e.updatedBy,
   };
 }
 
