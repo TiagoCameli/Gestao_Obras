@@ -12,7 +12,7 @@ import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   ArrowLeft, Pencil, ShieldCheck, Calendar, Clock,
-  Gauge, Wrench, FileText, ChevronRight, Activity,
+  Gauge, Wrench, FileText, ChevronRight, Activity, Plus, Trash2,
 } from 'lucide-react';
 import {
   useOrdemServicoByNumero,
@@ -21,9 +21,19 @@ import {
   useTransicoesOS,
   useAtualizarOS,
   useMudarStatusOS,
+  useAdicionarPecaOS,
+  useExcluirPecaOS,
+  useAdicionarMaoObraOS,
+  useExcluirMaoObraOS,
 } from '../../../hooks/useOrdensServico';
 import { useEquipamentos } from '../../../hooks/useEquipamentos';
+import { useInsumos } from '../../../hooks/useInsumos';
+import { useColaboradores } from '../../../hooks/useColaboradores';
+import { useDepositosMaterial } from '../../../hooks/useDepositosMaterial';
 import { useAuth } from '../../../contexts/AuthContext';
+import AdicionarPecaOSModal from './AdicionarPecaOSModal';
+import AdicionarMaoObraOSModal from './AdicionarMaoObraOSModal';
+import type { OSPeca, OSMaoObra } from '../../../types';
 import {
   TIPO_OS_LABEL, PRIORIDADE_OS_LABEL, STATUS_OS_LABEL,
 } from '../../../types';
@@ -66,11 +76,21 @@ export default function OSDetalhe() {
 
   const atualizarMut = useAtualizarOS();
   const mudarStatusMut = useMudarStatusOS();
+  const adicionarPecaMut = useAdicionarPecaOS();
+  const excluirPecaMut = useExcluirPecaOS();
+  const adicionarMOMut = useAdicionarMaoObraOS();
+  const excluirMOMut = useExcluirMaoObraOS();
+
+  const { data: insumos = [] } = useInsumos();
+  const { data: colaboradores = [] } = useColaboradores();
+  const { data: depositos = [] } = useDepositosMaterial();
 
   const canEdit = temAcao('editar_cadastros');
 
   const [statusModalOpen, setStatusModalOpen] = useState(false);
   const [diagModalOpen, setDiagModalOpen] = useState(false);
+  const [pecaModalOpen, setPecaModalOpen] = useState(false);
+  const [moModalOpen, setMOModalOpen] = useState(false);
 
   if (isLoading) {
     return (
@@ -125,6 +145,29 @@ export default function OSDetalhe() {
       updatedBy: usuario?.nome ?? '',
     });
   }
+
+  async function handleAdicionarPeca(peca: OSPeca) {
+    await adicionarPecaMut.mutateAsync(peca);
+  }
+
+  async function handleAdicionarMO(mo: OSMaoObra) {
+    await adicionarMOMut.mutateAsync(mo);
+  }
+
+  async function handleExcluirPeca(pecaId: string) {
+    if (!os) return;
+    if (!window.confirm('Remover esta peça da OS? O custo será recalculado.')) return;
+    await excluirPecaMut.mutateAsync({ pecaId, osId: os.id });
+  }
+
+  async function handleExcluirMO(moId: string) {
+    if (!os) return;
+    if (!window.confirm('Remover este apontamento de horas?')) return;
+    await excluirMOMut.mutateAsync({ moId, osId: os.id });
+  }
+
+  const insumoNome = (id: string) => insumos.find((i) => i.id === id)?.nome ?? id;
+  const colabNome = (id: string) => colaboradores.find((c) => c.id === id)?.nome ?? id;
 
   return (
     <div className="space-y-5">
@@ -270,52 +313,117 @@ export default function OSDetalhe() {
 
       {/* Peças e mão de obra */}
       <section className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+        {/* PEÇAS */}
         <div>
-          <h3 className="text-xs font-semibold uppercase tracking-wider text-[var(--color-fg-muted)] mb-2">
-            Peças utilizadas
-            {pecas.length > 0 && <span className="ml-2 text-[var(--color-fg-subtle)] font-normal">({pecas.length})</span>}
-          </h3>
+          <div className="flex items-center justify-between mb-2">
+            <h3 className="text-xs font-semibold uppercase tracking-wider text-[var(--color-fg-muted)]">
+              Peças utilizadas
+              {pecas.length > 0 && (
+                <span className="ml-2 text-[var(--color-fg-subtle)] font-normal">({pecas.length})</span>
+              )}
+            </h3>
+            {canEdit && (
+              <Button size="sm" variant="secondary" onClick={() => setPecaModalOpen(true)}>
+                <Plus className="w-3.5 h-3.5" />
+                Adicionar
+              </Button>
+            )}
+          </div>
           {pecas.length === 0 ? (
             <div className="rounded-xl border border-dashed border-[var(--color-border)] bg-[var(--color-surface-1)] p-4 text-center text-sm text-[var(--color-fg-muted)]">
-              Nenhuma peça registrada nessa OS.
-              <p className="text-xs text-[var(--color-fg-subtle)] mt-1">Adição vem no próximo PR.</p>
+              Nenhuma peça registrada.
+              {canEdit && (
+                <p className="text-xs text-[var(--color-fg-subtle)] mt-1">
+                  Clique em Adicionar pra registrar a 1ª peça.
+                </p>
+              )}
             </div>
           ) : (
             <ul className="space-y-1">
               {pecas.map((p) => (
-                <li key={p.id} className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-1)] p-2.5 flex items-center justify-between gap-2">
+                <li
+                  key={p.id}
+                  className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-1)] p-2.5 flex items-center justify-between gap-2"
+                >
                   <div className="min-w-0 flex-1">
-                    <p className="text-sm text-[var(--color-fg)] truncate">{p.insumoId}</p>
+                    <p className="text-sm text-[var(--color-fg)] truncate">{insumoNome(p.insumoId)}</p>
                     <p className="text-xs text-[var(--color-fg-muted)]">
-                      {p.quantidade} × {fmtBRL(p.custoUnitario)} · {p.status}
+                      {p.quantidade} × {fmtBRL(p.custoUnitario)}
+                      {' · '}
+                      <span className="capitalize">{p.status}</span>
                     </p>
                   </div>
-                  <strong className="text-sm font-mono">{fmtBRL(p.custoTotal)}</strong>
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    <strong className="text-sm font-mono">{fmtBRL(p.custoTotal)}</strong>
+                    {canEdit && (
+                      <button
+                        type="button"
+                        onClick={() => handleExcluirPeca(p.id)}
+                        className="w-7 h-7 inline-flex items-center justify-center rounded-md text-[var(--color-fg-subtle)] hover:text-[var(--color-danger)] hover:bg-[var(--color-surface-2)]"
+                        aria-label="Remover peça"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+                  </div>
                 </li>
               ))}
             </ul>
           )}
         </div>
 
+        {/* MÃO DE OBRA */}
         <div>
-          <h3 className="text-xs font-semibold uppercase tracking-wider text-[var(--color-fg-muted)] mb-2">
-            Mão de obra própria
-            {maoObra.length > 0 && <span className="ml-2 text-[var(--color-fg-subtle)] font-normal">({maoObra.length})</span>}
-          </h3>
+          <div className="flex items-center justify-between mb-2">
+            <h3 className="text-xs font-semibold uppercase tracking-wider text-[var(--color-fg-muted)]">
+              Mão de obra própria
+              {maoObra.length > 0 && (
+                <span className="ml-2 text-[var(--color-fg-subtle)] font-normal">({maoObra.length})</span>
+              )}
+            </h3>
+            {canEdit && (
+              <Button size="sm" variant="secondary" onClick={() => setMOModalOpen(true)}>
+                <Plus className="w-3.5 h-3.5" />
+                Apontar horas
+              </Button>
+            )}
+          </div>
           {maoObra.length === 0 ? (
             <div className="rounded-xl border border-dashed border-[var(--color-border)] bg-[var(--color-surface-1)] p-4 text-center text-sm text-[var(--color-fg-muted)]">
-              Nenhuma hora apontada nessa OS.
-              <p className="text-xs text-[var(--color-fg-subtle)] mt-1">Adição vem no próximo PR.</p>
+              Nenhuma hora apontada.
+              {canEdit && (
+                <p className="text-xs text-[var(--color-fg-subtle)] mt-1">
+                  Clique em Apontar horas pra registrar a 1ª.
+                </p>
+              )}
             </div>
           ) : (
             <ul className="space-y-1">
               {maoObra.map((m) => (
-                <li key={m.id} className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-1)] p-2.5 flex items-center justify-between gap-2">
+                <li
+                  key={m.id}
+                  className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-1)] p-2.5 flex items-center justify-between gap-2"
+                >
                   <div className="min-w-0 flex-1">
-                    <p className="text-sm text-[var(--color-fg)] truncate">{m.colaboradorId}</p>
-                    <p className="text-xs text-[var(--color-fg-muted)]">{fmtData(m.data)} · {m.horas} h</p>
+                    <p className="text-sm text-[var(--color-fg)] truncate">{colabNome(m.colaboradorId)}</p>
+                    <p className="text-xs text-[var(--color-fg-muted)]">
+                      {fmtData(m.data)} · {m.horas} h
+                      {m.custoHora != null && <> · {fmtBRL(m.custoHora)}/h</>}
+                    </p>
                   </div>
-                  <strong className="text-sm font-mono">{fmtBRL(m.custoTotal)}</strong>
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    <strong className="text-sm font-mono">{fmtBRL(m.custoTotal)}</strong>
+                    {canEdit && (
+                      <button
+                        type="button"
+                        onClick={() => handleExcluirMO(m.id)}
+                        className="w-7 h-7 inline-flex items-center justify-center rounded-md text-[var(--color-fg-subtle)] hover:text-[var(--color-danger)] hover:bg-[var(--color-surface-2)]"
+                        aria-label="Remover apontamento"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+                  </div>
                 </li>
               ))}
             </ul>
@@ -413,6 +521,29 @@ export default function OSDetalhe() {
           onClose={() => setDiagModalOpen(false)}
           os={os}
           onSubmit={handleSalvarDiagnostico}
+        />
+      )}
+
+      {pecaModalOpen && (
+        <AdicionarPecaOSModal
+          open={pecaModalOpen}
+          onClose={() => setPecaModalOpen(false)}
+          osId={os.id}
+          insumos={insumos}
+          depositos={depositos}
+          onSubmit={handleAdicionarPeca}
+          usuarioNome={usuario?.nome ?? ''}
+        />
+      )}
+
+      {moModalOpen && (
+        <AdicionarMaoObraOSModal
+          open={moModalOpen}
+          onClose={() => setMOModalOpen(false)}
+          osId={os.id}
+          colaboradores={colaboradores}
+          onSubmit={handleAdicionarMO}
+          usuarioNome={usuario?.nome ?? ''}
         />
       )}
     </div>

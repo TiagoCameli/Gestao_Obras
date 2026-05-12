@@ -264,6 +264,13 @@ export function useExcluirOS() {
 
 // ── Peças e mão de obra ─────────────────────────────────────────────
 
+/** Invalida queries afetadas por mudança em peças/MO (custos da OS recalculados via trigger). */
+function invalidateOSCustos(qc: ReturnType<typeof useQueryClient>, osId: string) {
+  qc.invalidateQueries({ queryKey: ['ordem_servico', osId] });
+  qc.invalidateQueries({ queryKey: ['ordem_servico_numero'] });
+  qc.invalidateQueries({ queryKey: ['ordens_servico'] });
+}
+
 export function useAdicionarPecaOS() {
   const qc = useQueryClient();
   return useMutation({
@@ -273,6 +280,7 @@ export function useAdicionarPecaOS() {
     },
     onSuccess: (_data, variables) => {
       qc.invalidateQueries({ queryKey: ['os_pecas', variables.osId] });
+      invalidateOSCustos(qc, variables.osId);
     },
   });
 }
@@ -286,6 +294,7 @@ export function useExcluirPecaOS() {
     },
     onSuccess: (_data, variables) => {
       qc.invalidateQueries({ queryKey: ['os_pecas', variables.osId] });
+      invalidateOSCustos(qc, variables.osId);
     },
   });
 }
@@ -299,6 +308,7 @@ export function useAdicionarMaoObraOS() {
     },
     onSuccess: (_data, variables) => {
       qc.invalidateQueries({ queryKey: ['os_mao_obra', variables.osId] });
+      invalidateOSCustos(qc, variables.osId);
     },
   });
 }
@@ -312,6 +322,7 @@ export function useExcluirMaoObraOS() {
     },
     onSuccess: (_data, variables) => {
       qc.invalidateQueries({ queryKey: ['os_mao_obra', variables.osId] });
+      invalidateOSCustos(qc, variables.osId);
     },
   });
 }
