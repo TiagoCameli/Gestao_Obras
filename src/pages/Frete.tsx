@@ -548,11 +548,17 @@ export default function Frete() {
 
       {/* ── Conta Corrente das Transportadoras ── */}
       {tab === 'conta_corrente' && (() => {
-        const totalDevedor = saldosTransportadoras.reduce((s, x) => s + x.debitoCombustivelTotal, 0);
+        // Filtra a ETAM Construtora da listagem (decisão do usuário em 2026-05-11
+        // — não é transportadora 3rd party, é a própria empresa). Dados continuam
+        // no banco; para reativar, remova este .filter abaixo.
+        const saldosVisiveis = saldosTransportadoras.filter(
+          (s) => s.nome.trim().toLowerCase() !== 'etam construtora'
+        );
+        const totalDevedor = saldosVisiveis.reduce((s, x) => s + x.debitoCombustivelTotal, 0);
         return (
           <>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
-              {saldosTransportadoras.map((s) => {
+              {saldosVisiveis.map((s) => {
                 const cor = s.saldo > 0 ? 'text-green-700' : s.saldo < 0 ? 'text-red-700' : 'text-gray-500';
                 return (
                   <div

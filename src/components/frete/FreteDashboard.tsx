@@ -515,8 +515,15 @@ export default function FreteDashboard({
     .reduce((s, p) => s + p.valor, 0);
 
   // ── A Pagar EMT ──
-  // Soma dos saldos das 5 transportadoras (representa o passivo EMT).
-  const aPagarEmt = saldoAreacre + saldoTriunfo + saldoEtam + saldoAndrade + saldoEmtTransportes;
+  // Soma dos saldos das transportadoras ativas no módulo (representa o
+  // passivo EMT). ETAM Construtora foi removida em 2026-05-11 (não é
+  // transportadora 3rd party — é a própria empresa) — o card sumiu do
+  // Dashboard e da Conta Corrente, e o saldo dela ficou fora do "A Pagar EMT".
+  // Para reativar: re-incluir `saldoEtam` aqui e descomentar o SaldoCard
+  // "Saldo ETAM" + a linha do breakdown abaixo.
+  // Mantemos sEtam/aEtam/saldoEtam definidos para reativação rápida.
+  void sEtam; void aEtam; void saldoEtam;
+  const aPagarEmt = saldoAreacre + saldoTriunfo + saldoAndrade + saldoEmtTransportes;
 
   // ── Gasto por transportadora ──
   const gastoPorTransportadora = new Map<string, number>();
@@ -1084,7 +1091,7 @@ export default function FreteDashboard({
             <p>Areacre: {formatCurrency(saldoAreacre)}</p>
             <p>Triunfo: {formatCurrency(saldoTriunfo)}</p>
             <p>Andrade: {formatCurrency(saldoAndrade)}</p>
-            <p>ETAM: {formatCurrency(saldoEtam)}</p>
+            {/* ETAM removida do breakdown — vide comentário em aPagarEmt acima. */}
             <p>EMT TRANSPORTES: {formatCurrency(saldoEmtTransportes)}</p>
           </div>
         </Card>
@@ -1124,16 +1131,12 @@ export default function FreteDashboard({
           ]}
           onClick={onVerContaCorrente}
         />
-        <SaldoCard
-          titulo="Saldo ETAM"
-          saldo={saldoEtam}
-          linhas={[
-            { label: 'Crédito Frete', valor: `+${formatCurrency(aEtam.creditoFreteTotal)}` },
-            { label: 'Pago Frete', valor: `−${formatCurrency(aEtam.pagoFreteTotal)}` },
-            // ETAM tem saldo = pagosPelaEtam − pagosParaEtam (ajuste manual).
-          ]}
-          onClick={onVerContaCorrente}
-        />
+        {/* Card "Saldo ETAM" removido em 2026-05-11. Para reativar, restaure o
+            <SaldoCard titulo="Saldo ETAM" saldo={saldoEtam} linhas={[
+              { label: 'Crédito Frete', valor: `+${formatCurrency(aEtam.creditoFreteTotal)}` },
+              { label: 'Pago Frete', valor: `−${formatCurrency(aEtam.pagoFreteTotal)}` },
+            ]} onClick={onVerContaCorrente} />
+            e re-inclua saldoEtam em aPagarEmt + na linha do breakdown. */}
         <SaldoCard
           titulo="Saldo EMT TRANSPORTES"
           saldo={saldoEmtTransportes}
