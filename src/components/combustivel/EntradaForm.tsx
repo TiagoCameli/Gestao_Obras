@@ -106,8 +106,17 @@ export default function EntradaForm({
   const qtdLitros = parseFloat(quantidadeLitros) || 0;
   const valorUnitarioNum = parseFloat(valorUnitario.replace(',', '.')) || 0;
   const valorTotalCalc = qtdLitros * valorUnitarioNum;
+  // Bug fix: ao editar uma entrada existente, o nivelAtualLitros do tanque já
+  // contém os litros da própria entrada — então o espaço livre mostrado fica
+  // artificialmente baixo. Ajuste: se estamos editando E o tanque é o mesmo
+  // da entrada original, "devolve" a quantidade original ao espaço livre
+  // (como se a entrada não existisse), depois valida a nova quantidade.
+  // Se o tanque mudou (troca de depósito), comporta como novo lançamento
+  // — os litros da entrada original sairão do tanque antigo.
+  const ajusteEdicao =
+    initial && initial.depositoId === depositoId ? initial.quantidadeLitros : 0;
   const espacoDisponivel = depositoSelecionado
-    ? depositoSelecionado.capacidadeLitros - depositoSelecionado.nivelAtualLitros
+    ? depositoSelecionado.capacidadeLitros - depositoSelecionado.nivelAtualLitros + ajusteEdicao
     : 0;
   const excedeLimite = depositoSelecionado && qtdLitros > espacoDisponivel;
 
