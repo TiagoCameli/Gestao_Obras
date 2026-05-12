@@ -105,6 +105,65 @@ export function useCriarAjusteManualTransportadora() {
   });
 }
 
+/** Atualiza um ajuste manual existente. Permite trocar tipo (credito↔debito),
+ *  valor, data, descrição, obra e mês de referência. ID do movimento NÃO muda
+ *  (pra preservar referências em outras tabelas — embora ajustes manuais
+ *  não tenham referências externas). */
+export interface AtualizarAjusteManualInput extends NovoAjusteManualInput {
+  /** ID do movimento que será atualizado. */
+  id: string;
+}
+export function useAtualizarAjusteManualTransportadora() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: AtualizarAjusteManualInput) => {
+      const dataIso = input.data.length === 16 ? `${input.data}:00` : input.data;
+      const mesRef = input.mesReferencia ?? `${dataIso.slice(0, 7)}-01`;
+      const { error } = await supabase
+        .from('transportadora_movimentos')
+        .update({
+          transportadora_id: input.transportadoraId,
+          data: dataIso,
+          tipo: input.tipo,
+          valor: input.valor,
+          descricao: input.descricao,
+          obra_id: input.obraId ?? null,
+          mes_referencia: mesRef,
+        })
+        .eq('id', input.id)
+        .eq('origem_tabela', 'ajuste_manual'); // safety: só ajustes manuais
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['transportadora_movimentos'] });
+      qc.invalidateQueries({ queryKey: ['transportadora_saldos'] });
+      qc.invalidateQueries({ queryKey: ['transportadora_saldo'] });
+    },
+  });
+}
+
+/** Exclui (hard delete) um ajuste manual da conta-corrente. Apenas registros
+ *  com origem_tabela='ajuste_manual' são deletáveis — fretes/abastecimentos/
+ *  pagamentos têm origem em outras tabelas e são geridos por elas. */
+export function useExcluirAjusteManualTransportadora() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase
+        .from('transportadora_movimentos')
+        .delete()
+        .eq('id', id)
+        .eq('origem_tabela', 'ajuste_manual'); // safety
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['transportadora_movimentos'] });
+      qc.invalidateQueries({ queryKey: ['transportadora_saldos'] });
+      qc.invalidateQueries({ queryKey: ['transportadora_saldo'] });
+    },
+  });
+}
+
 export function calcularSaldoAcumulado(
   movs: TransportadoraMovimento[]
 ): TransportadoraMovimentoComSaldo[] {

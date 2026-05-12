@@ -15,8 +15,13 @@ import ExtratoFretesList from './extrato/ExtratoFretesList';
 import ExtratoAbastecimentosList from './extrato/ExtratoAbastecimentosList';
 import ExtratoPagamentosList from './extrato/ExtratoPagamentosList';
 import ExtratoAjustesList from './extrato/ExtratoAjustesList';
-import { useTransportadoraMovimentos } from '../../hooks/useTransportadoraMovimentos';
+import {
+  useTransportadoraMovimentos,
+  useExcluirAjusteManualTransportadora,
+} from '../../hooks/useTransportadoraMovimentos';
 import { useTransportadoraSaldo } from '../../hooks/useTransportadoraSaldo';
+import type { TransportadoraMovimento } from '../../types';
+import ConfirmDialog from '../ui/ConfirmDialog';
 import { useInsumos } from '../../hooks/useInsumos';
 import { useObras } from '../../hooks/useObras';
 import { exportarExtratoExcel, exportarExtratoPDF, TIPOS_CREDITO } from '../../utils/extratoExport';
@@ -62,6 +67,11 @@ export default function TransportadoraExtratoModal({
   const { data: insumos = [] } = useInsumos();
   const { data: obras = [] } = useObras();
   const [ajusteOpen, setAjusteOpen] = useState(false);
+  // Edição de ajuste manual: quando setado, o modal AjusteManualTransportadoraForm
+  // abre em modo edit com initial preenchido.
+  const [ajusteEditando, setAjusteEditando] = useState<TransportadoraMovimento | null>(null);
+  const [ajusteExcluindo, setAjusteExcluindo] = useState<TransportadoraMovimento | null>(null);
+  const excluirAjusteMut = useExcluirAjusteManualTransportadora();
   const [tab, setTab] = useState<TabId>('todos');
   const [filtroMes, setFiltroMes] = useState('');
 
@@ -250,26 +260,54 @@ export default function TransportadoraExtratoModal({
             {tab === 'fretes' && <ExtratoFretesList movimentos={movimentosDoMes} />}
             {tab === 'abastecimentos' && <ExtratoAbastecimentosList movimentos={movimentosDoMes} />}
             {tab === 'pagamentos' && <ExtratoPagamentosList movimentos={movimentosDoMes} />}
-            {tab === 'ajustes' && <ExtratoAjustesList movimentos={movimentosDoMes} />}
+            {tab === 'ajustes' && (
+              <ExtratoAjustesList
+                movimentos={movimentosDoMes}
+                onEdit={(m) => {
+                  setAjusteEditando(m);
+                  setAjusteOpen(true);
+                }}
+                onDelete={(m) => setAjusteExcluindo(m)}
+              />
+            )}
           </div>
         )}
       </Modal>
 
       <Modal
         open={ajusteOpen && !!transportadoraId}
-        onClose={() => setAjusteOpen(false)}
-        title={`Ajuste Manual — ${transportadoraNome ?? '?'}`}
+        onClose={() => { setAjusteOpen(false); setAjusteEditando(null); }}
+        title={`${ajusteEditando ? 'Editar' : 'Novo'} Ajuste Manual — ${transportadoraNome ?? '?'}`}
         size="lg"
       >
         {transportadoraId && (
           <AjusteManualTransportadoraForm
             transportadoraId={transportadoraId}
             transportadoraNome={transportadoraNome ?? '?'}
-            onSuccess={() => setAjusteOpen(false)}
-            onCancel={() => setAjusteOpen(false)}
+            initial={ajusteEditando}
+            onSuccess={() => { setAjusteOpen(false); setAjusteEditando(null); }}
+            onCancel={() => { setAjusteOpen(false); setAjusteEditando(null); }}
           />
         )}
       </Modal>
+
+      <ConfirmDialog
+        open={ajusteExcluindo !== null}
+        onClose={() => setAjusteExcluindo(null)}
+        onConfirm={async () => {
+          if (!ajusteExcluindo) return;
+          try {
+            await excluirAjusteMut.mutateAsync(ajusteExcluindo.id);
+          } catch (err) {
+            console.error('Falha ao excluir ajuste manual', err);
+            alert('Falha ao excluir ajuste manual. Veja o console.');
+          } finally {
+            setAjusteExcluindo(null);
+          }
+        }}
+        title="Excluir Ajuste Manual"
+        message={`Tem certeza que deseja excluir este ajuste${ajusteExcluindo?.descricao ? ` ("${ajusteExcluindo.descricao.slice(0, 80)}${ajusteExcluindo.descricao.length > 80 ? '...' : ''}")` : ''}? Esta ação não pode ser desfeita e o saldo será recalculado.`}
+      />
     </>
   );
 }

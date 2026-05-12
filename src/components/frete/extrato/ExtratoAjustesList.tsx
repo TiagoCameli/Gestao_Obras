@@ -3,13 +3,18 @@
 // em outra tabela.
 
 import { useMemo, useState } from 'react';
-import { Search } from 'lucide-react';
+import { Search, Pencil, Trash2 } from 'lucide-react';
 import type { TransportadoraMovimento } from '../../../types';
 import { useObras } from '../../../hooks/useObras';
 import { fmtBRL, fmtData } from './extratoShared';
 
 interface Props {
   movimentos: TransportadoraMovimento[];
+  /** Quando passado, mostra coluna Ações com Editar/Excluir nos ajustes manuais. */
+  onEdit?: (mov: TransportadoraMovimento) => void;
+  onDelete?: (mov: TransportadoraMovimento) => void;
+  canEdit?: boolean;
+  canDelete?: boolean;
 }
 
 type Sinal = 'credito' | 'debito';
@@ -20,7 +25,14 @@ function sinalDoTipo(tipo: string): Sinal | null {
   return null;
 }
 
-export default function ExtratoAjustesList({ movimentos }: Props) {
+export default function ExtratoAjustesList({
+  movimentos,
+  onEdit,
+  onDelete,
+  canEdit = true,
+  canDelete = true,
+}: Props) {
+  const showAcoes = !!(onEdit || onDelete);
   const [filtroSinal, setFiltroSinal] = useState<Sinal | ''>('');
   const [busca, setBusca] = useState('');
 
@@ -150,6 +162,9 @@ export default function ExtratoAjustesList({ movimentos }: Props) {
                 <th className="px-3 py-2 text-left font-semibold">Criado por</th>
                 <th className="px-3 py-2 text-right font-semibold whitespace-nowrap">Crédito</th>
                 <th className="px-3 py-2 text-right font-semibold whitespace-nowrap">Débito</th>
+                {showAcoes && (
+                  <th className="px-3 py-2 text-center font-semibold whitespace-nowrap">Ações</th>
+                )}
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
@@ -183,6 +198,34 @@ export default function ExtratoAjustesList({ movimentos }: Props) {
                     <td className="px-3 py-2 text-right font-mono text-red-700 whitespace-nowrap">
                       {isCredito ? '' : fmtBRL(m.valor)}
                     </td>
+                    {showAcoes && (
+                      <td className="px-3 py-2 whitespace-nowrap">
+                        <div className="flex items-center justify-center gap-1">
+                          {canEdit && onEdit && (
+                            <button
+                              type="button"
+                              onClick={() => onEdit(m)}
+                              className="inline-flex items-center gap-1 px-2 py-1 text-xs rounded hover:bg-gray-100 text-gray-700"
+                              title="Editar ajuste"
+                            >
+                              <Pencil className="w-3 h-3" />
+                              Editar
+                            </button>
+                          )}
+                          {canDelete && onDelete && (
+                            <button
+                              type="button"
+                              onClick={() => onDelete(m)}
+                              className="inline-flex items-center gap-1 px-2 py-1 text-xs rounded hover:bg-red-50 text-red-600"
+                              title="Excluir ajuste"
+                            >
+                              <Trash2 className="w-3 h-3" />
+                              Excluir
+                            </button>
+                          )}
+                        </div>
+                      </td>
+                    )}
                   </tr>
                 );
               })}
@@ -192,6 +235,7 @@ export default function ExtratoAjustesList({ movimentos }: Props) {
                 <td colSpan={5} className="px-3 py-2 text-right font-semibold text-gray-600">Totais</td>
                 <td className="px-3 py-2 text-right font-mono font-bold text-green-700">{fmtBRL(totais.creditos)}</td>
                 <td className="px-3 py-2 text-right font-mono font-bold text-red-700">{fmtBRL(totais.debitos)}</td>
+                {showAcoes && <td />}
               </tr>
             </tfoot>
           </table>

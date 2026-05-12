@@ -3,52 +3,90 @@ import Button from '../ui/Button';
 import Input from '../ui/Input';
 import Select from '../ui/Select';
 import { useObras } from '../../hooks/useObras';
-import { useCriarAjusteManualTransportadora } from '../../hooks/useTransportadoraMovimentos';
+import {
+  useCriarAjusteManualTransportadora,
+  useAtualizarAjusteManualTransportadora,
+} from '../../hooks/useTransportadoraMovimentos';
+import type { TransportadoraMovimento } from '../../types';
 
 interface Props {
   transportadoraId: string;
   transportadoraNome: string;
+  /** Se passado, o form entra em modo edição do ajuste existente.
+   *  Apenas movimentos com origem_tabela='ajuste_manual' devem ser passados. */
+  initial?: TransportadoraMovimento | null;
   onSuccess: () => void;
   onCancel: () => void;
+}
+
+/** Converte ISO timestamptz pra valor de input datetime-local (yyyy-MM-ddTHH:mm).
+ *  Pega o valor LOCAL do dispositivo (input datetime-local é sem TZ). */
+function isoToDatetimeLocal(iso: string): string {
+  if (!iso) return new Date().toISOString().slice(0, 16);
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return new Date().toISOString().slice(0, 16);
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+function isoToMonth(iso: string): string {
+  if (!iso) return new Date().toISOString().slice(0, 7);
+  const m = iso.match(/^(\d{4})-(\d{2})/);
+  if (m) return `${m[1]}-${m[2]}`;
+  return new Date().toISOString().slice(0, 7);
 }
 
 export default function AjusteManualTransportadoraForm({
   transportadoraId,
   transportadoraNome,
+  initial,
   onSuccess,
   onCancel,
 }: Props) {
-  const [tipo, setTipo] = useState<'credito' | 'debito'>('credito');
-  const [valorStr, setValorStr] = useState('');
-  const [data, setData] = useState(new Date().toISOString().slice(0, 16));
-  const [mesRef, setMesRef] = useState(new Date().toISOString().slice(0, 7));
-  const [descricao, setDescricao] = useState('');
-  const [obraId, setObraId] = useState('');
+  const editing = !!initial;
+  const tipoInicial: 'credito' | 'debito' =
+    initial?.tipo === 'ajuste_manual_debito' ? 'debito' : 'credito';
+
+  const [tipo, setTipo] = useState<'credito' | 'debito'>(tipoInicial);
+  const [valorStr, setValorStr] = useState(initial ? String(initial.valor).replace('.', ',') : '');
+  const [data, setData] = useState(initial ? isoToDatetimeLocal(initial.data) : new Date().toISOString().slice(0, 16));
+  const [mesRef, setMesRef] = useState(initial?.mesReferencia ? isoToMonth(initial.mesReferencia) : new Date().toISOString().slice(0, 7));
+  const [descricao, setDescricao] = useState(initial?.descricao ?? '');
+  const [obraId, setObraId] = useState(initial?.obraId ?? '');
 
   const { data: obras = [] } = useObras();
   const criarMut = useCriarAjusteManualTransportadora();
+  const atualizarMut = useAtualizarAjusteManualTransportadora();
 
   const valorNum = parseFloat(valorStr.replace(',', '.')) || 0;
   const isValid = valorNum > 0 && data.length >= 16 && descricao.trim().length > 0;
 
+  const isPending = criarMut.isPending || atualizarMut.isPending;
+
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     if (!isValid) return;
+    const payload = {
+      transportadoraId,
+      tipo: (tipo === 'credito' ? 'ajuste_manual_credito' : 'ajuste_manual_debito') as
+        'ajuste_manual_credito' | 'ajuste_manual_debito',
+      valor: valorNum,
+      data,
+      mesReferencia: mesRef ? `${mesRef}-01` : null,
+      descricao: descricao.trim(),
+      obraId: obraId || null,
+    };
     try {
-      await criarMut.mutateAsync({
-        transportadoraId,
-        tipo: tipo === 'credito' ? 'ajuste_manual_credito' : 'ajuste_manual_debito',
-        valor: valorNum,
-        data,
-        mesReferencia: mesRef ? `${mesRef}-01` : null,
-        descricao: descricao.trim(),
-        obraId: obraId || null,
-      });
+      if (editing && initial) {
+        await atualizarMut.mutateAsync({ id: initial.id, ...payload });
+      } else {
+        await criarMut.mutateAsync(payload);
+      }
       onSuccess();
     } catch (err) {
       // eslint-disable-next-line no-console
-      console.error('Falha ao criar ajuste manual', err);
-      alert('Falha ao criar ajuste manual. Veja o console.');
+      console.error('Falha ao salvar ajuste manual', err);
+      alert(`Falha ao ${editing ? 'atualizar' : 'criar'} ajuste manual. Veja o console.`);
     }
   }
 
@@ -58,8 +96,8 @@ export default function AjusteManualTransportadoraForm({
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       <p className="text-sm text-gray-500 dark:text-slate-400">
-        Ajuste manual em <strong>{transportadoraNome}</strong>. Crédito soma ao
-        saldo; débito subtrai.
+        {editing ? 'Editando ajuste em' : 'Ajuste manual em'} <strong>{transportadoraNome}</strong>.{' '}
+        Crédito soma ao saldo; débito subtrai.
       </p>
 
       <div>
@@ -155,8 +193,8 @@ export default function AjusteManualTransportadoraForm({
         <Button type="button" variant="secondary" onClick={onCancel}>
           Cancelar
         </Button>
-        <Button type="submit" disabled={!isValid || criarMut.isPending}>
-          {criarMut.isPending ? 'Salvando...' : 'Criar Ajuste'}
+        <Button type="submit" disabled={!isValid || isPending}>
+          {isPending ? 'Salvando...' : editing ? 'Salvar Alterações' : 'Criar Ajuste'}
         </Button>
       </div>
     </form>
