@@ -62,9 +62,16 @@ export default function TransferenciaForm({
       setEstoqueOrigemNaData(depositoOrigem ? depositoOrigem.nivelAtualLitros : 0);
       return;
     }
+    // Fallback pro nível atual em caso de falha da RPC — evita bloquear
+    // o form quando a função do banco está quebrada (vide migration
+    // 20260512230000_fix_calcular_estoque_combustivel_na_data).
     calcularEstoqueCombustivelNaData(depositoOrigemId, dataHora)
-      .then(setEstoqueOrigemNaData);
-  }, [depositoOrigemId, dataHora, depositoOrigem?.nivelAtualLitros]);
+      .then(setEstoqueOrigemNaData)
+      .catch((err) => {
+        console.error('[TransferenciaForm] estoque origem na data falhou', err);
+        setEstoqueOrigemNaData(depositoOrigem ? depositoOrigem.nivelAtualLitros : 0);
+      });
+  }, [depositoOrigemId, dataHora, depositoOrigem?.nivelAtualLitros, depositoOrigem]);
 
   useEffect(() => {
     if (!depositoDestinoId || !dataHora) {
@@ -72,8 +79,12 @@ export default function TransferenciaForm({
       return;
     }
     calcularEstoqueCombustivelNaData(depositoDestinoId, dataHora)
-      .then(setEstoqueDestinoNaData);
-  }, [depositoDestinoId, dataHora, depositoDestino?.nivelAtualLitros]);
+      .then(setEstoqueDestinoNaData)
+      .catch((err) => {
+        console.error('[TransferenciaForm] estoque destino na data falhou', err);
+        setEstoqueDestinoNaData(depositoDestino ? depositoDestino.nivelAtualLitros : 0);
+      });
+  }, [depositoDestinoId, dataHora, depositoDestino?.nivelAtualLitros, depositoDestino]);
 
   const semEstoqueOrigem = depositoOrigemId && qtdLitros > estoqueOrigemNaData;
   const espacoDestinoNaData = depositoDestino
