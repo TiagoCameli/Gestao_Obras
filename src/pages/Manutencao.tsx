@@ -5,8 +5,8 @@
 // Marcos futuros: dashboard, agenda, planos, almoxarifado, relatórios.
 
 import { useMemo, useState } from 'react';
-import { useSearchParams, Navigate, useLocation, useParams, useNavigate } from 'react-router-dom';
-import { Plus, ClipboardList, AlertTriangle, Clock, Wrench } from 'lucide-react';
+import { useSearchParams, Navigate, useLocation, useParams, useNavigate, Link } from 'react-router-dom';
+import { Plus, ClipboardList, AlertTriangle, Clock, Wrench, BarChart3 } from 'lucide-react';
 import { useOrdensServico } from '../hooks/useOrdensServico';
 import { useEquipamentos } from '../hooks/useEquipamentos';
 import { useAuth } from '../contexts/AuthContext';
@@ -16,6 +16,7 @@ import Button from '../components/ui/Button';
 import OSCard from '../components/manutencao/os/OSCard';
 import NovaOSModal from '../components/manutencao/os/NovaOSModal';
 import OSDetalhe from '../components/manutencao/os/OSDetalhe';
+import DashboardManutencao from '../components/manutencao/DashboardManutencao';
 
 const STATUS_OPTS: { value: StatusOS | 'todas' | 'abertas'; label: string }[] = [
   { value: 'abertas', label: 'Abertas' },
@@ -45,15 +46,51 @@ function fmtBRL(n: number): string {
 export default function ManutencaoPage() {
   const { pathname } = useLocation();
   const params = useParams<{ numero?: string }>();
-  // /manutencao → redireciona pra /manutencao/os
+  // /manutencao → redireciona pra /manutencao/dashboard
   if (pathname === '/manutencao') {
-    return <Navigate to="/manutencao/os" replace />;
+    return <Navigate to="/manutencao/dashboard" replace />;
   }
-  // /manutencao/os/:numero → detalhe
+  // /manutencao/os/:numero → detalhe (sem sub-nav)
   if (params.numero) {
     return <OSDetalhe />;
   }
-  return <OrdensServicoPage />;
+  return (
+    <div className="space-y-4">
+      <SubNav pathname={pathname} />
+      {pathname === '/manutencao/dashboard' ? <DashboardManutencao /> : <OrdensServicoPage />}
+    </div>
+  );
+}
+
+const SUB_NAV_ITEMS: { to: string; label: string; icon: typeof BarChart3 }[] = [
+  { to: '/manutencao/dashboard', label: 'Dashboard', icon: BarChart3 },
+  { to: '/manutencao/os', label: 'Ordens de Serviço', icon: ClipboardList },
+];
+
+function SubNav({ pathname }: { pathname: string }) {
+  return (
+    <nav className="flex gap-1 border-b border-[var(--color-border)]">
+      {SUB_NAV_ITEMS.map((item) => {
+        const ativo = pathname === item.to || pathname.startsWith(item.to + '/');
+        const Icon = item.icon;
+        return (
+          <Link
+            key={item.to}
+            to={item.to}
+            className={
+              'px-3 py-2 -mb-px border-b-2 text-sm font-medium transition-colors inline-flex items-center gap-1.5 ' +
+              (ativo
+                ? 'border-[var(--color-accent)] text-[var(--color-fg)]'
+                : 'border-transparent text-[var(--color-fg-muted)] hover:text-[var(--color-fg)]')
+            }
+          >
+            <Icon className="w-4 h-4" />
+            {item.label}
+          </Link>
+        );
+      })}
+    </nav>
+  );
 }
 
 function OrdensServicoPage() {

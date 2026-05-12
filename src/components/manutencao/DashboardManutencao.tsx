@@ -1,0 +1,276 @@
+// Marco 2 / PR13 — Dashboard de Manutenção.
+//
+// Página com KPIs agregados, tops e curva de custo. Read-only.
+
+import { useNavigate } from 'react-router-dom';
+import {
+  ClipboardList, AlertTriangle, Clock, Wrench, TrendingUp,
+  ShieldCheck, Activity, BarChart3, DollarSign,
+} from 'lucide-react';
+import {
+  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
+} from 'recharts';
+import { useEquipamentos } from '../../hooks/useEquipamentos';
+import { useDashboardManutencao } from '../../hooks/useDashboardManutencao';
+
+function fmtBRL(n: number): string {
+  return n.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 });
+}
+
+function fmtMes(s: string): string {
+  // '2026-05' → 'mai/26'
+  const [a, m] = s.split('-');
+  const meses = ['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'];
+  return `${meses[parseInt(m, 10) - 1]}/${a.slice(2)}`;
+}
+
+const CORES_TIPOS = [
+  '#10b981', '#f43f5e', '#8b5cf6', '#0ea5e9', '#f59e0b', '#ec4899',
+  '#84cc16', '#06b6d4', '#a855f7', '#ef4444', '#3b82f6', '#eab308',
+];
+
+export default function DashboardManutencao() {
+  const navigate = useNavigate();
+  const { data: equipamentos = [] } = useEquipamentos();
+  const { data: dash, isLoading } = useDashboardManutencao(equipamentos);
+
+  if (isLoading || !dash) {
+    return (
+      <div className="text-center py-16">
+        <p className="text-sm text-[var(--color-fg-muted)]">Carregando dashboard…</p>
+      </div>
+    );
+  }
+
+  const { kpis, topPorCusto, topPorIndisponibilidade, custoMensalPorTipo } = dash;
+  const semDados = kpis.osAbertas + kpis.osAbertas === 0
+    && custoMensalPorTipo.every((m) => Object.keys(m).filter((k) => k !== 'mes').every((k) => Number(m[k]) === 0));
+
+  // Tipos com dado pra renderizar linhas do gráfico
+  const tiposGrafico = Array.from(new Set(
+    custoMensalPorTipo.flatMap((row) =>
+      Object.keys(row).filter((k) => k !== 'mes' && Number(row[k]) > 0)
+    )
+  ));
+
+  return (
+    <div className="space-y-5">
+      <div>
+        <h1 className="text-2xl sm:text-3xl font-semibold text-[var(--color-fg)] tracking-tight">
+          Dashboard de Manutenção
+        </h1>
+        <p className="text-sm text-[var(--color-fg-muted)] mt-0.5">
+          Visão consolidada de OS, custos e disponibilidade da frota.
+        </p>
+      </div>
+
+      {/* KPIs */}
+      <section className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <KPI
+          label="OS abertas"
+          valor={kpis.osAbertas}
+          icon={ClipboardList}
+          cor="bg-[var(--color-info-soft)] text-[var(--color-info-fg)]"
+          onClick={() => navigate('/manutencao/os?status=')}
+        />
+        <KPI
+          label="Críticas"
+          valor={kpis.osCriticas}
+          icon={AlertTriangle}
+          cor="bg-[var(--color-danger-soft)] text-[var(--color-danger-fg)]"
+          onClick={() => navigate('/manutencao/os?prio=critica')}
+        />
+        <KPI
+          label="Atrasadas"
+          valor={kpis.osAtrasadas}
+          icon={Clock}
+          cor="bg-[var(--color-warning-soft)] text-[var(--color-warning-fg)]"
+        />
+        <KPI
+          label="MTTR"
+          valor={kpis.mttrHoras != null ? `${kpis.mttrHoras.toFixed(1)} h` : '—'}
+          legenda="médio (concluídas)"
+          icon={Activity}
+          cor="bg-[var(--color-surface-2)] text-[var(--color-fg)]"
+        />
+        <KPI
+          label="Custo do mês"
+          valor={fmtBRL(kpis.custoMes)}
+          legenda={`${kpis.osConcluidasMes} concluída(s)`}
+          icon={DollarSign}
+          cor="bg-[var(--color-surface-2)] text-[var(--color-fg)]"
+        />
+        <KPI
+          label="Custo do ano"
+          valor={fmtBRL(kpis.custoAno)}
+          icon={TrendingUp}
+          cor="bg-[var(--color-surface-2)] text-[var(--color-fg)]"
+        />
+        <KPI
+          label="% corretivo"
+          valor={kpis.custoAno > 0 ? `${kpis.percCorretivoAno.toFixed(0)}%` : '—'}
+          legenda="do custo anual"
+          icon={Wrench}
+          cor={kpis.percCorretivoAno > 50
+            ? 'bg-[var(--color-danger-soft)] text-[var(--color-danger-fg)]'
+            : kpis.percCorretivoAno > 30
+              ? 'bg-[var(--color-warning-soft)] text-[var(--color-warning-fg)]'
+              : 'bg-[var(--color-success-soft)] text-[var(--color-success-fg)]'}
+        />
+        <KPI
+          label="Garantia ativa"
+          valor="—"
+          legenda="em construção"
+          icon={ShieldCheck}
+          cor="bg-[var(--color-surface-2)] text-[var(--color-fg-muted)]"
+        />
+      </section>
+
+      {semDados ? (
+        <div className="rounded-xl border border-dashed border-[var(--color-border)] bg-[var(--color-surface-1)] p-12 text-center">
+          <BarChart3 aria-hidden className="w-10 h-10 text-[var(--color-fg-subtle)] mx-auto mb-3" />
+          <p className="text-sm font-medium text-[var(--color-fg)]">Sem dados consolidados ainda</p>
+          <p className="text-xs text-[var(--color-fg-muted)] mt-1">
+            Conforme OS forem concluídas, os indicadores começam a popular esta tela.
+          </p>
+        </div>
+      ) : (
+        <>
+          {/* Curva de custo por tipo (12m) */}
+          <section className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-1)] p-4">
+            <h3 className="text-xs font-semibold uppercase tracking-wider text-[var(--color-fg-muted)] mb-3">
+              Custo de manutenção por tipo · últimos 12 meses
+            </h3>
+            <div className="w-full h-72">
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={custoMensalPorTipo} margin={{ top: 10, right: 16, left: 0, bottom: 4 }}>
+                  <CartesianGrid stroke="var(--color-border)" strokeDasharray="3 3" />
+                  <XAxis dataKey="mes" tickFormatter={fmtMes} stroke="var(--color-fg-muted)" fontSize={11} />
+                  <YAxis tickFormatter={(v) => fmtBRL(v as number)} stroke="var(--color-fg-muted)" fontSize={11} />
+                  <Tooltip
+                    formatter={((value: number | string | undefined) => fmtBRL(Number(value ?? 0))) as never}
+                    labelFormatter={((label: unknown) => fmtMes(String(label ?? ''))) as never}
+                    contentStyle={{ backgroundColor: 'var(--color-surface-1)', border: '1px solid var(--color-border)', borderRadius: 8, fontSize: 12 }}
+                  />
+                  <Legend wrapperStyle={{ fontSize: 11 }} />
+                  {tiposGrafico.map((tipo, i) => (
+                    <Line
+                      key={tipo}
+                      type="monotone"
+                      dataKey={tipo}
+                      stroke={CORES_TIPOS[i % CORES_TIPOS.length]}
+                      strokeWidth={2}
+                      dot={false}
+                    />
+                  ))}
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          </section>
+
+          {/* Top equipamentos */}
+          <section className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+            <TopList
+              titulo="Top 10 por custo · ano"
+              icon={DollarSign}
+              items={topPorCusto}
+              valor={(it) => fmtBRL(it.custoTotal)}
+              legenda={(it) => `${it.numOS} OS · ${it.tipo}`}
+            />
+            <TopList
+              titulo="Top 10 por indisponibilidade"
+              icon={Clock}
+              items={topPorIndisponibilidade}
+              valor={(it) => `${it.horasParado.toFixed(1)} h`}
+              legenda={(it) => `${it.numOS} parada(s) · ${it.tipo}`}
+              vazio="Nenhum equipamento com parada registrada."
+            />
+          </section>
+        </>
+      )}
+    </div>
+  );
+}
+
+function KPI({
+  label, valor, legenda, icon: Icon, cor, onClick,
+}: {
+  label: string;
+  valor: string | number;
+  legenda?: string;
+  icon: React.ComponentType<{ className?: string; 'aria-hidden'?: boolean }>;
+  cor: string;
+  onClick?: () => void;
+}) {
+  const Tag = onClick ? 'button' : 'div';
+  return (
+    <Tag
+      type={onClick ? 'button' : undefined}
+      onClick={onClick}
+      className={
+        'rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-1)] p-3 flex items-center gap-3 ' +
+        (onClick ? 'hover:bg-[var(--color-surface-2)] transition-colors text-left' : '')
+      }
+    >
+      <div className={'w-10 h-10 rounded-lg flex items-center justify-center shrink-0 ' + cor}>
+        <Icon className="w-5 h-5" />
+      </div>
+      <div className="min-w-0">
+        <div className="text-[11px] uppercase tracking-wider text-[var(--color-fg-muted)] truncate">
+          {label}
+        </div>
+        <div className="text-lg font-semibold text-[var(--color-fg)] truncate">
+          {valor}
+        </div>
+        {legenda && (
+          <div className="text-[11px] text-[var(--color-fg-subtle)] truncate">{legenda}</div>
+        )}
+      </div>
+    </Tag>
+  );
+}
+
+function TopList<T extends { equipamentoId: string; equipamentoNome: string }>({
+  titulo, icon: Icon, items, valor, legenda, vazio,
+}: {
+  titulo: string;
+  icon: React.ComponentType<{ className?: string; 'aria-hidden'?: boolean }>;
+  items: T[];
+  valor: (it: T) => string;
+  legenda: (it: T) => string;
+  vazio?: string;
+}) {
+  return (
+    <div>
+      <h3 className="text-xs font-semibold uppercase tracking-wider text-[var(--color-fg-muted)] mb-2 flex items-center gap-1.5">
+        <Icon aria-hidden className="w-3.5 h-3.5" />
+        {titulo}
+      </h3>
+      {items.length === 0 ? (
+        <div className="rounded-xl border border-dashed border-[var(--color-border)] bg-[var(--color-surface-1)] p-4 text-center text-sm text-[var(--color-fg-muted)]">
+          {vazio ?? 'Sem dados.'}
+        </div>
+      ) : (
+        <ul className="space-y-1">
+          {items.map((it, i) => (
+            <li
+              key={it.equipamentoId}
+              className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-1)] p-2.5 flex items-center justify-between gap-2"
+            >
+              <div className="flex items-center gap-2 min-w-0 flex-1">
+                <span className="text-xs font-mono text-[var(--color-fg-subtle)] w-5 text-right">
+                  {i + 1}
+                </span>
+                <div className="min-w-0">
+                  <p className="text-sm text-[var(--color-fg)] truncate">{it.equipamentoNome}</p>
+                  <p className="text-xs text-[var(--color-fg-muted)] truncate">{legenda(it)}</p>
+                </div>
+              </div>
+              <strong className="text-sm font-mono shrink-0">{valor(it)}</strong>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
