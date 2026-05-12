@@ -2,16 +2,27 @@
 //
 // Página com KPIs agregados, tops e curva de custo. Read-only.
 
+import { useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   ClipboardList, AlertTriangle, Clock, Wrench, TrendingUp,
-  ShieldCheck, Activity, BarChart3, DollarSign,
+  ShieldCheck, Activity, BarChart3, DollarSign, CalendarClock,
 } from 'lucide-react';
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
 } from 'recharts';
 import { useEquipamentos } from '../../hooks/useEquipamentos';
 import { useDashboardManutencao } from '../../hooks/useDashboardManutencao';
+import { useProximasPreventivas } from '../../hooks/usePlanosPreventivos';
+import type { ProximaPreventiva } from '../../types';
+
+function statusPreventiva(pp: ProximaPreventiva): 'vencida' | 'proxima' | 'futura' {
+  if (pp.unidadesRestantes != null && pp.unidadesRestantes < 0) return 'vencida';
+  if (pp.diasRestantes != null && pp.diasRestantes < 0) return 'vencida';
+  if (pp.diasRestantes != null && pp.diasRestantes <= 30) return 'proxima';
+  if (pp.unidadesRestantes != null && pp.unidadesRestantes <= 50) return 'proxima';
+  return 'futura';
+}
 
 function fmtBRL(n: number): string {
   return n.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 });
@@ -33,6 +44,18 @@ export default function DashboardManutencao() {
   const navigate = useNavigate();
   const { data: equipamentos = [] } = useEquipamentos();
   const { data: dash, isLoading } = useDashboardManutencao(equipamentos);
+  const { data: proximas = [] } = useProximasPreventivas();
+
+  const preventivasMetricas = useMemo(() => {
+    let vencidas = 0;
+    let proximas30 = 0;
+    for (const p of proximas) {
+      const s = statusPreventiva(p);
+      if (s === 'vencida') vencidas++;
+      else if (s === 'proxima') proximas30++;
+    }
+    return { vencidas, proximas30, total: proximas.length };
+  }, [proximas]);
 
   if (isLoading || !dash) {
     return (
@@ -65,7 +88,7 @@ export default function DashboardManutencao() {
       </div>
 
       {/* KPIs */}
-      <section className="grid grid-cols-2 md:grid-cols-4 gap-3">
+      <section className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-3">
         <KPI
           label="OS abertas"
           valor={kpis.osAbertas}
@@ -116,6 +139,26 @@ export default function DashboardManutencao() {
             : kpis.percCorretivoAno > 30
               ? 'bg-[var(--color-warning-soft)] text-[var(--color-warning-fg)]'
               : 'bg-[var(--color-success-soft)] text-[var(--color-success-fg)]'}
+        />
+        <KPI
+          label="Preventivas vencidas"
+          valor={preventivasMetricas.vencidas}
+          legenda={preventivasMetricas.total > 0 ? `de ${preventivasMetricas.total} programadas` : 'aplique planos para popular'}
+          icon={AlertTriangle}
+          cor={preventivasMetricas.vencidas > 0
+            ? 'bg-[var(--color-danger-soft)] text-[var(--color-danger-fg)]'
+            : 'bg-[var(--color-success-soft)] text-[var(--color-success-fg)]'}
+          onClick={() => navigate('/manutencao/agenda?status=vencidas')}
+        />
+        <KPI
+          label="Preventivas próximas"
+          valor={preventivasMetricas.proximas30}
+          legenda="próximos 30 dias / 50 unid."
+          icon={CalendarClock}
+          cor={preventivasMetricas.proximas30 > 0
+            ? 'bg-[var(--color-warning-soft)] text-[var(--color-warning-fg)]'
+            : 'bg-[var(--color-surface-2)] text-[var(--color-fg-muted)]'}
+          onClick={() => navigate('/manutencao/agenda?status=proximas')}
         />
         <KPI
           label="Garantia ativa"
