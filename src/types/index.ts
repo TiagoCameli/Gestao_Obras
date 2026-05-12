@@ -821,46 +821,36 @@ export interface HistoricoMedicao {
   criadoPor: string;
 }
 
-// === Checklist de Equipamentos ===
+// === Medições de Equipamento (PR1 - Marco 0) ===
 
-export type RespostaChecklist = 'sim' | 'nao' | 'na' | '';
+export type OrigemMedicao =
+  | 'abastecimento'
+  | 'checklist'
+  | 'ordem_servico'
+  | 'apontamento'
+  | 'manual'
+  | 'import';
 
-export interface TurnoChecklist {
-  turno: 1 | 2 | 3;
-  horimetroInicial: string;
-  horimetroFinal: string;
-  tipoManutencao: 'preventiva' | 'corretiva';
-  parouManutencao: boolean;
-  horaParada: string;
-  horaRetorno: string;
-  nomeOperador: string;
-  cs: string;
-}
-
-export interface ChecklistEquipamento {
+export interface MedicaoEquipamento {
   id: string;
   equipamentoId: string;
   data: string;
-  unidade: string;
-  areaInspecao: string;
-  turnos: TurnoChecklist[];
-  respostas: Record<string, { turno1: RespostaChecklist; turno2: RespostaChecklist; turno3: RespostaChecklist }>;
+  tipoMedicao: TipoMedicao;
+  valor: number;
+  origem: OrigemMedicao;
+  origemId: string | null;
   observacoes: string;
-  criadoPor: string;
+  fotoUrls: string[];
+  arquivoUrls: string[];
   createdAt: string;
+  createdBy: string;
 }
 
-// === Histórico de Inspeção ===
-
-export interface HistoricoInspecao {
-  id: string;
+export interface MedicaoAtualEquipamento {
   equipamentoId: string;
-  data: string;
-  horario: string;
-  descricao: string;
-  providencia: string;
-  operador: string;
-  encarregado: string;
-  criadoPor: string;
-  createdAt: string;
+  medicaoAtual: number;
+  tipoMedicao: TipoMedicao;
+  dataUltimaLeitura: string;
+  origemUltimaLeitura: OrigemMedicao;
+  origemIdUltimaLeitura: string | null;
 }

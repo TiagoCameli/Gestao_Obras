@@ -33,8 +33,7 @@ import type {
   ItemOS,
   PlanoManutencao,
   HistoricoMedicao,
-  ChecklistEquipamento,
-  HistoricoInspecao,
+  MedicaoEquipamento,
   SaidaCombustivel,
   TransportadoraMovimento,
   TransportadoraSaldo,
@@ -1192,67 +1191,39 @@ export function tipoEquipamentoToDb(t: TipoEquipamentoEntity) {
   };
 }
 
-// ── Checklist de Equipamentos ──
+// ── Medições de Equipamento (PR1 - Marco 0) ──
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-export function dbToChecklistEquipamento(row: any): ChecklistEquipamento {
+export function dbToMedicaoEquipamento(row: any): MedicaoEquipamento {
   return {
     id: row.id,
     equipamentoId: row.equipamento_id ?? '',
     data: row.data ?? '',
-    unidade: row.unidade ?? '',
-    areaInspecao: row.area_inspecao ?? '',
-    turnos: row.turnos ?? [],
-    respostas: row.respostas ?? {},
+    tipoMedicao: row.tipo_medicao ?? 'horimetro',
+    valor: Number(row.valor ?? 0),
+    origem: row.origem ?? 'manual',
+    origemId: row.origem_id ?? null,
     observacoes: row.observacoes ?? '',
-    criadoPor: row.criado_por ?? '',
+    fotoUrls: row.foto_urls ?? [],
+    arquivoUrls: row.arquivo_urls ?? [],
     createdAt: row.created_at ?? '',
+    createdBy: row.created_by ?? '',
   };
 }
 
-export function checklistEquipamentoToDb(c: ChecklistEquipamento) {
+export function medicaoEquipamentoToDb(m: MedicaoEquipamento) {
   return {
-    id: c.id,
-    equipamento_id: c.equipamentoId,
-    data: c.data,
-    unidade: c.unidade,
-    area_inspecao: c.areaInspecao,
-    turnos: c.turnos,
-    respostas: c.respostas,
-    observacoes: c.observacoes,
-    criado_por: c.criadoPor,
-  };
-}
-
-// ── Histórico de Inspeção ──
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export function dbToHistoricoInspecao(row: any): HistoricoInspecao {
-  return {
-    id: row.id,
-    equipamentoId: row.equipamento_id ?? '',
-    data: row.data ?? '',
-    horario: row.horario ?? '',
-    descricao: row.descricao ?? '',
-    providencia: row.providencia ?? '',
-    operador: row.operador ?? '',
-    encarregado: row.encarregado ?? '',
-    criadoPor: row.criado_por ?? '',
-    createdAt: row.created_at ?? '',
-  };
-}
-
-export function historicoInspecaoToDb(h: HistoricoInspecao) {
-  return {
-    id: h.id,
-    equipamento_id: h.equipamentoId,
-    data: h.data,
-    horario: h.horario,
-    descricao: h.descricao,
-    providencia: h.providencia,
-    operador: h.operador,
-    encarregado: h.encarregado,
-    criado_por: h.criadoPor,
+    id: m.id,
+    equipamento_id: m.equipamentoId,
+    data: m.data,
+    tipo_medicao: m.tipoMedicao,
+    valor: m.valor,
+    origem: m.origem,
+    origem_id: m.origemId,
+    observacoes: m.observacoes,
+    foto_urls: m.fotoUrls,
+    arquivo_urls: m.arquivoUrls,
+    created_by: m.createdBy,
   };
 }
 
