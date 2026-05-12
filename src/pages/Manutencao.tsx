@@ -6,7 +6,7 @@
 
 import { useMemo, useState } from 'react';
 import { useSearchParams, Navigate, useLocation, useParams, useNavigate, Link } from 'react-router-dom';
-import { Plus, ClipboardList, AlertTriangle, Clock, Wrench, BarChart3 } from 'lucide-react';
+import { Plus, ClipboardList, AlertTriangle, Clock, Wrench, BarChart3, ClipboardCheck } from 'lucide-react';
 import { useOrdensServico } from '../hooks/useOrdensServico';
 import { useEquipamentos } from '../hooks/useEquipamentos';
 import { useAuth } from '../contexts/AuthContext';
@@ -17,6 +17,7 @@ import OSCard from '../components/manutencao/os/OSCard';
 import NovaOSModal from '../components/manutencao/os/NovaOSModal';
 import OSDetalhe from '../components/manutencao/os/OSDetalhe';
 import DashboardManutencao from '../components/manutencao/DashboardManutencao';
+import PlanosPreventivosPage from '../components/manutencao/PlanosPreventivosPage';
 
 const STATUS_OPTS: { value: StatusOS | 'todas' | 'abertas'; label: string }[] = [
   { value: 'abertas', label: 'Abertas' },
@@ -54,10 +55,15 @@ export default function ManutencaoPage() {
   if (params.numero) {
     return <OSDetalhe />;
   }
+  let inner: React.ReactNode;
+  if (pathname === '/manutencao/dashboard') inner = <DashboardManutencao />;
+  else if (pathname === '/manutencao/planos') inner = <PlanosPreventivosPage />;
+  else inner = <OrdensServicoPage />;
+
   return (
     <div className="space-y-4">
       <SubNav pathname={pathname} />
-      {pathname === '/manutencao/dashboard' ? <DashboardManutencao /> : <OrdensServicoPage />}
+      {inner}
     </div>
   );
 }
@@ -65,6 +71,7 @@ export default function ManutencaoPage() {
 const SUB_NAV_ITEMS: { to: string; label: string; icon: typeof BarChart3 }[] = [
   { to: '/manutencao/dashboard', label: 'Dashboard', icon: BarChart3 },
   { to: '/manutencao/os', label: 'Ordens de Serviço', icon: ClipboardList },
+  { to: '/manutencao/planos', label: 'Planos preventivos', icon: ClipboardCheck },
 ];
 
 function SubNav({ pathname }: { pathname: string }) {

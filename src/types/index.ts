@@ -774,6 +774,107 @@ export interface OrdemCompra {
   criadoPor: string;
 }
 
+// === Planos Preventivos (PR14 - Marco 3) ===
+
+export type CategoriaAtividade =
+  | 'lubrificacao' | 'filtros' | 'pneus' | 'eletrica' | 'mecanica'
+  | 'hidraulica' | 'inspecao' | 'limpeza' | 'analise_laboratorio';
+
+export const CATEGORIA_ATIVIDADE_LABEL: Record<CategoriaAtividade, string> = {
+  lubrificacao: 'Lubrificação',
+  filtros: 'Filtros',
+  pneus: 'Pneus',
+  eletrica: 'Elétrica',
+  mecanica: 'Mecânica',
+  hidraulica: 'Hidráulica',
+  inspecao: 'Inspeção',
+  limpeza: 'Limpeza',
+  analise_laboratorio: 'Análise laboratório',
+};
+
+export interface PlanoPreventivo {
+  id: string;
+  nome: string;
+  tipoEquipamento: string;
+  fabricante: string;
+  modeloReferencia: string;
+  ativo: boolean;
+  observacoes: string;
+  createdAt: string;
+  createdBy: string;
+  updatedAt: string;
+  updatedBy: string;
+}
+
+export interface PlanoAtividade {
+  id: string;
+  planoId: string;
+  nome: string;
+  categoria: CategoriaAtividade | null;
+  periodicidadeHorimetro: number | null;
+  periodicidadeKm: number | null;
+  periodicidadeDias: number | null;
+  toleranciaPercentual: number;
+  tempoEstimadoH: number | null;
+  custoEstimado: number | null;
+  procedimento: string;
+  obrigatoria: boolean;
+  ordem: number;
+  exigeOficinaExterna: boolean;
+  epiNecessario: string[];
+  arquivoUrls: string[];
+  createdAt: string;
+  createdBy: string;
+}
+
+export interface EquipamentoPlano {
+  id: string;
+  equipamentoId: string;
+  planoId: string;
+  ativo: boolean;
+  dataInicio: string;
+  observacoes: string;
+  createdAt: string;
+  createdBy: string;
+}
+
+export interface ExecucaoAtividade {
+  id: string;
+  equipamentoId: string;
+  atividadeId: string;
+  osId: string | null;
+  dataExecucao: string;
+  medicaoExecucao: number | null;
+  custo: number;
+  observacoes: string;
+  createdAt: string;
+  createdBy: string;
+}
+
+/** Linha da view v_proximas_preventivas. */
+export interface ProximaPreventiva {
+  equipamentoId: string;
+  codigoPatrimonio: string;
+  equipamentoNome: string;
+  equipamentoTipo: string;
+  tipoMedicao: TipoMedicao;
+  atividadeId: string;
+  atividadeNome: string;
+  categoria: CategoriaAtividade | null;
+  periodicidadeHorimetro: number | null;
+  periodicidadeKm: number | null;
+  periodicidadeDias: number | null;
+  toleranciaPercentual: number;
+  obrigatoria: boolean;
+  ultimaExecucaoData: string | null;
+  ultimaExecucaoMedicao: number | null;
+  medicaoAtual: number | null;
+  proximaMedicao: number | null;
+  unidadesRestantes: number | null;
+  proximaData: string | null;
+  diasRestantes: number | null;
+}
+
 // === Ordens de Serviço (PR9 - Marco 2) ===
 
 export type TipoOS = 'preventiva' | 'corretiva' | 'preditiva' | 'melhoria' | 'garantia' | 'recall';
