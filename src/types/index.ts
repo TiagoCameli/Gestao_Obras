@@ -774,12 +774,41 @@ export interface OrdemCompra {
   criadoPor: string;
 }
 
-// === Manutenção ===
+// === Ordens de Serviço (PR9 - Marco 2) ===
 
-export type StatusOS = 'aberta' | 'em_andamento' | 'aguardando_peca' | 'concluida' | 'cancelada';
-export type TipoOS = 'preventiva' | 'corretiva';
-export type PrioridadeOS = 'baixa' | 'normal' | 'alta' | 'critica';
-export type TipoCustoOS = 'peca' | 'mao_de_obra' | 'servico_externo';
+export type TipoOS = 'preventiva' | 'corretiva' | 'preditiva' | 'melhoria' | 'garantia' | 'recall';
+export type PrioridadeOS = 'baixa' | 'media' | 'alta' | 'critica';
+export type StatusOS =
+  | 'rascunho' | 'aberta' | 'aguardando_pecas' | 'em_execucao'
+  | 'aguardando_aprovacao' | 'concluida' | 'cancelada';
+export type OrigemOS =
+  | 'plano_preventivo' | 'checklist' | 'anomalia_combustivel' | 'manual' | 'recall';
+
+export const TIPO_OS_LABEL: Record<TipoOS, string> = {
+  preventiva: 'Preventiva',
+  corretiva: 'Corretiva',
+  preditiva: 'Preditiva',
+  melhoria: 'Melhoria',
+  garantia: 'Garantia',
+  recall: 'Recall',
+};
+
+export const PRIORIDADE_OS_LABEL: Record<PrioridadeOS, string> = {
+  baixa: 'Baixa',
+  media: 'Média',
+  alta: 'Alta',
+  critica: 'Crítica',
+};
+
+export const STATUS_OS_LABEL: Record<StatusOS, string> = {
+  rascunho: 'Rascunho',
+  aberta: 'Aberta',
+  aguardando_pecas: 'Aguardando peças',
+  em_execucao: 'Em execução',
+  aguardando_aprovacao: 'Aguardando aprovação',
+  concluida: 'Concluída',
+  cancelada: 'Cancelada',
+};
 
 export interface OrdemServico {
   id: string;
@@ -788,50 +817,81 @@ export interface OrdemServico {
   tipo: TipoOS;
   prioridade: PrioridadeOS;
   status: StatusOS;
-  descricao: string;
+  origem: OrigemOS | null;
+  origemId: string | null;
+  atividadeId: string | null;
+  obraId: string | null;
+  solicitanteId: string;
+  responsavelId: string;
+  fornecedorServicoId: string | null;
   dataAbertura: string;
-  dataPrevista: string;
-  dataConclusao: string;
-  medicaoAbertura: number;
+  dataPrevistaInicio: string | null;
+  dataInicioExecucao: string | null;
+  dataConclusao: string | null;
+  prazoAtendimento: string | null;
+  medicaoAbertura: number | null;
   medicaoConclusao: number | null;
-  responsavel: string;
+  paradaInicio: string | null;
+  paradaFim: string | null;
+  defeitoReportado: string;
+  sintomas: string[];
+  sistemasAfetados: string[];
+  causaRaiz: string;
+  solucaoAplicada: string;
+  recomendacoes: string;
+  custoPecas: number;
+  custoServicoTerceiro: number;
+  custoMaoObraPropria: number;
+  custoTotal: number;
+  aprovadoPor: string;
+  aprovadoEm: string | null;
+  garantiaAcionada: boolean;
+  fotoUrls: string[];
+  arquivoUrls: string[];
   observacoes: string;
-  criadoPor: string;
-}
-
-export interface ItemOS {
-  id: string;
-  ordemServicoId: string;
-  descricao: string;
-  tipo: TipoCustoOS;
-  quantidade: number;
-  valorUnitario: number;
-  criadoPor: string;
-}
-
-export interface PlanoManutencao {
-  id: string;
-  equipamentoId: string;
-  nome: string;
-  descricao: string;
-  intervaloHoras: number | null;
-  intervaloKm: number | null;
-  intervaloDias: number | null;
-  ultimaExecucaoMedicao: number;
-  ultimaExecucaoData: string;
-  ativo: boolean;
-  criadoPor: string;
   createdAt: string;
+  createdBy: string;
+  updatedAt: string;
+  updatedBy: string;
 }
 
-export interface HistoricoMedicao {
+export interface OSPeca {
   id: string;
-  equipamentoId: string;
-  tipoMedicao: string;
-  valor: number;
-  dataRegistro: string;
+  osId: string;
+  insumoId: string;
+  depositoId: string | null;
+  quantidade: number;
+  unidadeMedidaId: string | null;
+  custoUnitario: number;
+  custoTotal: number;
+  status: 'reservada' | 'consumida' | 'devolvida';
+  saidaMaterialId: string | null;
   observacoes: string;
-  criadoPor: string;
+  createdAt: string;
+  createdBy: string;
+}
+
+export interface OSMaoObra {
+  id: string;
+  osId: string;
+  colaboradorId: string;
+  data: string;
+  horas: number;
+  custoHora: number | null;
+  custoTotal: number;
+  observacoes: string;
+  createdAt: string;
+  createdBy: string;
+}
+
+export interface OSTransicao {
+  id: string;
+  osId: string;
+  statusDe: StatusOS | null;
+  statusPara: StatusOS;
+  motivo: string;
+  createdAt: string;
+  createdBy: string;
 }
 
 // === Financeiro do Equipamento (PR7 - Marco 1) ===

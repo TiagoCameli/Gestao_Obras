@@ -29,16 +29,17 @@ import type {
   OrdemCompra,
   Empresa,
   Colaborador,
-  OrdemServico,
-  ItemOS,
-  PlanoManutencao,
-  HistoricoMedicao,
   MedicaoEquipamento,
   DocumentoEquipamento,
   HistoricoStatusEquipamento,
   EspecificacoesEquipamento,
   FiltrosEquipamento,
   FinanceiroEquipamento,
+  OrdemServico,
+  OSPeca,
+  OSMaoObra,
+  OSTransicao,
+  StatusOS,
   StatusEquipamento,
   SaidaCombustivel,
   TransportadoraMovimento,
@@ -1045,138 +1046,10 @@ export function dbToAlocacoes(data: any[]): AlocacaoEtapa[] {
   }));
 }
 
-// ── Ordens de Serviço ──
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export function dbToOrdemServico(row: any): OrdemServico {
-  return {
-    id: row.id,
-    numero: row.numero ?? '',
-    equipamentoId: row.equipamento_id ?? '',
-    tipo: row.tipo ?? 'corretiva',
-    prioridade: row.prioridade ?? 'normal',
-    status: row.status ?? 'aberta',
-    descricao: row.descricao ?? '',
-    dataAbertura: row.data_abertura ?? '',
-    dataPrevista: row.data_prevista ?? '',
-    dataConclusao: row.data_conclusao ?? '',
-    medicaoAbertura: Number(row.medicao_abertura) || 0,
-    medicaoConclusao: row.medicao_conclusao != null ? Number(row.medicao_conclusao) : null,
-    responsavel: row.responsavel ?? '',
-    observacoes: row.observacoes ?? '',
-    criadoPor: row.criado_por ?? '',
-  };
-}
-
-export function ordemServicoToDb(os: OrdemServico) {
-  return {
-    id: os.id,
-    numero: os.numero,
-    equipamento_id: os.equipamentoId,
-    tipo: os.tipo,
-    prioridade: os.prioridade,
-    status: os.status,
-    descricao: os.descricao,
-    data_abertura: os.dataAbertura,
-    data_prevista: os.dataPrevista || null,
-    data_conclusao: os.dataConclusao || null,
-    medicao_abertura: os.medicaoAbertura,
-    medicao_conclusao: os.medicaoConclusao,
-    responsavel: os.responsavel,
-    observacoes: os.observacoes,
-    criado_por: os.criadoPor,
-  };
-}
-
-// ── Itens OS ──
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export function dbToItemOS(row: any): ItemOS {
-  return {
-    id: row.id,
-    ordemServicoId: row.ordem_servico_id ?? '',
-    descricao: row.descricao ?? '',
-    tipo: row.tipo ?? 'peca',
-    quantidade: Number(row.quantidade) || 1,
-    valorUnitario: Number(row.valor_unitario) || 0,
-    criadoPor: row.criado_por ?? '',
-  };
-}
-
-export function itemOSToDb(item: ItemOS) {
-  return {
-    id: item.id,
-    ordem_servico_id: item.ordemServicoId,
-    descricao: item.descricao,
-    tipo: item.tipo,
-    quantidade: item.quantidade,
-    valor_unitario: item.valorUnitario,
-    criado_por: item.criadoPor,
-  };
-}
-
-// ── Planos de Manutenção ──
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export function dbToPlanoManutencao(row: any): PlanoManutencao {
-  return {
-    id: row.id,
-    equipamentoId: row.equipamento_id ?? '',
-    nome: row.nome ?? '',
-    descricao: row.descricao ?? '',
-    intervaloHoras: row.intervalo_horas != null ? Number(row.intervalo_horas) : null,
-    intervaloKm: row.intervalo_km != null ? Number(row.intervalo_km) : null,
-    intervaloDias: row.intervalo_dias != null ? Number(row.intervalo_dias) : null,
-    ultimaExecucaoMedicao: Number(row.ultima_execucao_medicao) || 0,
-    ultimaExecucaoData: row.ultima_execucao_data ?? '',
-    ativo: row.ativo ?? true,
-    criadoPor: row.criado_por ?? '',
-    createdAt: row.created_at ?? '',
-  };
-}
-
-export function planoManutencaoToDb(p: PlanoManutencao) {
-  return {
-    id: p.id,
-    equipamento_id: p.equipamentoId,
-    nome: p.nome,
-    descricao: p.descricao,
-    intervalo_horas: p.intervaloHoras,
-    intervalo_km: p.intervaloKm,
-    intervalo_dias: p.intervaloDias,
-    ultima_execucao_medicao: p.ultimaExecucaoMedicao,
-    ultima_execucao_data: p.ultimaExecucaoData || null,
-    ativo: p.ativo,
-    criado_por: p.criadoPor,
-  };
-}
-
-// ── Histórico de Medições ──
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export function dbToHistoricoMedicao(row: any): HistoricoMedicao {
-  return {
-    id: row.id,
-    equipamentoId: row.equipamento_id ?? '',
-    tipoMedicao: row.tipo_medicao ?? '',
-    valor: Number(row.valor) || 0,
-    dataRegistro: row.data_registro ?? '',
-    observacoes: row.observacoes ?? '',
-    criadoPor: row.criado_por ?? '',
-  };
-}
-
-export function historicoMedicaoToDb(m: HistoricoMedicao) {
-  return {
-    id: m.id,
-    equipamento_id: m.equipamentoId,
-    tipo_medicao: m.tipoMedicao,
-    valor: m.valor,
-    data_registro: m.dataRegistro,
-    observacoes: m.observacoes,
-    criado_por: m.criadoPor,
-  };
-}
+// (Funções antigas dbToOrdemServico/dbToItemOS/dbToPlanoManutencao/
+//  dbToHistoricoMedicao removidas — referenciavam tabelas wipadas em
+//  20260503180000_wipe_manutencao_module. O novo OrdemServico vive abaixo
+//  na seção "Ordens de Serviço (PR9 - Marco 2)".)
 
 // ── Tipos Equipamento ──
 
@@ -1234,6 +1107,176 @@ export function medicaoEquipamentoToDb(m: MedicaoEquipamento) {
     foto_urls: m.fotoUrls,
     arquivo_urls: m.arquivoUrls,
     created_by: m.createdBy,
+  };
+}
+
+// ── Ordens de Serviço (PR9 - Marco 2) ──
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function dbToOrdemServico(row: any): OrdemServico {
+  return {
+    id: row.id,
+    numero: row.numero ?? '',
+    equipamentoId: row.equipamento_id ?? '',
+    tipo: row.tipo ?? 'corretiva',
+    prioridade: row.prioridade ?? 'media',
+    status: row.status ?? 'aberta',
+    origem: row.origem ?? null,
+    origemId: row.origem_id ?? null,
+    atividadeId: row.atividade_id ?? null,
+    obraId: row.obra_id ?? null,
+    solicitanteId: row.solicitante_id ?? '',
+    responsavelId: row.responsavel_id ?? '',
+    fornecedorServicoId: row.fornecedor_servico_id ?? null,
+    dataAbertura: row.data_abertura ?? '',
+    dataPrevistaInicio: row.data_prevista_inicio ?? null,
+    dataInicioExecucao: row.data_inicio_execucao ?? null,
+    dataConclusao: row.data_conclusao ?? null,
+    prazoAtendimento: row.prazo_atendimento ?? null,
+    medicaoAbertura: row.medicao_abertura != null ? Number(row.medicao_abertura) : null,
+    medicaoConclusao: row.medicao_conclusao != null ? Number(row.medicao_conclusao) : null,
+    paradaInicio: row.parada_inicio ?? null,
+    paradaFim: row.parada_fim ?? null,
+    defeitoReportado: row.defeito_reportado ?? '',
+    sintomas: row.sintomas ?? [],
+    sistemasAfetados: row.sistemas_afetados ?? [],
+    causaRaiz: row.causa_raiz ?? '',
+    solucaoAplicada: row.solucao_aplicada ?? '',
+    recomendacoes: row.recomendacoes ?? '',
+    custoPecas: Number(row.custo_pecas ?? 0),
+    custoServicoTerceiro: Number(row.custo_servico_terceiro ?? 0),
+    custoMaoObraPropria: Number(row.custo_mao_obra_propria ?? 0),
+    custoTotal: Number(row.custo_total ?? 0),
+    aprovadoPor: row.aprovado_por ?? '',
+    aprovadoEm: row.aprovado_em ?? null,
+    garantiaAcionada: !!row.garantia_acionada,
+    fotoUrls: row.foto_urls ?? [],
+    arquivoUrls: row.arquivo_urls ?? [],
+    observacoes: row.observacoes ?? '',
+    createdAt: row.created_at ?? '',
+    createdBy: row.created_by ?? '',
+    updatedAt: row.updated_at ?? '',
+    updatedBy: row.updated_by ?? '',
+  };
+}
+
+export function ordemServicoToDb(os: OrdemServico) {
+  return {
+    id: os.id,
+    // numero: gerado no DB via gerar_numero_os(), não enviar aqui no INSERT
+    equipamento_id: os.equipamentoId,
+    tipo: os.tipo,
+    prioridade: os.prioridade,
+    status: os.status,
+    origem: os.origem,
+    origem_id: os.origemId,
+    atividade_id: os.atividadeId,
+    obra_id: os.obraId,
+    solicitante_id: os.solicitanteId || null,
+    responsavel_id: os.responsavelId || null,
+    fornecedor_servico_id: os.fornecedorServicoId,
+    data_prevista_inicio: os.dataPrevistaInicio,
+    data_inicio_execucao: os.dataInicioExecucao,
+    data_conclusao: os.dataConclusao,
+    prazo_atendimento: os.prazoAtendimento,
+    medicao_abertura: os.medicaoAbertura,
+    medicao_conclusao: os.medicaoConclusao,
+    parada_inicio: os.paradaInicio,
+    parada_fim: os.paradaFim,
+    defeito_reportado: os.defeitoReportado,
+    sintomas: os.sintomas,
+    sistemas_afetados: os.sistemasAfetados,
+    causa_raiz: os.causaRaiz,
+    solucao_aplicada: os.solucaoAplicada,
+    recomendacoes: os.recomendacoes,
+    custo_pecas: os.custoPecas,
+    custo_servico_terceiro: os.custoServicoTerceiro,
+    custo_mao_obra_propria: os.custoMaoObraPropria,
+    aprovado_por: os.aprovadoPor || null,
+    aprovado_em: os.aprovadoEm,
+    garantia_acionada: os.garantiaAcionada,
+    foto_urls: os.fotoUrls,
+    arquivo_urls: os.arquivoUrls,
+    observacoes: os.observacoes,
+    created_by: os.createdBy,
+    updated_by: os.updatedBy,
+  };
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function dbToOSPeca(row: any): OSPeca {
+  return {
+    id: row.id,
+    osId: row.os_id ?? '',
+    insumoId: row.insumo_id ?? '',
+    depositoId: row.deposito_id ?? null,
+    quantidade: Number(row.quantidade ?? 0),
+    unidadeMedidaId: row.unidade_medida_id ?? null,
+    custoUnitario: Number(row.custo_unitario ?? 0),
+    custoTotal: Number(row.custo_total ?? 0),
+    status: row.status ?? 'reservada',
+    saidaMaterialId: row.saida_material_id ?? null,
+    observacoes: row.observacoes ?? '',
+    createdAt: row.created_at ?? '',
+    createdBy: row.created_by ?? '',
+  };
+}
+
+export function osPecaToDb(p: OSPeca) {
+  return {
+    id: p.id,
+    os_id: p.osId,
+    insumo_id: p.insumoId,
+    deposito_id: p.depositoId,
+    quantidade: p.quantidade,
+    unidade_medida_id: p.unidadeMedidaId,
+    custo_unitario: p.custoUnitario,
+    status: p.status,
+    saida_material_id: p.saidaMaterialId,
+    observacoes: p.observacoes,
+    created_by: p.createdBy,
+  };
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function dbToOSMaoObra(row: any): OSMaoObra {
+  return {
+    id: row.id,
+    osId: row.os_id ?? '',
+    colaboradorId: row.colaborador_id ?? '',
+    data: row.data ?? '',
+    horas: Number(row.horas ?? 0),
+    custoHora: row.custo_hora != null ? Number(row.custo_hora) : null,
+    custoTotal: Number(row.custo_total ?? 0),
+    observacoes: row.observacoes ?? '',
+    createdAt: row.created_at ?? '',
+    createdBy: row.created_by ?? '',
+  };
+}
+
+export function osMaoObraToDb(m: OSMaoObra) {
+  return {
+    id: m.id,
+    os_id: m.osId,
+    colaborador_id: m.colaboradorId,
+    data: m.data,
+    horas: m.horas,
+    custo_hora: m.custoHora,
+    observacoes: m.observacoes,
+    created_by: m.createdBy,
+  };
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function dbToOSTransicao(row: any): OSTransicao {
+  return {
+    id: row.id,
+    osId: row.os_id ?? '',
+    statusDe: (row.status_de ?? null) as StatusOS | null,
+    statusPara: (row.status_para ?? 'aberta') as StatusOS,
+    motivo: row.motivo ?? '',
+    createdAt: row.created_at ?? '',
+    createdBy: row.created_by ?? '',
   };
 }
 
