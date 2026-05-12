@@ -18,6 +18,7 @@ import NovaOSModal from '../components/manutencao/os/NovaOSModal';
 import OSDetalhe from '../components/manutencao/os/OSDetalhe';
 import DashboardManutencao from '../components/manutencao/DashboardManutencao';
 import PlanosPreventivosPage from '../components/manutencao/PlanosPreventivosPage';
+import PlanoDetalhePage from '../components/manutencao/planos/PlanoDetalhePage';
 
 const STATUS_OPTS: { value: StatusOS | 'todas' | 'abertas'; label: string }[] = [
   { value: 'abertas', label: 'Abertas' },
@@ -46,7 +47,7 @@ function fmtBRL(n: number): string {
 
 export default function ManutencaoPage() {
   const { pathname } = useLocation();
-  const params = useParams<{ numero?: string }>();
+  const params = useParams<{ numero?: string; id?: string }>();
   // /manutencao → redireciona pra /manutencao/dashboard
   if (pathname === '/manutencao') {
     return <Navigate to="/manutencao/dashboard" replace />;
@@ -55,8 +56,10 @@ export default function ManutencaoPage() {
   if (params.numero) {
     return <OSDetalhe />;
   }
+  // /manutencao/planos/:id → detalhe do plano (com sub-nav)
   let inner: React.ReactNode;
   if (pathname === '/manutencao/dashboard') inner = <DashboardManutencao />;
+  else if (params.id && pathname.startsWith('/manutencao/planos/')) inner = <PlanoDetalhePage />;
   else if (pathname === '/manutencao/planos') inner = <PlanosPreventivosPage />;
   else inner = <OrdensServicoPage />;
 

@@ -1,24 +1,39 @@
-// Marco 3 / PR14 — Lista de planos preventivos.
+// Marco 3 / PR14+PR15 — Lista de planos preventivos.
 //
-// Cada card mostra nome, tipo de equipamento, fabricante/modelo, qtd atividades.
-// Click → futuro detalhe (PR15). Nesta PR, listagem read-only.
+// Cards clicáveis levam ao detalhe (/manutencao/planos/:id). Botão "Novo plano"
+// abre o modal de criação.
 
-import { ClipboardCheck, Settings2 } from 'lucide-react';
+import { useState } from 'react';
+import { Link } from 'react-router-dom';
+import { ClipboardCheck, Settings2, Plus } from 'lucide-react';
 import { usePlanosPreventivos } from '../../hooks/usePlanosPreventivos';
+import { useAuth } from '../../contexts/AuthContext';
+import Button from '../ui/Button';
+import NovoPlanoModal from './planos/NovoPlanoModal';
 
 export default function PlanosPreventivosPage() {
   const { data: planos = [], isLoading } = usePlanosPreventivos();
+  const { temAcao } = useAuth();
+  const canCreate = temAcao('criar_cadastros') || temAcao('editar_cadastros');
+  const [novoOpen, setNovoOpen] = useState(false);
 
   return (
     <div className="space-y-5">
-      <div>
-        <h1 className="text-2xl sm:text-3xl font-semibold text-[var(--color-fg)] tracking-tight">
-          Planos Preventivos
-        </h1>
-        <p className="text-sm text-[var(--color-fg-muted)] mt-0.5">
-          Catálogo de planos por tipo de equipamento. Aplique a um equipamento
-          pelo detalhe da Frota para começar a programar preventivas.
-        </p>
+      <div className="flex items-end justify-between gap-3 flex-wrap">
+        <div>
+          <h1 className="text-2xl sm:text-3xl font-semibold text-[var(--color-fg)] tracking-tight">
+            Planos Preventivos
+          </h1>
+          <p className="text-sm text-[var(--color-fg-muted)] mt-0.5">
+            Catálogo de planos por tipo de equipamento. Aplique a um equipamento
+            pelo detalhe da Frota para começar a programar preventivas.
+          </p>
+        </div>
+        {canCreate && (
+          <Button onClick={() => setNovoOpen(true)}>
+            <Plus className="w-4 h-4" /> Novo plano
+          </Button>
+        )}
       </div>
 
       {isLoading ? (
@@ -33,16 +48,21 @@ export default function PlanosPreventivosPage() {
             o plano aos equipamentos correspondentes. O sistema avisa quando
             estiver próximo do vencimento.
           </p>
-          <p className="text-xs text-[var(--color-fg-subtle)] mt-2">
-            UI de cadastro vem no próximo PR. Por enquanto crie via SQL ou seed.
-          </p>
+          {canCreate && (
+            <div className="mt-4">
+              <Button onClick={() => setNovoOpen(true)}>
+                <Plus className="w-4 h-4" /> Criar primeiro plano
+              </Button>
+            </div>
+          )}
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
           {planos.map((p) => (
-            <div
+            <Link
               key={p.id}
-              className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-1)] p-4"
+              to={`/manutencao/planos/${p.id}`}
+              className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-1)] p-4 hover:border-[var(--color-border-strong)] hover:bg-[var(--color-surface-2)] transition-colors"
             >
               <div className="flex items-start gap-3">
                 <div className="w-10 h-10 rounded-lg bg-[var(--color-info-soft)] text-[var(--color-info-fg)] flex items-center justify-center shrink-0">
@@ -69,9 +89,13 @@ export default function PlanosPreventivosPage() {
                   {p.observacoes}
                 </p>
               )}
-            </div>
+            </Link>
           ))}
         </div>
+      )}
+
+      {novoOpen && (
+        <NovoPlanoModal open={novoOpen} onClose={() => setNovoOpen(false)} />
       )}
     </div>
   );
