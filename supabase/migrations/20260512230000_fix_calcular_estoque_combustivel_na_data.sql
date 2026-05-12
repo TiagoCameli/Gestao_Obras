@@ -4,9 +4,13 @@
 -- TransferenciaForm fica com estoqueOrigemNaData=0 (default), e qualquer
 -- transferência > 0 dispara o aviso "saldo insuficiente".
 --
--- Mesmo fix conceitual do 20260505130000_fix_recalcular_nivel_deposito:
--- substitui abastecimentos por saidas_combustivel (only origem='tanque',
--- pois saídas de carreta não tiram do tanque do depósito).
+-- Tipos mistos por tabela (descobertos via information_schema em prod):
+--   entradas_combustivel.data_hora       = text
+--   saidas_combustivel.data              = timestamptz
+--   transferencias_combustivel.data_hora = text
+-- A função recebe p_data_hora text (ISO 8601). Compara como text com
+-- entradas/transferências (lex eq pra ISO) e casta pra timestamptz na
+-- comparação contra saidas_combustivel.
 
 begin;
 
@@ -24,6 +28,7 @@ declare
   v_saidas numeric;
   v_transf_in numeric;
   v_transf_out numeric;
+  v_data_ts timestamptz := p_data_hora::timestamptz;
 begin
   select coalesce(sum(quantidade_litros), 0)
     into v_entradas
@@ -36,7 +41,7 @@ begin
     from public.saidas_combustivel
    where origem = 'tanque'
      and tanque_id = p_deposito_id
-     and data <= p_data_hora
+     and data <= v_data_ts
      and (p_excluir_id is null or id <> p_excluir_id);
 
   select coalesce(sum(quantidade_litros), 0)
