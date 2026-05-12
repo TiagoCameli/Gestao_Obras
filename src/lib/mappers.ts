@@ -35,6 +35,8 @@ import type {
   HistoricoMedicao,
   MedicaoEquipamento,
   DocumentoEquipamento,
+  HistoricoStatusEquipamento,
+  StatusEquipamento,
   SaidaCombustivel,
   TransportadoraMovimento,
   TransportadoraSaldo,
@@ -1225,6 +1227,36 @@ export function medicaoEquipamentoToDb(m: MedicaoEquipamento) {
     foto_urls: m.fotoUrls,
     arquivo_urls: m.arquivoUrls,
     created_by: m.createdBy,
+  };
+}
+
+// ── Histórico de Status de Equipamento (PR4 - Marco 0) ──
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function dbToHistoricoStatusEquipamento(row: any): HistoricoStatusEquipamento {
+  return {
+    id: row.id,
+    equipamentoId: row.equipamento_id ?? '',
+    statusDe: (row.status_de ?? null) as StatusEquipamento | null,
+    statusPara: (row.status_para ?? 'ativa') as StatusEquipamento,
+    motivo: row.motivo ?? '',
+    observacoes: row.observacoes ?? '',
+    osId: row.os_id ?? null,
+    createdAt: row.created_at ?? '',
+    createdBy: row.created_by ?? '',
+  };
+}
+
+export function historicoStatusEquipamentoToDb(h: HistoricoStatusEquipamento) {
+  return {
+    id: h.id,
+    equipamento_id: h.equipamentoId,
+    status_de: h.statusDe,
+    status_para: h.statusPara,
+    motivo: h.motivo,
+    observacoes: h.observacoes,
+    os_id: h.osId,
+    created_by: h.createdBy,
   };
 }
 

@@ -8,7 +8,7 @@ interface FrotaGridProps {
   empresas: Empresa[];
   categoriaFiltro: TipoEquipamento | '';
   onSelect: (equipamento: Equipamento) => void;
-  onChangeStatus?: (equipamento: Equipamento, status: StatusEquipamento) => void;
+  onChangeStatus?: (equipamento: Equipamento, status: StatusEquipamento, motivo: string, observacoes: string) => void;
   alertasMap?: Map<string, number>;
 }
 
@@ -23,7 +23,7 @@ function EquipamentoCard({
   empresaNome: string;
   alertas: number;
   onClick: () => void;
-  onChangeStatus?: (status: StatusEquipamento) => void;
+  onChangeStatus?: (status: StatusEquipamento, motivo: string, observacoes: string) => void;
 }) {
   const cat = getCategoriaFrota(eq.tipo);
   const alugada = eq.propriedade === 'alugada';
@@ -96,9 +96,10 @@ function EquipamentoCard({
       <div className="mt-3" onClick={(e) => e.stopPropagation()}>
         <StatusDropdown
           value={eq.status}
-          onChange={(s) => onChangeStatus?.(s)}
+          onChange={(s, motivo, obs) => onChangeStatus?.(s, motivo, obs)}
           disabled={!onChangeStatus}
           size="sm"
+          equipamentoNome={eq.nome}
         />
       </div>
 
@@ -156,7 +157,7 @@ export default function FrotaGrid({
             empresaNome={empresaMap.get(eq.empresaId) ?? ''}
             alertas={alertasMap.get(eq.id) ?? 0}
             onClick={() => onSelect(eq)}
-            onChangeStatus={onChangeStatus ? (s) => onChangeStatus(eq, s) : undefined}
+            onChangeStatus={onChangeStatus ? (s, motivo, obs) => onChangeStatus(eq, s, motivo, obs) : undefined}
           />
         ))}
       </div>
@@ -204,7 +205,7 @@ export default function FrotaGrid({
                   empresaNome={empresaMap.get(eq.empresaId) ?? ''}
                   alertas={alertasMap.get(eq.id) ?? 0}
                   onClick={() => onSelect(eq)}
-                  onChangeStatus={onChangeStatus ? (s) => onChangeStatus(eq, s) : undefined}
+                  onChangeStatus={onChangeStatus ? (s, motivo, obs) => onChangeStatus(eq, s, motivo, obs) : undefined}
                 />
               ))}
             </div>

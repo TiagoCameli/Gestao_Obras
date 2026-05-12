@@ -7,7 +7,7 @@ interface FrotaListProps {
   equipamentos: Equipamento[];
   empresas: Empresa[];
   onSelect: (equipamento: Equipamento) => void;
-  onChangeStatus?: (equipamento: Equipamento, status: StatusEquipamento) => void;
+  onChangeStatus?: (equipamento: Equipamento, status: StatusEquipamento, motivo: string, observacoes: string) => void;
   alertasMap?: Map<string, number>;
 }
 
@@ -142,8 +142,9 @@ export default function FrotaList({
                   <td className="px-4 py-3 text-center" onClick={(e) => e.stopPropagation()}>
                     <StatusDropdown
                       value={eq.status}
-                      onChange={(s) => onChangeStatus?.(eq, s)}
+                      onChange={(s, motivo, obs) => onChangeStatus?.(eq, s, motivo, obs)}
                       disabled={!onChangeStatus}
+                      equipamentoNome={eq.nome}
                     />
                   </td>
                 </tr>

@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import type { StatusEquipamento } from '../../types';
 import { STATUS_EQUIPAMENTO_LABEL } from '../../types';
 import { Check, ChevronDown } from 'lucide-react';
+import StatusChangeMotivoModal from './StatusChangeMotivoModal';
 
 export interface StatusOption {
   value: StatusEquipamento;
@@ -49,17 +50,22 @@ export function getStatusOption(s: StatusEquipamento): StatusOption {
 
 interface Props {
   value: StatusEquipamento;
-  onChange: (v: StatusEquipamento) => void;
+  /** Callback recebe novo status + motivo da transição. Motivo vem do modal
+   *  exceto para "ativa" (não é obrigatório, pode vir vazio). */
+  onChange: (v: StatusEquipamento, motivo: string, observacoes: string) => void;
   disabled?: boolean;
   size?: 'sm' | 'md';
   className?: string;
+  /** Nome do equipamento mostrado no modal de motivo. */
+  equipamentoNome?: string;
 }
 
 const MENU_WIDTH = 240;
 const MENU_GAP = 6;
 
-export default function StatusDropdown({ value, onChange, disabled, size = 'sm', className = '' }: Props) {
+export default function StatusDropdown({ value, onChange, disabled, size = 'sm', className = '', equipamentoNome = '' }: Props) {
   const [open, setOpen] = useState(false);
+  const [pendingStatus, setPendingStatus] = useState<StatusEquipamento | null>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
   const [coords, setCoords] = useState<{ top: number; left: number; placement: 'bottom' | 'top' }>({
@@ -167,8 +173,10 @@ export default function StatusDropdown({ value, onChange, disabled, size = 'sm',
                   role="option"
                   aria-selected={ativo}
                   onClick={() => {
-                    onChange(o.value);
                     setOpen(false);
+                    if (o.value === value) return;
+                    // Pede motivo antes de aplicar a mudança
+                    setPendingStatus(o.value);
                   }}
                   className={
                     'w-full flex items-center gap-2.5 px-3 py-2 text-left text-sm transition-colors ' +
@@ -187,6 +195,26 @@ export default function StatusDropdown({ value, onChange, disabled, size = 'sm',
                 </button>
               );
             })}
+          </div>,
+          document.body
+        )}
+
+      {pendingStatus &&
+        createPortal(
+          <div
+            onClick={(e) => e.stopPropagation()}
+            onMouseDown={(e) => e.stopPropagation()}
+          >
+            <StatusChangeMotivoModal
+              open={!!pendingStatus}
+              onClose={() => setPendingStatus(null)}
+              equipamentoNome={equipamentoNome}
+              statusDe={value}
+              statusPara={pendingStatus}
+              onConfirm={async (motivo, observacoes) => {
+                onChange(pendingStatus, motivo, observacoes);
+              }}
+            />
           </div>,
           document.body
         )}

@@ -829,6 +829,20 @@ export interface HistoricoMedicao {
   criadoPor: string;
 }
 
+// === Histórico de Status de Equipamento (PR4 - Marco 0) ===
+
+export interface HistoricoStatusEquipamento {
+  id: string;
+  equipamentoId: string;
+  statusDe: StatusEquipamento | null;
+  statusPara: StatusEquipamento;
+  motivo: string;
+  observacoes: string;
+  osId: string | null;
+  createdAt: string;
+  createdBy: string;
+}
+
 // === Documentos de Equipamento (PR3 - Marco 0) ===
 
 export type TipoDocumentoEquipamento =

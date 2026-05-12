@@ -5,6 +5,7 @@ import { STATUS_EQUIPAMENTO_LABEL } from '../types';
 import { useEquipamentos, useAdicionarEquipamento, useAtualizarEquipamento, useExcluirEquipamento } from '../hooks/useEquipamentos';
 import { useEmpresas } from '../hooks/useEmpresas';
 import { useFornecedores } from '../hooks/useFornecedores';
+import { useChangeStatusEquipamento } from '../hooks/useHistoricoStatusEquipamento';
 import { useAuth } from '../contexts/AuthContext';
 import Modal from '../components/ui/Modal';
 import Button from '../components/ui/Button';
@@ -43,6 +44,7 @@ export default function Frota() {
   const adicionarMutation = useAdicionarEquipamento();
   const atualizarMutation = useAtualizarEquipamento();
   const excluirMutation = useExcluirEquipamento();
+  const changeStatusMutation = useChangeStatusEquipamento();
 
   const [busca, setBusca] = useUrlState('busca');
   const [buscaPatrimonio, setBuscaPatrimonio] = useUrlState('patrimonio');
@@ -69,12 +71,20 @@ export default function Frota() {
   const canEdit = temAcao('editar_cadastros');
   const canDelete = temAcao('excluir_cadastros');
 
-  async function handleChangeStatus(eq: Equipamento, status: StatusEquipamento) {
+  async function handleChangeStatus(
+    eq: Equipamento,
+    status: StatusEquipamento,
+    motivo: string,
+    observacoes: string,
+  ) {
     try {
-      await atualizarMutation.mutateAsync({
-        ...eq,
-        status,
-        ativo: status !== 'fora_funcionamento',
+      await changeStatusMutation.mutateAsync({
+        equipamentoId: eq.id,
+        statusDe: eq.status,
+        statusPara: status,
+        motivo,
+        observacoes,
+        usuarioNome: usuario?.nome ?? '',
       });
     } catch (e) {
       alert(e instanceof Error ? e.message : 'Erro ao atualizar status');
