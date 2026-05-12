@@ -59,17 +59,19 @@ export default function TanqueVisual({
   const vazio = nivel <= 0;
 
   // SVG horizontal — viewport 320x140, cilindro com cantos arredondados.
+  // O tanque é horizontal (deitado), mas o LÍQUIDO se comporta como em
+  // tanque real: ancorado no fundo, sobe/desce com o nível. Empty → sem
+  // fluido. Full → fluido até o topo.
   const W = 320;
   const H = 140;
-  const PADX = 18;
-  const PADY = 30;
-  const tankW = W - PADX * 2;
+  const PADX = 36; // espaço pra escala vertical à esquerda
+  const PADY = 18;
+  const tankW = W - PADX - 14;
   const tankH = H - PADY * 2;
-  const fillW = tankW * pct;
-  // Para "líquido" parecer realista: leve curvatura no topo via gradient
-  // overlay. Cantos arredondados via rx grande no rect.
+  const fillH = tankH * pct;
   const tankX = PADX;
   const tankY = PADY;
+  const fluidY = tankY + tankH - fillH; // topo do fluido (desce do topo)
   const corId = `tank-grad-${nome.replace(/\W/g, '')}`;
 
   return (
@@ -127,33 +129,39 @@ export default function TanqueVisual({
           strokeWidth="1.5"
         />
 
-        {/* Fluido (clipado pelo casco) */}
+        {/* Fluido (clipado pelo casco) — ancorado no fundo, sobe com nível */}
         {!vazio && (
           <g clipPath={`url(#${corId}-clip)`}>
             <rect
               x={tankX}
-              y={tankY}
-              width={fillW}
-              height={tankH}
+              y={fluidY}
+              width={tankW}
+              height={fillH}
               fill={`url(#${corId})`}
             />
-            {/* Bolinha de "menisco" no topo (efeito de líquido) */}
-            <ellipse
-              cx={tankX + fillW}
-              cy={tankY + tankH / 2}
-              rx={tankH * 0.18}
-              ry={tankH / 2}
+            {/* Banda fina no topo do fluido (menisco horizontal) */}
+            <rect
+              x={tankX}
+              y={fluidY}
+              width={tankW}
+              height={Math.min(3, fillH)}
               fill={cor}
               opacity="0.35"
             />
           </g>
         )}
 
-        {/* Marcas (0% / 50% / 100%) acima do tanque */}
-        <g fontSize="9" fontFamily="ui-monospace, monospace" fill="var(--color-fg-muted, #64748b)" textAnchor="middle">
-          <text x={tankX} y={tankY - 6}>0</text>
-          <text x={tankX + tankW / 2} y={tankY - 6}>{Math.round(cap / 2).toLocaleString('pt-BR')}</text>
-          <text x={tankX + tankW} y={tankY - 6}>{cap.toLocaleString('pt-BR')}</text>
+        {/* Escala vertical à esquerda — 0 (base), 50%, capacidade (topo) */}
+        <g fontSize="9" fontFamily="ui-monospace, monospace" fill="var(--color-fg-muted, #64748b)" textAnchor="end">
+          <text x={tankX - 6} y={tankY + tankH + 3}>0</text>
+          <text x={tankX - 6} y={tankY + tankH / 2 + 3}>{Math.round(cap / 2).toLocaleString('pt-BR')}</text>
+          <text x={tankX - 6} y={tankY + 8}>{cap.toLocaleString('pt-BR')}</text>
+        </g>
+        {/* Ticks discretos na lateral esquerda do casco */}
+        <g stroke="var(--color-border, #cbd5e1)" strokeWidth="1">
+          <line x1={tankX} y1={tankY + tankH} x2={tankX - 3} y2={tankY + tankH} />
+          <line x1={tankX} y1={tankY + tankH / 2} x2={tankX - 3} y2={tankY + tankH / 2} />
+          <line x1={tankX} y1={tankY} x2={tankX - 3} y2={tankY} />
         </g>
 
         {/* Litros + percentual no centro do fluido */}
