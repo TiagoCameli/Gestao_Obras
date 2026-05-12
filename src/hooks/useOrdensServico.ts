@@ -75,6 +75,24 @@ export function useOrdemServico(osId: string | null | undefined) {
   });
 }
 
+/** Busca OS pelo número (OS-YYYY-NNNN). Usado pela rota /manutencao/os/:numero. */
+export function useOrdemServicoByNumero(numero: string | null | undefined) {
+  return useQuery<OrdemServico | null>({
+    queryKey: ['ordem_servico_numero', numero ?? ''],
+    enabled: !!numero,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('ordens_servico')
+        .select('*')
+        .eq('numero', numero!)
+        .is('deleted_at', null)
+        .maybeSingle();
+      if (error) throw error;
+      return data ? dbToOrdemServico(data) : null;
+    },
+  });
+}
+
 export function usePecasOS(osId: string | null | undefined) {
   return useQuery<OSPeca[]>({
     queryKey: ['os_pecas', osId ?? ''],
@@ -181,6 +199,7 @@ export function useAtualizarOS() {
     onSuccess: (_data, variables) => {
       qc.invalidateQueries({ queryKey: ['ordens_servico'] });
       qc.invalidateQueries({ queryKey: ['ordem_servico', variables.id] });
+      qc.invalidateQueries({ queryKey: ['ordem_servico_numero'] });
       qc.invalidateQueries({ queryKey: ['os_transicoes', variables.id] });
     },
   });
@@ -220,6 +239,8 @@ export function useMudarStatusOS() {
     onSuccess: (_data, variables) => {
       qc.invalidateQueries({ queryKey: ['ordens_servico'] });
       qc.invalidateQueries({ queryKey: ['ordem_servico', variables.osId] });
+      // Invalida todas as queries de detalhe por numero (não temos o numero aqui)
+      qc.invalidateQueries({ queryKey: ['ordem_servico_numero'] });
       qc.invalidateQueries({ queryKey: ['os_transicoes', variables.osId] });
     },
   });

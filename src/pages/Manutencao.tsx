@@ -5,7 +5,7 @@
 // Marcos futuros: dashboard, agenda, planos, almoxarifado, relatórios.
 
 import { useMemo, useState } from 'react';
-import { useSearchParams, Navigate, useLocation } from 'react-router-dom';
+import { useSearchParams, Navigate, useLocation, useParams, useNavigate } from 'react-router-dom';
 import { Plus, ClipboardList, AlertTriangle, Clock, Wrench } from 'lucide-react';
 import { useOrdensServico } from '../hooks/useOrdensServico';
 import { useEquipamentos } from '../hooks/useEquipamentos';
@@ -15,6 +15,7 @@ import { STATUS_OS_LABEL, TIPO_OS_LABEL, PRIORIDADE_OS_LABEL } from '../types';
 import Button from '../components/ui/Button';
 import OSCard from '../components/manutencao/os/OSCard';
 import NovaOSModal from '../components/manutencao/os/NovaOSModal';
+import OSDetalhe from '../components/manutencao/os/OSDetalhe';
 
 const STATUS_OPTS: { value: StatusOS | 'todas' | 'abertas'; label: string }[] = [
   { value: 'abertas', label: 'Abertas' },
@@ -43,14 +44,20 @@ function fmtBRL(n: number): string {
 
 export default function ManutencaoPage() {
   const { pathname } = useLocation();
+  const params = useParams<{ numero?: string }>();
   // /manutencao → redireciona pra /manutencao/os
   if (pathname === '/manutencao') {
     return <Navigate to="/manutencao/os" replace />;
+  }
+  // /manutencao/os/:numero → detalhe
+  if (params.numero) {
+    return <OSDetalhe />;
   }
   return <OrdensServicoPage />;
 }
 
 function OrdensServicoPage() {
+  const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const filtroStatus = (searchParams.get('status') ?? 'abertas') as StatusOS | 'todas' | 'abertas';
   const filtroTipo = (searchParams.get('tipo') ?? '') as TipoOS | '';
@@ -236,9 +243,7 @@ function OrdensServicoPage() {
               key={os.id}
               os={os}
               equipamento={equipamentosPorId.get(os.equipamentoId)}
-              onClick={() => {
-                // PR11 abrirá detalhe completo. Por enquanto noop.
-              }}
+              onClick={() => navigate(`/manutencao/os/${os.numero}`)}
             />
           ))}
         </div>

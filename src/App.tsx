@@ -80,6 +80,7 @@ export default function App() {
               <Route path="/frota" element={<ProtectedRoute modulo="frota"><Frota /></ProtectedRoute>} />
               <Route path="/manutencao" element={<ProtectedRoute modulo="frota"><Manutencao /></ProtectedRoute>} />
               <Route path="/manutencao/os" element={<ProtectedRoute modulo="frota"><Manutencao /></ProtectedRoute>} />
+              <Route path="/manutencao/os/:numero" element={<ProtectedRoute modulo="frota"><Manutencao /></ProtectedRoute>} />
               <Route path="/combustivel" element={<ProtectedRoute modulo="frota"><Combustivel /></ProtectedRoute>} />
               <Route path="/funcionarios" element={<ProtectedRoute modulo="funcionarios"><Funcionarios /></ProtectedRoute>} />
               <Route path="/apontamento" element={<ProtectedRoute modulo="apontamento_rh"><ApontamentoPage /></ProtectedRoute>} />
