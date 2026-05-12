@@ -6,19 +6,22 @@
 // - Botão "Aplicar plano" → abre AplicarPlanoModal
 
 import { useState, useMemo } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import {
   ClipboardCheck, Plus, Trash2, AlertTriangle, Clock, Gauge, Calendar,
-  Settings2,
+  Settings2, FilePlus, ExternalLink,
 } from 'lucide-react';
-import type { Equipamento } from '../../../types';
+import type { Equipamento, ProximaPreventiva } from '../../../types';
 import { CATEGORIA_ATIVIDADE_LABEL } from '../../../types';
 import {
   usePlanosDeEquipamento,
   usePlanosPreventivos,
   useProximasPreventivas,
   useRemoverPlanoEquipamento,
+  useGerarOSDeAtividade,
+  useOSAbertasPorAtividade,
 } from '../../../hooks/usePlanosPreventivos';
+import { useMedicaoAtual } from '../../../hooks/useMedicoesEquipamento';
 import Button from '../../ui/Button';
 import { useAuth } from '../../../contexts/AuthContext';
 import { useToast } from '../../ui/Toast';
@@ -29,8 +32,9 @@ interface Props {
 }
 
 export default function PlanoPreventivoEquipamentoSection({ equipamento }: Props) {
-  const { temAcao } = useAuth();
+  const { temAcao, usuario } = useAuth();
   const { showToast } = useToast();
+  const navigate = useNavigate();
   const podeEditar = temAcao('criar_cadastros') || temAcao('editar_cadastros');
 
   const { data: equipamentoPlanos = [], isLoading: loadingAplicados } =
@@ -38,9 +42,39 @@ export default function PlanoPreventivoEquipamentoSection({ equipamento }: Props
   const { data: todosPlanos = [] } = usePlanosPreventivos();
   const { data: proximas = [], isLoading: loadingProximas } =
     useProximasPreventivas(equipamento.id);
+  const { data: medicaoAtual } = useMedicaoAtual(equipamento.id);
   const remover = useRemoverPlanoEquipamento();
+  const gerarOS = useGerarOSDeAtividade();
+  const atividadeIds = useMemo(() => proximas.map((p) => p.atividadeId), [proximas]);
+  const { data: osAbertasPorAtividade = new Map() } = useOSAbertasPorAtividade(atividadeIds);
 
   const [aplicarOpen, setAplicarOpen] = useState(false);
+  const [gerandoIds, setGerandoIds] = useState<Set<string>>(new Set());
+
+  async function handleGerarOS(pp: ProximaPreventiva) {
+    if (gerandoIds.has(pp.atividadeId)) return;
+    setGerandoIds((s) => new Set(s).add(pp.atividadeId));
+    try {
+      const r = await gerarOS.mutateAsync({
+        proxima: pp,
+        criadoPor: usuario?.nome ?? '',
+        medicaoAtual: medicaoAtual?.medicaoAtual ?? null,
+      });
+      showToast({ message: `OS ${r.numero} criada`, kind: 'success' });
+      navigate(`/manutencao/os/${r.numero}`);
+    } catch (err) {
+      showToast({
+        message: err instanceof Error ? err.message : 'Erro ao gerar OS',
+        kind: 'error',
+      });
+    } finally {
+      setGerandoIds((s) => {
+        const next = new Set(s);
+        next.delete(pp.atividadeId);
+        return next;
+      });
+    }
+  }
 
   const planosAplicados = useMemo(() => {
     return equipamentoPlanos.map((ep) => {
@@ -232,6 +266,36 @@ export default function PlanoPreventivoEquipamentoSection({ equipamento }: Props
                             </span>
                           )}
                         </div>
+                      </div>
+                      {/* Ação à direita */}
+                      <div className="shrink-0">
+                        {(() => {
+                          const osAberta = osAbertasPorAtividade.get(pp.atividadeId);
+                          if (osAberta) {
+                            return (
+                              <Link
+                                to={`/manutencao/os/${osAberta.numero}`}
+                                className="inline-flex items-center gap-1 text-xs px-2.5 py-1.5 rounded-lg bg-[var(--color-surface-2)] text-[var(--color-fg)] hover:bg-[var(--color-surface-3)] border border-[var(--color-border)]"
+                              >
+                                OS {osAberta.numero}
+                                <ExternalLink className="w-3 h-3" />
+                              </Link>
+                            );
+                          }
+                          if (!podeEditar) return null;
+                          const gerando = gerandoIds.has(pp.atividadeId);
+                          return (
+                            <button
+                              type="button"
+                              onClick={() => handleGerarOS(pp)}
+                              disabled={gerando}
+                              className="inline-flex items-center gap-1 text-xs px-2.5 py-1.5 rounded-lg bg-[var(--color-accent)] text-[var(--color-accent-fg)] hover:opacity-90 disabled:opacity-50"
+                            >
+                              <FilePlus className="w-3.5 h-3.5" />
+                              {gerando ? 'Gerando…' : 'Gerar OS'}
+                            </button>
+                          );
+                        })()}
                       </div>
                     </div>
                   </div>

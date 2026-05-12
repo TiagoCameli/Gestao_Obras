@@ -289,3 +289,105 @@ export function useRemoverPlanoEquipamento() {
     },
   });
 }
+
+// PR17: gera uma OS preventiva a partir de uma atividade vencida/próxima.
+// A OS já nasce com origem='plano_preventivo' e atividade_id preenchidos
+// — o trigger no banco cuida de registrar execucoes_atividade quando ela
+// for concluída.
+
+export function useGerarOSDeAtividade() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (params: {
+      proxima: ProximaPreventiva;
+      criadoPor: string;
+      medicaoAtual: number | null;
+    }) => {
+      const { proxima, criadoPor, medicaoAtual } = params;
+
+      const { data: numero, error: numError } = await supabase.rpc('gerar_numero_os');
+      if (numError) throw numError;
+
+      const osId = Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+      const now = new Date().toISOString();
+
+      // Sintomas inferidos da categoria — só pra preencher algo útil
+      const sintoma = proxima.categoria ? [proxima.categoria] : [];
+
+      const payload = {
+        id: osId,
+        numero,
+        equipamento_id: proxima.equipamentoId,
+        tipo: 'preventiva',
+        prioridade: proxima.obrigatoria ? 'alta' : 'media',
+        status: 'aberta',
+        origem: 'plano_preventivo',
+        origem_id: proxima.atividadeId,
+        atividade_id: proxima.atividadeId,
+        obra_id: null,
+        solicitante_id: '',
+        responsavel_id: '',
+        fornecedor_servico_id: null,
+        data_prevista_inicio: null,
+        data_inicio_execucao: null,
+        data_conclusao: null,
+        prazo_atendimento: null,
+        medicao_abertura: medicaoAtual,
+        medicao_conclusao: null,
+        parada_inicio: null,
+        parada_fim: null,
+        defeito_reportado: proxima.atividadeNome,
+        sintomas: sintoma,
+        sistemas_afetados: [],
+        causa_raiz: '',
+        solucao_aplicada: '',
+        recomendacoes: '',
+        custo_pecas: 0,
+        custo_servico_terceiro: 0,
+        custo_mao_obra_propria: 0,
+        aprovado_por: '',
+        aprovado_em: null,
+        garantia_acionada: false,
+        foto_urls: [],
+        arquivo_urls: [],
+        observacoes: `OS gerada automaticamente da atividade "${proxima.atividadeNome}" do plano preventivo.`,
+        data_abertura: now,
+        created_by: criadoPor,
+        updated_by: criadoPor,
+      };
+
+      const { error } = await supabase.from('ordens_servico').insert(payload);
+      if (error) throw error;
+
+      return { osId, numero: numero as string };
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['ordens_servico'] });
+      qc.invalidateQueries({ queryKey: ['proximas_preventivas'] });
+    },
+  });
+}
+
+// Lista de OS já abertas para uma atividade (pra impedir duplicatas)
+export function useOSAbertasPorAtividade(atividadeIds: string[]) {
+  return useQuery({
+    queryKey: ['os_abertas_por_atividade', atividadeIds.sort().join(',')],
+    enabled: atividadeIds.length > 0,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('ordens_servico')
+        .select('id, numero, atividade_id, status')
+        .in('atividade_id', atividadeIds)
+        .not('status', 'in', '("concluida","cancelada")')
+        .is('deleted_at', null);
+      if (error) throw error;
+      const map = new Map<string, { id: string; numero: string }>();
+      for (const r of data ?? []) {
+        if (r.atividade_id && !map.has(r.atividade_id)) {
+          map.set(r.atividade_id, { id: r.id as string, numero: r.numero as string });
+        }
+      }
+      return map;
+    },
+  });
+}

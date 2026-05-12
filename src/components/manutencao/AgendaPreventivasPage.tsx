@@ -4,14 +4,19 @@
 // Agrupa por status (vencida / próxima / futura) e permite filtrar por
 // equipamento, tipo e categoria. Click em item → vai pro detalhe do equipamento.
 
-import { useMemo } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
+import { useMemo, useState } from 'react';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import {
   CalendarClock, AlertTriangle, Clock, Gauge, Calendar, CheckCircle2,
-  Wrench,
+  Wrench, FilePlus, ExternalLink,
 } from 'lucide-react';
-import { useProximasPreventivas } from '../../hooks/usePlanosPreventivos';
+import {
+  useProximasPreventivas, useGerarOSDeAtividade, useOSAbertasPorAtividade,
+} from '../../hooks/usePlanosPreventivos';
 import { useEquipamentos } from '../../hooks/useEquipamentos';
+import { useMedicaoAtual } from '../../hooks/useMedicoesEquipamento';
+import { useAuth } from '../../contexts/AuthContext';
+import { useToast } from '../ui/Toast';
 import type { ProximaPreventiva, CategoriaAtividade } from '../../types';
 import { CATEGORIA_ATIVIDADE_LABEL } from '../../types';
 
@@ -62,6 +67,9 @@ export default function AgendaPreventivasPage() {
 
   const { data: proximas = [], isLoading } = useProximasPreventivas();
   const { data: equipamentos = [] } = useEquipamentos();
+
+  const atividadeIds = useMemo(() => proximas.map((p) => p.atividadeId), [proximas]);
+  const { data: osAbertasPorAtividade = new Map() } = useOSAbertasPorAtividade(atividadeIds);
 
   // Métricas globais (sobre tudo, antes do filtro de visualização)
   const metricas = useMemo(() => {
@@ -206,18 +214,21 @@ export default function AgendaPreventivasPage() {
             itens={grupos.vencida}
             corHeader="text-[var(--color-danger-fg)]"
             iconHeader={AlertTriangle}
+            osAbertasPorAtividade={osAbertasPorAtividade}
           />
           <GrupoLista
             titulo="Próximas"
             itens={grupos.proxima}
             corHeader="text-[var(--color-warning-fg)]"
             iconHeader={Clock}
+            osAbertasPorAtividade={osAbertasPorAtividade}
           />
           <GrupoLista
             titulo="Futuras"
             itens={grupos.futura}
             corHeader="text-[var(--color-fg-muted)]"
             iconHeader={CheckCircle2}
+            osAbertasPorAtividade={osAbertasPorAtividade}
           />
         </div>
       )}
@@ -226,12 +237,13 @@ export default function AgendaPreventivasPage() {
 }
 
 function GrupoLista({
-  titulo, itens, corHeader, iconHeader: Icon,
+  titulo, itens, corHeader, iconHeader: Icon, osAbertasPorAtividade,
 }: {
   titulo: string;
   itens: ProximaPreventiva[];
   corHeader: string;
   iconHeader: React.ComponentType<{ className?: string; 'aria-hidden'?: boolean }>;
+  osAbertasPorAtividade: Map<string, { id: string; numero: string }>;
 }) {
   if (itens.length === 0) return null;
   return (
@@ -242,14 +254,54 @@ function GrupoLista({
       </h2>
       <div className="space-y-2">
         {itens.map((pp) => (
-          <ItemAgenda key={`${pp.equipamentoId}-${pp.atividadeId}`} pp={pp} />
+          <ItemAgenda
+            key={`${pp.equipamentoId}-${pp.atividadeId}`}
+            pp={pp}
+            osAberta={osAbertasPorAtividade.get(pp.atividadeId)}
+          />
         ))}
       </div>
     </section>
   );
 }
 
-function ItemAgenda({ pp }: { pp: ProximaPreventiva }) {
+function ItemAgenda({
+  pp, osAberta,
+}: {
+  pp: ProximaPreventiva;
+  osAberta?: { id: string; numero: string };
+}) {
+  const navigate = useNavigate();
+  const { usuario, temAcao } = useAuth();
+  const { showToast } = useToast();
+  const podeCriar = temAcao('criar_cadastros') || temAcao('editar_cadastros');
+  const { data: medicaoAtual } = useMedicaoAtual(pp.equipamentoId);
+  const gerarOS = useGerarOSDeAtividade();
+  const [gerando, setGerando] = useState(false);
+
+  async function handleGerarOS(e: React.MouseEvent) {
+    e.preventDefault();
+    e.stopPropagation();
+    if (gerando || osAberta) return;
+    setGerando(true);
+    try {
+      const r = await gerarOS.mutateAsync({
+        proxima: pp,
+        criadoPor: usuario?.nome ?? '',
+        medicaoAtual: medicaoAtual?.medicaoAtual ?? null,
+      });
+      showToast({ message: `OS ${r.numero} criada`, kind: 'success' });
+      navigate(`/manutencao/os/${r.numero}`);
+    } catch (err) {
+      showToast({
+        message: err instanceof Error ? err.message : 'Erro ao gerar OS',
+        kind: 'error',
+      });
+    } finally {
+      setGerando(false);
+    }
+  }
+
   const status = statusDe(pp);
   const corCard =
     status === 'vencida' ? 'border-[var(--color-danger)]/40 bg-[var(--color-danger-soft)]'
@@ -257,16 +309,19 @@ function ItemAgenda({ pp }: { pp: ProximaPreventiva }) {
       : 'border-[var(--color-border)] bg-[var(--color-surface-1)]';
 
   return (
-    <Link
-      to={`/frota?patrimonio=${encodeURIComponent(pp.codigoPatrimonio)}`}
+    <div
       className={
-        'block rounded-xl border p-3 hover:border-[var(--color-border-strong)] transition-colors ' + corCard
+        'rounded-xl border p-3 transition-colors ' + corCard
       }
     >
       <div className="flex items-start gap-3">
-        <div className="w-9 h-9 rounded-lg bg-[var(--color-surface-2)] text-[var(--color-fg)] flex items-center justify-center shrink-0">
+        <Link
+          to={`/frota?patrimonio=${encodeURIComponent(pp.codigoPatrimonio)}`}
+          className="w-9 h-9 rounded-lg bg-[var(--color-surface-2)] text-[var(--color-fg)] flex items-center justify-center shrink-0 hover:bg-[var(--color-surface-3)]"
+          aria-label="Ver equipamento"
+        >
           <Wrench className="w-4 h-4" />
-        </div>
+        </Link>
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2 flex-wrap">
             <h4 className="text-sm font-semibold text-[var(--color-fg)]">{pp.atividadeNome}</h4>
@@ -281,10 +336,15 @@ function ItemAgenda({ pp }: { pp: ProximaPreventiva }) {
               </span>
             )}
           </div>
-          <p className="text-xs text-[var(--color-fg-muted)] mt-1">
-            <span className="font-medium text-[var(--color-fg)]">{pp.codigoPatrimonio}</span>
-            {' · '}{pp.equipamentoNome}{' · '}{pp.equipamentoTipo}
-          </p>
+          <Link
+            to={`/frota?patrimonio=${encodeURIComponent(pp.codigoPatrimonio)}`}
+            className="block hover:text-[var(--color-fg)]"
+          >
+            <p className="text-xs text-[var(--color-fg-muted)] mt-1">
+              <span className="font-medium text-[var(--color-fg)]">{pp.codigoPatrimonio}</span>
+              {' · '}{pp.equipamentoNome}{' · '}{pp.equipamentoTipo}
+            </p>
+          </Link>
           <div className="flex items-center gap-3 flex-wrap mt-1.5 text-xs text-[var(--color-fg-muted)]">
             {pp.unidadesRestantes != null && (
               <span className="inline-flex items-center gap-1">
@@ -309,8 +369,31 @@ function ItemAgenda({ pp }: { pp: ProximaPreventiva }) {
             )}
           </div>
         </div>
+        {/* Ação à direita */}
+        <div className="shrink-0">
+          {osAberta ? (
+            <Link
+              to={`/manutencao/os/${osAberta.numero}`}
+              className="inline-flex items-center gap-1 text-xs px-2.5 py-1.5 rounded-lg bg-[var(--color-surface-2)] text-[var(--color-fg)] hover:bg-[var(--color-surface-3)] border border-[var(--color-border)]"
+              onClick={(e) => e.stopPropagation()}
+            >
+              OS {osAberta.numero}
+              <ExternalLink className="w-3 h-3" />
+            </Link>
+          ) : podeCriar ? (
+            <button
+              type="button"
+              onClick={handleGerarOS}
+              disabled={gerando}
+              className="inline-flex items-center gap-1 text-xs px-2.5 py-1.5 rounded-lg bg-[var(--color-accent)] text-[var(--color-accent-fg)] hover:opacity-90 disabled:opacity-50"
+            >
+              <FilePlus className="w-3.5 h-3.5" />
+              {gerando ? 'Gerando…' : 'Gerar OS'}
+            </button>
+          ) : null}
+        </div>
       </div>
-    </Link>
+    </div>
   );
 }
 
