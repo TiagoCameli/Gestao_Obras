@@ -185,7 +185,34 @@ export default function PagamentoFreteDetalhesDrawer({
             <Field icon={User} label="Pago por" value={pagamento.pagoPor} />
             <Field icon={User} label="Responsável" value={pagamento.responsavel} />
             {pagamento.notaFiscal && <Field icon={FileText} label="Nota fiscal" value={pagamento.notaFiscal} />}
-            {pagamento.criadoPor && <Field icon={User} label="Lançado por" value={pagamento.criadoPor} />}
+            {(pagamento.createdBy || pagamento.criadoPor) && (
+              <Field
+                icon={User}
+                label="Lançado por"
+                value={
+                  <>
+                    {pagamento.createdBy || pagamento.criadoPor}
+                    {pagamento.createdAt && (
+                      <span className="text-[var(--color-fg-muted)]"> · {new Date(pagamento.createdAt).toLocaleString('pt-BR')}</span>
+                    )}
+                  </>
+                }
+              />
+            )}
+            {pagamento.updatedBy && pagamento.updatedBy !== (pagamento.createdBy || pagamento.criadoPor) && (
+              <Field
+                icon={Pencil}
+                label="Última alteração por"
+                value={
+                  <>
+                    {pagamento.updatedBy}
+                    {pagamento.updatedAt && (
+                      <span className="text-[var(--color-fg-muted)]"> · {new Date(pagamento.updatedAt).toLocaleString('pt-BR')}</span>
+                    )}
+                  </>
+                }
+              />
+            )}
           </div>
 
           {pagamento.observacoes && (

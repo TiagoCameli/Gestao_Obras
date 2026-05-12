@@ -1,6 +1,45 @@
 import { useState, useMemo, useCallback } from 'react';
 import type { Frete, Obra, Insumo } from '../../types';
 import Button from '../ui/Button';
+import { ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
+
+// ── Ordenação por coluna ────────────────────────────────────────────
+// Implementada client-side (a lista já vem inteira no client). Cada SortKey
+// mapeia para um getter (string ou number). Ao clicar no header alterna:
+//   none → asc → desc → none. Quando não há sort ativo cai no default
+//   (data de saída desc) que o app sempre teve.
+type SortKey =
+  | 'data' | 'dataChegada' | 'origemDestino' | 'transportadora'
+  | 'motorista' | 'placaCarreta' | 'material' | 'pesoToneladas'
+  | 'kmRodados' | 'valorTkm' | 'valorTotal' | 'valorMaterial'
+  | 'notaFiscal' | 'notaFiscal2';
+type SortDir = 'asc' | 'desc';
+
+function SortHeader({
+  label, sortKey, currentKey, currentDir, onSort, align = 'left',
+}: {
+  label: string;
+  sortKey: SortKey;
+  currentKey: SortKey | null;
+  currentDir: SortDir;
+  onSort: (k: SortKey) => void;
+  align?: 'left' | 'right' | 'center';
+}) {
+  const active = currentKey === sortKey;
+  const Icon = !active ? ArrowUpDown : currentDir === 'asc' ? ArrowUp : ArrowDown;
+  return (
+    <th
+      className={`px-4 py-3 text-white font-medium uppercase text-xs cursor-pointer select-none hover:bg-black/10 transition-colors text-${align}`}
+      onClick={() => onSort(sortKey)}
+      title={active ? `Ordenar (${currentDir === 'asc' ? 'asc' : 'desc'})` : 'Clique para ordenar'}
+    >
+      <span className={`inline-flex items-center gap-1 ${align === 'right' ? 'flex-row-reverse' : align === 'center' ? 'justify-center' : ''}`}>
+        {label}
+        <Icon className={`h-3 w-3 ${active ? 'opacity-100' : 'opacity-50'}`} />
+      </span>
+    </th>
+  );
+}
 
 function DataChegadaCell({ frete, onUpdate }: { frete: Frete; onUpdate: (frete: Frete, val: string) => void }) {
   const [editando, setEditando] = useState(false);
@@ -84,38 +123,104 @@ export default function FreteList({
   canDelete = true,
 }: FreteListProps) {
   const [pagina, setPagina] = useState(0);
-  const porPagina = 100;
+  // 500/página por padrão (smoke test recomendou). Em telas pequenas a primeira
+  // página ainda carrega rápido; rolar para baixo continua na mesma página.
+  const porPagina = 500;
+
+  // Sort state: null = default (data desc).
+  const [sortKey, setSortKey] = useState<SortKey | null>(null);
+  const [sortDir, setSortDir] = useState<SortDir>('asc');
+
+  const handleSort = useCallback((k: SortKey) => {
+    if (sortKey !== k) {
+      setSortKey(k);
+      setSortDir('asc');
+    } else if (sortDir === 'asc') {
+      setSortDir('desc');
+    } else {
+      // 3º clique volta pro default.
+      setSortKey(null);
+      setSortDir('asc');
+    }
+  }, [sortKey, sortDir]);
 
   const insumosMap = useMemo(() => new Map(insumos.map((i) => [i.id, i.nome])), [insumos]);
 
   const filtrados = useMemo(() => {
-    return fretes
-      .filter((f) => {
-        if (filtros.obraId && f.obraId !== filtros.obraId) return false;
-        if (filtros.transportadora && f.transportadora !== filtros.transportadora) return false;
-        if (filtros.motorista) {
-          const q = filtros.motorista.toLowerCase();
-          if (!f.motorista?.toLowerCase().includes(q)) return false;
-        }
-        if (filtros.insumoId && f.insumoId !== filtros.insumoId) return false;
-        if (filtros.origem && f.origem?.trim() !== filtros.origem) return false;
-        if (filtros.destino && f.destino?.trim() !== filtros.destino) return false;
-        if (filtros.dataInicio && f.data < filtros.dataInicio) return false;
-        if (filtros.dataFim && f.data > filtros.dataFim) return false;
-        if (filtros.notaFiscal) {
-          const q = filtros.notaFiscal.toLowerCase();
-          if (!f.notaFiscal?.toLowerCase().includes(q)) return false;
-        }
-        return true;
-      })
-      .sort((a, b) => b.data.localeCompare(a.data));
-  }, [fretes, filtros]);
+    const base = fretes.filter((f) => {
+      if (filtros.obraId && f.obraId !== filtros.obraId) return false;
+      if (filtros.transportadora && f.transportadora !== filtros.transportadora) return false;
+      if (filtros.motorista) {
+        const q = filtros.motorista.toLowerCase();
+        if (!f.motorista?.toLowerCase().includes(q)) return false;
+      }
+      if (filtros.insumoId && f.insumoId !== filtros.insumoId) return false;
+      if (filtros.origem && f.origem?.trim() !== filtros.origem) return false;
+      if (filtros.destino && f.destino?.trim() !== filtros.destino) return false;
+      if (filtros.dataInicio && f.data < filtros.dataInicio) return false;
+      if (filtros.dataFim && f.data > filtros.dataFim) return false;
+      if (filtros.notaFiscal) {
+        const q = filtros.notaFiscal.toLowerCase();
+        if (!f.notaFiscal?.toLowerCase().includes(q)) return false;
+      }
+      return true;
+    });
 
-  // Reset page when filters change
-  useMemo(() => setPagina(0), [filtros]);
+    // Default sort: data de saída desc.
+    if (!sortKey) {
+      return [...base].sort((a, b) => b.data.localeCompare(a.data));
+    }
 
-  const totalPaginas = Math.ceil(filtrados.length / porPagina);
-  const paginados = filtrados.slice(pagina * porPagina, (pagina + 1) * porPagina);
+    // Sort customizado por coluna. getVal devolve o valor a comparar.
+    const getVal = (f: Frete): string | number => {
+      switch (sortKey) {
+        case 'data': return f.data || '';
+        case 'dataChegada': return f.dataChegada || '';
+        case 'origemDestino': return `${f.origem ?? ''} → ${f.destino ?? ''}`;
+        case 'transportadora': return f.transportadora || '';
+        case 'motorista': return f.motorista || '';
+        case 'placaCarreta': return f.placaCarreta || '';
+        case 'material': return insumosMap.get(f.insumoId) || '';
+        case 'pesoToneladas': return f.pesoToneladas ?? 0;
+        case 'kmRodados': return f.kmRodados ?? 0;
+        case 'valorTkm': return f.valorTkm ?? 0;
+        case 'valorTotal': return f.valorTotal ?? 0;
+        case 'valorMaterial': return f.valorMaterial ?? 0;
+        case 'notaFiscal': return f.notaFiscal || '';
+        case 'notaFiscal2': return f.notaFiscal2 || '';
+        default: return '';
+      }
+    };
+
+    return [...base].sort((a, b) => {
+      const va = getVal(a);
+      const vb = getVal(b);
+      let cmp: number;
+      if (typeof va === 'number' && typeof vb === 'number') {
+        cmp = va - vb;
+      } else {
+        cmp = String(va).localeCompare(String(vb), 'pt-BR', { numeric: true });
+      }
+      return sortDir === 'asc' ? cmp : -cmp;
+    });
+  }, [fretes, filtros, sortKey, sortDir, insumosMap]);
+
+  // Reset page when filters/sort change — padrão "adjusting state in response
+  // to change" do React 19 (https://react.dev/reference/react/useState#storing-information-from-previous-renders).
+  // Comparamos uma chave estável; quando muda, resetamos a página DURANTE
+  // o render (não em useEffect — evita 1 frame extra com a página antiga).
+  const filtrosKey = JSON.stringify(filtros) + '|' + (sortKey ?? '') + '|' + sortDir;
+  const [lastKey, setLastKey] = useState(filtrosKey);
+  if (filtrosKey !== lastKey) {
+    setLastKey(filtrosKey);
+    setPagina(0);
+  }
+
+  // Clamp defensivo — se a página atual for além do total (ex: filtros
+  // reduziram a lista), volta para 0.
+  const totalPaginas = Math.max(1, Math.ceil(filtrados.length / porPagina));
+  const paginaSegura = Math.min(pagina, totalPaginas - 1);
+  const paginados = filtrados.slice(paginaSegura * porPagina, (paginaSegura + 1) * porPagina);
 
   const totalGeral = filtrados.reduce((sum, f) => sum + f.valorTotal, 0);
   const totalMaterial = filtrados.reduce((sum, f) => sum + (f.valorMaterial || 0), 0);
@@ -135,20 +240,20 @@ export default function FreteList({
           <table className="w-full text-sm min-w-[1550px]">
             <thead className="bg-[var(--color-accent)] text-[var(--color-fg-on-accent)]">
               <tr>
-                <th className="text-left px-4 py-3 text-white font-medium uppercase text-xs">Data de Saída</th>
-                <th className="text-left px-4 py-3 text-white font-medium uppercase text-xs">Data de Chegada</th>
-                <th className="text-left px-4 py-3 text-white font-medium uppercase text-xs">Origem → Destino</th>
-                <th className="text-left px-4 py-3 text-white font-medium uppercase text-xs">Transportadora</th>
-                <th className="text-left px-4 py-3 text-white font-medium uppercase text-xs">Motorista</th>
-                <th className="text-left px-4 py-3 text-white font-medium uppercase text-xs">Placa</th>
-                <th className="text-left px-4 py-3 text-white font-medium uppercase text-xs">Material</th>
-                <th className="text-right px-4 py-3 text-white font-medium uppercase text-xs">Peso (t)</th>
-                <th className="text-right px-4 py-3 text-white font-medium uppercase text-xs">KM</th>
-                <th className="text-right px-4 py-3 text-white font-medium uppercase text-xs">R$/TKM</th>
-                <th className="text-right px-4 py-3 text-white font-medium uppercase text-xs">Total</th>
-                <th className="text-right px-4 py-3 text-white font-medium uppercase text-xs">Preço Material</th>
-                <th className="text-left px-4 py-3 text-white font-medium uppercase text-xs">Nota Fiscal</th>
-                <th className="text-left px-4 py-3 text-white font-medium uppercase text-xs">NF 2</th>
+                <SortHeader label="Data de Saída"   sortKey="data"           currentKey={sortKey} currentDir={sortDir} onSort={handleSort} />
+                <SortHeader label="Data de Chegada" sortKey="dataChegada"    currentKey={sortKey} currentDir={sortDir} onSort={handleSort} />
+                <SortHeader label="Origem → Destino" sortKey="origemDestino" currentKey={sortKey} currentDir={sortDir} onSort={handleSort} />
+                <SortHeader label="Transportadora"  sortKey="transportadora" currentKey={sortKey} currentDir={sortDir} onSort={handleSort} />
+                <SortHeader label="Motorista"       sortKey="motorista"      currentKey={sortKey} currentDir={sortDir} onSort={handleSort} />
+                <SortHeader label="Placa"           sortKey="placaCarreta"   currentKey={sortKey} currentDir={sortDir} onSort={handleSort} />
+                <SortHeader label="Material"        sortKey="material"       currentKey={sortKey} currentDir={sortDir} onSort={handleSort} />
+                <SortHeader label="Peso (t)"        sortKey="pesoToneladas"  currentKey={sortKey} currentDir={sortDir} onSort={handleSort} align="right" />
+                <SortHeader label="KM"              sortKey="kmRodados"      currentKey={sortKey} currentDir={sortDir} onSort={handleSort} align="right" />
+                <SortHeader label="R$/TKM"          sortKey="valorTkm"       currentKey={sortKey} currentDir={sortDir} onSort={handleSort} align="right" />
+                <SortHeader label="Total"           sortKey="valorTotal"     currentKey={sortKey} currentDir={sortDir} onSort={handleSort} align="right" />
+                <SortHeader label="Preço Material"  sortKey="valorMaterial"  currentKey={sortKey} currentDir={sortDir} onSort={handleSort} align="right" />
+                <SortHeader label="Nota Fiscal"     sortKey="notaFiscal"     currentKey={sortKey} currentDir={sortDir} onSort={handleSort} />
+                <SortHeader label="NF 2"            sortKey="notaFiscal2"    currentKey={sortKey} currentDir={sortDir} onSort={handleSort} />
                 <th className="text-center px-4 py-3 text-white font-medium uppercase text-xs">Ações</th>
               </tr>
             </thead>
@@ -240,23 +345,24 @@ export default function FreteList({
         <div className="flex items-center justify-between mt-4">
           <span className="text-sm text-gray-500">
             {filtrados.length} frete{filtrados.length !== 1 ? 's' : ''} encontrado{filtrados.length !== 1 ? 's' : ''}
+            {' '}· {porPagina} por página
           </span>
           <div className="flex gap-2">
             <Button
               variant="secondary"
               className="text-xs"
-              disabled={pagina === 0}
-              onClick={() => setPagina((p) => p - 1)}
+              disabled={paginaSegura === 0}
+              onClick={() => setPagina((p) => Math.max(0, p - 1))}
             >
               Anterior
             </Button>
             <span className="text-sm text-gray-600 flex items-center px-2">
-              {pagina + 1} / {totalPaginas}
+              {paginaSegura + 1} / {totalPaginas}
             </span>
             <Button
               variant="secondary"
               className="text-xs"
-              disabled={pagina >= totalPaginas - 1}
+              disabled={paginaSegura >= totalPaginas - 1}
               onClick={() => setPagina((p) => p + 1)}
             >
               Próximo

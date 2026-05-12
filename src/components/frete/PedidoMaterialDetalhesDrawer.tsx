@@ -157,7 +157,34 @@ export default function PedidoMaterialDetalhesDrawer({
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-4">
             <Field icon={Calendar} label="Data" value={fmtData(pedido.data)} />
             <Field icon={Building2} label="Fornecedor" value={fornecedorLabel} />
-            {pedido.criadoPor && <Field icon={User} label="Criado por" value={pedido.criadoPor} />}
+            {(pedido.createdBy || pedido.criadoPor) && (
+              <Field
+                icon={User}
+                label="Criado por"
+                value={
+                  <>
+                    {pedido.createdBy || pedido.criadoPor}
+                    {pedido.createdAt && (
+                      <span className="text-[var(--color-fg-muted)]"> · {new Date(pedido.createdAt).toLocaleString('pt-BR')}</span>
+                    )}
+                  </>
+                }
+              />
+            )}
+            {pedido.updatedBy && pedido.updatedBy !== (pedido.createdBy || pedido.criadoPor) && (
+              <Field
+                icon={Pencil}
+                label="Última alteração por"
+                value={
+                  <>
+                    {pedido.updatedBy}
+                    {pedido.updatedAt && (
+                      <span className="text-[var(--color-fg-muted)]"> · {new Date(pedido.updatedAt).toLocaleString('pt-BR')}</span>
+                    )}
+                  </>
+                }
+              />
+            )}
           </div>
 
           {/* Itens do pedido */}

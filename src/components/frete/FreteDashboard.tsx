@@ -165,6 +165,64 @@ interface FreteDashboardProps {
   onVerContaCorrente?: () => void;
 }
 
+// ── Comparar Períodos ─────────────────────────────────────────────
+// Opções suportadas:
+//   - 'none': sem comparação (default)
+//   - 'periodo_anterior': compara com o período IMEDIATAMENTE anterior de
+//     mesma duração. Ex: Mai/2026 (1-31) → Abr/2026 (1-30 + 31 ajustado).
+//   - 'ano_anterior': mesmas datas, ano -1.
+//   - 'custom': usuário escolhe início e fim no dropdown.
+//
+// Quando dataInicio/dataFim vazios, "comparar" não faz sentido — o switch
+// fica disabled.
+type CompararCom = 'none' | 'periodo_anterior' | 'ano_anterior' | 'custom';
+
+function shiftIsoDate(iso: string, days: number): string {
+  if (!iso) return '';
+  const d = new Date(iso + 'T12:00:00');
+  d.setDate(d.getDate() + days);
+  return d.toISOString().slice(0, 10);
+}
+function shiftIsoYear(iso: string, years: number): string {
+  if (!iso) return '';
+  const d = new Date(iso + 'T12:00:00');
+  d.setFullYear(d.getFullYear() + years);
+  return d.toISOString().slice(0, 10);
+}
+function daysBetween(a: string, b: string): number {
+  if (!a || !b) return 0;
+  const da = new Date(a + 'T12:00:00');
+  const db = new Date(b + 'T12:00:00');
+  return Math.round((db.getTime() - da.getTime()) / 86400000);
+}
+
+function DeltaChip({ atual, anterior, invert = false }: { atual: number; anterior: number; invert?: boolean }) {
+  // Quando não há base para comparar (anterior = 0 e atual > 0) mostra "novo".
+  if (anterior === 0 && atual === 0) return null;
+  if (anterior === 0) {
+    return (
+      <span className="inline-flex items-center gap-0.5 text-[10px] font-semibold px-1.5 py-0.5 rounded bg-[var(--color-surface-2)] text-[var(--color-fg-muted)]">
+        novo
+      </span>
+    );
+  }
+  const delta = ((atual - anterior) / Math.abs(anterior)) * 100;
+  const positivo = delta > 0;
+  // invert=true: aumentar é RUIM (ex: "A Pagar" subindo). default: aumentar é BOM.
+  const isGood = invert ? !positivo : positivo;
+  const cor = delta === 0
+    ? 'bg-[var(--color-surface-2)] text-[var(--color-fg-muted)]'
+    : isGood
+    ? 'bg-green-100 text-green-800 dark:bg-green-950/50 dark:text-green-300'
+    : 'bg-red-100 text-red-800 dark:bg-red-950/50 dark:text-red-300';
+  const seta = delta === 0 ? '→' : positivo ? '↑' : '↓';
+  return (
+    <span className={`inline-flex items-center gap-0.5 text-[10px] font-semibold px-1.5 py-0.5 rounded ${cor}`}>
+      {seta} {Math.abs(delta).toFixed(1)}%
+    </span>
+  );
+}
+
 export default function FreteDashboard({
   fretes,
   pagamentos,
@@ -176,6 +234,28 @@ export default function FreteDashboard({
   const [dataInicio, setDataInicio] = useState('');
   const [dataFim, setDataFim] = useState('');
   const [obraIdFiltro, setObraIdFiltro] = useState('');
+
+  // ── Comparar Períodos: state + intervalo calculado ────────────────
+  const [compararCom, setCompararCom] = useState<CompararCom>('none');
+  const [compInicio, setCompInicio] = useState('');
+  const [compFim, setCompFim] = useState('');
+
+  // Janela de comparação computada (derivada das datas atuais + tipo).
+  const compRange = useMemo(() => {
+    if (compararCom === 'none' || !dataInicio || !dataFim) return null;
+    if (compararCom === 'custom') {
+      if (!compInicio || !compFim) return null;
+      return { inicio: compInicio, fim: compFim };
+    }
+    if (compararCom === 'ano_anterior') {
+      return { inicio: shiftIsoYear(dataInicio, -1), fim: shiftIsoYear(dataFim, -1) };
+    }
+    // 'periodo_anterior': janela imediatamente anterior, mesma duração (em dias).
+    const dur = daysBetween(dataInicio, dataFim); // dias inclusive-ish
+    const fim = shiftIsoDate(dataInicio, -1);
+    const inicio = shiftIsoDate(fim, -dur);
+    return { inicio, fim };
+  }, [compararCom, dataInicio, dataFim, compInicio, compFim]);
 
   // Adapter inline: lê saidas_combustivel filtrado por carreta + resolve nome
   // da transportadora via fornecedores. Substitui dependência de
@@ -318,6 +398,39 @@ export default function FreteDashboard({
   // ── Totais ──
   const totalFretes = fretesF.reduce((sum, f) => sum + f.valorTotal, 0);
 
+  // ── Totais do período de comparação ───────────────────────────────
+  // Aplica o MESMO filtro de obra + cross-filters, mas mudando a janela
+  // de data para o intervalo `compRange`. Isso garante que estamos
+  // comparando maçãs com maçãs.
+  const inRangeComp = (d: string) => {
+    if (!compRange) return false;
+    if (!d) return true;
+    if (compRange.inicio && d < compRange.inicio) return false;
+    if (compRange.fim && d > compRange.fim) return false;
+    return true;
+  };
+  const fretesCompara = compRange
+    ? applyCrossFretes(
+        fretes.filter((f) => {
+          if (!inRangeComp(f.data)) return false;
+          if (obraIdFiltro && f.obraId !== obraIdFiltro) return false;
+          return true;
+        })
+      )
+    : [];
+  const totalFretesCompara = fretesCompara.reduce((s, f) => s + f.valorTotal, 0);
+  const pagamentosCompara = compRange
+    ? applyCrossPag(
+        pagamentos.filter((p) => {
+          const mr = p.mesReferencia;
+          if (!mr) return true;
+          if (compRange.inicio && mr < compRange.inicio.slice(0, 7)) return false;
+          if (compRange.fim && mr > compRange.fim.slice(0, 7)) return false;
+          return true;
+        })
+      )
+    : [];
+
   // ── Saldos via view transportadora_saldos (Fase 4 / Commit 6) ──
   // View `transportadora_saldos` é estado acumulado (sem filtro). Usada como
   // fonte canônica dos transportadora_id por nome — IDs sempre presentes mesmo
@@ -395,6 +508,11 @@ export default function FreteDashboard({
   const EMT = 'EMT Construtora';
   const pagamentosEmt = pagamentosF.filter((p) => p.pagoPor?.trim() === EMT);
   const pagosPelaEmt = pagamentosEmt.reduce((s, p) => s + p.valor, 0);
+
+  // Mesma métrica no período de comparação.
+  const pagosPelaEmtCompara = pagamentosCompara
+    .filter((p) => p.pagoPor?.trim() === EMT)
+    .reduce((s, p) => s + p.valor, 0);
 
   // ── A Pagar EMT ──
   // Soma dos saldos das 5 transportadoras (representa o passivo EMT).
@@ -836,6 +954,56 @@ export default function FreteDashboard({
             Limpar filtros
           </button>
         )}
+
+        {/* Separador visual antes do seletor de comparação. */}
+        <div className="hidden md:block w-px self-stretch bg-[var(--color-border)] mx-1" aria-hidden />
+
+        <div>
+          <label className="block text-[11px] font-medium text-[var(--color-fg-muted)] mb-1 uppercase tracking-wider">
+            Comparar com
+          </label>
+          <select
+            value={compararCom}
+            onChange={(e) => setCompararCom(e.target.value as CompararCom)}
+            disabled={!dataInicio || !dataFim}
+            title={!dataInicio || !dataFim ? 'Defina Data Início e Data Fim para comparar períodos' : ''}
+            className="rounded-md px-3 text-sm h-[34px] bg-[var(--color-surface-1)] text-[var(--color-fg)] border border-[var(--color-border)] focus:outline-none focus:border-[var(--color-accent)] focus:ring-2 focus:ring-[var(--color-ring)] disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <option value="none">— sem comparação —</option>
+            <option value="periodo_anterior">Período anterior</option>
+            <option value="ano_anterior">Mesmo período ano anterior</option>
+            <option value="custom">Período customizado…</option>
+          </select>
+        </div>
+
+        {compararCom === 'custom' && (
+          <>
+            <div>
+              <label className="block text-[11px] font-medium text-[var(--color-fg-muted)] mb-1 uppercase tracking-wider">Comp. início</label>
+              <input
+                type="date"
+                value={compInicio}
+                onChange={(e) => setCompInicio(e.target.value)}
+                className="rounded-md px-3 text-sm h-[34px] bg-[var(--color-surface-1)] text-[var(--color-fg)] border border-[var(--color-border)] focus:outline-none focus:border-[var(--color-accent)] focus:ring-2 focus:ring-[var(--color-ring)]"
+              />
+            </div>
+            <div>
+              <label className="block text-[11px] font-medium text-[var(--color-fg-muted)] mb-1 uppercase tracking-wider">Comp. fim</label>
+              <input
+                type="date"
+                value={compFim}
+                onChange={(e) => setCompFim(e.target.value)}
+                className="rounded-md px-3 text-sm h-[34px] bg-[var(--color-surface-1)] text-[var(--color-fg)] border border-[var(--color-border)] focus:outline-none focus:border-[var(--color-accent)] focus:ring-2 focus:ring-[var(--color-ring)]"
+              />
+            </div>
+          </>
+        )}
+
+        {compRange && (
+          <span className="text-[11px] text-[var(--color-fg-muted)] pb-1.5 italic">
+            vs {compRange.inicio || '?'} → {compRange.fim || '?'}
+          </span>
+        )}
       </div>
 
       {/* Barra de cross-filters ativos (PBI-style) */}
@@ -872,21 +1040,39 @@ export default function FreteDashboard({
       {/* Cards resumo - fileira 1 */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Card>
-          <p className="text-sm text-gray-500">Total Fretes</p>
+          <div className="flex items-center justify-between gap-2">
+            <p className="text-sm text-gray-500">Total Fretes</p>
+            {compRange && <DeltaChip atual={totalFretes} anterior={totalFretesCompara} />}
+          </div>
           <p className="text-2xl font-bold text-emt-verde mt-1">
             {formatCurrency(totalFretes)}
           </p>
           <p className="text-xs text-gray-400 mt-0.5">
             {fretesF.length} frete{fretesF.length !== 1 ? 's' : ''}
+            {compRange && (
+              <span className="text-[var(--color-fg-muted)]">
+                {' '}· anterior: {formatCurrency(totalFretesCompara)}
+              </span>
+            )}
           </p>
         </Card>
         <Card>
-          <p className="text-sm text-gray-500">Pagamentos EMT</p>
+          <div className="flex items-center justify-between gap-2">
+            <p className="text-sm text-gray-500">Pagamentos EMT</p>
+            {/* invert=true: pagar mais não é melhora; pagar menos é melhor pro fluxo de caixa,
+                mas em geral o usuário quer só ver a movimentação — deixei na semântica padrão (mais = "positivo"). */}
+            {compRange && <DeltaChip atual={pagosPelaEmt} anterior={pagosPelaEmtCompara} />}
+          </div>
           <p className="text-2xl font-bold text-blue-600 mt-1">
             {formatCurrency(pagosPelaEmt)}
           </p>
           <p className="text-xs text-gray-400 mt-0.5">
             {pagamentosEmt.length} pagamento{pagamentosEmt.length !== 1 ? 's' : ''}
+            {compRange && (
+              <span className="text-[var(--color-fg-muted)]">
+                {' '}· anterior: {formatCurrency(pagosPelaEmtCompara)}
+              </span>
+            )}
           </p>
         </Card>
         <Card>

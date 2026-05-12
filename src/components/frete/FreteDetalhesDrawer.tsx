@@ -246,7 +246,34 @@ export default function FreteDetalhesDrawer({
             <Field icon={MapPin} label="Obra" value={obraLabel} />
             {frete.notaFiscal && <Field icon={FileText} label="Nota fiscal" value={frete.notaFiscal} />}
             {frete.notaFiscal2 && <Field icon={FileText} label="Nota fiscal 2" value={frete.notaFiscal2} />}
-            {frete.criadoPor && <Field icon={User} label="Criado por" value={frete.criadoPor} />}
+            {(frete.createdBy || frete.criadoPor) && (
+              <Field
+                icon={User}
+                label="Criado por"
+                value={
+                  <>
+                    {frete.createdBy || frete.criadoPor}
+                    {frete.createdAt && (
+                      <span className="text-[var(--color-fg-muted)]"> · {new Date(frete.createdAt).toLocaleString('pt-BR')}</span>
+                    )}
+                  </>
+                }
+              />
+            )}
+            {frete.updatedBy && frete.updatedBy !== (frete.createdBy || frete.criadoPor) && (
+              <Field
+                icon={Pencil}
+                label="Última alteração por"
+                value={
+                  <>
+                    {frete.updatedBy}
+                    {frete.updatedAt && (
+                      <span className="text-[var(--color-fg-muted)]"> · {new Date(frete.updatedAt).toLocaleString('pt-BR')}</span>
+                    )}
+                  </>
+                }
+              />
+            )}
           </div>
 
           {frete.observacoes && (

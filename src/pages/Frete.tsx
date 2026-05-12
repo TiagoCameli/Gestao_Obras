@@ -14,6 +14,7 @@ import { useFornecedores } from '../hooks/useFornecedores';
 // Conta Corrente — hooks novos da Fase 3
 import { useTodosSaldosTransportadora } from '../hooks/useTransportadoraSaldo';
 import { useAuth } from '../contexts/AuthContext';
+import { useToast } from '../components/ui/Toast';
 import Button from '../components/ui/Button';
 import Input from '../components/ui/Input';
 import Modal from '../components/ui/Modal';
@@ -42,9 +43,17 @@ type Tab = 'dashboard' | 'fretes' | 'pagamentos' | 'conta_corrente' | 'pedidos' 
 
 export default function Frete() {
   const { temAcao, usuario } = useAuth();
+  const { showToast } = useToast();
   const canCreate = temAcao('criar_frete');
   const canEdit = temAcao('editar_frete');
   const canDelete = temAcao('excluir_frete');
+
+  // Helper unificado para feedback de mutations. Sucesso = toast verde, erro =
+  // toast vermelho com a mensagem do PostgreSQL (RLS, FK, check constraint…).
+  const reportError = useCallback((err: unknown, prefix: string) => {
+    const msg = err instanceof Error ? err.message : String(err);
+    showToast({ kind: 'error', message: `${prefix}: ${msg}` });
+  }, [showToast]);
 
   const [searchParams, setSearchParams] = useSearchParams();
   const validTabs: Tab[] = ['dashboard', 'fretes', 'pagamentos', 'conta_corrente', 'pedidos', 'lixeira'];
@@ -204,67 +213,103 @@ export default function Frete() {
   // ── Frete handlers ──
   const handleSubmit = useCallback(
     async (frete: FreteType) => {
-      if (editando) {
-        await atualizarMutation.mutateAsync(frete);
-      } else {
-        await adicionarMutation.mutateAsync({ ...frete, criadoPor: usuario?.nome || '' });
+      try {
+        if (editando) {
+          await atualizarMutation.mutateAsync(frete);
+          showToast({ kind: 'success', message: 'Frete atualizado.' });
+        } else {
+          await adicionarMutation.mutateAsync({ ...frete, criadoPor: usuario?.nome || '' });
+          showToast({ kind: 'success', message: 'Frete criado.' });
+        }
+        setModalOpen(false);
+        setEditando(null);
+      } catch (err) {
+        reportError(err, editando ? 'Erro ao atualizar frete' : 'Erro ao criar frete');
       }
-      setModalOpen(false);
-      setEditando(null);
     },
-    [editando, adicionarMutation, atualizarMutation]
+    [editando, adicionarMutation, atualizarMutation, usuario, showToast, reportError]
   );
 
   const handleDelete = useCallback(
     async (id: string) => {
-      await excluirMutation.mutateAsync(id);
-      setDeleteId(null);
+      try {
+        await excluirMutation.mutateAsync(id);
+        showToast({ kind: 'success', message: 'Frete movido para a Lixeira.' });
+      } catch (err) {
+        reportError(err, 'Erro ao excluir frete');
+      } finally {
+        setDeleteId(null);
+      }
     },
-    [excluirMutation]
+    [excluirMutation, showToast, reportError]
   );
 
   // ── Pagamento handlers ──
   const handlePagSubmit = useCallback(
     async (pagamento: PagamentoFrete) => {
-      if (pagEditando) {
-        await atualizarPagamentoMutation.mutateAsync(pagamento);
-      } else {
-        await adicionarPagamentoMutation.mutateAsync({ ...pagamento, criadoPor: usuario?.nome || '' });
+      try {
+        if (pagEditando) {
+          await atualizarPagamentoMutation.mutateAsync(pagamento);
+          showToast({ kind: 'success', message: 'Pagamento atualizado.' });
+        } else {
+          await adicionarPagamentoMutation.mutateAsync({ ...pagamento, criadoPor: usuario?.nome || '' });
+          showToast({ kind: 'success', message: 'Pagamento registrado.' });
+        }
+        setPagModalOpen(false);
+        setPagEditando(null);
+      } catch (err) {
+        reportError(err, pagEditando ? 'Erro ao atualizar pagamento' : 'Erro ao registrar pagamento');
       }
-      setPagModalOpen(false);
-      setPagEditando(null);
     },
-    [pagEditando, adicionarPagamentoMutation, atualizarPagamentoMutation]
+    [pagEditando, adicionarPagamentoMutation, atualizarPagamentoMutation, usuario, showToast, reportError]
   );
 
   const handlePagDelete = useCallback(
     async (id: string) => {
-      await excluirPagamentoMutation.mutateAsync(id);
-      setPagDeleteId(null);
+      try {
+        await excluirPagamentoMutation.mutateAsync(id);
+        showToast({ kind: 'success', message: 'Pagamento movido para a Lixeira.' });
+      } catch (err) {
+        reportError(err, 'Erro ao excluir pagamento');
+      } finally {
+        setPagDeleteId(null);
+      }
     },
-    [excluirPagamentoMutation]
+    [excluirPagamentoMutation, showToast, reportError]
   );
 
   // ── Pedido Material handlers ──
   const handlePedidoSubmit = useCallback(
     async (pedido: PedidoMaterial) => {
-      if (pedidoEditando) {
-        await atualizarPedidoMutation.mutateAsync(pedido);
-      } else {
-        await adicionarPedidoMutation.mutateAsync({ ...pedido, criadoPor: usuario?.nome || '' });
+      try {
+        if (pedidoEditando) {
+          await atualizarPedidoMutation.mutateAsync(pedido);
+          showToast({ kind: 'success', message: 'Pedido atualizado.' });
+        } else {
+          await adicionarPedidoMutation.mutateAsync({ ...pedido, criadoPor: usuario?.nome || '' });
+          showToast({ kind: 'success', message: 'Pedido criado.' });
+        }
+        setPedidoModalOpen(false);
+        setPedidoEditando(null);
+      } catch (err) {
+        reportError(err, pedidoEditando ? 'Erro ao atualizar pedido' : 'Erro ao criar pedido');
       }
-      setPedidoModalOpen(false);
-      setPedidoEditando(null);
     },
-    [pedidoEditando, adicionarPedidoMutation, atualizarPedidoMutation, usuario]
+    [pedidoEditando, adicionarPedidoMutation, atualizarPedidoMutation, usuario, showToast, reportError]
   );
 
   const handlePedidoDelete = useCallback(
     async (id: string) => {
-      await excluirPedidoMutation.mutateAsync(id);
-      setPedidoDeleteId(null);
+      try {
+        await excluirPedidoMutation.mutateAsync(id);
+        showToast({ kind: 'success', message: 'Pedido movido para a Lixeira.' });
+      } catch (err) {
+        reportError(err, 'Erro ao excluir pedido');
+      } finally {
+        setPedidoDeleteId(null);
+      }
     },
-    [excluirPedidoMutation]
+    [excluirPedidoMutation, showToast, reportError]
   );
 
   if (isLoading) {
@@ -518,9 +563,8 @@ export default function Frete() {
                       <div>
                         <div className="font-semibold text-[var(--color-fg)] flex items-center gap-1.5">
                           {s.nome}
-                          {s.ehDonaDeTanque && (
-                            <span className="text-amber-500" title="Dona de tanque externo">★</span>
-                          )}
+                          {/* Estrela "Dona de tanque externo" removida a pedido — confundia mais do que ajudava.
+                              A informação fica no Drawer de detalhes da transportadora se precisar. */}
                         </div>
                         <div className="text-xs text-[var(--color-fg-muted)] mt-0.5">
                           {s.qtdMovimentos} movimento{s.qtdMovimentos !== 1 ? 's' : ''}
@@ -716,6 +760,19 @@ export default function Frete() {
               e.preventDefault();
               const nome = novaLocalidadeNome.trim();
               if (!nome) return;
+              // Dedup client-side: bloqueia se já tem localidade com nome igual
+              // (case-insensitive). Não substitui um UNIQUE no DB mas evita
+              // 90% dos casos antes mesmo de mandar request.
+              const dup = localidades.some(
+                (l) => l.nome.trim().toLowerCase() === nome.toLowerCase()
+              );
+              if (dup) {
+                showToast({
+                  kind: 'error',
+                  message: `Já existe uma localidade chamada "${nome}". Use outro nome.`,
+                });
+                return;
+              }
               const nova: Localidade = {
                 id: Date.now().toString(36) + Math.random().toString(36).slice(2, 7),
                 nome,
@@ -723,9 +780,14 @@ export default function Frete() {
                 ativo: true,
                 criadoPor: usuario?.nome || '',
               };
-              await adicionarLocalidadeMutation.mutateAsync(nova);
-              setNovaLocalidadeNome('');
-              setNovaLocalidadeEndereco('');
+              try {
+                await adicionarLocalidadeMutation.mutateAsync(nova);
+                showToast({ kind: 'success', message: 'Localidade adicionada.' });
+                setNovaLocalidadeNome('');
+                setNovaLocalidadeEndereco('');
+              } catch (err) {
+                reportError(err, 'Erro ao adicionar localidade');
+              }
             }}
             className="space-y-3"
           >
