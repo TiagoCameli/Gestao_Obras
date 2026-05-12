@@ -38,6 +38,19 @@ export interface Deposito {
   /** F9 — Anexos. Fotos do tanque + arquivos (manual técnico, certificado de calibração). */
   fotoUrls?: string[] | null;
   arquivoUrls?: string[] | null;
+  /** F11 — Combustível corrente no tanque (FK insumos). Null = vazio ou nunca recebeu.
+   *  Trigger no DB bloqueia entradas/transferências de outro tipo enquanto não-null. */
+  combustivelAtualId?: string | null;
+}
+
+/** F11 — Esvaziamento de tanque (descarte explícito pra trocar de combustível). */
+export interface EsvaziamentoTanque {
+  id: string;
+  depositoId: string;
+  dataHora: string;
+  litrosDescartados: number;
+  motivo: string;
+  criadoPor: string;
 }
 
 export type OrigemCombustivel = 'tanque' | 'dinheiro' | 'requisicao';

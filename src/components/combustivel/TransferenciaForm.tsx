@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import type { Deposito, TransferenciaCombustivel } from '../../types';
 import { useEntradasCombustivel } from '../../hooks/useEntradasCombustivel';
+import { useInsumos } from '../../hooks/useInsumos';
 import { calcularEstoqueCombustivelNaData } from '../../hooks/useEstoque';
 import Input from '../ui/Input';
 import Select from '../ui/Select';
@@ -33,6 +34,9 @@ export default function TransferenciaForm({
   const depositos = allDepositos.filter((d) => d.ativo !== false);
   const { data: entradasData } = useEntradasCombustivel();
   const allEntradas = entradasData ?? [];
+  // F11 — Resolve id → nome do combustível pro banner de conflito de mistura.
+  const { data: insumosData } = useInsumos();
+  const allInsumos = insumosData ?? [];
 
   // Import Excel
   const [importModalOpen, setImportModalOpen] = useState(false);
@@ -92,6 +96,21 @@ export default function TransferenciaForm({
     : 0;
   const semEspacoDestino = depositoDestino && qtdLitros > espacoDestinoNaData;
   const mesmoTanque = depositoOrigemId && depositoOrigemId === depositoDestinoId;
+
+  // F11 — Pre-check de mistura no destino. O trigger no DB é a fonte da
+  // verdade, mas mostrar inline evita submit+erro feio. Bloqueia se destino
+  // tem combustível ≠ do origem. Destino vazio ou externo passa.
+  const conflitoCombustivelDestino = (() => {
+    if (!depositoOrigem || !depositoDestino) return null;
+    if (depositoDestino.ehExterno) return null;
+    if (!depositoDestino.combustivelAtualId) return null;
+    if (!depositoOrigem.combustivelAtualId) return null;
+    if (depositoDestino.combustivelAtualId === depositoOrigem.combustivelAtualId) return null;
+    return {
+      origem: depositoOrigem.combustivelAtualId,
+      destino: depositoDestino.combustivelAtualId,
+    };
+  })();
 
   // Preco medio do tanque de origem
   const entradasOrigem = depositoOrigemId
@@ -209,7 +228,8 @@ export default function TransferenciaForm({
     qtdLitros > 0 &&
     !semEstoqueOrigem &&
     !semEspacoDestino &&
-    !mesmoTanque;
+    !mesmoTanque &&
+    !conflitoCombustivelDestino;
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
@@ -304,6 +324,21 @@ export default function TransferenciaForm({
               <span className="text-xs text-gray-500">
                 {espacoDestino.toFixed(0)} L de espaço{dataHora ? ' na data' : ''}
               </span>
+            </div>
+          )}
+          {conflitoCombustivelDestino && (
+            <div className="mt-2 rounded-lg bg-red-50 border border-red-200 px-3 py-2 text-xs text-red-800">
+              Combustíveis incompatíveis. Origem tem{' '}
+              <strong>
+                {allInsumos.find((c) => c.id === conflitoCombustivelDestino.origem)?.nome ??
+                  conflitoCombustivelDestino.origem}
+              </strong>{' '}
+              e destino tem{' '}
+              <strong>
+                {allInsumos.find((c) => c.id === conflitoCombustivelDestino.destino)?.nome ??
+                  conflitoCombustivelDestino.destino}
+              </strong>
+              . Esvazie o destino antes ou escolha outro tanque.
             </div>
           )}
         </div>

@@ -120,6 +120,17 @@ export default function EntradaForm({
     : 0;
   const excedeLimite = depositoSelecionado && qtdLitros > espacoDisponivel;
 
+  // F11 — Pre-check de mistura. O trigger no DB é a fonte da verdade, mas
+  // mostrar inline evita submit+erro feio. Bloqueia se tanque tem outro
+  // combustível corrente. Tanque vazio/externo passa.
+  const conflitoCombustivel = (() => {
+    if (!depositoSelecionado || !tipoCombustivel) return null;
+    if (depositoSelecionado.ehExterno) return null;
+    if (!depositoSelecionado.combustivelAtualId) return null;
+    if (depositoSelecionado.combustivelAtualId === tipoCombustivel) return null;
+    return depositoSelecionado.combustivelAtualId;
+  })();
+
   const parseRow = useCallback(
     (row: unknown[], _index: number): ParsedRow => {
       const erros: string[] = [];
@@ -224,7 +235,7 @@ export default function EntradaForm({
   }
 
   const isValid =
-    dataHora && depositoId && tipoCombustivel && quantidadeLitros && valorUnitarioNum > 0 && fornecedor && !excedeLimite;
+    dataHora && depositoId && tipoCombustivel && quantidadeLitros && valorUnitarioNum > 0 && fornecedor && !excedeLimite && !conflitoCombustivel;
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
@@ -281,6 +292,15 @@ export default function EntradaForm({
               <span className="text-xs text-gray-500">
                 Espaço livre: {espacoDisponivel.toFixed(0)} L
               </span>
+            </div>
+          )}
+          {conflitoCombustivel && (
+            <div className="mt-2 rounded-lg bg-red-50 border border-red-200 px-3 py-2 text-xs text-red-800">
+              Este tanque já contém{' '}
+              <strong>
+                {listaCombustiveis.find((c) => c.id === conflitoCombustivel)?.nome ?? conflitoCombustivel}
+              </strong>{' '}
+              ({depositoSelecionado?.nivelAtualLitros.toFixed(0)} L). Esvazie o tanque antes ou selecione o mesmo combustível.
             </div>
           )}
         </div>

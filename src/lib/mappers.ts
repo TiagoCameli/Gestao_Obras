@@ -120,6 +120,7 @@ export function dbToDeposito(row: any): Deposito {
     ehExterno: row.eh_externo ?? false,
     fotoUrls: row.foto_urls ?? [],
     arquivoUrls: row.arquivo_urls ?? [],
+    combustivelAtualId: row.combustivel_atual_id ?? null,
   };
 }
 
@@ -136,6 +137,8 @@ export function depositoToDb(d: Deposito) {
     eh_externo: d.ehExterno,
     foto_urls: d.fotoUrls ?? [],
     arquivo_urls: d.arquivoUrls ?? [],
+    // combustivel_atual_id é derivado por trigger — não mandar em INSERT/UPDATE
+    // pra evitar override acidental do estado calculado.
   };
 }
 

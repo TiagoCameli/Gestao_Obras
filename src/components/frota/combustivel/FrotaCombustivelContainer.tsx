@@ -712,6 +712,7 @@ function FrotaCombustivelContent() {
               ? depositosTodos.filter((d) => filterState.tanqueIds.includes(d.id))
               : depositosTodos
           }
+          insumos={combustiveis}
           onEdit={handleEditTanque}
           onDelete={(id) => handleDeleteTanque(id)}
           canEdit={canEdit}
