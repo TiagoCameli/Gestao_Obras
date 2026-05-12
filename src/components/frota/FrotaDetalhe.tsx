@@ -1,13 +1,15 @@
-import type { Equipamento, Empresa } from '../../types';
+import type { Equipamento, Empresa, Fornecedor } from '../../types';
 import { STATUS_EQUIPAMENTO_LABEL } from '../../types';
 import { getCategoriaFrota } from '../../lib/frotaConstants';
 import Button from '../ui/Button';
 import { Pencil, Building2, Hash, Calendar, Gauge, Tag, Key, Trash2 } from 'lucide-react';
 import { getStatusOption } from './StatusDropdown';
+import DocumentosEquipamentoSection from './documentos/DocumentosEquipamentoSection';
 
 interface FrotaDetalheProps {
   equipamento: Equipamento;
   empresas: Empresa[];
+  fornecedores: Fornecedor[];
   onEditar?: () => void;
   onExcluir?: () => void;
 }
@@ -51,7 +53,7 @@ function Campo({
   );
 }
 
-export default function FrotaDetalhe({ equipamento: eq, empresas, onEditar, onExcluir }: FrotaDetalheProps) {
+export default function FrotaDetalhe({ equipamento: eq, empresas, fornecedores, onEditar, onExcluir }: FrotaDetalheProps) {
   const cat = getCategoriaFrota(eq.tipo);
   const empresaNome = empresas.find((e) => e.id === eq.empresaId)?.nome ?? '—';
   const alugada = eq.propriedade === 'alugada';
@@ -165,6 +167,11 @@ export default function FrotaDetalhe({ equipamento: eq, empresas, onEditar, onEx
           {eq.dataVenda && <Campo label="Data de venda" valor={formatarData(eq.dataVenda)} icon={Calendar} />}
         </div>
       </section>
+
+      <DocumentosEquipamentoSection
+        equipamentoId={eq.id}
+        fornecedores={fornecedores}
+      />
     </div>
   );
 }

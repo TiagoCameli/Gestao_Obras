@@ -4,6 +4,7 @@ import type { Equipamento, TipoEquipamento, PropriedadeEquipamento, StatusEquipa
 import { STATUS_EQUIPAMENTO_LABEL } from '../types';
 import { useEquipamentos, useAdicionarEquipamento, useAtualizarEquipamento, useExcluirEquipamento } from '../hooks/useEquipamentos';
 import { useEmpresas } from '../hooks/useEmpresas';
+import { useFornecedores } from '../hooks/useFornecedores';
 import { useAuth } from '../contexts/AuthContext';
 import Modal from '../components/ui/Modal';
 import Button from '../components/ui/Button';
@@ -37,6 +38,7 @@ const STATUS_LABELS: Record<FiltroStatus, string> = {
 export default function Frota() {
   const { data: equipamentos = [], isLoading } = useEquipamentos();
   const { data: empresas = [] } = useEmpresas();
+  const { data: fornecedores = [] } = useFornecedores();
   const { temAcao, usuario } = useAuth();
   const adicionarMutation = useAdicionarEquipamento();
   const atualizarMutation = useAtualizarEquipamento();
@@ -453,6 +455,7 @@ export default function Frota() {
           <FrotaDetalhe
             equipamento={equipamentoSelecionado}
             empresas={empresas}
+            fornecedores={fornecedores}
             onEditar={
               canEdit
                 ? () => {

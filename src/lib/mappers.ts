@@ -34,6 +34,7 @@ import type {
   PlanoManutencao,
   HistoricoMedicao,
   MedicaoEquipamento,
+  DocumentoEquipamento,
   SaidaCombustivel,
   TransportadoraMovimento,
   TransportadoraSaldo,
@@ -1224,6 +1225,47 @@ export function medicaoEquipamentoToDb(m: MedicaoEquipamento) {
     foto_urls: m.fotoUrls,
     arquivo_urls: m.arquivoUrls,
     created_by: m.createdBy,
+  };
+}
+
+// ── Documentos de Equipamento (PR3 - Marco 0) ──
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function dbToDocumentoEquipamento(row: any): DocumentoEquipamento {
+  return {
+    id: row.id,
+    equipamentoId: row.equipamento_id ?? '',
+    tipo: row.tipo ?? 'outro',
+    numero: row.numero ?? '',
+    emissao: row.emissao ?? null,
+    vencimento: row.vencimento ?? null,
+    valor: Number(row.valor ?? 0),
+    fornecedorId: row.fornecedor_id ?? null,
+    observacoes: row.observacoes ?? '',
+    fotoUrls: row.foto_urls ?? [],
+    arquivoUrls: row.arquivo_urls ?? [],
+    createdAt: row.created_at ?? '',
+    createdBy: row.created_by ?? '',
+    updatedAt: row.updated_at ?? '',
+    updatedBy: row.updated_by ?? '',
+  };
+}
+
+export function documentoEquipamentoToDb(d: DocumentoEquipamento) {
+  return {
+    id: d.id,
+    equipamento_id: d.equipamentoId,
+    tipo: d.tipo,
+    numero: d.numero,
+    emissao: d.emissao,
+    vencimento: d.vencimento,
+    valor: d.valor,
+    fornecedor_id: d.fornecedorId,
+    observacoes: d.observacoes,
+    foto_urls: d.fotoUrls,
+    arquivo_urls: d.arquivoUrls,
+    created_by: d.createdBy,
+    updated_by: d.updatedBy,
   };
 }
 

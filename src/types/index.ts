@@ -829,6 +829,73 @@ export interface HistoricoMedicao {
   criadoPor: string;
 }
 
+// === Documentos de Equipamento (PR3 - Marco 0) ===
+
+export type TipoDocumentoEquipamento =
+  | 'crlv'
+  | 'ipva'
+  | 'seguro'
+  | 'antt'
+  | 'rntrc'
+  | 'nr11'
+  | 'nr12'
+  | 'manual'
+  | 'nf_aquisicao'
+  | 'contrato_locacao'
+  | 'certificacao'
+  | 'vistoria'
+  | 'recall'
+  | 'outro';
+
+export const TIPO_DOCUMENTO_LABEL: Record<TipoDocumentoEquipamento, string> = {
+  crlv: 'CRLV',
+  ipva: 'IPVA',
+  seguro: 'Seguro',
+  antt: 'ANTT',
+  rntrc: 'RNTRC',
+  nr11: 'NR-11',
+  nr12: 'NR-12',
+  manual: 'Manual',
+  nf_aquisicao: 'NF de Aquisição',
+  contrato_locacao: 'Contrato de Locação',
+  certificacao: 'Certificação',
+  vistoria: 'Vistoria',
+  recall: 'Recall',
+  outro: 'Outro',
+};
+
+export interface DocumentoEquipamento {
+  id: string;
+  equipamentoId: string;
+  tipo: TipoDocumentoEquipamento;
+  numero: string;
+  emissao: string | null;       // 'YYYY-MM-DD' ou null
+  vencimento: string | null;    // 'YYYY-MM-DD' ou null
+  valor: number;
+  fornecedorId: string | null;
+  observacoes: string;
+  fotoUrls: string[];
+  arquivoUrls: string[];
+  createdAt: string;
+  createdBy: string;
+  updatedAt: string;
+  updatedBy: string;
+}
+
+export type NivelVencimentoDocumento = 'vencido' | 'critico' | 'alerta' | 'atencao';
+
+export interface DocumentoVencendo {
+  id: string;
+  equipamentoId: string;
+  equipamentoNome: string;
+  codigoPatrimonio: string;
+  tipo: TipoDocumentoEquipamento;
+  numero: string;
+  vencimento: string;
+  diasParaVencer: number;
+  nivel: NivelVencimentoDocumento;
+}
+
 // === Medições de Equipamento (PR1 - Marco 0) ===
 
 export type OrigemMedicao =
