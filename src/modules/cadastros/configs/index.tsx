@@ -93,8 +93,8 @@ export const EXTERNAL_ENTITIES: ExternalEntity[] = [
   {
     slug: 'unificacao',
     singular: 'Unificação',
-    plural: 'Unificar Colaborador × Usuário',
-    description: 'Vincula colaboradores e usuários que são a mesma pessoa (Fase 1 — não destrutivo).',
+    plural: 'Unificar Colaborador × Apontamento RH',
+    description: 'Vincula colaboradores e funcionários do Apontamento RH que são a mesma pessoa (Fase 1 — não destrutivo).',
     category: 'pessoas',
     accent: 'amber',
     icon: (

@@ -7,7 +7,6 @@ import {
   type ParUnificacaoSugerido,
 } from '../../hooks/useUnificacao';
 import { useColaboradores } from '../../hooks/useColaboradores';
-import { useFuncionarios } from '../../hooks/useFuncionarios';
 
 /**
  * Tela /cadastros/unificacao — Fase 1 da unificação Colaborador × Funcionário.
@@ -32,13 +31,11 @@ export default function UnificacaoPage() {
 
   // Estatísticas (para o cabeçalho).
   const { data: colaboradores = [] } = useColaboradores();
-  const { data: funcionarios = [] } = useFuncionarios();
   const totalColab = colaboradores.length;
-  const totalFunc = funcionarios.length;
-  const vinculados = colaboradores.filter((c) => c.funcionarioId).length;
+  const vinculados = colaboradores.filter((c) => c.apontFuncionarioId).length;
   const semSugestao = useMemo(() => {
     const idsComSugestao = new Set(sugestoes.map((s) => s.colaboradorId));
-    return colaboradores.filter((c) => !c.funcionarioId && !idsComSugestao.has(c.id)).length;
+    return colaboradores.filter((c) => !c.apontFuncionarioId && !idsComSugestao.has(c.id)).length;
   }, [colaboradores, sugestoes]);
 
   const visiveis = sugestoes.filter((s) => !pulados.has(chave(s)));
@@ -62,15 +59,17 @@ export default function UnificacaoPage() {
           Cadastros
         </Link>
         <span>/</span>
-        <span className="text-[var(--color-fg)]">Unificação Colaborador × Usuário</span>
+        <span className="text-[var(--color-fg)]">Unificação Colaborador × Funcionário (Apontamento RH)</span>
       </nav>
 
       {/* Header */}
       <div className="mb-6">
-        <h1 className="text-2xl font-semibold tracking-tight">Unificar Colaboradores e Usuários</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">
+          Unificar Colaboradores e Funcionários do Apontamento RH
+        </h1>
         <p className="text-sm text-[var(--color-fg-muted)] mt-1 max-w-2xl">
           O sistema sugere pares de pessoas que provavelmente são as mesmas em <b>Colaboradores</b> e em
-          <b> Usuários (Funcionários)</b>. Revise cada par e clique em <b>Vincular</b> para confirmar.
+          <b> Funcionários do Apontamento RH</b>. Revise cada par e clique em <b>Vincular</b> para confirmar.
           Esta ação cria apenas uma referência cruzada — nada é apagado nem copiado nesta fase.
         </p>
       </div>
@@ -78,7 +77,7 @@ export default function UnificacaoPage() {
       {/* Estatísticas */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
         <Stat label="Colaboradores" value={totalColab} />
-        <Stat label="Usuários" value={totalFunc} />
+        <Stat label="Sugestões pendentes" value={sugestoes.length} />
         <Stat label="Já vinculados" value={vinculados} accent="success" />
         <Stat label="Sem sugestão de par" value={semSugestao} accent="muted" />
       </div>
@@ -92,8 +91,8 @@ export default function UnificacaoPage() {
 
       {error && (
         <div className="p-6 text-sm text-[var(--color-danger)] bg-[var(--color-danger-soft)] border border-[var(--color-danger)] rounded-xl">
-          Erro ao carregar sugestões. A função SQL <code>colaborador_match_funcionario_sugestoes</code> está
-          aplicada no banco? Veja a migration <code>20260513200000_marco5_pr28_unificacao_colaborador_funcionario_fase1.sql</code>.
+          Erro ao carregar sugestões. A função SQL <code>colaborador_match_apont_funcionario_sugestoes</code> está
+          aplicada no banco? Veja a migration <code>20260513201000_marco5_pr28b_unificacao_fix_apont_funcionarios.sql</code>.
         </div>
       )}
 
@@ -104,7 +103,7 @@ export default function UnificacaoPage() {
           </p>
           <p className="text-xs text-[var(--color-fg-subtle)] mt-1">
             Os {semSugestao} colaboradores sem sugestão precisam ser revisados manualmente (sem par óbvio em
-            Usuários).
+            Funcionários do Apontamento RH).
           </p>
         </div>
       )}
@@ -190,11 +189,12 @@ function ParCard({
           ]}
         />
         <PessoaBox
-          titulo="Usuário (Funcionário)"
+          titulo="Funcionário (Apontamento RH)"
           nome={par.funcionarioNome}
           linhas={[
             { label: 'CPF', value: par.funcionarioCpf || '—' },
-            { label: 'Cargo', value: par.funcionarioCargo || '—' },
+            { label: 'Função', value: par.funcionarioFuncao || '—' },
+            { label: 'Vínculo', value: par.funcionarioTipoVinculo || '—' },
           ]}
         />
       </div>
