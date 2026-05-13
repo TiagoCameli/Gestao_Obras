@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <rect width="512" height="512" rx="96" ry="96" fill="#10b981"/>
+
+  <!-- Capacete de obra centralizado -->
+  <g fill="#ffffff">
+    <!-- Domo do capacete -->
+    <path d="M 136 320
+             C 136 232, 196 168, 256 168
+             C 316 168, 376 232, 376 320
+             L 376 332
+             L 136 332
+             Z"/>
+    <!-- Aba inferior -->
+    <rect x="112" y="332" width="288" height="36" rx="18"/>
+    <!-- Linha de proteção horizontal no capacete -->
+    <rect x="156" y="290" width="200" height="10" rx="5" fill="#10b981"/>
+    <!-- Detalhe central no topo -->
+    <ellipse cx="256" cy="178" rx="20" ry="8" fill="#10b981"/>
+  </g>
+</svg>

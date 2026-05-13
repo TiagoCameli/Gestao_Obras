@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <rect width="512" height="512" fill="#10b981"/>
+
+  <!-- Capacete com zona segura 80% central -->
+  <g fill="#ffffff">
+    <path d="M 166 320
+             C 166 240, 216 184, 256 184
+             C 296 184, 346 240, 346 320
+             L 346 332
+             L 166 332
+             Z"/>
+    <rect x="148" y="332" width="216" height="32" rx="16"/>
+    <rect x="180" y="294" width="152" height="8" rx="4" fill="#10b981"/>
+    <ellipse cx="256" cy="194" rx="16" ry="6" fill="#10b981"/>
+  </g>
+</svg>
