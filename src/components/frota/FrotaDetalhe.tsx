@@ -2,11 +2,12 @@ import type { Equipamento, Empresa, Fornecedor } from '../../types';
 import { STATUS_EQUIPAMENTO_LABEL } from '../../types';
 import { getCategoriaFrota } from '../../lib/frotaConstants';
 import Button from '../ui/Button';
-import { Pencil, Building2, Hash, Calendar, Gauge, Tag, Key, Trash2, FileDown } from 'lucide-react';
+import { Pencil, Building2, Hash, Calendar, Gauge, Tag, Key, Trash2, FileDown, QrCode } from 'lucide-react';
 import { useOrdensServico } from '../../hooks/useOrdensServico';
 import { useMedicaoAtual } from '../../hooks/useMedicoesEquipamento';
 import { useCustoPecasEquipamentoDetalhe } from '../../hooks/useCustoPecasEquipamento';
 import { exportarRelatorioEquipamentoPdf } from '../../utils/manutencaoPdfExport';
+import { exportarEtiquetaEquipamentoPdf } from '../../utils/equipamentoQrExport';
 import { getStatusOption } from './StatusDropdown';
 import DocumentosEquipamentoSection from './documentos/DocumentosEquipamentoSection';
 import FotosEquipamentoGaleria from './FotosEquipamentoGaleria';
@@ -82,6 +83,10 @@ export default function FrotaDetalhe({ equipamento: eq, empresas, fornecedores, 
     });
   }
 
+  async function handleBaixarQr() {
+    await exportarEtiquetaEquipamentoPdf(eq);
+  }
+
   return (
     <div className="p-4 sm:p-5 space-y-5">
       {/* Header com hero do tipo */}
@@ -144,6 +149,10 @@ export default function FrotaDetalhe({ equipamento: eq, empresas, fornecedores, 
                 {alugada ? <Key aria-hidden className="w-3.5 h-3.5" /> : <Building2 aria-hidden className="w-3.5 h-3.5" />}
                 {alugada ? 'Alugado' : 'Próprio'}
               </span>
+              <Button onClick={handleBaixarQr} variant="secondary" size="sm">
+                <QrCode aria-hidden className="w-3.5 h-3.5" />
+                QR
+              </Button>
               <Button onClick={handleExportarPdf} variant="secondary" size="sm">
                 <FileDown aria-hidden className="w-3.5 h-3.5" />
                 PDF
