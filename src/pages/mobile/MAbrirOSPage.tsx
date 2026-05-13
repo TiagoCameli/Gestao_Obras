@@ -1,12 +1,13 @@
-// Marco 5 / PR27 — Abertura rápida de OS pelo mobile.
+// Marco 5 PR27 + PR34 — Abertura rápida de OS pelo mobile.
 //
-// Operador relata defeito + foto opcional. Cria OS tipo='corretiva',
-// status='aberta'. Online: chama RPC gerar_numero_os + insert direto.
-// Offline: enfileira na fila offline e sincroniza depois.
+// Operador relata defeito + até 5 fotos. Cria OS tipo='corretiva',
+// status='aberta'. Online: chama RPC gerar_numero_os + upload paralelo
+// de fotos + insert. Offline: enfileira na fila offline com array de
+// blobs e sincroniza depois.
 
 import { useState, type FormEvent } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { ArrowLeft, Camera, X, AlertTriangle, FilePlus } from 'lucide-react';
+import { ArrowLeft, Camera, X, AlertTriangle, FilePlus, Image as ImageIcon } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import Button from '../../components/ui/Button';
 import { useEquipamentos } from '../../hooks/useEquipamentos';
@@ -17,6 +18,8 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useToast } from '../../components/ui/Toast';
 import type { PrioridadeOS } from '../../types';
 
+const MAX_FOTOS = 5;
+
 function gerarId(prefix: string) {
   return prefix + '-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
 }
@@ -25,6 +28,11 @@ const SINTOMAS_SUGERIDOS = [
   'vazamento', 'fumaça', 'superaquecimento', 'ruído anormal',
   'vibração', 'perda de potência', 'falha de partida', 'alarme',
 ];
+
+interface FotoItem {
+  file: File;
+  preview: string;
+}
 
 export default function MAbrirOSPage() {
   const { equipamentoId } = useParams<{ equipamentoId: string }>();
@@ -39,8 +47,7 @@ export default function MAbrirOSPage() {
   const [defeito, setDefeito] = useState('');
   const [prioridade, setPrioridade] = useState<PrioridadeOS>('media');
   const [sintomas, setSintomas] = useState<string[]>([]);
-  const [fotoFile, setFotoFile] = useState<File | null>(null);
-  const [fotoPreview, setFotoPreview] = useState<string | null>(null);
+  const [fotos, setFotos] = useState<FotoItem[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
 
@@ -59,15 +66,27 @@ export default function MAbrirOSPage() {
     setSintomas((arr) => (arr.includes(s) ? arr.filter((x) => x !== s) : [...arr, s]));
   }
 
-  function setFoto(file: File | null) {
-    if (fotoPreview) URL.revokeObjectURL(fotoPreview);
-    if (!file) {
-      setFotoFile(null);
-      setFotoPreview(null);
-      return;
+  function adicionarFotos(files: FileList | null) {
+    if (!files || files.length === 0) return;
+    const novas: FotoItem[] = [];
+    for (const file of Array.from(files)) {
+      if (!file.type.startsWith('image/')) continue;
+      novas.push({ file, preview: URL.createObjectURL(file) });
     }
-    setFotoFile(file);
-    setFotoPreview(URL.createObjectURL(file));
+    setFotos((curr) => {
+      const combinado = [...curr, ...novas].slice(0, MAX_FOTOS);
+      // Se truncou, revoga as URLs descartadas
+      novas.slice(combinado.length - curr.length).forEach((f) => URL.revokeObjectURL(f.preview));
+      return combinado;
+    });
+  }
+
+  function removerFoto(index: number) {
+    setFotos((curr) => {
+      const removida = curr[index];
+      if (removida) URL.revokeObjectURL(removida.preview);
+      return curr.filter((_, i) => i !== index);
+    });
   }
 
   const podeSalvar = !!defeito.trim();
@@ -88,21 +107,23 @@ export default function MAbrirOSPage() {
           if (numErr) throw numErr;
 
           const osId = gerarId('os');
-          // Upload foto opcional
-          let fotoUrl: string | null = null;
-          if (fotoFile) {
-            const ext = (fotoFile.type.split('/')[1] || 'jpg').replace('jpeg', 'jpg');
-            const path = `os/${osId}.${ext}`;
-            const { error: upErr } = await supabase.storage
-              .from('apontamento-fotos')
-              .upload(path, fotoFile, { contentType: fotoFile.type });
-            if (!upErr) {
+
+          // Upload paralelo de todas as fotos
+          const uploadResults = await Promise.all(
+            fotos.map(async (foto, i) => {
+              const ext = (foto.file.type.split('/')[1] || 'jpg').replace('jpeg', 'jpg');
+              const path = `os/${osId}-${i}.${ext}`;
+              const { error: upErr } = await supabase.storage
+                .from('apontamento-fotos')
+                .upload(path, foto.file, { contentType: foto.file.type });
+              if (upErr) return null;
               const { data: signed } = await supabase.storage
                 .from('apontamento-fotos')
                 .createSignedUrl(path, 60 * 60 * 24 * 365);
-              fotoUrl = signed?.signedUrl ?? null;
-            }
-          }
+              return signed?.signedUrl ?? null;
+            })
+          );
+          const fotoUrls = uploadResults.filter((u): u is string => !!u);
 
           const now = new Date().toISOString();
           const { error: osErr } = await supabase.from('ordens_servico').insert({
@@ -139,7 +160,7 @@ export default function MAbrirOSPage() {
             aprovado_por: '',
             aprovado_em: null,
             garantia_acionada: false,
-            foto_urls: fotoUrl ? [fotoUrl] : [],
+            foto_urls: fotoUrls,
             arquivo_urls: [],
             observacoes: `Aberta via mobile por ${usuario?.nome ?? ''}`,
             data_abertura: now,
@@ -158,7 +179,7 @@ export default function MAbrirOSPage() {
               defeitoReportado: defeito.trim(),
               sintomas,
               observacoes: '',
-              fotoBlob: fotoFile,
+              fotoBlobs: fotos.map((f) => f.file),
               medicaoAbertura: medicaoAtual?.medicaoAtual ?? null,
               operadorFuncionarioId: usuario?.funcionarioId ?? null,
               operadorNome: usuario?.nome ?? '',
@@ -177,7 +198,7 @@ export default function MAbrirOSPage() {
           defeitoReportado: defeito.trim(),
           sintomas,
           observacoes: '',
-          fotoBlob: fotoFile,
+          fotoBlobs: fotos.map((f) => f.file),
           medicaoAbertura: medicaoAtual?.medicaoAtual ?? null,
           operadorFuncionarioId: usuario?.funcionarioId ?? null,
           operadorNome: usuario?.nome ?? '',
@@ -187,7 +208,8 @@ export default function MAbrirOSPage() {
         throw new Error('Sem internet e navegador sem suporte a fila offline.');
       }
 
-      if (fotoPreview) URL.revokeObjectURL(fotoPreview);
+      // Limpa previews
+      fotos.forEach((f) => URL.revokeObjectURL(f.preview));
 
       showToast({
         kind: 'success',
@@ -203,9 +225,11 @@ export default function MAbrirOSPage() {
     }
   }
 
+  const podeAdicionarFoto = fotos.length < MAX_FOTOS;
+
   return (
     <div className="space-y-4 pb-24">
-      <Link to="/m" className="inline-flex items-center gap-1 text-sm text-[var(--color-fg-muted)]">
+      <Link to={`/m/eq/${equipamento.id}`} className="inline-flex items-center gap-1 text-sm text-[var(--color-fg-muted)]">
         <ArrowLeft className="w-4 h-4" /> Voltar
       </Link>
 
@@ -293,37 +317,56 @@ export default function MAbrirOSPage() {
         </div>
 
         <div>
-          <label className="block text-xs font-medium text-[var(--color-fg-muted)] mb-1">
-            Foto (opcional)
-          </label>
-          {fotoPreview ? (
-            <div className="relative">
-              <img
-                src={fotoPreview}
-                alt="Foto"
-                className="w-full max-h-64 object-contain rounded-lg border border-[var(--color-border)] bg-black/30"
-              />
-              <button
-                type="button"
-                onClick={() => setFoto(null)}
-                className="absolute top-1 right-1 bg-black/60 text-white rounded-full p-1"
-                aria-label="Remover foto"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-          ) : (
-            <label className="flex items-center justify-center gap-2 h-12 rounded-xl border-2 border-dashed border-[var(--color-border)] bg-[var(--color-surface-1)] text-sm font-medium text-[var(--color-fg)] cursor-pointer">
-              <Camera className="w-5 h-5" />
-              Tirar foto
-              <input
-                type="file"
-                accept="image/*"
-                capture="environment"
-                className="sr-only"
-                onChange={(e) => setFoto(e.target.files?.[0] ?? null)}
-              />
+          <div className="flex items-center justify-between mb-1">
+            <label className="block text-xs font-medium text-[var(--color-fg-muted)]">
+              Fotos do problema (até {MAX_FOTOS})
             </label>
+            <span className="text-[11px] text-[var(--color-fg-subtle)]">
+              {fotos.length}/{MAX_FOTOS}
+            </span>
+          </div>
+          {fotos.length > 0 && (
+            <div className="grid grid-cols-3 gap-2 mb-2">
+              {fotos.map((foto, i) => (
+                <div key={foto.preview} className="relative aspect-square rounded-lg overflow-hidden bg-black/30 border border-[var(--color-border)]">
+                  <img src={foto.preview} alt={`Foto ${i + 1}`} className="w-full h-full object-cover" />
+                  <button
+                    type="button"
+                    onClick={() => removerFoto(i)}
+                    className="absolute top-1 right-1 bg-black/70 text-white rounded-full p-1"
+                    aria-label="Remover foto"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+          {podeAdicionarFoto && (
+            <div className="grid grid-cols-2 gap-2">
+              <label className="flex items-center justify-center gap-2 h-12 rounded-xl border-2 border-dashed border-[var(--color-border)] bg-[var(--color-surface-1)] text-sm font-medium text-[var(--color-fg)] cursor-pointer active:bg-[var(--color-surface-2)]">
+                <Camera className="w-5 h-5" />
+                Câmera
+                <input
+                  type="file"
+                  accept="image/*"
+                  capture="environment"
+                  className="sr-only"
+                  onChange={(e) => { adicionarFotos(e.target.files); e.target.value = ''; }}
+                />
+              </label>
+              <label className="flex items-center justify-center gap-2 h-12 rounded-xl border-2 border-dashed border-[var(--color-border)] bg-[var(--color-surface-1)] text-sm font-medium text-[var(--color-fg)] cursor-pointer active:bg-[var(--color-surface-2)]">
+                <ImageIcon className="w-5 h-5" />
+                Galeria
+                <input
+                  type="file"
+                  accept="image/*"
+                  multiple
+                  className="sr-only"
+                  onChange={(e) => { adicionarFotos(e.target.files); e.target.value = ''; }}
+                />
+              </label>
+            </div>
           )}
         </div>
 

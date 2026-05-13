@@ -48,7 +48,10 @@ export interface OSNovaQueueItem {
   defeitoReportado: string;
   sintomas: string[];
   observacoes: string;
-  fotoBlob: Blob | null;
+  /** PR34: agora aceita múltiplas fotos. Mantém compat com fotoBlob legado. */
+  fotoBlobs: Blob[];
+  /** @deprecated use fotoBlobs. Mantido pra migração suave da fila. */
+  fotoBlob?: Blob | null;
   medicaoAbertura: number | null;
   operadorFuncionarioId: string | null;
   operadorNome: string;

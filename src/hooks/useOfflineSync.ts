@@ -151,19 +151,24 @@ export function useOfflineSync(): UseOfflineSyncResult {
 
         const osId = gerarId('os');
 
-        // Upload foto opcional pra bucket apontamento-fotos (reusa bucket existente)
-        let fotoUrl: string | null = null;
-        if (item.fotoBlob) {
-          const ext = (item.fotoBlob.type.split('/')[1] || 'jpg').replace('jpeg', 'jpg');
-          const path = `os/${osId}.${ext}`;
+        // Upload de fotos (array). Compat com fotoBlob legado.
+        const blobsParaUpload: Blob[] = [
+          ...(item.fotoBlobs ?? []),
+          ...(item.fotoBlob ? [item.fotoBlob] : []),
+        ];
+        const fotoUrls: string[] = [];
+        for (let i = 0; i < blobsParaUpload.length; i++) {
+          const blob = blobsParaUpload[i];
+          const ext = (blob.type.split('/')[1] || 'jpg').replace('jpeg', 'jpg');
+          const path = `os/${osId}-${i}.${ext}`;
           const { error: upErr } = await supabase.storage
             .from('apontamento-fotos')
-            .upload(path, item.fotoBlob, { contentType: item.fotoBlob.type });
+            .upload(path, blob, { contentType: blob.type });
           if (!upErr) {
             const { data: signed } = await supabase.storage
               .from('apontamento-fotos')
               .createSignedUrl(path, 60 * 60 * 24 * 365);
-            fotoUrl = signed?.signedUrl ?? null;
+            if (signed?.signedUrl) fotoUrls.push(signed.signedUrl);
           }
         }
 
@@ -202,7 +207,7 @@ export function useOfflineSync(): UseOfflineSyncResult {
           aprovado_por: '',
           aprovado_em: null,
           garantia_acionada: false,
-          foto_urls: fotoUrl ? [fotoUrl] : [],
+          foto_urls: fotoUrls,
           arquivo_urls: [],
           observacoes: item.observacoes || `Aberta via mobile por ${item.operadorNome}`,
           data_abertura: now,
