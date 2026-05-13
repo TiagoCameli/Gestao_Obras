@@ -247,6 +247,17 @@ export function dbToInsumo(row: any): Insumo {
     ativo: row.ativo,
     criadoPor: row.criado_por ?? '',
     categoria: row.categoria ?? undefined,
+    usadoEmManutencao: !!row.usado_em_manutencao,
+    codigoSku: row.codigo_sku ?? '',
+    codigoEan: row.codigo_ean ?? '',
+    fabricante: row.fabricante ?? '',
+    codigoFabricante: row.codigo_fabricante ?? '',
+    estoqueMinimo: row.estoque_minimo != null ? Number(row.estoque_minimo) : null,
+    estoqueMaximo: row.estoque_maximo != null ? Number(row.estoque_maximo) : null,
+    leadTimeDias: row.lead_time_dias != null ? Number(row.lead_time_dias) : null,
+    equipamentosCompativeis: row.equipamentos_compativeis ?? [],
+    fotoUrl: row.foto_url ?? '',
+    aplicacaoTecnica: row.aplicacao_tecnica ?? '',
   };
 }
 
@@ -260,6 +271,17 @@ export function insumoToDb(i: Insumo) {
     ativo: i.ativo,
     criado_por: i.criadoPor,
     categoria: i.categoria ?? null,
+    usado_em_manutencao: !!i.usadoEmManutencao,
+    codigo_sku: i.codigoSku || null,
+    codigo_ean: i.codigoEan || null,
+    fabricante: i.fabricante || null,
+    codigo_fabricante: i.codigoFabricante || null,
+    estoque_minimo: i.estoqueMinimo ?? null,
+    estoque_maximo: i.estoqueMaximo ?? null,
+    lead_time_dias: i.leadTimeDias ?? null,
+    equipamentos_compativeis: i.equipamentosCompativeis ?? [],
+    foto_url: i.fotoUrl || null,
+    aplicacao_tecnica: i.aplicacaoTecnica || null,
   };
 }
 

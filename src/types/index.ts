@@ -169,6 +169,56 @@ export interface Insumo {
   ativo: boolean;
   criadoPor: string;
   categoria?: CategoriaMaterialCompra;
+  // PR18 — extensões pra peças de manutenção
+  usadoEmManutencao?: boolean;
+  codigoSku?: string;
+  codigoEan?: string;
+  fabricante?: string;
+  codigoFabricante?: string;
+  estoqueMinimo?: number | null;
+  estoqueMaximo?: number | null;
+  leadTimeDias?: number | null;
+  equipamentosCompativeis?: string[];
+  fotoUrl?: string;
+  aplicacaoTecnica?: string;
+}
+
+// View v_saldo_estoque_total: snapshot atual de estoque + custo médio.
+export type StatusEstoque = 'zerada' | 'abaixo_minimo' | 'atencao' | 'ok';
+
+export interface SaldoEstoque {
+  insumoId: string;
+  insumoNome: string;
+  unidade: string;
+  codigoSku: string | null;
+  codigoEan: string | null;
+  fabricante: string | null;
+  codigoFabricante: string | null;
+  categoria: string | null;
+  tipo: string | null;
+  estoqueMinimo: number | null;
+  estoqueMaximo: number | null;
+  usadoEmManutencao: boolean;
+  fotoUrl: string | null;
+  equipamentosCompativeis: string[];
+  saldoTotal: number;
+  custoMedio: number | null;
+  statusEstoque: StatusEstoque;
+}
+
+export interface SaldoEstoquePorDeposito {
+  insumoId: string;
+  insumoNome: string;
+  unidade: string;
+  codigoSku: string | null;
+  fabricante: string | null;
+  estoqueMinimo: number | null;
+  depositoId: string;
+  depositoNome: string;
+  saldo: number;
+  custoMedio: number | null;
+  totalEntradas: number;
+  valorTotalEntradas: number;
 }
 
 export interface TransferenciaCombustivel {
