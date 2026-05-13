@@ -162,3 +162,147 @@ export async function exportarEtiquetaEquipamentoPdf(eq: Equipamento): Promise<v
   const filename = makeFilename(`QR-${eq.codigoPatrimonio || eq.id}`, 'pdf');
   doc.save(filename);
 }
+
+// =====================================================================
+// Lote: várias etiquetas no mesmo PDF (4 por página A4 retrato).
+// Só a etiqueta — sem cabeçalho grande nem instruções.
+// =====================================================================
+
+/** Desenha 1 etiqueta numa posição arbitrária da página. */
+async function desenharEtiqueta(
+  doc: jsPDF,
+  eq: Equipamento,
+  x: number,
+  y: number,
+  w: number,
+  h: number
+): Promise<void> {
+  const url = buildScanUrl(eq.id);
+  const qrDataUrl = await qrAsDataUrl(url);
+
+  // Borda recortável tracejada
+  doc.setDrawColor(...PDF_RGB.cinzaMedio);
+  doc.setLineDashPattern([2, 2], 0);
+  doc.setLineWidth(0.3);
+  doc.roundedRect(x, y, w, h, 2, 2, 'S');
+  doc.setLineDashPattern([], 0);
+
+  // QR à esquerda — ocupa altura quase total - margens
+  const qrPad = 5;
+  const qrSize = Math.min(h - qrPad * 2, w * 0.42);
+  const qrX = x + qrPad;
+  const qrY = y + (h - qrSize) / 2;
+  doc.addImage(qrDataUrl, 'PNG', qrX, qrY, qrSize, qrSize);
+
+  // Identificação à direita
+  const textX = qrX + qrSize + 5;
+  let textY = y + 11;
+  const textW = w - (textX - x) - 4;
+
+  // Badge EMT
+  doc.setFillColor(...PDF_RGB.verde);
+  doc.roundedRect(textX, textY - 5, 13, 6, 1, 1, 'F');
+  doc.setTextColor(...PDF_RGB.branco);
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(6.5);
+  doc.text('EMT', textX + 6.5, textY - 1, { align: 'center' });
+
+  // Código patrimônio
+  textY += 8;
+  doc.setTextColor(...PDF_RGB.cinzaEscuro);
+  doc.setFont('courier', 'bold');
+  doc.setFontSize(18);
+  doc.text(eq.codigoPatrimonio || eq.id.slice(0, 12), textX, textY);
+
+  // Nome (até 2 linhas)
+  textY += 6;
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(9);
+  const nomeLines = doc.splitTextToSize(eq.nome, textW);
+  doc.text(nomeLines.slice(0, 2), textX, textY);
+  textY += Math.min(nomeLines.length, 2) * 4 + 1;
+
+  // Tipo
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(7.5);
+  doc.setTextColor(...PDF_RGB.cinzaMedio);
+  if (eq.tipo) doc.text(eq.tipo, textX, textY);
+
+  // Marca · Modelo
+  textY += 4;
+  const detalhes = [eq.marca, eq.modelo].filter(Boolean).join(' · ');
+  if (detalhes) doc.text(detalhes, textX, textY);
+
+  // Chamada verde
+  textY += 7;
+  const chamadaH = 11;
+  doc.setFillColor(...PDF_RGB.verdeClaro);
+  doc.roundedRect(textX, textY - 3, textW, chamadaH, 1, 1, 'F');
+  doc.setTextColor(...PDF_RGB.verdeEscuro);
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(6.5);
+  doc.text('ESCANEIE COM A CÂMERA', textX + 2, textY + 0.5);
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(6);
+  doc.text('Checklist · Saída combustível · Abrir OS', textX + 2, textY + 5);
+}
+
+/** Gera 1 PDF com TODAS as etiquetas (4 por página A4 retrato). */
+export async function exportarEtiquetasEmLotePdf(equipamentos: Equipamento[]): Promise<void> {
+  if (equipamentos.length === 0) return;
+
+  const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+  const pageW = doc.internal.pageSize.getWidth();
+  const pageH = doc.internal.pageSize.getHeight();
+
+  // Layout: 2 colunas × 2 linhas = 4 etiquetas por página A4 retrato
+  // Cada etiqueta = ~90×65 mm com 5mm de gap
+  const cols = 2;
+  const rows = 2;
+  const perPage = cols * rows;
+  const margem = 8;
+  const gap = 4;
+  const cellW = (pageW - margem * 2 - gap * (cols - 1)) / cols;
+  const cellH = (pageH - margem * 2 - gap * (rows - 1)) / rows;
+
+  // Header pequeno só na 1a página
+  doc.setFillColor(...PDF_RGB.verde);
+  doc.rect(0, 0, pageW, 5, 'F');
+
+  for (let i = 0; i < equipamentos.length; i++) {
+    const eq = equipamentos[i];
+    const posOnPage = i % perPage;
+
+    if (i > 0 && posOnPage === 0) {
+      doc.addPage();
+      doc.setFillColor(...PDF_RGB.verde);
+      doc.rect(0, 0, pageW, 5, 'F');
+    }
+
+    const col = posOnPage % cols;
+    const row = Math.floor(posOnPage / cols);
+    const x = margem + col * (cellW + gap);
+    const y = margem + row * (cellH + gap);
+
+    await desenharEtiqueta(doc, eq, x, y, cellW, cellH);
+  }
+
+  // Rodapé na última página
+  const totalPages = doc.getNumberOfPages();
+  for (let p = 1; p <= totalPages; p++) {
+    doc.setPage(p);
+    doc.setTextColor(...PDF_RGB.cinzaMedio);
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(6.5);
+    doc.text(
+      `EMT Construtora · ${equipamentos.length} etiqueta${equipamentos.length > 1 ? 's' : ''} · ${new Date().toLocaleDateString('pt-BR')}`,
+      pageW / 2,
+      pageH - 3,
+      { align: 'center' }
+    );
+    doc.text(`${p} / ${totalPages}`, pageW - 6, pageH - 3, { align: 'right' });
+  }
+
+  const filename = makeFilename(`QR-frota-${equipamentos.length}-equipamentos`, 'pdf');
+  doc.save(filename);
+}

@@ -16,7 +16,8 @@ import FrotaList from '../components/frota/FrotaList';
 import FrotaDetalhe from '../components/frota/FrotaDetalhe';
 import EquipamentoFormFrota from '../components/frota/EquipamentoFormFrota';
 import { exportarFrotaPDF, exportarFrotaExcel } from '../utils/frotaExport';
-import { Plus, Search, X, LayoutGrid, List as ListIcon, FileText, Sheet, SlidersHorizontal } from 'lucide-react';
+import { exportarEtiquetasEmLotePdf } from '../utils/equipamentoQrExport';
+import { Plus, Search, X, LayoutGrid, List as ListIcon, FileText, Sheet, SlidersHorizontal, QrCode } from 'lucide-react';
 
 type ModoVisualizacao = 'grid' | 'lista';
 type FiltroStatus = 'todos' | StatusEquipamento;
@@ -214,6 +215,16 @@ export default function Frota() {
             <Button variant="secondary" size="sm" onClick={() => exportarComFiltros(exportarFrotaExcel)}>
               <Sheet aria-hidden className="w-4 h-4" />
               Excel
+            </Button>
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() => exportarEtiquetasEmLotePdf(equipamentosFiltrados)}
+              disabled={equipamentosFiltrados.length === 0}
+              title={`Imprimir QRs · ${equipamentosFiltrados.length} equipamento(s)`}
+            >
+              <QrCode aria-hidden className="w-4 h-4" />
+              Etiquetas QR
             </Button>
           </div>
         </div>

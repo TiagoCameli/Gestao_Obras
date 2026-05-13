@@ -10,7 +10,9 @@
 import type { StatusExecucaoChecklist, RespostaChecklist } from '../types';
 
 const DB_NAME = 'emt-obras-offline';
-const DB_VERSION = 1;
+// v2: alinhado com offlineQueue.ts (PR27 acrescentou 'medicoes' e 'os_novas').
+// Esse arquivo continua só mexendo no store 'checklists'.
+const DB_VERSION = 2;
 const STORE = 'checklists';
 
 export interface RespostaQueue {
