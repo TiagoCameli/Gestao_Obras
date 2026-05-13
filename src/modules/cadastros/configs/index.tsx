@@ -90,24 +90,9 @@ export const EXTERNAL_ENTITIES: ExternalEntity[] = [
     href: '/cadastros/usuarios',
     permission: 'ver_funcionarios',
   },
-  {
-    slug: 'unificacao',
-    singular: 'Unificação',
-    plural: 'Unificar Colaborador × Apontamento RH',
-    description: 'Vincula colaboradores e funcionários do Apontamento RH que são a mesma pessoa (Fase 1 — não destrutivo).',
-    category: 'pessoas',
-    accent: 'amber',
-    icon: (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M8 7h12" />
-        <path d="M8 17h12" />
-        <path d="m4 5 3 2-3 2" />
-        <path d="m4 15 3 2-3 2" />
-      </svg>
-    ),
-    href: '/cadastros/unificacao',
-    permission: 'ver_cadastros',
-  },
+  // Card de "Unificar Colaborador × Apontamento RH" removido do Hub depois
+  // que a unificação inicial foi concluída (PR28). A tela continua acessível
+  // em /cadastros/unificacao para revisões pontuais.
 ];
 
 export type { EntityConfig };
