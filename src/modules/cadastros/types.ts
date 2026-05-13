@@ -34,6 +34,12 @@ export interface FieldConfig<T> {
   useOptions?: () => FieldOption[];
   /** For text-like: format the input as the user types (e.g. CPF mask). */
   format?: (raw: string) => string;
+  /**
+   * Optional autocomplete suggestions for text-like fields. Renders a native
+   * <datalist> so the user can pick a value or type freely. Keeps backward-
+   * compatible behaviour with existing free-text values.
+   */
+  suggestions?: string[];
   /** Optional extra: when true, render after a horizontal divider (group separator above). */
   groupStart?: string;
 }
@@ -76,6 +82,22 @@ export interface ExcelSpec<T> {
 
 export type EntityCategory = 'obra' | 'pessoas' | 'materiais' | 'frota';
 
+/** Dropdown filter shown above the list table. */
+export interface FilterConfig<T> {
+  /** Unique id; also used as the storage key for the active value. */
+  key: string;
+  /** Label shown above the dropdown. */
+  label: string;
+  /** Static option list. Use `useOptions` for dynamic lists from hooks. */
+  staticOptions?: FieldOption[];
+  /** Hook that returns the option list (called inside the page). */
+  useOptions?: () => FieldOption[];
+  /** Predicate: returns true when the row should remain visible for the given value. */
+  matches: (row: T, value: string) => boolean;
+  /** Placeholder when no value is selected (default: "Todos"). */
+  allLabel?: string;
+}
+
 export interface EntityConfig<T extends { id: string }> {
   /** URL slug under /cadastros/<slug> */
   slug: string;
@@ -93,6 +115,9 @@ export interface EntityConfig<T extends { id: string }> {
   searchKey: keyof T & string;
   /** Optional secondary search field. */
   searchKey2?: keyof T & string;
+
+  /** Optional dropdown filters above the table (e.g. Empresa, Status). */
+  filters?: FilterConfig<T>[];
 
   columns: ColumnConfig<T>[];
   fields: FieldConfig<T>[];

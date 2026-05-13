@@ -120,25 +120,39 @@ export default function FieldRenderer<T>({
         : String(value)
       : (value as string) ?? '';
 
+  const datalistId = field.suggestions && field.suggestions.length > 0
+    ? `${id}-suggestions`
+    : undefined;
+
   return (
-    <Input
-      id={id}
-      label={field.label}
-      type={inputType}
-      inputMode={inputMode}
-      step={step}
-      required={field.required}
-      placeholder={field.placeholder}
-      value={stringValue}
-      onChange={(e) => {
-        const raw = e.target.value;
-        if (field.type === 'number' || field.type === 'currency') {
-          onChange(raw === '' ? '' : Number(raw));
-        } else {
-          onChange(formatter ? formatter(raw) : raw);
-        }
-      }}
-      error={error}
-    />
+    <>
+      <Input
+        id={id}
+        label={field.label}
+        type={inputType}
+        inputMode={inputMode}
+        step={step}
+        required={field.required}
+        placeholder={field.placeholder}
+        value={stringValue}
+        onChange={(e) => {
+          const raw = e.target.value;
+          if (field.type === 'number' || field.type === 'currency') {
+            onChange(raw === '' ? '' : Number(raw));
+          } else {
+            onChange(formatter ? formatter(raw) : raw);
+          }
+        }}
+        error={error}
+        list={datalistId}
+      />
+      {datalistId && (
+        <datalist id={datalistId}>
+          {field.suggestions!.map((opt) => (
+            <option key={opt} value={opt} />
+          ))}
+        </datalist>
+      )}
+    </>
   );
 }

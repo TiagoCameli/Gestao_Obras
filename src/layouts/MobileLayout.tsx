@@ -7,12 +7,12 @@ import { Outlet, Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { LogOut, HardHat, WifiOff, RefreshCw, AlertCircle } from 'lucide-react';
 import Button from '../components/ui/Button';
-import { useChecklistSync } from '../hooks/useChecklistSync';
+import { useOfflineSync } from '../hooks/useOfflineSync';
 
 export default function MobileLayout() {
   const { usuario, logout } = useAuth();
   const { pathname } = useLocation();
-  const { count: pendentes, online, status, sync } = useChecklistSync();
+  const { totalPendentes: pendentes, online, status, sync } = useOfflineSync();
 
   return (
     <div className="min-h-screen flex flex-col bg-[var(--color-bg)]">

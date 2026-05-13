@@ -1,17 +1,23 @@
-// Marco 5 / PR25a — Lista de equipamentos para checklist pré-uso.
+// Marco 5 / PR25a + PR27 — Lista de equipamentos com 3 atalhos por card.
 //
-// Toca em um equipamento → abre /m/checklist/:equipamentoId.
-// Mostra apenas equipamentos ativos. Busca por código/nome/tipo.
+// Toca em um equipamento → card expande mostrando 3 ações:
+//   1. Checklist pré-uso
+//   2. Apontar medição
+//   3. Abrir OS
 
 import { useState, useMemo } from 'react';
 import { Link } from 'react-router-dom';
-import { Search, ClipboardCheck, ChevronRight, Wrench } from 'lucide-react';
+import {
+  Search, ClipboardCheck, ChevronRight, Wrench, Gauge, FilePlus,
+  ClipboardList,
+} from 'lucide-react';
 import { useEquipamentos } from '../../hooks/useEquipamentos';
 import { getCategoriaFrota } from '../../lib/frotaConstants';
 
 export default function MEquipamentosPage() {
   const { data: equipamentos = [], isLoading } = useEquipamentos();
   const [busca, setBusca] = useState('');
+  const [expandido, setExpandido] = useState<string | null>(null);
 
   const ativos = useMemo(() => {
     return equipamentos
@@ -26,11 +32,7 @@ export default function MEquipamentosPage() {
           (e.modelo ?? '').toLowerCase().includes(q)
         );
       })
-      .sort((a, b) => {
-        const ap = a.codigoPatrimonio ?? '';
-        const bp = b.codigoPatrimonio ?? '';
-        return ap.localeCompare(bp);
-      });
+      .sort((a, b) => (a.codigoPatrimonio ?? '').localeCompare(b.codigoPatrimonio ?? ''));
   }, [equipamentos, busca]);
 
   return (
@@ -38,11 +40,10 @@ export default function MEquipamentosPage() {
       <div>
         <h1 className="text-xl font-semibold text-[var(--color-fg)]">Pré-uso</h1>
         <p className="text-xs text-[var(--color-fg-muted)] mt-0.5">
-          Toque no equipamento que você vai operar para iniciar o checklist diário.
+          Toque no equipamento para fazer o checklist diário, apontar horímetro/km ou abrir OS.
         </p>
       </div>
 
-      {/* Busca */}
       <div className="relative">
         <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-[var(--color-fg-subtle)]" />
         <input
@@ -55,32 +56,29 @@ export default function MEquipamentosPage() {
         />
       </div>
 
-      {/* Lista */}
       {isLoading ? (
         <p className="text-sm text-[var(--color-fg-muted)] py-8 text-center">Carregando equipamentos…</p>
       ) : ativos.length === 0 ? (
         <div className="rounded-xl border border-dashed border-[var(--color-border)] bg-[var(--color-surface-1)] p-8 text-center">
           <Wrench aria-hidden className="w-8 h-8 text-[var(--color-fg-subtle)] mx-auto mb-2" />
           <p className="text-sm font-medium text-[var(--color-fg)]">Nenhum equipamento</p>
-          <p className="text-xs text-[var(--color-fg-muted)] mt-1">
-            {busca ? 'Ajuste sua busca.' : 'Não há equipamentos ativos no momento.'}
-          </p>
         </div>
       ) : (
         <div className="space-y-2">
           {ativos.map((eq) => {
             const cat = getCategoriaFrota(eq.tipo);
+            const aberto = expandido === eq.id;
             return (
-              <Link
+              <div
                 key={eq.id}
-                to={`/m/checklist/${eq.id}`}
-                className="block rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-1)] p-3 active:bg-[var(--color-surface-2)] transition-colors"
+                className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-1)] overflow-hidden"
               >
-                <div className="flex items-center gap-3">
-                  <span
-                    aria-hidden
-                    className={`shrink-0 inline-flex items-center justify-center w-12 h-12 rounded-xl ${cat.corBg}`}
-                  >
+                <button
+                  type="button"
+                  onClick={() => setExpandido(aberto ? null : eq.id)}
+                  className="w-full p-3 flex items-center gap-3 text-left active:bg-[var(--color-surface-2)]"
+                >
+                  <span aria-hidden className={`shrink-0 inline-flex items-center justify-center w-12 h-12 rounded-xl ${cat.corBg}`}>
                     <span className={`text-xs font-bold ${cat.corTexto}`}>{cat.codigo}</span>
                   </span>
                   <div className="min-w-0 flex-1">
@@ -96,15 +94,45 @@ export default function MEquipamentosPage() {
                       {eq.tipo}{eq.modelo && ` · ${eq.modelo}`}
                     </div>
                   </div>
-                  <ChevronRight className="w-5 h-5 text-[var(--color-fg-subtle)] shrink-0" />
-                </div>
-              </Link>
+                  <ChevronRight
+                    className={
+                      'w-5 h-5 text-[var(--color-fg-subtle)] shrink-0 transition-transform ' +
+                      (aberto ? 'rotate-90' : '')
+                    }
+                  />
+                </button>
+
+                {aberto && (
+                  <div className="border-t border-[var(--color-border)] grid grid-cols-3 divide-x divide-[var(--color-border)]">
+                    <Link
+                      to={`/m/checklist/${eq.id}`}
+                      className="flex flex-col items-center justify-center gap-1 py-3 text-xs font-medium text-[var(--color-fg)] active:bg-[var(--color-surface-2)]"
+                    >
+                      <ClipboardList className="w-5 h-5 text-[var(--color-accent)]" />
+                      Checklist
+                    </Link>
+                    <Link
+                      to={`/m/medicao/${eq.id}`}
+                      className="flex flex-col items-center justify-center gap-1 py-3 text-xs font-medium text-[var(--color-fg)] active:bg-[var(--color-surface-2)]"
+                    >
+                      <Gauge className="w-5 h-5 text-[var(--color-info-fg)]" />
+                      Medição
+                    </Link>
+                    <Link
+                      to={`/m/abrir-os/${eq.id}`}
+                      className="flex flex-col items-center justify-center gap-1 py-3 text-xs font-medium text-[var(--color-fg)] active:bg-[var(--color-surface-2)]"
+                    >
+                      <FilePlus className="w-5 h-5 text-[var(--color-warning-fg)]" />
+                      Abrir OS
+                    </Link>
+                  </div>
+                )}
+              </div>
             );
           })}
         </div>
       )}
 
-      {/* Hint inferior */}
       <div className="mt-6 rounded-xl bg-[var(--color-info-soft)] text-[var(--color-info-fg)] p-3 text-xs">
         <p className="flex items-start gap-2">
           <ClipboardCheck className="w-4 h-4 mt-0.5 shrink-0" />

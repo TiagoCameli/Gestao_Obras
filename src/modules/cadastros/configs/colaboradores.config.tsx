@@ -19,6 +19,29 @@ export const colaboradoresConfig: EntityConfig<Colaborador> = {
   accent: 'purple',
   searchKey: 'nome',
   searchKey2: 'cpf',
+
+  filters: [
+    {
+      key: 'empresa',
+      label: 'Empresa',
+      allLabel: 'Todas as empresas',
+      useOptions: () => {
+        const { data = [] } = useEmpresas();
+        return data.map<FieldOption>((e: Empresa) => ({ value: e.id, label: e.nome }));
+      },
+      matches: (row, value) => row.empresaId === value,
+    },
+    {
+      key: 'status',
+      label: 'Status',
+      allLabel: 'Todos os status',
+      staticOptions: [
+        { value: 'ativo', label: 'Ativo' },
+        { value: 'inativo', label: 'Inativo' },
+      ],
+      matches: (row, value) => (value === 'ativo' ? row.ativo : !row.ativo),
+    },
+  ],
   icon: (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
       <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />

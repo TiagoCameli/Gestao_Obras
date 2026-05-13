@@ -1,4 +1,5 @@
 import { useState, useCallback } from 'react';
+import { Link } from 'react-router-dom';
 import type { Funcionario } from '../types';
 import { useFuncionarios, useAdicionarFuncionario, useAtualizarFuncionario, useExcluirFuncionario, useSalvarPerfilPermissao } from '../hooks/useFuncionarios';
 import { perfilPadraoPorCargo } from '../utils/permissions';
@@ -82,6 +83,14 @@ export default function Funcionarios() {
 
   return (
     <div>
+      {/* Breadcrumb */}
+      <nav className="flex items-center gap-1.5 text-xs text-[var(--color-fg-muted)] mb-3">
+        <Link to="/cadastros" className="hover:text-[var(--color-fg)] transition-colors">
+          Cadastros
+        </Link>
+        <span>/</span>
+        <span className="text-[var(--color-fg)]">Usuários</span>
+      </nav>
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
         <h1 className="text-2xl sm:text-[28px] font-semibold tracking-tight text-[var(--color-fg)]">Usuários</h1>
         {canCreate && (

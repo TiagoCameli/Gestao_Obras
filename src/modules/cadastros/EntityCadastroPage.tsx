@@ -7,6 +7,7 @@ import ImportExcelModal from '../../components/ui/ImportExcelModal';
 import { useAuth } from '../../contexts/AuthContext';
 import FieldRenderer from './FieldRenderer';
 import { gerarId } from './utils';
+import { validarCPF, validarCNPJ } from '../../utils/validators';
 import type { EntityConfig, FieldConfig } from './types';
 
 interface Props<T extends { id: string }> {
@@ -47,17 +48,32 @@ export default function EntityCadastroPage<T extends { id: string }>({
   // Search
   const [search, setSearch] = useState('');
 
+  // Dropdown filters (declared by the entity config). Holds the active value per filter key.
+  const filterDefs = config.filters ?? [];
+  const [filterValues, setFilterValues] = useState<Record<string, string>>({});
+  // Resolve option lists from hooks declared by each filter (stable order).
+  const filterOptions: ReturnType<NonNullable<typeof filterDefs[number]['useOptions']>>[] = filterDefs.map(
+    (f) => (f.useOptions ? f.useOptions() : (f.staticOptions ?? []))
+  );
+
   const filteredItems = useMemo(() => {
-    if (!search) return items;
-    const q = search.toLowerCase();
-    return items.filter((item) => {
-      const a = String((item as Record<string, unknown>)[config.searchKey] ?? '').toLowerCase();
-      const b = config.searchKey2
-        ? String((item as Record<string, unknown>)[config.searchKey2] ?? '').toLowerCase()
-        : '';
-      return a.includes(q) || b.includes(q);
-    });
-  }, [items, search, config.searchKey, config.searchKey2]);
+    let list = items;
+    if (search) {
+      const q = search.toLowerCase();
+      list = list.filter((item) => {
+        const a = String((item as Record<string, unknown>)[config.searchKey] ?? '').toLowerCase();
+        const b = config.searchKey2
+          ? String((item as Record<string, unknown>)[config.searchKey2] ?? '').toLowerCase()
+          : '';
+        return a.includes(q) || b.includes(q);
+      });
+    }
+    for (const f of filterDefs) {
+      const v = filterValues[f.key];
+      if (v) list = list.filter((row) => f.matches(row, v));
+    }
+    return list;
+  }, [items, search, config.searchKey, config.searchKey2, filterDefs, filterValues]);
 
   const openCreate = useCallback(() => {
     setEditing(null);
@@ -86,14 +102,25 @@ export default function EntityCadastroPage<T extends { id: string }>({
   const validate = useCallback((): boolean => {
     const errs: Record<string, string> = {};
     for (const f of config.fields) {
+      const v = (formData as Record<string, unknown>)[f.key];
+      const stringValue = typeof v === 'string' ? v : '';
       if (f.required) {
-        const v = (formData as Record<string, unknown>)[f.key];
         const isEmpty =
           v === undefined ||
           v === null ||
           v === '' ||
           (f.type === 'number' && Number.isNaN(v as number));
-        if (isEmpty) errs[f.key] = 'Obrigatório';
+        if (isEmpty) {
+          errs[f.key] = 'Obrigatório';
+          continue;
+        }
+      }
+      // Validação de dígito verificador (somente quando o campo foi preenchido).
+      if (f.type === 'cpf' && stringValue && !validarCPF(stringValue)) {
+        errs[f.key] = 'CPF inválido';
+      }
+      if (f.type === 'cnpj' && stringValue && !validarCNPJ(stringValue)) {
+        errs[f.key] = 'CNPJ inválido';
       }
     }
     setErrors(errs);
@@ -214,18 +241,36 @@ export default function EntityCadastroPage<T extends { id: string }>({
         </div>
       </div>
 
-      {/* Search bar */}
-      <div className="relative mb-4">
-        <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--color-fg-subtle)]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          <circle cx="11" cy="11" r="8" />
-          <path d="m21 21-4.3-4.3" />
-        </svg>
-        <input
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          placeholder={`Buscar ${config.plural.toLowerCase()}...`}
-          className="w-full h-11 rounded-lg pl-9 pr-3 text-sm bg-[var(--color-surface-1)] border border-[var(--color-border)] focus:outline-none focus:border-[var(--color-accent)] focus:ring-2 focus:ring-[var(--color-ring)]"
-        />
+      {/* Search bar + dropdown filters */}
+      <div className="flex flex-col sm:flex-row gap-3 mb-4">
+        <div className="relative flex-1">
+          <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--color-fg-subtle)]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="11" cy="11" r="8" />
+            <path d="m21 21-4.3-4.3" />
+          </svg>
+          <input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder={`Buscar ${config.plural.toLowerCase()}...`}
+            className="w-full h-11 rounded-lg pl-9 pr-3 text-sm bg-[var(--color-surface-1)] border border-[var(--color-border)] focus:outline-none focus:border-[var(--color-accent)] focus:ring-2 focus:ring-[var(--color-ring)]"
+          />
+        </div>
+        {filterDefs.map((f, idx) => (
+          <select
+            key={f.key}
+            value={filterValues[f.key] ?? ''}
+            onChange={(e) => setFilterValues((prev) => ({ ...prev, [f.key]: e.target.value }))}
+            className="h-11 rounded-lg px-3 text-sm bg-[var(--color-surface-1)] border border-[var(--color-border)] focus:outline-none focus:border-[var(--color-accent)] focus:ring-2 focus:ring-[var(--color-ring)] min-w-[160px]"
+            aria-label={f.label}
+          >
+            <option value="">{f.allLabel ?? `Todos: ${f.label}`}</option>
+            {filterOptions[idx].map((opt) => (
+              <option key={opt.value} value={opt.value}>
+                {opt.label}
+              </option>
+            ))}
+          </select>
+        ))}
       </div>
 
       {/* Table */}

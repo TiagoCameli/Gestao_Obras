@@ -25,6 +25,8 @@ import ApontamentoPage from './modules/apontamento/ApontamentoPage';
 import MobileLayout from './layouts/MobileLayout';
 import MEquipamentosPage from './pages/mobile/MEquipamentosPage';
 import MChecklistPage from './pages/mobile/MChecklistPage';
+import MMedicaoPage from './pages/mobile/MMedicaoPage';
+import MAbrirOSPage from './pages/mobile/MAbrirOSPage';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -124,6 +126,8 @@ export default function App() {
             >
               <Route path="/m" element={<MEquipamentosPage />} />
               <Route path="/m/checklist/:equipamentoId" element={<MChecklistPage />} />
+              <Route path="/m/medicao/:equipamentoId" element={<MMedicaoPage />} />
+              <Route path="/m/abrir-os/:equipamentoId" element={<MAbrirOSPage />} />
             </Route>
           </Routes>
           </ToastProvider>
