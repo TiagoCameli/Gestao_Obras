@@ -1,7 +1,7 @@
 import { useCallback, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import Button from "../../components/ui/Button";
-import Modal from "../../components/ui/Modal";
+import Drawer from "../../components/ui/Drawer";
 import ConfirmDialog from "../../components/ui/ConfirmDialog";
 import FuncionarioForm from "./components/FuncionarioForm";
 import FuncionarioList from "./components/FuncionarioList";
@@ -128,11 +128,12 @@ export default function ApontamentoPage() {
 
       {tab === "historico" && <HistoricoTab />}
 
-      <Modal
+      <Drawer
         open={modal.open}
         onClose={() => setModal({ open: false, edit: null })}
         title={modal.edit ? "Editar funcionário" : "Novo funcionário"}
-        size="lg"
+        subtitle={modal.edit ? modal.edit.nome : undefined}
+        width="xl"
       >
         <FuncionarioForm
           initial={modal.edit}
@@ -140,7 +141,7 @@ export default function ApontamentoPage() {
           onSaved={() => setModal({ open: false, edit: null })}
           onCancel={() => setModal({ open: false, edit: null })}
         />
-      </Modal>
+      </Drawer>
 
       <ConfirmDialog
         open={deleteId !== null}

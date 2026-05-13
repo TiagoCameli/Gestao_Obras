@@ -62,7 +62,8 @@ function rowToFuncionario(r: FuncionarioRow): Funcionario {
     status: r.status as Funcionario["status"],
     contatoEmergencia: r.contato_emergencia,
     permiteHorasExtras: r.permite_horas_extras,
-    documentos: r.documentos ?? [],
+    // PR28h — proteção defensiva: jsonb pode chegar como objeto {}; garantir array.
+    documentos: Array.isArray(r.documentos) ? r.documentos : [],
     createdAt: r.created_at,
     updatedAt: r.updated_at,
   };
