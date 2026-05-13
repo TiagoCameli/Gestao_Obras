@@ -1,23 +1,15 @@
-// Marco 5 / PR25a + PR27 — Lista de equipamentos com 3 atalhos por card.
-//
-// Toca em um equipamento → card expande mostrando 3 ações:
-//   1. Checklist pré-uso
-//   2. Apontar medição
-//   3. Abrir OS
+// Marco 5/7 — Lista de equipamentos. PR32 mudou pra navegar direto pro
+// hub /m/eq/:id quando toca, em vez de expandir o card.
 
 import { useState, useMemo } from 'react';
 import { Link } from 'react-router-dom';
-import {
-  Search, ClipboardCheck, ChevronRight, Wrench, Gauge, FilePlus,
-  ClipboardList,
-} from 'lucide-react';
+import { Search, ClipboardCheck, ChevronRight, Wrench } from 'lucide-react';
 import { useEquipamentos } from '../../hooks/useEquipamentos';
 import { getCategoriaFrota } from '../../lib/frotaConstants';
 
 export default function MEquipamentosPage() {
   const { data: equipamentos = [], isLoading } = useEquipamentos();
   const [busca, setBusca] = useState('');
-  const [expandido, setExpandido] = useState<string | null>(null);
 
   const ativos = useMemo(() => {
     return equipamentos
@@ -67,17 +59,13 @@ export default function MEquipamentosPage() {
         <div className="space-y-2">
           {ativos.map((eq) => {
             const cat = getCategoriaFrota(eq.tipo);
-            const aberto = expandido === eq.id;
             return (
-              <div
+              <Link
                 key={eq.id}
-                className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-1)] overflow-hidden"
+                to={`/m/eq/${eq.id}`}
+                className="block p-3 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-1)] active:bg-[var(--color-surface-2)]"
               >
-                <button
-                  type="button"
-                  onClick={() => setExpandido(aberto ? null : eq.id)}
-                  className="w-full p-3 flex items-center gap-3 text-left active:bg-[var(--color-surface-2)]"
-                >
+                <div className="flex items-center gap-3">
                   <span aria-hidden className={`shrink-0 inline-flex items-center justify-center w-12 h-12 rounded-xl ${cat.corBg}`}>
                     <span className={`text-xs font-bold ${cat.corTexto}`}>{cat.codigo}</span>
                   </span>
@@ -94,40 +82,9 @@ export default function MEquipamentosPage() {
                       {eq.tipo}{eq.modelo && ` · ${eq.modelo}`}
                     </div>
                   </div>
-                  <ChevronRight
-                    className={
-                      'w-5 h-5 text-[var(--color-fg-subtle)] shrink-0 transition-transform ' +
-                      (aberto ? 'rotate-90' : '')
-                    }
-                  />
-                </button>
-
-                {aberto && (
-                  <div className="border-t border-[var(--color-border)] grid grid-cols-3 divide-x divide-[var(--color-border)]">
-                    <Link
-                      to={`/m/checklist/${eq.id}`}
-                      className="flex flex-col items-center justify-center gap-1 py-3 text-xs font-medium text-[var(--color-fg)] active:bg-[var(--color-surface-2)]"
-                    >
-                      <ClipboardList className="w-5 h-5 text-[var(--color-accent)]" />
-                      Checklist
-                    </Link>
-                    <Link
-                      to={`/m/medicao/${eq.id}`}
-                      className="flex flex-col items-center justify-center gap-1 py-3 text-xs font-medium text-[var(--color-fg)] active:bg-[var(--color-surface-2)]"
-                    >
-                      <Gauge className="w-5 h-5 text-[var(--color-info-fg)]" />
-                      Medição
-                    </Link>
-                    <Link
-                      to={`/m/abrir-os/${eq.id}`}
-                      className="flex flex-col items-center justify-center gap-1 py-3 text-xs font-medium text-[var(--color-fg)] active:bg-[var(--color-surface-2)]"
-                    >
-                      <FilePlus className="w-5 h-5 text-[var(--color-warning-fg)]" />
-                      Abrir OS
-                    </Link>
-                  </div>
-                )}
-              </div>
+                  <ChevronRight className="w-5 h-5 text-[var(--color-fg-subtle)] shrink-0" />
+                </div>
+              </Link>
             );
           })}
         </div>

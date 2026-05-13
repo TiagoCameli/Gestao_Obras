@@ -1180,6 +1180,7 @@ export type TipoDocumentoEquipamento =
   | 'nr11'
   | 'nr12'
   | 'manual'
+  | 'catalogo_pecas'
   | 'nf_aquisicao'
   | 'contrato_locacao'
   | 'certificacao'
@@ -1196,6 +1197,7 @@ export const TIPO_DOCUMENTO_LABEL: Record<TipoDocumentoEquipamento, string> = {
   nr11: 'NR-11',
   nr12: 'NR-12',
   manual: 'Manual',
+  catalogo_pecas: 'Catálogo de peças',
   nf_aquisicao: 'NF de Aquisição',
   contrato_locacao: 'Contrato de Locação',
   certificacao: 'Certificação',
