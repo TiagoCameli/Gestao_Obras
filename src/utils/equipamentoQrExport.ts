@@ -168,7 +168,9 @@ export async function exportarEtiquetaEquipamentoPdf(eq: Equipamento): Promise<v
 // Só a etiqueta — sem cabeçalho grande nem instruções.
 // =====================================================================
 
-/** Desenha 1 etiqueta numa posição arbitrária da página. */
+/** Desenha 1 etiqueta numa posição arbitrária da página.
+ *  Layout horizontal (largura ~2x a altura) igual ao QR individual:
+ *  QR à esquerda ocupando a altura quase total + identificação à direita. */
 async function desenharEtiqueta(
   doc: jsPDF,
   eq: Equipamento,
@@ -187,31 +189,31 @@ async function desenharEtiqueta(
   doc.roundedRect(x, y, w, h, 2, 2, 'S');
   doc.setLineDashPattern([], 0);
 
-  // QR à esquerda — ocupa altura quase total - margens
-  const qrPad = 5;
-  const qrSize = Math.min(h - qrPad * 2, w * 0.42);
-  const qrX = x + qrPad;
-  const qrY = y + (h - qrSize) / 2;
+  // QR à esquerda — ocupa toda a altura útil (menos margem)
+  const pad = 4;
+  const qrSize = h - pad * 2;
+  const qrX = x + pad;
+  const qrY = y + pad;
   doc.addImage(qrDataUrl, 'PNG', qrX, qrY, qrSize, qrSize);
 
   // Identificação à direita
   const textX = qrX + qrSize + 5;
-  let textY = y + 11;
-  const textW = w - (textX - x) - 4;
+  const textW = w - (textX - x) - pad;
+  let textY = y + pad + 5;
 
-  // Badge EMT
+  // Badge EMT verde
   doc.setFillColor(...PDF_RGB.verde);
-  doc.roundedRect(textX, textY - 5, 13, 6, 1, 1, 'F');
+  doc.roundedRect(textX, textY - 4, 14, 6, 1, 1, 'F');
   doc.setTextColor(...PDF_RGB.branco);
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(6.5);
-  doc.text('EMT', textX + 6.5, textY - 1, { align: 'center' });
+  doc.setFontSize(7);
+  doc.text('EMT', textX + 7, textY, { align: 'center' });
 
-  // Código patrimônio
+  // Código patrimônio em fonte mono grande
   textY += 8;
   doc.setTextColor(...PDF_RGB.cinzaEscuro);
   doc.setFont('courier', 'bold');
-  doc.setFontSize(18);
+  doc.setFontSize(20);
   doc.text(eq.codigoPatrimonio || eq.id.slice(0, 12), textX, textY);
 
   // Nome (até 2 linhas)
@@ -224,50 +226,55 @@ async function desenharEtiqueta(
 
   // Tipo
   doc.setFont('helvetica', 'normal');
-  doc.setFontSize(7.5);
+  doc.setFontSize(8);
   doc.setTextColor(...PDF_RGB.cinzaMedio);
-  if (eq.tipo) doc.text(eq.tipo, textX, textY);
+  if (eq.tipo) {
+    doc.text(eq.tipo, textX, textY);
+    textY += 4;
+  }
 
   // Marca · Modelo
-  textY += 4;
   const detalhes = [eq.marca, eq.modelo].filter(Boolean).join(' · ');
-  if (detalhes) doc.text(detalhes, textX, textY);
+  if (detalhes) {
+    doc.text(detalhes, textX, textY);
+    textY += 4;
+  }
 
-  // Chamada verde
-  textY += 7;
+  // Chamada verde (sempre no rodapé do bloco de texto)
   const chamadaH = 11;
+  const chamadaY = y + h - pad - chamadaH;
   doc.setFillColor(...PDF_RGB.verdeClaro);
-  doc.roundedRect(textX, textY - 3, textW, chamadaH, 1, 1, 'F');
+  doc.roundedRect(textX, chamadaY, textW, chamadaH, 1.2, 1.2, 'F');
   doc.setTextColor(...PDF_RGB.verdeEscuro);
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(6.5);
-  doc.text('ESCANEIE COM A CÂMERA', textX + 2, textY + 0.5);
+  doc.setFontSize(7);
+  doc.text('ESCANEIE COM A CÂMERA', textX + 2.5, chamadaY + 4);
   doc.setFont('helvetica', 'normal');
-  doc.setFontSize(6);
-  doc.text('Checklist · Saída combustível · Abrir OS', textX + 2, textY + 5);
+  doc.setFontSize(6.5);
+  doc.text('Checklist · Saída combustível · Abrir OS', textX + 2.5, chamadaY + 8.5);
 }
 
-/** Gera 1 PDF com TODAS as etiquetas (4 por página A4 retrato). */
+/** Gera 1 PDF com TODAS as etiquetas (6 por página A4 paisagem, 2×3). */
 export async function exportarEtiquetasEmLotePdf(equipamentos: Equipamento[]): Promise<void> {
   if (equipamentos.length === 0) return;
 
-  const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+  // A4 paisagem (297×210) com 2 colunas × 3 linhas = 6 etiquetas/página.
+  // Cada célula = ~143×64mm (ratio ~2.2:1, horizontal igual ao QR individual).
+  const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
   const pageW = doc.internal.pageSize.getWidth();
   const pageH = doc.internal.pageSize.getHeight();
 
-  // Layout: 2 colunas × 2 linhas = 4 etiquetas por página A4 retrato
-  // Cada etiqueta = ~90×65 mm com 5mm de gap
   const cols = 2;
-  const rows = 2;
+  const rows = 3;
   const perPage = cols * rows;
   const margem = 8;
   const gap = 4;
   const cellW = (pageW - margem * 2 - gap * (cols - 1)) / cols;
   const cellH = (pageH - margem * 2 - gap * (rows - 1)) / rows;
 
-  // Header pequeno só na 1a página
+  // Faixa verde fina no topo da página
   doc.setFillColor(...PDF_RGB.verde);
-  doc.rect(0, 0, pageW, 5, 'F');
+  doc.rect(0, 0, pageW, 4, 'F');
 
   for (let i = 0; i < equipamentos.length; i++) {
     const eq = equipamentos[i];
@@ -276,7 +283,7 @@ export async function exportarEtiquetasEmLotePdf(equipamentos: Equipamento[]): P
     if (i > 0 && posOnPage === 0) {
       doc.addPage();
       doc.setFillColor(...PDF_RGB.verde);
-      doc.rect(0, 0, pageW, 5, 'F');
+      doc.rect(0, 0, pageW, 4, 'F');
     }
 
     const col = posOnPage % cols;
@@ -287,7 +294,7 @@ export async function exportarEtiquetasEmLotePdf(equipamentos: Equipamento[]): P
     await desenharEtiqueta(doc, eq, x, y, cellW, cellH);
   }
 
-  // Rodapé na última página
+  // Rodapé em todas as páginas
   const totalPages = doc.getNumberOfPages();
   for (let p = 1; p <= totalPages; p++) {
     doc.setPage(p);
