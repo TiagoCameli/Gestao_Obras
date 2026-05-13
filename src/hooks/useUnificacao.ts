@@ -73,6 +73,96 @@ export function useVincularColaboradorFuncionario() {
   });
 }
 
+/* ---------- Fase 2 — Backfill Colaborador → apont_funcionario ---------- */
+
+export interface BackfillPreviewLinha {
+  campo: string;
+  valorApont: string;
+  valorColab: string;
+  vaiPreencher: boolean;
+}
+
+/**
+ * Preview do que o backfill copiaria para um colaborador vinculado.
+ * Não modifica nada.
+ */
+export function usePreviewBackfill(colaboradorId: string | null) {
+  return useQuery({
+    queryKey: ['unificacao', 'backfill-preview', colaboradorId],
+    enabled: Boolean(colaboradorId),
+    queryFn: async (): Promise<BackfillPreviewLinha[]> => {
+      const { data, error } = await supabase.rpc('colaborador_to_apont_backfill_preview', {
+        p_colaborador_id: colaboradorId!,
+      });
+      if (error) throw error;
+      return (data ?? []).map((row: Record<string, unknown>) => ({
+        campo: String(row.campo ?? ''),
+        valorApont: String(row.valor_apont ?? ''),
+        valorColab: String(row.valor_colab ?? ''),
+        vaiPreencher: Boolean(row.vai_preencher),
+      }));
+    },
+    staleTime: 5_000,
+  });
+}
+
+/**
+ * Aplica o backfill em LOTE para todos os colaboradores vinculados.
+ * Retorna o total de campos preenchidos somado entre os pares.
+ */
+export function useAplicarBackfillLote() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (colaboradorIds: string[]) => {
+      let totalCampos = 0;
+      const detalhes: string[] = [];
+      for (const id of colaboradorIds) {
+        const { data, error } = await supabase.rpc('colaborador_to_apont_backfill_apply', {
+          p_colaborador_id: id,
+        });
+        if (error) throw error;
+        const row = (data ?? [])[0] ?? {};
+        const campos = Number(row.campos_preenchidos ?? 0);
+        totalCampos += campos;
+        if (campos > 0) detalhes.push(`${campos}× em ${id.slice(0, 8)}`);
+      }
+      return { totalCampos, paresProcessados: colaboradorIds.length, detalhes };
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['unificacao'] });
+      qc.invalidateQueries({ queryKey: ['colaboradores'] });
+      qc.invalidateQueries({ queryKey: ['funcionarios'] });
+    },
+  });
+}
+
+/**
+ * Aplica o backfill — copia cpf/rg/telefone/data_nascimento do colaborador
+ * para o apont_funcionario vinculado. NUNCA sobrescreve valor preenchido.
+ */
+export function useAplicarBackfill() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (colaboradorId: string) => {
+      const { data, error } = await supabase.rpc('colaborador_to_apont_backfill_apply', {
+        p_colaborador_id: colaboradorId,
+      });
+      if (error) throw error;
+      // Função retorna 1 linha com (campos_preenchidos, detalhe)
+      const row = (data ?? [])[0] ?? {};
+      return {
+        camposPreenchidos: Number(row.campos_preenchidos ?? 0),
+        detalhe: String(row.detalhe ?? ''),
+      };
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['unificacao'] });
+      qc.invalidateQueries({ queryKey: ['colaboradores'] });
+      qc.invalidateQueries({ queryKey: ['funcionarios'] });
+    },
+  });
+}
+
 /**
  * Desfaz o vínculo (volta `apont_funcionario_id` para NULL).
  */
