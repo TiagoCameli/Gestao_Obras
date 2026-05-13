@@ -22,6 +22,9 @@ import AcessoNegado from './pages/AcessoNegado';
 import NotFound from './pages/NotFound';
 import RodoTrackerPage from './modules/rodotracker/RodoTrackerPage';
 import ApontamentoPage from './modules/apontamento/ApontamentoPage';
+import MobileLayout from './layouts/MobileLayout';
+import MEquipamentosPage from './pages/mobile/MEquipamentosPage';
+import MChecklistPage from './pages/mobile/MChecklistPage';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -107,6 +110,18 @@ export default function App() {
                   </ProtectedRoute>
                 }
               />
+            </Route>
+
+            {/* Rotas mobile (PR25a Marco 5) — layout dedicado sem header desktop */}
+            <Route
+              element={
+                <ProtectedRoute>
+                  <MobileLayout />
+                </ProtectedRoute>
+              }
+            >
+              <Route path="/m" element={<MEquipamentosPage />} />
+              <Route path="/m/checklist/:equipamentoId" element={<MChecklistPage />} />
             </Route>
           </Routes>
           </ToastProvider>

@@ -1245,3 +1245,71 @@ export interface MedicaoAtualEquipamento {
   origemUltimaLeitura: OrigemMedicao;
   origemIdUltimaLeitura: string | null;
 }
+
+// === Checklists pré-uso (Marco 5 / PR24) ===
+
+export type CategoriaPergunta = 'motor' | 'hidraulico' | 'freios' | 'pneus' | 'eletrica' | 'mecanica' | 'geral';
+export type RespostaChecklist = 'sim' | 'nao' | 'nao_aplica';
+export type StatusExecucaoChecklist = 'concluido' | 'concluido_com_pendencias' | 'bloqueado';
+
+export const CATEGORIA_PERGUNTA_LABEL: Record<CategoriaPergunta, string> = {
+  motor: 'Motor',
+  hidraulico: 'Hidráulico',
+  freios: 'Freios',
+  pneus: 'Pneus',
+  eletrica: 'Elétrica',
+  mecanica: 'Mecânica',
+  geral: 'Geral',
+};
+
+export interface ChecklistTemplate {
+  id: string;
+  nome: string;
+  tipoEquipamento: string;
+  versao: number;
+  ativo: boolean;
+  observacoes: string;
+  createdAt: string;
+  createdBy: string;
+  updatedAt: string;
+  updatedBy: string;
+}
+
+export interface ChecklistPergunta {
+  id: string;
+  templateId: string;
+  ordem: number;
+  categoria: CategoriaPergunta;
+  pergunta: string;
+  descricao: string;
+  obrigatoria: boolean;
+  critica: boolean;
+}
+
+export interface ChecklistExecucao {
+  id: string;
+  templateId: string;
+  templateVersao: number;
+  equipamentoId: string;
+  operadorFuncionarioId: string | null;
+  operadorNome: string;
+  medicaoAtual: number | null;
+  status: StatusExecucaoChecklist;
+  observacoesGerais: string;
+  osGeradaId: string | null;
+  iniciadoEm: string;
+  concluidoEm: string;
+  sincronizadoEm: string;
+  createdAt: string;
+  createdBy: string;
+}
+
+export interface ChecklistResposta {
+  id: string;
+  execucaoId: string;
+  perguntaId: string;
+  perguntaSnapshot: string;
+  resposta: RespostaChecklist;
+  observacao: string;
+  fotoUrl: string | null;
+}
