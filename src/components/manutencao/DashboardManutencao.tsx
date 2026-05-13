@@ -15,6 +15,7 @@ import { useEquipamentos } from '../../hooks/useEquipamentos';
 import { useDashboardManutencao } from '../../hooks/useDashboardManutencao';
 import { useProximasPreventivas } from '../../hooks/usePlanosPreventivos';
 import { useSaldoEstoqueTotal } from '../../hooks/useSaldoEstoque';
+import { useCustoPecasEquipamento } from '../../hooks/useCustoPecasEquipamento';
 import type { ProximaPreventiva } from '../../types';
 
 function statusPreventiva(pp: ProximaPreventiva): 'vencida' | 'proxima' | 'futura' {
@@ -47,6 +48,7 @@ export default function DashboardManutencao() {
   const { data: dash, isLoading } = useDashboardManutencao(equipamentos);
   const { data: proximas = [] } = useProximasPreventivas();
   const { data: saldosEstoque = [] } = useSaldoEstoqueTotal({ apenasManutencao: true });
+  const { data: topPorPecas = [] } = useCustoPecasEquipamento(10);
 
   const pecasMetricas = useMemo(() => {
     let zeradas = 0, abaixoMin = 0;
@@ -243,6 +245,29 @@ export default function DashboardManutencao() {
               valor={(it) => `${it.horasParado.toFixed(1)} h`}
               legenda={(it) => `${it.numOS} parada(s) · ${it.tipo}`}
               vazio="Nenhum equipamento com parada registrada."
+            />
+          </section>
+
+          {/* Top por gasto em peças (rolling 12m) */}
+          <section className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+            <TopList
+              titulo="Top 10 por gasto em peças · 12 meses"
+              icon={Package}
+              items={topPorPecas
+                .filter((p) => p.custoTotal12m > 0)
+                .map((p) => ({
+                  equipamentoId: p.equipamentoId,
+                  equipamentoNome: p.codigoPatrimonio
+                    ? `${p.codigoPatrimonio} · ${p.equipamentoNome}`
+                    : p.equipamentoNome,
+                  tipo: p.equipamentoTipo,
+                  custoTotal12m: p.custoTotal12m,
+                  numOs: p.numOs,
+                  numPecas: p.numPecas,
+                }))}
+              valor={(it) => fmtBRL(it.custoTotal12m)}
+              legenda={(it) => `${it.numOs} OS · ${it.numPecas} peças · ${it.tipo}`}
+              vazio="Nenhum consumo de peças registrado nos últimos 12 meses."
             />
           </section>
         </>

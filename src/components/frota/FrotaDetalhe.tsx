@@ -10,6 +10,7 @@ import EspecificacoesEquipamentoSection from './especificacoes/EspecificacoesEqu
 import FinanceiroEquipamentoSection from './financeiro/FinanceiroEquipamentoSection';
 import HistoricoEquipamentoSection from './historico/HistoricoEquipamentoSection';
 import PlanoPreventivoEquipamentoSection from './planos/PlanoPreventivoEquipamentoSection';
+import CustoPecasEquipamentoSection from './pecas/CustoPecasEquipamentoSection';
 
 interface FrotaDetalheProps {
   equipamento: Equipamento;
@@ -186,6 +187,8 @@ export default function FrotaDetalhe({ equipamento: eq, empresas, fornecedores, 
       />
 
       <PlanoPreventivoEquipamentoSection equipamento={eq} />
+
+      <CustoPecasEquipamentoSection equipamentoId={eq.id} />
 
       <HistoricoEquipamentoSection equipamentoId={eq.id} />
     </div>
