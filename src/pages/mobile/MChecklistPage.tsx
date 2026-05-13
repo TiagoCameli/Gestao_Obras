@@ -20,6 +20,7 @@ import {
   useEnviarChecklist,
   type RespostaInput,
 } from '../../hooks/useChecklists';
+import { enqueueChecklist, indexedDBSuportado } from '../../lib/checklistsQueue';
 import { useAuth } from '../../contexts/AuthContext';
 import { useToast } from '../../components/ui/Toast';
 import {
@@ -123,7 +124,7 @@ export default function MChecklistPage() {
   }
 
   async function handleSubmit() {
-    if (!template || !equipamentoId || !podeConcluir) return;
+    if (!template || !equipamentoId || !equipamento || !podeConcluir) return;
     setErro(null);
     setSubmitting(true);
     try {
@@ -145,30 +146,90 @@ export default function MChecklistPage() {
 
       const medicaoNum = medicaoLeitura.trim() ? Number(medicaoLeitura.replace(',', '.')) : null;
 
-      await enviar.mutateAsync({
-        templateId: template.id,
-        templateVersao: template.versao,
-        equipamentoId,
-        operadorFuncionarioId: usuario?.funcionarioId ?? null,
-        operadorNome: usuario?.nome ?? '',
-        medicaoAtual: medicaoNum,
-        status,
-        observacoesGerais: obsGerais.trim(),
-        respostas: respostasInput,
-      });
+      // Estratégia: se offline OU se a rede falhar, enfileira local. Caso contrário, envia direto.
+      const online = typeof navigator !== 'undefined' ? navigator.onLine : true;
+      let enviadoOnline = false;
+      let usouFila = false;
+
+      if (online) {
+        try {
+          await enviar.mutateAsync({
+            templateId: template.id,
+            templateVersao: template.versao,
+            equipamentoId,
+            operadorFuncionarioId: usuario?.funcionarioId ?? null,
+            operadorNome: usuario?.nome ?? '',
+            medicaoAtual: medicaoNum,
+            status,
+            observacoesGerais: obsGerais.trim(),
+            respostas: respostasInput,
+          });
+          enviadoOnline = true;
+        } catch (err) {
+          // Falhou online — enfileira como fallback se IDB disponível
+          if (indexedDBSuportado()) {
+            await enqueueChecklist({
+              templateId: template.id,
+              templateVersao: template.versao,
+              equipamentoId,
+              equipamentoNome: equipamento.nome,
+              operadorFuncionarioId: usuario?.funcionarioId ?? null,
+              operadorNome: usuario?.nome ?? '',
+              medicaoAtual: medicaoNum,
+              status,
+              observacoesGerais: obsGerais.trim(),
+              respostas: respostasInput.map((r) => ({
+                perguntaId: r.perguntaId,
+                perguntaSnapshot: r.perguntaSnapshot,
+                resposta: r.resposta,
+                observacao: r.observacao,
+                fotoBlob: r.fotoBlob ?? null,
+              })),
+            });
+            usouFila = true;
+          } else {
+            throw err;
+          }
+        }
+      } else if (indexedDBSuportado()) {
+        // Offline: enfileira direto
+        await enqueueChecklist({
+          templateId: template.id,
+          templateVersao: template.versao,
+          equipamentoId,
+          equipamentoNome: equipamento.nome,
+          operadorFuncionarioId: usuario?.funcionarioId ?? null,
+          operadorNome: usuario?.nome ?? '',
+          medicaoAtual: medicaoNum,
+          status,
+          observacoesGerais: obsGerais.trim(),
+          respostas: respostasInput.map((r) => ({
+            perguntaId: r.perguntaId,
+            perguntaSnapshot: r.perguntaSnapshot,
+            resposta: r.resposta,
+            observacao: r.observacao,
+            fotoBlob: r.fotoBlob ?? null,
+          })),
+        });
+        usouFila = true;
+      } else {
+        throw new Error('Sem internet e navegador sem suporte a fila offline.');
+      }
 
       // Limpa preview URLs
       for (const r of Object.values(respostas)) {
         if (r.fotoPreview) URL.revokeObjectURL(r.fotoPreview);
       }
 
+      const baseMsg =
+        status === 'bloqueado' ? 'Checklist concluído — equipamento BLOQUEADO. Aguarde manutenção.'
+          : status === 'concluido_com_pendencias' ? 'Checklist concluído com pendências.'
+          : 'Checklist concluído. Boa operação!';
       showToast({
         kind: status === 'bloqueado' ? 'error' : status === 'concluido_com_pendencias' ? 'info' : 'success',
-        message:
-          status === 'bloqueado' ? 'Checklist concluído — equipamento BLOQUEADO. Aguarde manutenção.'
-            : status === 'concluido_com_pendencias' ? 'Checklist concluído com pendências.'
-            : 'Checklist concluído. Boa operação!',
+        message: usouFila ? `${baseMsg} (salvo localmente — vai sincronizar)` : baseMsg,
       });
+      void enviadoOnline;  // pra typecheck
       navigate('/m');
     } catch (err) {
       setErro(err instanceof Error ? err.message : 'Erro ao salvar checklist');
