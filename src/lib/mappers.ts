@@ -1028,8 +1028,8 @@ export function dbToColaborador(row: any): Colaborador {
     observacoes: row.observacoes ?? '',
     ativo: row.ativo,
     criadoPor: row.criado_por ?? '',
-    // PR28 — vínculo opcional para unificação com funcionario
-    funcionarioId: row.funcionario_id ?? undefined,
+    // PR28 — vínculo opcional para unificação com apont_funcionarios
+    apontFuncionarioId: row.apont_funcionario_id ?? undefined,
   };
 }
 
@@ -1053,7 +1053,7 @@ export function colaboradorToDb(c: Colaborador) {
     ativo: c.ativo,
     criado_por: c.criadoPor,
     // PR28 — persiste o vínculo (NULL quando ainda não unificado)
-    funcionario_id: c.funcionarioId ?? null,
+    apont_funcionario_id: c.apontFuncionarioId ?? null,
   };
 }
 

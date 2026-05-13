@@ -30,6 +30,7 @@ import MMedicaoPage from './pages/mobile/MMedicaoPage';
 import MAbrirOSPage from './pages/mobile/MAbrirOSPage';
 import MEquipamentoHubPage from './pages/mobile/MEquipamentoHubPage';
 import MEquipamentoInfoPage from './pages/mobile/MEquipamentoInfoPage';
+import MSaidaCombustivelPage from './pages/mobile/MSaidaCombustivelPage';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -143,6 +144,7 @@ export default function App() {
               <Route path="/m/checklist/:equipamentoId" element={<MChecklistPage />} />
               <Route path="/m/medicao/:equipamentoId" element={<MMedicaoPage />} />
               <Route path="/m/abrir-os/:equipamentoId" element={<MAbrirOSPage />} />
+              <Route path="/m/saida-combustivel/:equipamentoId" element={<MSaidaCombustivelPage />} />
             </Route>
           </Routes>
           </ToastProvider>

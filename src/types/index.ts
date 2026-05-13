@@ -731,10 +731,11 @@ export interface Colaborador {
   contatoEmergencia?: string;
   /**
    * PR28 — Unificação progressiva: quando preenchido, indica que este
-   * colaborador é a mesma pessoa que o funcionario referenciado.
+   * colaborador é a mesma pessoa que o funcionário do Apontamento RH
+   * (apont_funcionarios) referenciado.
    * Vínculo opcional — quando NULL, ainda não foi unificado.
    */
-  funcionarioId?: string;
+  apontFuncionarioId?: string;
   observacoes: string;
   ativo: boolean;
   criadoPor: string;
