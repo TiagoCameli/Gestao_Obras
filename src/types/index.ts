@@ -696,6 +696,12 @@ export interface Empresa {
 
 // === Colaboradores ===
 
+/** Vínculo trabalhista do colaborador. */
+export type TipoVinculoColaborador = 'clt' | 'prestador_servico' | 'terceirizado' | 'mei';
+
+/** Status estendido do colaborador (compatível com Funcionários do Apontamento RH). */
+export type StatusColaborador = 'ativo' | 'inativo' | 'afastado' | 'demitido';
+
 export interface Colaborador {
   id: string;
   nome: string;
@@ -711,6 +717,18 @@ export interface Colaborador {
   endereco: string;
   cpf: string;
   rg: string;
+  /** PIS/PASEP (opcional). Adicionado para alinhamento com Funcionários. */
+  pis?: string;
+  /** CTPS — número e série (opcional). */
+  ctps?: string;
+  /** Função / cargo (texto livre por ora; lista igual à de Funcionários). */
+  funcao?: string;
+  /** Tipo de vínculo trabalhista (opcional). */
+  tipoVinculo?: TipoVinculoColaborador;
+  /** Status estendido (opcional). Quando ausente, usa o boolean `ativo`. */
+  status?: StatusColaborador;
+  /** Contato de emergência (Nome + telefone, texto livre). */
+  contatoEmergencia?: string;
   observacoes: string;
   ativo: boolean;
   criadoPor: string;

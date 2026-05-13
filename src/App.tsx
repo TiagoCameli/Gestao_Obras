@@ -30,7 +30,16 @@ import MAbrirOSPage from './pages/mobile/MAbrirOSPage';
 
 const queryClient = new QueryClient({
   defaultOptions: {
-    queries: { staleTime: 30_000 },
+    queries: {
+      // Smoke-fix: dados ficam "fresh" por 5 min em vez de 30s.
+      // Isso reduz o splash "Carregando..." quando o usuário volta para uma
+      // tela visitada recentemente (cache do React Query reaproveita).
+      staleTime: 5 * 60_000,
+      // Mantém os dados em memória por 10 min depois de saírem de tela.
+      gcTime: 10 * 60_000,
+      // Não faz refetch automático ao reabrir a aba — evita splash.
+      refetchOnWindowFocus: false,
+    },
   },
 });
 

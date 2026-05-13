@@ -2,12 +2,14 @@
 //
 // Página com KPIs agregados, tops e curva de custo. Read-only.
 
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   ClipboardList, AlertTriangle, Clock, Wrench, TrendingUp,
-  Activity, BarChart3, DollarSign, CalendarClock, Package, HardHat,
+  Activity, BarChart3, DollarSign, CalendarClock, Package, HardHat, FileDown,
 } from 'lucide-react';
+import Button from '../ui/Button';
+import { exportarRelatorioMensalPdf } from '../../utils/manutencaoPdfExport';
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
 } from 'recharts';
@@ -84,6 +86,12 @@ export default function DashboardManutencao() {
     return { vencidas, proximas30, total: proximas.length };
   }, [proximas]);
 
+  // Seletor de mês pro relatório (precisa estar antes de qualquer return)
+  const mesAtual = new Date();
+  const mesDefault = `${mesAtual.getFullYear()}-${String(mesAtual.getMonth() + 1).padStart(2, '0')}`;
+  const [mesExport, setMesExport] = useState(mesDefault);
+  const [exportando, setExportando] = useState(false);
+
   if (isLoading || !dash) {
     return (
       <div className="text-center py-16">
@@ -103,15 +111,45 @@ export default function DashboardManutencao() {
     )
   ));
 
+  async function handleExportar() {
+    if (exportando || !dash) return;
+    setExportando(true);
+    try {
+      exportarRelatorioMensalPdf({
+        mes: mesExport,
+        ordens: dash.ordens,
+        equipamentos,
+        proximasPreventivas: proximas,
+        naoConformidades,
+      });
+    } finally {
+      setExportando(false);
+    }
+  }
+
   return (
     <div className="space-y-5">
-      <div>
-        <h1 className="text-2xl sm:text-3xl font-semibold text-[var(--color-fg)] tracking-tight">
-          Dashboard de Manutenção
-        </h1>
-        <p className="text-sm text-[var(--color-fg-muted)] mt-0.5">
-          Visão consolidada de OS, custos e disponibilidade da frota.
-        </p>
+      <div className="flex items-end justify-between gap-3 flex-wrap">
+        <div>
+          <h1 className="text-2xl sm:text-3xl font-semibold text-[var(--color-fg)] tracking-tight">
+            Dashboard de Manutenção
+          </h1>
+          <p className="text-sm text-[var(--color-fg-muted)] mt-0.5">
+            Visão consolidada de OS, custos e disponibilidade da frota.
+          </p>
+        </div>
+        <div className="flex items-center gap-2">
+          <input
+            type="month"
+            value={mesExport}
+            onChange={(e) => setMesExport(e.target.value)}
+            className="h-[36px] rounded-lg px-3 py-1.5 text-sm bg-[var(--color-surface-1)] text-[var(--color-fg)] border border-[var(--color-border)]"
+          />
+          <Button onClick={handleExportar} disabled={exportando}>
+            <FileDown className="w-4 h-4" />
+            {exportando ? 'Gerando…' : 'Exportar PDF'}
+          </Button>
+        </div>
       </div>
 
       {/* KPIs */}
