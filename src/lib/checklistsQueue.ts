@@ -54,8 +54,16 @@ function openDB(): Promise<IDBDatabase> {
     req.onsuccess = () => resolve(req.result);
     req.onupgradeneeded = () => {
       const db = req.result;
+      // Cria todos os stores conhecidos (idempotente). Mantém sincronia
+      // com offlineQueue.ts caso a app abra checklistsQueue primeiro.
       if (!db.objectStoreNames.contains(STORE)) {
         db.createObjectStore(STORE, { keyPath: 'localId' });
+      }
+      if (!db.objectStoreNames.contains('medicoes')) {
+        db.createObjectStore('medicoes', { keyPath: 'localId' });
+      }
+      if (!db.objectStoreNames.contains('os_novas')) {
+        db.createObjectStore('os_novas', { keyPath: 'localId' });
       }
     };
   });
