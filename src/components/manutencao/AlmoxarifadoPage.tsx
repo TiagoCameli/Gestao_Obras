@@ -6,7 +6,7 @@
 
 import { useState, useMemo } from 'react';
 import {
-  Package, Plus, AlertTriangle, Search, Settings2, Factory,
+  Package, Plus, AlertTriangle, Search, Settings2, Factory, FileInput,
 } from 'lucide-react';
 import Button from '../ui/Button';
 import { useSaldoEstoqueTotal } from '../../hooks/useSaldoEstoque';
@@ -15,6 +15,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import type { SaldoEstoque, Insumo, StatusEstoque } from '../../types';
 import PecaFormModal from './almoxarifado/PecaFormModal';
 import PecaDetalheModal from './almoxarifado/PecaDetalheModal';
+import NovaEntradaModal from './almoxarifado/NovaEntradaModal';
 
 const STATUS_LABEL: Record<StatusEstoque, string> = {
   zerada: 'Zerada',
@@ -55,6 +56,7 @@ export default function AlmoxarifadoPage() {
   const [novoOpen, setNovoOpen] = useState(false);
   const [editarInsumo, setEditarInsumo] = useState<Insumo | null>(null);
   const [detalheInsumoId, setDetalheInsumoId] = useState<string | null>(null);
+  const [entradaOpen, setEntradaOpen] = useState<{ open: boolean; insumoId?: string }>({ open: false });
 
   // Mapa insumoId → Insumo completo (para abrir edição com dados)
   const insumosById = useMemo(() => {
@@ -112,9 +114,14 @@ export default function AlmoxarifadoPage() {
           </p>
         </div>
         {canCreate && (
-          <Button onClick={() => setNovoOpen(true)}>
-            <Plus className="w-4 h-4" /> Nova peça
-          </Button>
+          <div className="flex gap-2">
+            <Button variant="secondary" onClick={() => setEntradaOpen({ open: true })}>
+              <FileInput className="w-4 h-4" /> Nova entrada
+            </Button>
+            <Button onClick={() => setNovoOpen(true)}>
+              <Plus className="w-4 h-4" /> Nova peça
+            </Button>
+          </div>
         )}
       </div>
 
@@ -218,6 +225,18 @@ export default function AlmoxarifadoPage() {
             setDetalheInsumoId(null);
             if (i) setEditarInsumo(i);
           }}
+          onRegistrarEntrada={() => {
+            const id = detalheInsumoId;
+            setDetalheInsumoId(null);
+            setEntradaOpen({ open: true, insumoId: id });
+          }}
+        />
+      )}
+      {entradaOpen.open && (
+        <NovaEntradaModal
+          open={entradaOpen.open}
+          onClose={() => setEntradaOpen({ open: false })}
+          insumoIdInicial={entradaOpen.insumoId}
         />
       )}
     </div>

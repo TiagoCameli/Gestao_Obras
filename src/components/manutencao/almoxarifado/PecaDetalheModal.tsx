@@ -3,7 +3,7 @@
 // Mostra dados cadastrais + saldo por depósito + última movimentação.
 // Botão "Editar" abre o PecaFormModal no mesmo registro.
 
-import { Pencil, Package, MapPin, Factory, Wrench } from 'lucide-react';
+import { Pencil, Package, MapPin, Factory, Wrench, FileInput } from 'lucide-react';
 import Modal from '../../ui/Modal';
 import Button from '../../ui/Button';
 import { useSaldoEstoqueTotal, useSaldoEstoquePorDeposito } from '../../../hooks/useSaldoEstoque';
@@ -15,6 +15,7 @@ interface Props {
   onClose: () => void;
   insumoId: string;
   onEditar?: () => void;
+  onRegistrarEntrada?: () => void;
 }
 
 function fmtBRL(n: number | null | undefined): string {
@@ -26,7 +27,7 @@ function fmtQty(n: number, unidade: string): string {
   return `${n.toLocaleString('pt-BR', { maximumFractionDigits: 3 })} ${unidade}`;
 }
 
-export default function PecaDetalheModal({ open, onClose, insumoId, onEditar }: Props) {
+export default function PecaDetalheModal({ open, onClose, insumoId, onEditar, onRegistrarEntrada }: Props) {
   const { temAcao } = useAuth();
   const canEdit = temAcao('criar_cadastros') || temAcao('editar_cadastros');
   const { data: saldos = [] } = useSaldoEstoqueTotal({ apenasManutencao: true });
@@ -87,10 +88,19 @@ export default function PecaDetalheModal({ open, onClose, insumoId, onEditar }: 
               )}
             </p>
           </div>
-          {canEdit && onEditar && (
-            <Button variant="secondary" size="sm" onClick={onEditar}>
-              <Pencil className="w-3.5 h-3.5" /> Editar
-            </Button>
+          {canEdit && (
+            <div className="flex gap-2">
+              {onRegistrarEntrada && (
+                <Button size="sm" onClick={onRegistrarEntrada}>
+                  <FileInput className="w-3.5 h-3.5" /> Nova entrada
+                </Button>
+              )}
+              {onEditar && (
+                <Button variant="secondary" size="sm" onClick={onEditar}>
+                  <Pencil className="w-3.5 h-3.5" /> Editar
+                </Button>
+              )}
+            </div>
           )}
         </div>
 
