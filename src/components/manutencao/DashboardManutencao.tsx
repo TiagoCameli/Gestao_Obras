@@ -6,7 +6,7 @@ import { useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   ClipboardList, AlertTriangle, Clock, Wrench, TrendingUp,
-  ShieldCheck, Activity, BarChart3, DollarSign, CalendarClock,
+  Activity, BarChart3, DollarSign, CalendarClock, Package,
 } from 'lucide-react';
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
@@ -14,6 +14,7 @@ import {
 import { useEquipamentos } from '../../hooks/useEquipamentos';
 import { useDashboardManutencao } from '../../hooks/useDashboardManutencao';
 import { useProximasPreventivas } from '../../hooks/usePlanosPreventivos';
+import { useSaldoEstoqueTotal } from '../../hooks/useSaldoEstoque';
 import type { ProximaPreventiva } from '../../types';
 
 function statusPreventiva(pp: ProximaPreventiva): 'vencida' | 'proxima' | 'futura' {
@@ -45,6 +46,16 @@ export default function DashboardManutencao() {
   const { data: equipamentos = [] } = useEquipamentos();
   const { data: dash, isLoading } = useDashboardManutencao(equipamentos);
   const { data: proximas = [] } = useProximasPreventivas();
+  const { data: saldosEstoque = [] } = useSaldoEstoqueTotal({ apenasManutencao: true });
+
+  const pecasMetricas = useMemo(() => {
+    let zeradas = 0, abaixoMin = 0;
+    for (const s of saldosEstoque) {
+      if (s.statusEstoque === 'zerada') zeradas++;
+      else if (s.statusEstoque === 'abaixo_minimo') abaixoMin++;
+    }
+    return { criticas: zeradas + abaixoMin, zeradas, abaixoMin, total: saldosEstoque.length };
+  }, [saldosEstoque]);
 
   const preventivasMetricas = useMemo(() => {
     let vencidas = 0;
@@ -161,11 +172,16 @@ export default function DashboardManutencao() {
           onClick={() => navigate('/manutencao/agenda?status=proximas')}
         />
         <KPI
-          label="Garantia ativa"
-          valor="—"
-          legenda="em construção"
-          icon={ShieldCheck}
-          cor="bg-[var(--color-surface-2)] text-[var(--color-fg-muted)]"
+          label="Peças críticas"
+          valor={pecasMetricas.criticas}
+          legenda={pecasMetricas.total > 0
+            ? `${pecasMetricas.zeradas} zeradas · ${pecasMetricas.abaixoMin} abaixo do mínimo`
+            : 'cadastre peças no almoxarifado'}
+          icon={Package}
+          cor={pecasMetricas.criticas > 0
+            ? 'bg-[var(--color-danger-soft)] text-[var(--color-danger-fg)]'
+            : 'bg-[var(--color-success-soft)] text-[var(--color-success-fg)]'}
+          onClick={() => navigate('/manutencao/almoxarifado?status=criticos')}
         />
       </section>
 

@@ -5,6 +5,7 @@
 // card abre modal/painel de detalhe (incluindo saldo por depósito).
 
 import { useState, useMemo } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import {
   Package, Plus, AlertTriangle, Search, Settings2, Factory, FileInput,
 } from 'lucide-react';
@@ -49,9 +50,25 @@ export default function AlmoxarifadoPage() {
   const { data: saldos = [], isLoading } = useSaldoEstoqueTotal({ apenasManutencao: true });
   const { data: insumos = [] } = useInsumos();
 
+  const [searchParams, setSearchParams] = useSearchParams();
   const [busca, setBusca] = useState('');
-  const [filtroStatus, setFiltroStatus] = useState<StatusEstoque | 'todos' | 'criticos'>('todos');
   const [filtroFabricante, setFiltroFabricante] = useState('');
+
+  // Filtro de status é derivado do query param para suportar deep links
+  // (ex: /manutencao/almoxarifado?status=criticos) e back/forward do navegador.
+  const filtroStatus: StatusEstoque | 'todos' | 'criticos' = (() => {
+    const s = searchParams.get('status');
+    if (s === 'criticos' || s === 'zerada' || s === 'abaixo_minimo' || s === 'atencao' || s === 'ok') {
+      return s as StatusEstoque | 'criticos';
+    }
+    return 'todos';
+  })();
+
+  const setFiltroStatus = (s: StatusEstoque | 'todos' | 'criticos') => {
+    const next = new URLSearchParams(searchParams);
+    if (s === 'todos') next.delete('status'); else next.set('status', s);
+    setSearchParams(next, { replace: true });
+  };
 
   const [novoOpen, setNovoOpen] = useState(false);
   const [editarInsumo, setEditarInsumo] = useState<Insumo | null>(null);
