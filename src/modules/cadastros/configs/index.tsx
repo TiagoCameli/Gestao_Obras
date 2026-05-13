@@ -90,6 +90,24 @@ export const EXTERNAL_ENTITIES: ExternalEntity[] = [
     href: '/cadastros/usuarios',
     permission: 'ver_funcionarios',
   },
+  {
+    slug: 'unificacao',
+    singular: 'Unificação',
+    plural: 'Unificar Colaborador × Usuário',
+    description: 'Vincula colaboradores e usuários que são a mesma pessoa (Fase 1 — não destrutivo).',
+    category: 'pessoas',
+    accent: 'amber',
+    icon: (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M8 7h12" />
+        <path d="M8 17h12" />
+        <path d="m4 5 3 2-3 2" />
+        <path d="m4 15 3 2-3 2" />
+      </svg>
+    ),
+    href: '/cadastros/unificacao',
+    permission: 'ver_cadastros',
+  },
 ];
 
 export type { EntityConfig };

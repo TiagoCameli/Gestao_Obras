@@ -280,3 +280,175 @@ export function exportarRelatorioMensalPdf(input: RelatorioMensalInput): void {
   const filename = makeFilename(`Manutencao-Mensal-${mes}`, 'pdf');
   doc.save(filename);
 }
+
+// =====================================================================
+// Relatório Anual
+// =====================================================================
+
+export interface RelatorioAnualInput {
+  ano: number;
+  ordens: OrdemServico[];
+  equipamentos: Equipamento[];
+  /** Para comparação ano-a-ano, opcionalmente passe um snapshot ano anterior. */
+  ordensAnoAnterior?: OrdemServico[];
+}
+
+const MESES_CURTOS = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+
+export function exportarRelatorioAnualPdf(input: RelatorioAnualInput): void {
+  const { ano, ordens, equipamentos, ordensAnoAnterior = [] } = input;
+  const inicio = new Date(ano, 0, 1);
+  const fim = new Date(ano, 11, 31, 23, 59, 59, 999);
+
+  const equipMap = new Map(equipamentos.map((e) => [e.id, e]));
+
+  // Filtra concluídas do ano
+  const concluidasAno = ordens.filter((o) => {
+    if (!o.dataConclusao) return false;
+    const d = new Date(o.dataConclusao);
+    return d >= inicio && d <= fim;
+  });
+
+  // KPIs anuais
+  const custoAno = concluidasAno.reduce((s, o) => s + (o.custoTotal ?? 0), 0);
+  const custoCorretivo = concluidasAno
+    .filter((o) => o.tipo === 'corretiva')
+    .reduce((s, o) => s + (o.custoTotal ?? 0), 0);
+  const custoPreventivo = concluidasAno
+    .filter((o) => o.tipo === 'preventiva')
+    .reduce((s, o) => s + (o.custoTotal ?? 0), 0);
+  const percCorretivo = custoAno > 0 ? (custoCorretivo / custoAno) * 100 : 0;
+  const tempos = concluidasAno
+    .map((o) => horasEntre(o.dataAbertura, o.dataConclusao))
+    .filter((h) => h > 0);
+  const mttrAno = tempos.length > 0 ? tempos.reduce((s, h) => s + h, 0) / tempos.length : null;
+
+  // Variação ano anterior
+  const custoAnoAnt = ordensAnoAnterior
+    .filter((o) => {
+      if (!o.dataConclusao) return false;
+      const d = new Date(o.dataConclusao);
+      return d.getFullYear() === ano - 1;
+    })
+    .reduce((s, o) => s + (o.custoTotal ?? 0), 0);
+  const variacaoAno = custoAnoAnt > 0 ? ((custoAno - custoAnoAnt) / custoAnoAnt) * 100 : null;
+
+  // Breakdown mensal
+  const custoPorMes: number[] = new Array(12).fill(0);
+  const numOSPorMes: number[] = new Array(12).fill(0);
+  for (const o of concluidasAno) {
+    if (!o.dataConclusao) continue;
+    const m = new Date(o.dataConclusao).getMonth();
+    custoPorMes[m] += o.custoTotal ?? 0;
+    numOSPorMes[m] += 1;
+  }
+
+  // Top 20 equipamentos por custo no ano
+  const custoPorEq = new Map<string, { total: number; numOS: number; tipo: string; nome: string }>();
+  for (const o of concluidasAno) {
+    const eq = equipMap.get(o.equipamentoId);
+    const key = o.equipamentoId;
+    const v = custoPorEq.get(key) ?? {
+      total: 0, numOS: 0,
+      tipo: eq?.tipo ?? '—',
+      nome: eq ? (eq.codigoPatrimonio ? `${eq.codigoPatrimonio} · ${eq.nome}` : eq.nome) : key,
+    };
+    v.total += o.custoTotal ?? 0;
+    v.numOS += 1;
+    custoPorEq.set(key, v);
+  }
+  const top20 = Array.from(custoPorEq.values())
+    .sort((a, b) => b.total - a.total)
+    .slice(0, 20);
+
+  // PDF
+  const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+  let y = drawPdfBanner(doc, `Relatório Anual de Manutenção · ${ano}`, SUBTITULO);
+
+  y = drawPdfFiltros(doc, y, [
+    ['Período', `01/01/${ano} a 31/12/${ano}`],
+    ['OSs concluídas', `${concluidasAno.length}`],
+    ['Frota considerada', `${equipamentos.filter((e) => e.ativo !== false).length} equipamentos`],
+    ['Ano anterior', custoAnoAnt > 0 ? fmtBRL(custoAnoAnt, 0) : 'sem dados'],
+  ]);
+
+  // KPIs anuais
+  y = drawPdfKPIs(doc, y, [
+    ['Custo do ano', fmtBRL(custoAno, 0)],
+    ['vs Ano anterior', variacaoAno != null
+      ? `${variacaoAno > 0 ? '+' : ''}${variacaoAno.toFixed(0)}%`
+      : '—'],
+    ['MTTR médio', mttrAno != null ? `${mttrAno.toFixed(1)} h` : '—'],
+    ['% Corretivo', custoAno > 0 ? `${percCorretivo.toFixed(0)}%` : '—'],
+  ]);
+
+  // Mini-tabela: breakdown mensal
+  y = drawPdfMiniTable(
+    doc,
+    y,
+    `CUSTO MENSAL · ${ano}`,
+    ['Mês', 'OSs concluídas', 'Custo'],
+    custoPorMes.map((c, m) => [MESES_CURTOS[m], numOSPorMes[m], fmtBRL(c)]),
+    ['TOTAL', concluidasAno.length, fmtBRL(custoAno)],
+    {
+      0: { halign: 'center', cellWidth: 25 },
+      1: { halign: 'center', cellWidth: 35 },
+      2: { halign: 'right', cellWidth: 40 },
+    }
+  );
+
+  // Comparação corretivo vs preventivo
+  drawPdfMiniTable(
+    doc,
+    y,
+    'DISTRIBUIÇÃO DE CUSTO POR TIPO',
+    ['Tipo de OS', 'Custo', '% do total'],
+    [
+      ['Corretiva', fmtBRL(custoCorretivo), custoAno > 0 ? `${percCorretivo.toFixed(1)}%` : '—'],
+      ['Preventiva', fmtBRL(custoPreventivo), custoAno > 0 ? `${(custoPreventivo / custoAno * 100).toFixed(1)}%` : '—'],
+      ['Outros', fmtBRL(custoAno - custoCorretivo - custoPreventivo),
+        custoAno > 0 ? `${((custoAno - custoCorretivo - custoPreventivo) / custoAno * 100).toFixed(1)}%` : '—'],
+    ],
+    ['TOTAL', fmtBRL(custoAno), '100%'],
+    {
+      0: { halign: 'left', cellWidth: 40 },
+      1: { halign: 'right', cellWidth: 45 },
+      2: { halign: 'right', cellWidth: 30 },
+    }
+  );
+
+  // Top 20 — vai pra nova página
+  doc.addPage();
+  const startY = drawPdfDetailPageHeader(doc, `TOP 20 EQUIPAMENTOS POR CUSTO · ${ano}`, top20.length);
+
+  drawPdfDetailTable(
+    doc,
+    startY,
+    ['#', 'Equipamento', 'Tipo', 'OSs', 'Custo', '% do total'],
+    top20.map((t, i) => [
+      `${i + 1}`,
+      t.nome,
+      t.tipo,
+      t.numOS,
+      fmtBRL(t.total),
+      custoAno > 0 ? `${(t.total / custoAno * 100).toFixed(1)}%` : '—',
+    ]),
+    ['', '', '',
+      top20.reduce((s, t) => s + t.numOS, 0),
+      fmtBRL(top20.reduce((s, t) => s + t.total, 0)),
+      custoAno > 0
+        ? `${(top20.reduce((s, t) => s + t.total, 0) / custoAno * 100).toFixed(1)}%`
+        : '—'],
+    {
+      0: { halign: 'center', cellWidth: 10 },
+      1: { cellWidth: 100 },
+      2: { halign: 'left', cellWidth: 45 },
+      3: { halign: 'center', cellWidth: 20 },
+      4: { halign: 'right', cellWidth: 35 },
+      5: { halign: 'right', cellWidth: 25 },
+    },
+    FOOTER_MARCA
+  );
+
+  doc.save(makeFilename(`Manutencao-Anual-${ano}`, 'pdf'));
+}

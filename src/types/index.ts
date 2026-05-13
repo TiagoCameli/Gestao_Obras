@@ -729,6 +729,12 @@ export interface Colaborador {
   status?: StatusColaborador;
   /** Contato de emergência (Nome + telefone, texto livre). */
   contatoEmergencia?: string;
+  /**
+   * PR28 — Unificação progressiva: quando preenchido, indica que este
+   * colaborador é a mesma pessoa que o funcionario referenciado.
+   * Vínculo opcional — quando NULL, ainda não foi unificado.
+   */
+  funcionarioId?: string;
   observacoes: string;
   ativo: boolean;
   criadoPor: string;

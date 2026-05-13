@@ -12,6 +12,7 @@ import Obras from './pages/Obras';
 import CadastrosHub from './modules/cadastros/CadastrosHub';
 import EntityCadastroRoute from './modules/cadastros/EntityCadastroRoute';
 import EtapasPage from './modules/cadastros/EtapasPage';
+import UnificacaoPage from './modules/cadastros/UnificacaoPage';
 import Frete from './pages/Frete';
 import Funcionarios from './pages/Funcionarios';
 import Frota from './pages/Frota';
@@ -90,6 +91,7 @@ export default function App() {
               <Route path="/cadastros/legado" element={<ProtectedRoute modulo="cadastros"><Obras /></ProtectedRoute>} />
               <Route path="/cadastros/etapas" element={<ProtectedRoute modulo="cadastros"><EtapasPage /></ProtectedRoute>} />
               <Route path="/cadastros/usuarios" element={<ProtectedRoute modulo="funcionarios"><Funcionarios /></ProtectedRoute>} />
+              <Route path="/cadastros/unificacao" element={<ProtectedRoute modulo="cadastros"><UnificacaoPage /></ProtectedRoute>} />
               <Route path="/cadastros/:slug" element={<ProtectedRoute modulo="cadastros"><EntityCadastroRoute /></ProtectedRoute>} />
               <Route path="/frete" element={<ProtectedRoute modulo="frete"><Frete /></ProtectedRoute>} />
               <Route path="/frota" element={<ProtectedRoute modulo="frota"><Frota /></ProtectedRoute>} />

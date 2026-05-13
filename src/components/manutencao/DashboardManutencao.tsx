@@ -9,7 +9,7 @@ import {
   Activity, BarChart3, DollarSign, CalendarClock, Package, HardHat, FileDown,
 } from 'lucide-react';
 import Button from '../ui/Button';
-import { exportarRelatorioMensalPdf } from '../../utils/manutencaoPdfExport';
+import { exportarRelatorioMensalPdf, exportarRelatorioAnualPdf } from '../../utils/manutencaoPdfExport';
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
 } from 'recharts';
@@ -86,11 +86,12 @@ export default function DashboardManutencao() {
     return { vencidas, proximas30, total: proximas.length };
   }, [proximas]);
 
-  // Seletor de mês pro relatório (precisa estar antes de qualquer return)
-  const mesAtual = new Date();
-  const mesDefault = `${mesAtual.getFullYear()}-${String(mesAtual.getMonth() + 1).padStart(2, '0')}`;
+  // Seletores de export (mês e ano)
+  const hoje = new Date();
+  const mesDefault = `${hoje.getFullYear()}-${String(hoje.getMonth() + 1).padStart(2, '0')}`;
   const [mesExport, setMesExport] = useState(mesDefault);
-  const [exportando, setExportando] = useState(false);
+  const [anoExport, setAnoExport] = useState(hoje.getFullYear());
+  const [exportando, setExportando] = useState<'idle' | 'mensal' | 'anual'>('idle');
 
   if (isLoading || !dash) {
     return (
@@ -111,9 +112,9 @@ export default function DashboardManutencao() {
     )
   ));
 
-  async function handleExportar() {
-    if (exportando || !dash) return;
-    setExportando(true);
+  async function handleExportarMensal() {
+    if (exportando !== 'idle' || !dash) return;
+    setExportando('mensal');
     try {
       exportarRelatorioMensalPdf({
         mes: mesExport,
@@ -123,7 +124,27 @@ export default function DashboardManutencao() {
         naoConformidades,
       });
     } finally {
-      setExportando(false);
+      setExportando('idle');
+    }
+  }
+
+  async function handleExportarAnual() {
+    if (exportando !== 'idle' || !dash) return;
+    setExportando('anual');
+    try {
+      // Para comparação, filtra ordens do ano anterior dentro do mesmo dataset
+      const ordensAnoAnterior = dash.ordens.filter((o) => {
+        if (!o.dataConclusao) return false;
+        return new Date(o.dataConclusao).getFullYear() === anoExport - 1;
+      });
+      exportarRelatorioAnualPdf({
+        ano: anoExport,
+        ordens: dash.ordens,
+        equipamentos,
+        ordensAnoAnterior,
+      });
+    } finally {
+      setExportando('idle');
     }
   }
 
@@ -138,17 +159,33 @@ export default function DashboardManutencao() {
             Visão consolidada de OS, custos e disponibilidade da frota.
           </p>
         </div>
-        <div className="flex items-center gap-2">
-          <input
-            type="month"
-            value={mesExport}
-            onChange={(e) => setMesExport(e.target.value)}
-            className="h-[36px] rounded-lg px-3 py-1.5 text-sm bg-[var(--color-surface-1)] text-[var(--color-fg)] border border-[var(--color-border)]"
-          />
-          <Button onClick={handleExportar} disabled={exportando}>
-            <FileDown className="w-4 h-4" />
-            {exportando ? 'Gerando…' : 'Exportar PDF'}
-          </Button>
+        <div className="flex items-center gap-2 flex-wrap">
+          <div className="inline-flex items-center gap-1.5">
+            <input
+              type="month"
+              value={mesExport}
+              onChange={(e) => setMesExport(e.target.value)}
+              className="h-[36px] rounded-lg px-3 py-1.5 text-sm bg-[var(--color-surface-1)] text-[var(--color-fg)] border border-[var(--color-border)]"
+            />
+            <Button onClick={handleExportarMensal} disabled={exportando !== 'idle'} variant="secondary">
+              <FileDown className="w-4 h-4" />
+              {exportando === 'mensal' ? 'Gerando…' : 'Mensal'}
+            </Button>
+          </div>
+          <div className="inline-flex items-center gap-1.5">
+            <input
+              type="number"
+              min="2020"
+              max="2099"
+              value={anoExport}
+              onChange={(e) => setAnoExport(parseInt(e.target.value, 10) || hoje.getFullYear())}
+              className="h-[36px] w-[88px] rounded-lg px-3 py-1.5 text-sm bg-[var(--color-surface-1)] text-[var(--color-fg)] border border-[var(--color-border)]"
+            />
+            <Button onClick={handleExportarAnual} disabled={exportando !== 'idle'}>
+              <FileDown className="w-4 h-4" />
+              {exportando === 'anual' ? 'Gerando…' : 'Anual'}
+            </Button>
+          </div>
         </div>
       </div>
 
