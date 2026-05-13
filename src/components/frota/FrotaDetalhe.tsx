@@ -2,7 +2,11 @@ import type { Equipamento, Empresa, Fornecedor } from '../../types';
 import { STATUS_EQUIPAMENTO_LABEL } from '../../types';
 import { getCategoriaFrota } from '../../lib/frotaConstants';
 import Button from '../ui/Button';
-import { Pencil, Building2, Hash, Calendar, Gauge, Tag, Key, Trash2 } from 'lucide-react';
+import { Pencil, Building2, Hash, Calendar, Gauge, Tag, Key, Trash2, FileDown } from 'lucide-react';
+import { useOrdensServico } from '../../hooks/useOrdensServico';
+import { useMedicaoAtual } from '../../hooks/useMedicoesEquipamento';
+import { useCustoPecasEquipamentoDetalhe } from '../../hooks/useCustoPecasEquipamento';
+import { exportarRelatorioEquipamentoPdf } from '../../utils/manutencaoPdfExport';
 import { getStatusOption } from './StatusDropdown';
 import DocumentosEquipamentoSection from './documentos/DocumentosEquipamentoSection';
 import FotosEquipamentoGaleria from './FotosEquipamentoGaleria';
@@ -63,6 +67,20 @@ export default function FrotaDetalhe({ equipamento: eq, empresas, fornecedores, 
   const cat = getCategoriaFrota(eq.tipo);
   const empresaNome = empresas.find((e) => e.id === eq.empresaId)?.nome ?? '—';
   const alugada = eq.propriedade === 'alugada';
+
+  // Dados pra exportar relatório completo
+  const { data: ordens = [] } = useOrdensServico();
+  const { data: medicaoAtual } = useMedicaoAtual(eq.id);
+  const { data: custoPecas } = useCustoPecasEquipamentoDetalhe(eq.id);
+
+  function handleExportarPdf() {
+    exportarRelatorioEquipamentoPdf({
+      equipamento: eq,
+      ordens,
+      medicaoAtual: medicaoAtual?.medicaoAtual ?? null,
+      custoPecasUltimo12m: custoPecas?.total?.custoTotal12m ?? 0,
+    });
+  }
 
   return (
     <div className="p-4 sm:p-5 space-y-5">
@@ -126,6 +144,10 @@ export default function FrotaDetalhe({ equipamento: eq, empresas, fornecedores, 
                 {alugada ? <Key aria-hidden className="w-3.5 h-3.5" /> : <Building2 aria-hidden className="w-3.5 h-3.5" />}
                 {alugada ? 'Alugado' : 'Próprio'}
               </span>
+              <Button onClick={handleExportarPdf} variant="secondary" size="sm">
+                <FileDown aria-hidden className="w-3.5 h-3.5" />
+                PDF
+              </Button>
               {onEditar && (
                 <Button onClick={onEditar} variant="secondary" size="sm">
                   <Pencil aria-hidden className="w-3.5 h-3.5" />

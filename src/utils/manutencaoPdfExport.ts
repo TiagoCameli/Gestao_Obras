@@ -452,3 +452,127 @@ export function exportarRelatorioAnualPdf(input: RelatorioAnualInput): void {
 
   doc.save(makeFilename(`Manutencao-Anual-${ano}`, 'pdf'));
 }
+
+// =====================================================================
+// Relatório por Equipamento (Histórico completo)
+// =====================================================================
+
+export interface RelatorioEquipamentoInput {
+  equipamento: Equipamento;
+  ordens: OrdemServico[];
+  medicaoAtual: number | null;
+  /** Snapshot atual de saldo/custo no almoxarifado se quiser detalhar peças. */
+  custoPecasUltimo12m?: number;
+}
+
+export function exportarRelatorioEquipamentoPdf(input: RelatorioEquipamentoInput): void {
+  const { equipamento: eq, ordens, medicaoAtual, custoPecasUltimo12m = 0 } = input;
+
+  // Filtra apenas OSs deste equipamento, ordenadas por data de abertura desc
+  const ordensEq = [...ordens]
+    .filter((o) => o.equipamentoId === eq.id)
+    .sort((a, b) => (b.dataAbertura ?? '').localeCompare(a.dataAbertura ?? ''));
+
+  const ordensConcluidas = ordensEq.filter((o) => o.status === 'concluida');
+  const custoTotal = ordensConcluidas.reduce((s, o) => s + (o.custoTotal ?? 0), 0);
+  const custoCorretivo = ordensConcluidas
+    .filter((o) => o.tipo === 'corretiva')
+    .reduce((s, o) => s + (o.custoTotal ?? 0), 0);
+  const custoPreventivo = ordensConcluidas
+    .filter((o) => o.tipo === 'preventiva')
+    .reduce((s, o) => s + (o.custoTotal ?? 0), 0);
+
+  // Tempos de parada e MTTR
+  const tempos = ordensConcluidas
+    .map((o) => horasEntre(o.dataAbertura, o.dataConclusao))
+    .filter((h) => h > 0);
+  const mttr = tempos.length > 0 ? tempos.reduce((s, h) => s + h, 0) / tempos.length : null;
+  const horasParado = ordensEq.reduce(
+    (s, o) => s + horasEntre(o.paradaInicio, o.paradaFim ?? new Date().toISOString()),
+    0
+  );
+
+  const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+  const titulo = `Histórico · ${eq.codigoPatrimonio ?? eq.nome}`;
+  let y = drawPdfBanner(doc, titulo, SUBTITULO);
+
+  // Identificação do equipamento
+  y = drawPdfFiltros(doc, y, [
+    ['Nome', eq.nome],
+    ['Patrimônio', eq.codigoPatrimonio || '—'],
+    ['Tipo', eq.tipo || '—'],
+    ['Marca / Modelo', [eq.marca, eq.modelo].filter(Boolean).join(' ') || '—'],
+    ['Ano', eq.ano || '—'],
+    ['Propriedade', eq.propriedade === 'alugada' ? 'Alugado' : 'Próprio'],
+    ['Status atual', eq.status],
+    ['Medição atual', medicaoAtual != null
+      ? `${medicaoAtual.toLocaleString('pt-BR')} ${eq.tipoMedicao === 'horimetro' ? 'h' : 'km'}`
+      : '—'],
+  ]);
+
+  // KPIs do equipamento
+  y = drawPdfKPIs(doc, y, [
+    ['OSs totais', `${ordensEq.length}`],
+    ['Custo total', fmtBRL(custoTotal, 0)],
+    ['MTTR', mttr != null ? `${mttr.toFixed(1)} h` : '—'],
+    ['Horas paradas', `${horasParado.toFixed(0)} h`],
+  ]);
+
+  // Distribuição de custos
+  drawPdfMiniTable(
+    doc,
+    y,
+    'DISTRIBUIÇÃO DE CUSTO',
+    ['Categoria', 'Valor', '% do total'],
+    [
+      ['Corretiva', fmtBRL(custoCorretivo),
+        custoTotal > 0 ? `${(custoCorretivo / custoTotal * 100).toFixed(1)}%` : '—'],
+      ['Preventiva', fmtBRL(custoPreventivo),
+        custoTotal > 0 ? `${(custoPreventivo / custoTotal * 100).toFixed(1)}%` : '—'],
+      ['Outros',
+        fmtBRL(custoTotal - custoCorretivo - custoPreventivo),
+        custoTotal > 0
+          ? `${((custoTotal - custoCorretivo - custoPreventivo) / custoTotal * 100).toFixed(1)}%`
+          : '—'],
+      ['Peças (últimos 12m)', fmtBRL(custoPecasUltimo12m), '—'],
+    ],
+    ['TOTAL OSs CONCLUÍDAS', fmtBRL(custoTotal), '100%'],
+    {
+      0: { halign: 'left', cellWidth: 70 },
+      1: { halign: 'right', cellWidth: 45 },
+      2: { halign: 'right', cellWidth: 30 },
+    }
+  );
+
+  // Tabela detalhada de OSs — nova página
+  if (ordensEq.length > 0) {
+    doc.addPage();
+    const startY = drawPdfDetailPageHeader(doc, `OSs DO EQUIPAMENTO`, ordensEq.length);
+    drawPdfDetailTable(
+      doc,
+      startY,
+      ['Número', 'Tipo', 'Status', 'Abertura', 'Conclusão', 'Defeito', 'Custo'],
+      ordensEq.map((o) => [
+        o.numero,
+        TIPO_OS_LABEL[o.tipo as TipoOS] ?? o.tipo,
+        STATUS_OS_LABEL[o.status as StatusOS] ?? o.status,
+        o.dataAbertura ? formatDateBR(o.dataAbertura.slice(0, 10)) : '—',
+        o.dataConclusao ? formatDateBR(o.dataConclusao.slice(0, 10)) : '—',
+        (o.defeitoReportado ?? '').slice(0, 70) + ((o.defeitoReportado?.length ?? 0) > 70 ? '…' : ''),
+        fmtBRL(o.custoTotal ?? 0),
+      ]),
+      ['', '', '', '', '', 'TOTAL', fmtBRL(custoTotal)],
+      {
+        0: { cellWidth: 26 },
+        1: { halign: 'center', cellWidth: 24 },
+        2: { halign: 'center', cellWidth: 28 },
+        3: { halign: 'center', cellWidth: 22 },
+        4: { halign: 'center', cellWidth: 22 },
+        6: { halign: 'right', cellWidth: 28 },
+      },
+      FOOTER_MARCA
+    );
+  }
+
+  doc.save(makeFilename(`Equipamento-${eq.codigoPatrimonio || eq.id}`, 'pdf'));
+}
