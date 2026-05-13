@@ -6,7 +6,7 @@
 
 import { useMemo, useState } from 'react';
 import { useSearchParams, Navigate, useLocation, useParams, useNavigate, Link } from 'react-router-dom';
-import { Plus, ClipboardList, AlertTriangle, Clock, Wrench, BarChart3, ClipboardCheck, CalendarClock, Package } from 'lucide-react';
+import { Plus, ClipboardList, AlertTriangle, Clock, Wrench, BarChart3, ClipboardCheck, CalendarClock, Package, HardHat } from 'lucide-react';
 import { useOrdensServico } from '../hooks/useOrdensServico';
 import { useEquipamentos } from '../hooks/useEquipamentos';
 import { useAuth } from '../contexts/AuthContext';
@@ -21,6 +21,7 @@ import PlanosPreventivosPage from '../components/manutencao/PlanosPreventivosPag
 import PlanoDetalhePage from '../components/manutencao/planos/PlanoDetalhePage';
 import AgendaPreventivasPage from '../components/manutencao/AgendaPreventivasPage';
 import AlmoxarifadoPage from '../components/manutencao/AlmoxarifadoPage';
+import ChecklistsPage from '../components/manutencao/ChecklistsPage';
 
 const STATUS_OPTS: { value: StatusOS | 'todas' | 'abertas'; label: string }[] = [
   { value: 'abertas', label: 'Abertas' },
@@ -63,6 +64,7 @@ export default function ManutencaoPage() {
   if (pathname === '/manutencao/dashboard') inner = <DashboardManutencao />;
   else if (pathname === '/manutencao/agenda') inner = <AgendaPreventivasPage />;
   else if (pathname === '/manutencao/almoxarifado') inner = <AlmoxarifadoPage />;
+  else if (pathname === '/manutencao/checklists') inner = <ChecklistsPage />;
   else if (params.id && pathname.startsWith('/manutencao/planos/')) inner = <PlanoDetalhePage />;
   else if (pathname === '/manutencao/planos') inner = <PlanosPreventivosPage />;
   else inner = <OrdensServicoPage />;
@@ -81,6 +83,7 @@ const SUB_NAV_ITEMS: { to: string; label: string; icon: typeof BarChart3 }[] = [
   { to: '/manutencao/agenda', label: 'Agenda preventiva', icon: CalendarClock },
   { to: '/manutencao/planos', label: 'Planos preventivos', icon: ClipboardCheck },
   { to: '/manutencao/almoxarifado', label: 'Almoxarifado', icon: Package },
+  { to: '/manutencao/checklists', label: 'Checklists pré-uso', icon: HardHat },
 ];
 
 function SubNav({ pathname }: { pathname: string }) {

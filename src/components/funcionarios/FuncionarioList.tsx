@@ -86,7 +86,7 @@ export default function FuncionarioList({ funcionarios, onEdit, onDelete, canEdi
               <table className="w-full text-sm">
                 <thead className="bg-emt-verde text-white">
                   <tr>
-                    <th className="text-left px-4 py-3 text-white font-medium uppercase text-xs">Funcionário</th>
+                    <th className="text-left px-4 py-3 text-white font-medium uppercase text-xs">Usuário</th>
                     <th className="text-left px-4 py-3 text-white font-medium uppercase text-xs">E-mail</th>
                     <th className="text-left px-4 py-3 text-white font-medium uppercase text-xs">Cargo</th>
                     <th className="text-center px-4 py-3 text-white font-medium uppercase text-xs">Status</th>

@@ -6,7 +6,7 @@ import { useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   ClipboardList, AlertTriangle, Clock, Wrench, TrendingUp,
-  Activity, BarChart3, DollarSign, CalendarClock, Package,
+  Activity, BarChart3, DollarSign, CalendarClock, Package, HardHat,
 } from 'lucide-react';
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
@@ -16,6 +16,7 @@ import { useDashboardManutencao } from '../../hooks/useDashboardManutencao';
 import { useProximasPreventivas } from '../../hooks/usePlanosPreventivos';
 import { useSaldoEstoqueTotal } from '../../hooks/useSaldoEstoque';
 import { useCustoPecasEquipamento } from '../../hooks/useCustoPecasEquipamento';
+import { useChecklistsNaoConformidades } from '../../hooks/useChecklistNaoConformidades';
 import type { ProximaPreventiva } from '../../types';
 
 function statusPreventiva(pp: ProximaPreventiva): 'vencida' | 'proxima' | 'futura' {
@@ -49,6 +50,19 @@ export default function DashboardManutencao() {
   const { data: proximas = [] } = useProximasPreventivas();
   const { data: saldosEstoque = [] } = useSaldoEstoqueTotal({ apenasManutencao: true });
   const { data: topPorPecas = [] } = useCustoPecasEquipamento(10);
+  const { data: naoConformidades = [] } = useChecklistsNaoConformidades();
+
+  const checklistsMetricas = useMemo(() => {
+    let bloqueados = 0;
+    let comPendencias = 0;
+    let totalCriticos = 0;
+    for (const nc of naoConformidades) {
+      if (nc.status === 'bloqueado') bloqueados++;
+      else if (nc.status === 'concluido_com_pendencias') comPendencias++;
+      totalCriticos += nc.itensCriticos;
+    }
+    return { total: naoConformidades.length, bloqueados, comPendencias, totalCriticos };
+  }, [naoConformidades]);
 
   const pecasMetricas = useMemo(() => {
     let zeradas = 0, abaixoMin = 0;
@@ -172,6 +186,21 @@ export default function DashboardManutencao() {
             ? 'bg-[var(--color-warning-soft)] text-[var(--color-warning-fg)]'
             : 'bg-[var(--color-surface-2)] text-[var(--color-fg-muted)]'}
           onClick={() => navigate('/manutencao/agenda?status=proximas')}
+        />
+        <KPI
+          label="Não-conformidades"
+          valor={checklistsMetricas.total}
+          legenda={checklistsMetricas.bloqueados > 0
+            ? `${checklistsMetricas.bloqueados} bloqueado(s) · ${checklistsMetricas.totalCriticos} crítico(s)`
+            : checklistsMetricas.comPendencias > 0 ? `${checklistsMetricas.comPendencias} com pendências`
+            : 'todos os checklists OK'}
+          icon={HardHat}
+          cor={checklistsMetricas.bloqueados > 0
+            ? 'bg-[var(--color-danger-soft)] text-[var(--color-danger-fg)]'
+            : checklistsMetricas.total > 0
+              ? 'bg-[var(--color-warning-soft)] text-[var(--color-warning-fg)]'
+              : 'bg-[var(--color-success-soft)] text-[var(--color-success-fg)]'}
+          onClick={() => navigate('/manutencao/checklists?aba=nao_conformidades')}
         />
         <KPI
           label="Peças críticas"

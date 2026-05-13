@@ -78,6 +78,7 @@ export default function App() {
               <Route path="/cadastros" element={<ProtectedRoute modulo="cadastros"><CadastrosHub /></ProtectedRoute>} />
               <Route path="/cadastros/legado" element={<ProtectedRoute modulo="cadastros"><Obras /></ProtectedRoute>} />
               <Route path="/cadastros/etapas" element={<ProtectedRoute modulo="cadastros"><EtapasPage /></ProtectedRoute>} />
+              <Route path="/cadastros/usuarios" element={<ProtectedRoute modulo="funcionarios"><Funcionarios /></ProtectedRoute>} />
               <Route path="/cadastros/:slug" element={<ProtectedRoute modulo="cadastros"><EntityCadastroRoute /></ProtectedRoute>} />
               <Route path="/frete" element={<ProtectedRoute modulo="frete"><Frete /></ProtectedRoute>} />
               <Route path="/frota" element={<ProtectedRoute modulo="frota"><Frota /></ProtectedRoute>} />
@@ -89,6 +90,7 @@ export default function App() {
               <Route path="/manutencao/planos/:id" element={<ProtectedRoute modulo="frota"><Manutencao /></ProtectedRoute>} />
               <Route path="/manutencao/agenda" element={<ProtectedRoute modulo="frota"><Manutencao /></ProtectedRoute>} />
               <Route path="/manutencao/almoxarifado" element={<ProtectedRoute modulo="frota"><Manutencao /></ProtectedRoute>} />
+              <Route path="/manutencao/checklists" element={<ProtectedRoute modulo="frota"><Manutencao /></ProtectedRoute>} />
               <Route path="/combustivel" element={<ProtectedRoute modulo="frota"><Combustivel /></ProtectedRoute>} />
               <Route path="/funcionarios" element={<ProtectedRoute modulo="funcionarios"><Funcionarios /></ProtectedRoute>} />
               <Route path="/apontamento" element={<ProtectedRoute modulo="apontamento_rh"><ApontamentoPage /></ProtectedRoute>} />
