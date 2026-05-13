@@ -1,4 +1,4 @@
-import { useEffect, useRef, type ReactNode } from 'react';
+import { useEffect, useRef, type ReactNode, type MouseEvent } from 'react';
 
 interface ModalProps {
   open: boolean;
@@ -19,6 +19,10 @@ export default function Modal({ open, onClose, title, children, size = 'default'
   // pra screen readers anunciarem corretamente. ESC fecha (faltava). useRef pro
   // título permite linkar com aria-labelledby.
   const titleId = useRef(`modal-title-${Math.random().toString(36).slice(2, 8)}`);
+  // Smoke-fix: só fecha o modal se o gesto COMEÇOU no backdrop. Antes, um
+  // mousedown dentro do form (texto selecionado, drag de scroll) que terminava
+  // no backdrop fechava o modal acidentalmente.
+  const mouseDownOnBackdrop = useRef(false);
 
   useEffect(() => {
     if (open) {
@@ -37,11 +41,22 @@ export default function Modal({ open, onClose, title, children, size = 'default'
 
   if (!open) return null;
 
+  const handleBackdropMouseDown = (e: MouseEvent<HTMLDivElement>) => {
+    mouseDownOnBackdrop.current = e.target === e.currentTarget;
+  };
+  const handleBackdropClick = (e: MouseEvent<HTMLDivElement>) => {
+    if (e.target === e.currentTarget && mouseDownOnBackdrop.current) {
+      onClose();
+    }
+    mouseDownOnBackdrop.current = false;
+  };
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
       <div
         className="fixed inset-0 bg-black/40 backdrop-blur-[2px] dark:bg-black/70"
-        onClick={onClose}
+        onMouseDown={handleBackdropMouseDown}
+        onClick={handleBackdropClick}
         aria-hidden="true"
       />
       <div
