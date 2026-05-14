@@ -85,7 +85,10 @@ export default function OSDetalhe() {
   const { data: colaboradores = [] } = useColaboradores();
   const { data: depositos = [] } = useDepositosMaterial();
 
-  const canEdit = temAcao('editar_cadastros');
+  const canMudarStatus = temAcao('mudar_status_os');
+  const canEditarDiag = temAcao('editar_diagnostico_os');
+  const canAddPeca = temAcao('adicionar_peca_os');
+  const canAddMO = temAcao('adicionar_mao_obra_os');
 
   const [statusModalOpen, setStatusModalOpen] = useState(false);
   const [diagModalOpen, setDiagModalOpen] = useState(false);
@@ -156,12 +159,14 @@ export default function OSDetalhe() {
 
   async function handleExcluirPeca(pecaId: string) {
     if (!os) return;
+    if (!canAddPeca) return;
     if (!window.confirm('Remover esta peça da OS? O custo será recalculado.')) return;
     await excluirPecaMut.mutateAsync({ pecaId, osId: os.id });
   }
 
   async function handleExcluirMO(moId: string) {
     if (!os) return;
+    if (!canAddMO) return;
     if (!window.confirm('Remover este apontamento de horas?')) return;
     await excluirMOMut.mutateAsync({ moId, osId: os.id });
   }
@@ -224,7 +229,7 @@ export default function OSDetalhe() {
               )}
             </div>
             <div className="flex items-center gap-2 flex-wrap">
-              {canEdit && (
+              {canMudarStatus && (
                 <Button variant="secondary" size="sm" onClick={() => setStatusModalOpen(true)}>
                   <ChevronRight className="w-3.5 h-3.5" />
                   Avançar status
@@ -271,7 +276,7 @@ export default function OSDetalhe() {
           <h3 className="text-xs font-semibold uppercase tracking-wider text-[var(--color-fg-muted)]">
             Diagnóstico
           </h3>
-          {canEdit && (
+          {canEditarDiag && (
             <Button size="sm" variant="secondary" onClick={() => setDiagModalOpen(true)}>
               <Pencil className="w-3.5 h-3.5" />
               Editar diagnóstico
@@ -322,7 +327,7 @@ export default function OSDetalhe() {
                 <span className="ml-2 text-[var(--color-fg-subtle)] font-normal">({pecas.length})</span>
               )}
             </h3>
-            {canEdit && (
+            {canAddPeca && (
               <Button size="sm" variant="secondary" onClick={() => setPecaModalOpen(true)}>
                 <Plus className="w-3.5 h-3.5" />
                 Adicionar
@@ -332,7 +337,7 @@ export default function OSDetalhe() {
           {pecas.length === 0 ? (
             <div className="rounded-xl border border-dashed border-[var(--color-border)] bg-[var(--color-surface-1)] p-4 text-center text-sm text-[var(--color-fg-muted)]">
               Nenhuma peça registrada.
-              {canEdit && (
+              {canAddPeca && (
                 <p className="text-xs text-[var(--color-fg-subtle)] mt-1">
                   Clique em Adicionar pra registrar a 1ª peça.
                 </p>
@@ -355,7 +360,7 @@ export default function OSDetalhe() {
                   </div>
                   <div className="flex items-center gap-1.5 shrink-0">
                     <strong className="text-sm font-mono">{fmtBRL(p.custoTotal)}</strong>
-                    {canEdit && (
+                    {canAddPeca && (
                       <button
                         type="button"
                         onClick={() => handleExcluirPeca(p.id)}
@@ -381,7 +386,7 @@ export default function OSDetalhe() {
                 <span className="ml-2 text-[var(--color-fg-subtle)] font-normal">({maoObra.length})</span>
               )}
             </h3>
-            {canEdit && (
+            {canAddMO && (
               <Button size="sm" variant="secondary" onClick={() => setMOModalOpen(true)}>
                 <Plus className="w-3.5 h-3.5" />
                 Apontar horas
@@ -391,7 +396,7 @@ export default function OSDetalhe() {
           {maoObra.length === 0 ? (
             <div className="rounded-xl border border-dashed border-[var(--color-border)] bg-[var(--color-surface-1)] p-4 text-center text-sm text-[var(--color-fg-muted)]">
               Nenhuma hora apontada.
-              {canEdit && (
+              {canAddMO && (
                 <p className="text-xs text-[var(--color-fg-subtle)] mt-1">
                   Clique em Apontar horas pra registrar a 1ª.
                 </p>
@@ -413,7 +418,7 @@ export default function OSDetalhe() {
                   </div>
                   <div className="flex items-center gap-1.5 shrink-0">
                     <strong className="text-sm font-mono">{fmtBRL(m.custoTotal)}</strong>
-                    {canEdit && (
+                    {canAddMO && (
                       <button
                         type="button"
                         onClick={() => handleExcluirMO(m.id)}

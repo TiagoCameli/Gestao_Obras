@@ -8,6 +8,7 @@ import ImportExcelModal, { parseStr, parseNumero, parseData, type ParsedRow } fr
 import PagamentoAbatimentoCard from './PagamentoAbatimentoCard';
 import { supabase } from '../../lib/supabase';
 import AnexosUploader from '../combustivel/AnexosUploader';
+import { useAuth } from '../../contexts/AuthContext';
 
 function PagoPorCombobox({ id, opcoes, value, onChange }: {
   id: string;
@@ -246,8 +247,14 @@ export default function PagamentoFreteForm({
     }
   }, [initial]);
 
+  const { temAcao } = useAuth();
+  const canPagar = initial
+    ? temAcao('editar_pagamento_frete')
+    : temAcao('criar_pagamento_frete');
+
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
+    if (!canPagar) return;
     if (dividir && !initial && onSubmitBatch) {
       const items: PagamentoFrete[] = parcelas.map((p) => ({
         id: gerarId(),

@@ -29,7 +29,7 @@ function fmtQty(n: number, unidade: string): string {
 
 export default function PecaDetalheModal({ open, onClose, insumoId, onEditar, onRegistrarEntrada }: Props) {
   const { temAcao } = useAuth();
-  const canEdit = temAcao('criar_cadastros') || temAcao('editar_cadastros');
+  const canEdit = temAcao('editar_peca_almoxarifado');
   const { data: saldos = [] } = useSaldoEstoqueTotal({ apenasManutencao: true });
   const { data: insumos = [] } = useInsumos();
   const { data: porDeposito = [], isLoading: loadingDep } = useSaldoEstoquePorDeposito(insumoId);

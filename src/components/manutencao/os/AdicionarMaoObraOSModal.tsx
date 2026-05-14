@@ -6,6 +6,7 @@ import Modal from '../../ui/Modal';
 import Input from '../../ui/Input';
 import Button from '../../ui/Button';
 import FilterCombobox from '../../ui/FilterCombobox';
+import { useAuth } from '../../../contexts/AuthContext';
 
 interface Props {
   open: boolean;
@@ -41,8 +42,11 @@ export default function AdicionarMaoObraOSModal({
 
   const podeSalvar = !!colaboradorId && !!data && horasNum > 0;
 
+  const { temAcao } = useAuth();
+  const canAddMO = temAcao('adicionar_mao_obra_os');
   const handleSubmit = useCallback(async (e: FormEvent) => {
     e.preventDefault();
+    if (!canAddMO) return;
     if (!podeSalvar || submitting) return;
     setSubmitting(true);
     try {

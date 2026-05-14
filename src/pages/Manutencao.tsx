@@ -129,7 +129,7 @@ function OrdensServicoPage() {
 
   const { data: equipamentos = [] } = useEquipamentos();
   const { temAcao } = useAuth();
-  const canCreate = temAcao('criar_cadastros') || temAcao('editar_cadastros');
+  const canCreate = temAcao('criar_os');
 
   const { data: ordens = [], isLoading } = useOrdensServico({
     abertas: filtroStatus === 'abertas',

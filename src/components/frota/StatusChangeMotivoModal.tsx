@@ -9,6 +9,7 @@ import type { StatusEquipamento } from '../../types';
 import { STATUS_EQUIPAMENTO_LABEL } from '../../types';
 import Modal from '../ui/Modal';
 import Button from '../ui/Button';
+import { useAuth } from '../../contexts/AuthContext';
 
 interface Props {
   open: boolean;
@@ -73,10 +74,13 @@ export default function StatusChangeMotivoModal({
   }, [open]);
 
   const motivoObrigatorio = statusPara !== 'ativa';
-  const podeSalvar = !motivoObrigatorio || motivo.trim().length > 0;
+  const { temAcao } = useAuth();
+  const canMudarStatus = temAcao('mudar_status_equipamento');
+  const podeSalvar = canMudarStatus && (!motivoObrigatorio || motivo.trim().length > 0);
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
+    if (!canMudarStatus) return;
     if (!podeSalvar || submitting) return;
     setSubmitting(true);
     try {

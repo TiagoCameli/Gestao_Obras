@@ -21,6 +21,7 @@ import {
   isAdminLocal,
 } from "../../utils/contractTree";
 import { ImportExcelModal } from "./ImportExcelModal";
+import { useAuth } from "../../../../contexts/AuthContext";
 
 interface MeasurementViewProps {
   obra: Obra;
@@ -40,6 +41,15 @@ const QTY_FMT = new Intl.NumberFormat("pt-BR", {
 });
 
 export function MeasurementView({ obra, onClose }: MeasurementViewProps) {
+  const { temAcao } = useAuth();
+  const canEditItens = temAcao("editar_itens_contrato");
+  const canImportContrato = temAcao("importar_contrato_medicao");
+  const canExportMedicao = temAcao("exportar_medicao");
+  const canFecharMedicao = temAcao("fechar_medicao");
+  const canTrocarPeriodo = temAcao("trocar_periodo_medicao");
+  const canBaixarTemplate = temAcao("baixar_template_contrato");
+  const canGerenciarContrato = temAcao("gerenciar_contrato");
+
   const { items, addItems, replaceAll } = useContractItems(obra.id);
   const [query, setQuery] = useState("");
   const [showImport, setShowImport] = useState(false);
@@ -70,6 +80,7 @@ export function MeasurementView({ obra, onClose }: MeasurementViewProps) {
   const workingItems = editMode && draft ? draft : items;
 
   const startEdit = () => {
+    if (!canEditItens) return;
     setDraft(items.map((i) => ({ ...i })));
     setEditMode(true);
   };
@@ -80,6 +91,7 @@ export function MeasurementView({ obra, onClose }: MeasurementViewProps) {
   };
 
   const saveEdit = () => {
+    if (!canEditItens) return;
     if (draft) replaceAll(draft);
     setDraft(null);
     setEditMode(false);
@@ -249,14 +261,15 @@ export function MeasurementView({ obra, onClose }: MeasurementViewProps) {
             <button
               type="button"
               onClick={() => setMedicao(currentMedicao - 1)}
-              disabled={currentMedicao <= 1}
+              disabled={currentMedicao <= 1 || !canTrocarPeriodo}
+              title={!canTrocarPeriodo ? "Sem permissão para trocar período" : ""}
               style={{
                 width: 22, height: 22, borderRadius: 6,
                 background: "transparent",
                 border: "none",
                 color: "var(--info)",
-                cursor: currentMedicao <= 1 ? "not-allowed" : "pointer",
-                opacity: currentMedicao <= 1 ? 0.4 : 1,
+                cursor: currentMedicao <= 1 || !canTrocarPeriodo ? "not-allowed" : "pointer",
+                opacity: currentMedicao <= 1 || !canTrocarPeriodo ? 0.4 : 1,
                 fontWeight: 700,
               }}
             >
@@ -278,12 +291,15 @@ export function MeasurementView({ obra, onClose }: MeasurementViewProps) {
             <button
               type="button"
               onClick={() => setMedicao(currentMedicao + 1)}
+              disabled={!canFecharMedicao}
+              title={!canFecharMedicao ? "Avançar período fecha a medição — sem permissão" : ""}
               style={{
                 width: 22, height: 22, borderRadius: 6,
                 background: "transparent",
                 border: "none",
                 color: "var(--info)",
-                cursor: "pointer",
+                cursor: !canFecharMedicao ? "not-allowed" : "pointer",
+                opacity: !canFecharMedicao ? 0.4 : 1,
                 fontWeight: 700,
               }}
             >
@@ -317,88 +333,96 @@ export function MeasurementView({ obra, onClose }: MeasurementViewProps) {
               }}
             />
           </div>
-          <button
-            onClick={() => downloadContractTemplate(obra.name)}
-            className="btn btn-ghost"
-            style={{ padding: "9px 14px", fontSize: 12 }}
-            title="Baixar planilha modelo (.xlsx)"
-          >
-            <FileDown className="h-4 w-4" />
-            Modelo
-          </button>
-          <button
-            onClick={() => setShowImport(true)}
-            className="btn btn-ghost"
-            style={{ padding: "9px 14px", fontSize: 12 }}
-            title="Importar Excel / CSV"
-          >
-            <FileSpreadsheet className="h-4 w-4" />
-            Importar
-          </button>
-          <button
-            onClick={async () => {
-              const acts = await loadActivities(obra.id);
-              const base = editMode && draft ? draft : items;
-              const reconciled = reconcileCurrentQty(base, acts);
-              const changed = reconciled.filter(
-                (r, i) => r !== base[i]
-              ).length;
-              if (changed === 0) {
-                alert("Já está tudo reconciliado — nenhum item precisou de ajuste.");
-                return;
-              }
-              const ok = confirm(
-                `Recalcular "Qtd da medição atual" a partir das atividades?\n\n${changed} ${changed === 1 ? "item será" : "itens serão"} ajustados.\n\nObs: o total acumulado (Qtd Total) das medições fechadas é preservado.`
-              );
-              if (!ok) return;
-              if (editMode) {
-                setDraft(reconciled);
-              } else {
-                replaceAll(reconciled);
-              }
-            }}
-            disabled={items.length === 0}
-            className="btn"
-            style={{
-              padding: "9px 14px",
-              fontSize: 12,
-              opacity: items.length === 0 ? 0.5 : 1,
-              background: "linear-gradient(180deg, rgba(47,211,166,0.18), rgba(47,211,166,0.06))",
-              border: "1px solid rgba(47,211,166,0.45)",
-              color: "var(--success)",
-              fontWeight: 600,
-            }}
-            title="Recalcular as quantidades da medição atual a partir das atividades (corrige drift)"
-          >
-            <Check className="h-4 w-4" />
-            Reconciliar
-          </button>
-          <button
-            onClick={async () => {
-              const acts = await loadActivities(obra.id);
-              exportMedicaoExcel({
-                obra,
-                items: workingItems,
-                activities: acts,
-                medicao: currentMedicao,
-              });
-            }}
-            disabled={items.length === 0}
-            className="btn"
-            style={{
-              padding: "9px 14px",
-              fontSize: 12,
-              opacity: items.length === 0 ? 0.5 : 1,
-              background: "linear-gradient(180deg, rgba(245,158,11,0.18), rgba(245,158,11,0.06))",
-              border: "1px solid rgba(245,158,11,0.45)",
-              color: "var(--accent-hover)",
-              fontWeight: 600,
-            }}
-            title={`Exportar Excel premium da ${currentMedicao}ª medição`}
-          >
-            <Sparkles className="h-4 w-4" />
-            Excel {currentMedicao}ª Med.
-          </button>
+          {canBaixarTemplate && (
+            <button
+              onClick={() => downloadContractTemplate(obra.name)}
+              className="btn btn-ghost"
+              style={{ padding: "9px 14px", fontSize: 12 }}
+              title="Baixar planilha modelo (.xlsx)"
+            >
+              <FileDown className="h-4 w-4" />
+              Modelo
+            </button>
+          )}
+          {canImportContrato && (
+            <button
+              onClick={() => setShowImport(true)}
+              className="btn btn-ghost"
+              style={{ padding: "9px 14px", fontSize: 12 }}
+              title="Importar Excel / CSV"
+            >
+              <FileSpreadsheet className="h-4 w-4" />
+              Importar
+            </button>
+          )}
+          {canGerenciarContrato && (
+            <button
+              onClick={async () => {
+                const acts = await loadActivities(obra.id);
+                const base = editMode && draft ? draft : items;
+                const reconciled = reconcileCurrentQty(base, acts);
+                const changed = reconciled.filter(
+                  (r, i) => r !== base[i]
+                ).length;
+                if (changed === 0) {
+                  alert("Já está tudo reconciliado — nenhum item precisou de ajuste.");
+                  return;
+                }
+                const ok = confirm(
+                  `Recalcular "Qtd da medição atual" a partir das atividades?\n\n${changed} ${changed === 1 ? "item será" : "itens serão"} ajustados.\n\nObs: o total acumulado (Qtd Total) das medições fechadas é preservado.`
+                );
+                if (!ok) return;
+                if (editMode) {
+                  setDraft(reconciled);
+                } else {
+                  replaceAll(reconciled);
+                }
+              }}
+              disabled={items.length === 0}
+              className="btn"
+              style={{
+                padding: "9px 14px",
+                fontSize: 12,
+                opacity: items.length === 0 ? 0.5 : 1,
+                background: "linear-gradient(180deg, rgba(47,211,166,0.18), rgba(47,211,166,0.06))",
+                border: "1px solid rgba(47,211,166,0.45)",
+                color: "var(--success)",
+                fontWeight: 600,
+              }}
+              title="Recalcular as quantidades da medição atual a partir das atividades (corrige drift)"
+            >
+              <Check className="h-4 w-4" />
+              Reconciliar
+            </button>
+          )}
+          {canExportMedicao && (
+            <button
+              onClick={async () => {
+                const acts = await loadActivities(obra.id);
+                exportMedicaoExcel({
+                  obra,
+                  items: workingItems,
+                  activities: acts,
+                  medicao: currentMedicao,
+                });
+              }}
+              disabled={items.length === 0}
+              className="btn"
+              style={{
+                padding: "9px 14px",
+                fontSize: 12,
+                opacity: items.length === 0 ? 0.5 : 1,
+                background: "linear-gradient(180deg, rgba(245,158,11,0.18), rgba(245,158,11,0.06))",
+                border: "1px solid rgba(245,158,11,0.45)",
+                color: "var(--accent-hover)",
+                fontWeight: 600,
+              }}
+              title={`Exportar Excel premium da ${currentMedicao}ª medição`}
+            >
+              <Sparkles className="h-4 w-4" />
+              Excel {currentMedicao}ª Med.
+            </button>
+          )}
           {editMode && items.length > 0 && (
             <button
               onClick={() => {
@@ -470,15 +494,17 @@ export function MeasurementView({ obra, onClose }: MeasurementViewProps) {
               </button>
             </>
           ) : (
-            <button
-              onClick={startEdit}
-              className="btn btn-primary shimmer-wrap"
-              style={{ padding: "9px 16px", fontSize: 13 }}
-              title="Editar itens do contrato"
-            >
-              <Pencil className="h-4 w-4" />
-              Editar
-            </button>
+            canEditItens && (
+              <button
+                onClick={startEdit}
+                className="btn btn-primary shimmer-wrap"
+                style={{ padding: "9px 16px", fontSize: 13 }}
+                title="Editar itens do contrato"
+              >
+                <Pencil className="h-4 w-4" />
+                Editar
+              </button>
+            )
           )}
           <button
             onClick={onClose}

@@ -8,6 +8,7 @@ import type { Deposito } from '../../../types';
 import Modal from '../../ui/Modal';
 import Button from '../../ui/Button';
 import { useEsvaziarTanque } from '../../../hooks/useEsvaziamentosTanque';
+import { useAuth } from '../../../contexts/AuthContext';
 
 interface Props {
   open: boolean;
@@ -28,8 +29,11 @@ export default function EsvaziarTanqueModal({ open, onClose, tanque, combustivel
     }
   }, [open]);
 
+  const { temAcao } = useAuth();
+  const canEsvaziar = temAcao('esvaziar_tanque');
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
+    if (!canEsvaziar) { setErro('Sem permissão para esvaziar tanque.'); return; }
     if (!tanque) return;
     if (motivo.trim().length < 3) {
       setErro('Informe um motivo (mín. 3 caracteres).');

@@ -4,6 +4,7 @@ import * as XLSX from "xlsx";
 import type { ContractItem } from "../../types/activity";
 import { generateId } from "../../utils/format";
 import { downloadContractTemplate } from "../../utils/contractTemplate";
+import { useAuth } from "../../../../contexts/AuthContext";
 
 type FieldKey = "type" | "code" | "name" | "unit" | "contractedQty" | "unitPrice" | "total";
 
@@ -98,6 +99,18 @@ function detectColumnMapping(headers: Row): Record<FieldKey, number | null> {
 }
 
 export function ImportExcelModal({ obraId, onCancel, onConfirm }: ImportExcelModalProps) {
+  const { temAcao } = useAuth();
+  const canImport = temAcao("importar_contrato_medicao");
+  if (!canImport) {
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60" onClick={onCancel}>
+        <div className="bg-[#14161e] border border-white/[0.08] rounded-2xl w-full max-w-sm p-6" onClick={(e) => e.stopPropagation()}>
+          <p className="text-sm text-[#f1f5f9] mb-3">Sem permissão para importar contrato.</p>
+          <button onClick={onCancel} className="text-xs text-[#94a3b8] hover:text-[#f1f5f9]">Fechar</button>
+        </div>
+      </div>
+    );
+  }
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [fileName, setFileName] = useState<string>("");
   const [sheetNames, setSheetNames] = useState<string[]>([]);

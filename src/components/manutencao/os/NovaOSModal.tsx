@@ -80,8 +80,11 @@ export default function NovaOSModal({ open, onClose, equipamentos, equipamentoId
 
   const podeSalvar = !!equipamentoId && !!tipo && !!prioridade && !!defeitoReportado.trim();
 
+  const { temAcao } = useAuth();
+  const canCriarOS = temAcao('criar_os');
   const handleSubmit = useCallback(async (e: FormEvent) => {
     e.preventDefault();
+    if (!canCriarOS) { setErro('Sem permissão para criar OS.'); return; }
     if (!podeSalvar || submitting) return;
     setErro(null);
     setSubmitting(true);

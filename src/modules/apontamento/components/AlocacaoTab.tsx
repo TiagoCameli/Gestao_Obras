@@ -16,6 +16,7 @@ import {
   useUpdateEquipe,
 } from "../hooks/useApontamentoData";
 import type { Equipe, Funcionario, Obra } from "../types/funcionario";
+import { useAuth } from "../../../contexts/AuthContext";
 
 export default function AlocacaoTab() {
   return <EquipesView />;
@@ -26,6 +27,13 @@ export default function AlocacaoTab() {
 /* ────────────────────────────────────────────────────────────────────── */
 
 function EquipesView() {
+  const { temAcao } = useAuth();
+  const canCriarEquipe = temAcao("criar_equipe");
+  const canEditarEquipe = temAcao("editar_equipe");
+  const canExcluirEquipe = temAcao("excluir_equipe");
+  const canAlocar = temAcao("alocar_funcionarios_equipe");
+  const canTransferir = temAcao("transferir_equipe_obra");
+
   const { data: obras = [] } = useObrasApont();
   const { data: equipes = [] } = useEquipesApont();
   const { data: funcionarios = [] } = useFuncionarios();
@@ -54,6 +62,7 @@ function EquipesView() {
   /** Aplica a alocação quando um funcionário é solto numa equipe (ou sem alocação). */
   function handleDropFuncionario(funcionarioId: string, targetEquipeId: string | null) {
     setDragOverTarget(null);
+    if (!canAlocar) return;
     if (!funcionarioId) return;
     if (targetEquipeId) {
       const eq = equipes.find((e) => e.id === targetEquipeId);
@@ -143,9 +152,11 @@ function EquipesView() {
               ))}
             </select>
           </div>
-          <Button onClick={() => setModalEq({ open: true, edit: null })}>
-            Nova equipe
-          </Button>
+          {canCriarEquipe && (
+            <Button onClick={() => setModalEq({ open: true, edit: null })}>
+              Nova equipe
+            </Button>
+          )}
         </div>
       </div>
 
@@ -271,31 +282,39 @@ function EquipesView() {
                     )}
                   </div>
                   <div className="flex gap-1 shrink-0">
-                    <button
-                      onClick={() => setAlocandoEquipe(eq)}
-                      className="text-xs px-2 py-1 rounded hover:bg-[var(--color-surface-2)] text-[var(--color-accent)]"
-                    >
-                      Alocar
-                    </button>
-                    <button
-                      onClick={() => setTransferindoEquipe(eq)}
-                      className="text-xs px-2 py-1 rounded hover:bg-[var(--color-surface-2)] text-[var(--color-info-fg)]"
-                      disabled={eq.obraIds.length === 0}
-                    >
-                      Transferir
-                    </button>
-                    <button
-                      onClick={() => setModalEq({ open: true, edit: eq })}
-                      className="text-xs px-2 py-1 rounded hover:bg-[var(--color-surface-2)] text-[var(--color-fg-muted)]"
-                    >
-                      Editar
-                    </button>
-                    <button
-                      onClick={() => setDeleteEqId(eq.id)}
-                      className="text-xs px-2 py-1 rounded hover:bg-[var(--color-surface-2)] text-[var(--color-danger)]"
-                    >
-                      Excluir
-                    </button>
+                    {canAlocar && (
+                      <button
+                        onClick={() => setAlocandoEquipe(eq)}
+                        className="text-xs px-2 py-1 rounded hover:bg-[var(--color-surface-2)] text-[var(--color-accent)]"
+                      >
+                        Alocar
+                      </button>
+                    )}
+                    {canTransferir && (
+                      <button
+                        onClick={() => setTransferindoEquipe(eq)}
+                        className="text-xs px-2 py-1 rounded hover:bg-[var(--color-surface-2)] text-[var(--color-info-fg)]"
+                        disabled={eq.obraIds.length === 0}
+                      >
+                        Transferir
+                      </button>
+                    )}
+                    {canEditarEquipe && (
+                      <button
+                        onClick={() => setModalEq({ open: true, edit: eq })}
+                        className="text-xs px-2 py-1 rounded hover:bg-[var(--color-surface-2)] text-[var(--color-fg-muted)]"
+                      >
+                        Editar
+                      </button>
+                    )}
+                    {canExcluirEquipe && (
+                      <button
+                        onClick={() => setDeleteEqId(eq.id)}
+                        className="text-xs px-2 py-1 rounded hover:bg-[var(--color-surface-2)] text-[var(--color-danger)]"
+                      >
+                        Excluir
+                      </button>
+                    )}
                   </div>
                 </header>
 
@@ -343,8 +362,10 @@ function EquipesView() {
           onCancel={() => setModalEq({ open: false, edit: null })}
           onSubmit={async (e) => {
             if (modalEq.edit) {
+              if (!canEditarEquipe) return;
               await updateEq.mutateAsync({ ...modalEq.edit, ...e });
             } else {
+              if (!canCriarEquipe) return;
               await createEq.mutateAsync(e);
             }
             setModalEq({ open: false, edit: null });
@@ -418,6 +439,7 @@ function EquipesView() {
         open={deleteEqId !== null}
         onClose={() => setDeleteEqId(null)}
         onConfirm={async () => {
+          if (!canExcluirEquipe) { setDeleteEqId(null); return; }
           if (deleteEqId) {
             await removeEq.mutateAsync(deleteEqId);
           }

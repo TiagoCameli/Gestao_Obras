@@ -6,6 +6,7 @@ import Button from '../ui/Button';
 import { useAdicionarLocalidade } from '../../hooks/useLocalidades';
 import ImportExcelModal, { parseStr, parseNumero, parseData, type ParsedRow } from '../ui/ImportExcelModal';
 import AnexosUploader from '../combustivel/AnexosUploader';
+import { useAuth } from '../../contexts/AuthContext';
 
 interface FreteFormProps {
   initial?: Frete | null;
@@ -233,8 +234,11 @@ export default function FreteForm({
     }
   }, [initial]);
 
+  const { temAcao } = useAuth();
+  const canAct = initial ? temAcao('editar_frete') : temAcao('criar_frete');
   function handleSubmit(e: FormEvent) {
     e.preventDefault();
+    if (!canAct) return;
     onSubmit({
       id: initial?.id || gerarId(),
       data,

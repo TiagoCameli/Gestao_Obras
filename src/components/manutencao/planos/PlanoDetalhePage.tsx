@@ -39,7 +39,7 @@ export default function PlanoDetalhePage() {
   const [atividadeModalOpen, setAtividadeModalOpen] = useState(false);
   const [atividadeEditando, setAtividadeEditando] = useState<PlanoAtividade | null>(null);
 
-  const podeEditar = temAcao('criar_cadastros') || temAcao('editar_cadastros');
+  const podeEditar = temAcao('editar_plano_preventivo');
 
   const proximaOrdem = useMemo(() => {
     if (atividades.length === 0) return 10;

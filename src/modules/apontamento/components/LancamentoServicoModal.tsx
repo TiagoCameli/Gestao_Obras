@@ -4,6 +4,7 @@ import Button from "../../../components/ui/Button";
 import Input from "../../../components/ui/Input";
 import Select from "../../../components/ui/Select";
 import FilterCombobox from "../../../components/ui/FilterCombobox";
+import { useAuth } from "../../../contexts/AuthContext";
 import {
   replaceApontamentosDoDia,
   type ApontamentoServico,
@@ -72,6 +73,8 @@ export default function LancamentoServicoModal({
   onSaved,
 }: Props) {
   const editando = iniciais.length > 0;
+  const { temAcao } = useAuth();
+  const canAct = editando ? temAcao("editar_apontamento_servico") : temAcao("lancar_apontamento_servico");
 
   const baseHoras = useMemo(() => {
     if (funcionarioIds.length === 0) return 0;
@@ -193,6 +196,10 @@ export default function LancamentoServicoModal({
       <form
         onSubmit={async (e) => {
           e.preventDefault();
+          if (!canAct) {
+            setErro("Sem permissão para esta ação.");
+            return;
+          }
           const err = validar();
           if (err) {
             setErro(err);

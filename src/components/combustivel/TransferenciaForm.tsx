@@ -8,6 +8,7 @@ import Select from '../ui/Select';
 import Button from '../ui/Button';
 import ImportExcelModal, { parseStr, parseNumero, type ParsedRow } from '../ui/ImportExcelModal';
 import AnexosUploader from './AnexosUploader';
+import { useAuth } from '../../contexts/AuthContext';
 
 interface TransferenciaFormProps {
   onSubmit: (data: TransferenciaCombustivel) => void;
@@ -203,8 +204,11 @@ export default function TransferenciaForm({
     [onImportBatch]
   );
 
+  const { temAcao } = useAuth();
+  const canAct = temAcao('criar_transferencia_combustivel');
   function handleSubmit(e: FormEvent) {
     e.preventDefault();
+    if (!canAct) return;
     onSubmit({
       id: pastaId,
       dataHora,

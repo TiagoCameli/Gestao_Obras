@@ -1853,7 +1853,7 @@ function ColaboradorForm({
 
 export default function Obras() {
   const { temAcao, usuario } = useAuth();
-  const canCreate = temAcao('criar_cadastros');
+  const canCreate = temAcao('criar_obras');
 
   // ---- Supabase query hooks ----
   const { data: obras = [], isLoading: loadingObras } = useObras();

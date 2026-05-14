@@ -45,7 +45,7 @@ function fmtQty(n: number, unidade: string): string {
 
 export default function AlmoxarifadoPage() {
   const { temAcao } = useAuth();
-  const canCreate = temAcao('criar_cadastros') || temAcao('editar_cadastros');
+  const canCreate = temAcao('criar_peca_almoxarifado') || temAcao('criar_entrada_almoxarifado');
 
   const { data: saldos = [], isLoading } = useSaldoEstoqueTotal({ apenasManutencao: true });
   const { data: insumos = [] } = useInsumos();

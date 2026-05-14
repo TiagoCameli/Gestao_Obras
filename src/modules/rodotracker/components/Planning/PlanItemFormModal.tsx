@@ -4,6 +4,7 @@ import type { PlanItem, ServiceType } from "../../types/activity";
 import { SERVICE_TYPES, PLAN_STATUS_OPTIONS } from "../../types/activity";
 import { serviceColors } from "../../utils/colors";
 import { generateId, todayISO } from "../../utils/format";
+import { useAuth } from "../../../../contexts/AuthContext";
 
 interface PlanItemFormModalProps {
   obraId: string;
@@ -36,8 +37,11 @@ export function PlanItemFormModal({
     return () => window.removeEventListener("keydown", handler);
   }, [onClose]);
 
+  const { temAcao } = useAuth();
+  const canGerenciar = temAcao("gerenciar_planejamento");
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (!canGerenciar) return;
     if (!name.trim()) return;
     if (endDate < startDate) {
       alert("A data final não pode ser anterior à data inicial.");

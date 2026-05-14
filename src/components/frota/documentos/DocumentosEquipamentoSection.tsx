@@ -79,8 +79,8 @@ export default function DocumentosEquipamentoSection({ equipamentoId, fornecedor
   const [editando, setEditando] = useState<DocumentoEquipamento | null>(null);
   const [excluindo, setExcluindo] = useState<DocumentoEquipamento | null>(null);
 
-  const canEdit = temAcao('editar_cadastros');
-  const canDelete = temAcao('excluir_cadastros');
+  const canEdit = temAcao('gerenciar_documentos_equipamento');
+  const canDelete = temAcao('gerenciar_documentos_equipamento');
 
   const fornecedorNome = (id: string | null) =>
     id ? fornecedores.find((f) => f.id === id)?.nome ?? '—' : '—';

@@ -16,6 +16,7 @@ import FinanceiroEquipamentoSection from './financeiro/FinanceiroEquipamentoSect
 import HistoricoEquipamentoSection from './historico/HistoricoEquipamentoSection';
 import PlanoPreventivoEquipamentoSection from './planos/PlanoPreventivoEquipamentoSection';
 import CustoPecasEquipamentoSection from './pecas/CustoPecasEquipamentoSection';
+import { useAuth } from '../../contexts/AuthContext';
 
 interface FrotaDetalheProps {
   equipamento: Equipamento;
@@ -65,6 +66,9 @@ function Campo({
 }
 
 export default function FrotaDetalhe({ equipamento: eq, empresas, fornecedores, onEditar, onExcluir }: FrotaDetalheProps) {
+  const { temAcao } = useAuth();
+  const canQR = temAcao('gerar_etiquetas_qr');
+  const canExportPDF = temAcao('exportar_frota');
   const cat = getCategoriaFrota(eq.tipo);
   const empresaNome = empresas.find((e) => e.id === eq.empresaId)?.nome ?? '—';
   const alugada = eq.propriedade === 'alugada';
@@ -149,14 +153,18 @@ export default function FrotaDetalhe({ equipamento: eq, empresas, fornecedores, 
                 {alugada ? <Key aria-hidden className="w-3.5 h-3.5" /> : <Building2 aria-hidden className="w-3.5 h-3.5" />}
                 {alugada ? 'Alugado' : 'Próprio'}
               </span>
-              <Button onClick={handleBaixarQr} variant="secondary" size="sm">
-                <QrCode aria-hidden className="w-3.5 h-3.5" />
-                QR
-              </Button>
-              <Button onClick={handleExportarPdf} variant="secondary" size="sm">
-                <FileDown aria-hidden className="w-3.5 h-3.5" />
-                PDF
-              </Button>
+              {canQR && (
+                <Button onClick={handleBaixarQr} variant="secondary" size="sm">
+                  <QrCode aria-hidden className="w-3.5 h-3.5" />
+                  QR
+                </Button>
+              )}
+              {canExportPDF && (
+                <Button onClick={handleExportarPdf} variant="secondary" size="sm">
+                  <FileDown aria-hidden className="w-3.5 h-3.5" />
+                  PDF
+                </Button>
+              )}
               {onEditar && (
                 <Button onClick={onEditar} variant="secondary" size="sm">
                   <Pencil aria-hidden className="w-3.5 h-3.5" />

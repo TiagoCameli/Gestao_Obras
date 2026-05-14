@@ -28,6 +28,7 @@ import {
 import type { Equipamento, Obra, Deposito } from '../../../../types';
 import Button from '../../../ui/Button';
 import EmptyState from '../shared/EmptyState';
+import { useAuth } from '../../../../contexts/AuthContext';
 
 interface Props {
   equipamentos: Equipamento[];
@@ -49,6 +50,10 @@ function fmtBRL(n: number): string {
 }
 
 export default function LixeiraTab({ equipamentos, obras, depositos }: Props) {
+  const { temAcao } = useAuth();
+  const canVerLixeira = temAcao('ver_lixeira_combustivel');
+  const canRestaurar = temAcao('restaurar_lixeira_combustivel');
+
   const saidasQ = useSaidasCombustivelDeletadas();
   const entradasQ = useEntradasCombustivelDeletadas();
   const transfersQ = useTransferenciasCombustivelDeletadas();
@@ -81,6 +86,10 @@ export default function LixeiraTab({ equipamentos, obras, depositos }: Props) {
     tipo: 'saida' | 'entrada' | 'transferencia' | 'tanque',
     id: string,
   ) {
+    if (!canRestaurar) {
+      alert('Sem permissão para restaurar itens da lixeira.');
+      return;
+    }
     if (!window.confirm('Restaurar este registro?')) return;
     try {
       if (tipo === 'saida') await restaurarSaida.mutateAsync(id);
@@ -92,6 +101,14 @@ export default function LixeiraTab({ equipamentos, obras, depositos }: Props) {
       console.error('[lixeira] falha ao restaurar', e);
       alert('Falha ao restaurar. Tente novamente.');
     }
+  }
+
+  if (!canVerLixeira) {
+    return (
+      <div className="py-12 text-center text-sm text-[var(--color-fg-muted)]">
+        Você não tem permissão para visualizar a lixeira de combustível.
+      </div>
+    );
   }
 
   if (isLoading) {

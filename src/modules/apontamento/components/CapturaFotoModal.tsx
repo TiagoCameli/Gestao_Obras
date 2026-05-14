@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import Button from "../../../components/ui/Button";
 import Modal from "../../../components/ui/Modal";
 import { preloadFaceModels } from "../utils/faceRecognition";
+import { useAuth } from "../../../contexts/AuthContext";
 
 interface Props {
   open: boolean;
@@ -23,6 +24,8 @@ export default function CapturaFotoModal({
   onCapture,
   validarFace,
 }: Props) {
+  const { temAcao } = useAuth();
+  const canCapturar = temAcao("captura_facial_ponto") || temAcao("registrar_ponto");
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -140,6 +143,7 @@ export default function CapturaFotoModal({
       setVerificando(false);
     }
 
+    if (!canCapturar) return;
     onCapture(dataUrl, coords);
   }
 

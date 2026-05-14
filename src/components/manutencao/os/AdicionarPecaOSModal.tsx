@@ -8,6 +8,7 @@ import { useState, useCallback, useMemo, type FormEvent } from 'react';
 import type { Insumo, OSPeca, DepositoMaterial } from '../../../types';
 import Modal from '../../ui/Modal';
 import Input from '../../ui/Input';
+import { useAuth } from '../../../contexts/AuthContext';
 import Select from '../../ui/Select';
 import Button from '../../ui/Button';
 import FilterCombobox from '../../ui/FilterCombobox';
@@ -60,8 +61,11 @@ export default function AdicionarPecaOSModal({
 
   const podeSalvar = !!insumoId && quantidadeNum > 0 && custoUnitarioNum >= 0;
 
+  const { temAcao } = useAuth();
+  const canAddPeca = temAcao('adicionar_peca_os');
   const handleSubmit = useCallback(async (e: FormEvent) => {
     e.preventDefault();
+    if (!canAddPeca) return;
     if (!podeSalvar || submitting) return;
     setSubmitting(true);
     try {

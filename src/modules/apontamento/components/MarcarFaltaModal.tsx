@@ -6,6 +6,7 @@ import Input from "../../../components/ui/Input";
 import Select from "../../../components/ui/Select";
 import { criarAusencia, TIPO_AUSENCIA_LABEL, type TipoAusencia } from "../utils/ausenciaApi";
 import type { Funcionario } from "../types/funcionario";
+import { useAuth } from "../../../contexts/AuthContext";
 
 interface Props {
   open: boolean;
@@ -20,6 +21,8 @@ export default function MarcarFaltaModal({
   open, funcionario, dataSugerida, onClose, onSaved,
 }: Props) {
   const qc = useQueryClient();
+  const { temAcao } = useAuth();
+  const canLancar = temAcao("lancar_ausencia");
   const [dataInicio, setDataInicio] = useState(dataSugerida);
   const [dataFim, setDataFim] = useState(dataSugerida);
   const [tipo, setTipo] = useState<TipoAusencia>("falta_injustificada");
@@ -56,7 +59,7 @@ export default function MarcarFaltaModal({
       size="default"
     >
       <form
-        onSubmit={(e) => { e.preventDefault(); mut.mutate(); }}
+        onSubmit={(e) => { e.preventDefault(); if (!canLancar) return; mut.mutate(); }}
         className="space-y-3"
       >
         <Select

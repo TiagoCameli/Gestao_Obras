@@ -274,7 +274,7 @@ function ItemAgenda({
   const navigate = useNavigate();
   const { usuario, temAcao } = useAuth();
   const { showToast } = useToast();
-  const podeCriar = temAcao('criar_cadastros') || temAcao('editar_cadastros');
+  const podeCriar = temAcao('criar_os') || temAcao('aplicar_plano_preventivo_equip');
   const { data: medicaoAtual } = useMedicaoAtual(pp.equipamentoId);
   const gerarOS = useGerarOSDeAtividade();
   const [gerando, setGerando] = useState(false);

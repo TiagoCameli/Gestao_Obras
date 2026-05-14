@@ -2,6 +2,7 @@ import { useCallback, useRef } from "react";
 import { Upload, X, FolderPlus, FolderInput, Pencil, ChevronDown, ChevronRight } from "lucide-react";
 import { useState } from "react";
 import { generateId } from "../../utils/format";
+import { useAuth } from "../../../../contexts/AuthContext";
 
 export interface PhotoItem {
   id: string;
@@ -223,9 +224,20 @@ function countPhotos(folder: FolderData): number {
 /* ────────────────────────────── Component ─────────────────────────────── */
 
 export function PhotoUpload({ folders, onChange }: PhotoUploadProps) {
+  const { temAcao } = useAuth();
+  const canUpload = temAcao("upload_fotos_medicao");
   const [editingName, setEditingName] = useState<string | null>(null);
   const [tempName, setTempName] = useState("");
   const folderInputRef = useRef<HTMLInputElement>(null);
+
+  // Se não pode fazer upload, mostra modo somente-leitura
+  if (!canUpload && folders.length === 0) {
+    return (
+      <div className="rounded-lg border border-white/[0.08] bg-white/[0.02] p-4 text-center text-xs text-[#94a3b8]">
+        Sem permissão para upload de fotos.
+      </div>
+    );
+  }
 
   const addFolder = () => {
     const newFolder: FolderData = {

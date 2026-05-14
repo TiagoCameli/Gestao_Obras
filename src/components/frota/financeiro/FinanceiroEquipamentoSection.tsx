@@ -85,7 +85,7 @@ export default function FinanceiroEquipamentoSection({ equipamento, fornecedores
   const salvarMutation = useSalvarFinanceiroEquipamento();
   const [formOpen, setFormOpen] = useState(false);
 
-  const canEdit = temAcao('editar_cadastros');
+  const canEdit = temAcao('editar_financeiro_equipamento');
   const isAlugada = equipamento.propriedade === 'alugada';
 
   const fornNome = (id: string | null) =>

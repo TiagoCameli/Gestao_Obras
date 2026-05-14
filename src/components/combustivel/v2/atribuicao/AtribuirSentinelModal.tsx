@@ -20,6 +20,7 @@ import Button from '../../../ui/Button';
 import FilterCombobox from '../../../ui/FilterCombobox';
 import { fmtBRL, fmtDataHora, fmtL } from '../shared/formatters';
 import { useAtualizarSaidasCombustivelBatch } from '../../../../hooks/useSaidasCombustivel';
+import { useAuth } from '../../../../contexts/AuthContext';
 
 interface Props {
   open: boolean;
@@ -127,7 +128,10 @@ export default function AtribuirSentinelModal({
     onClose();
   }
 
+  const { temAcao } = useAuth();
+  const canCorrigir = temAcao('corrigir_anomalias_combustivel');
   async function doSave() {
+    if (!canCorrigir) return;
     setConfirmingSave(false);
     setSaving(true);
     setProgress({ done: 0, total: assignments.size });

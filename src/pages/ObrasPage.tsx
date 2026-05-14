@@ -11,6 +11,7 @@ import Card from '../components/ui/Card';
 import Input from '../components/ui/Input';
 import Select from '../components/ui/Select';
 import { exportarOrcamentoPDF, exportarOrcamentoExcel } from '../utils/obrasExport';
+import { useAuth } from '../contexts/AuthContext';
 
 const STATUS_LABELS: Record<Obra['status'], string> = {
   planejamento: 'Planejamento',
@@ -84,6 +85,8 @@ const TYPE_LABEL: Record<ContractItemUI['type'], string> = {
 };
 
 export default function ObrasPage() {
+  const { temAcao } = useAuth();
+  const canExport = temAcao('exportar_orcamento');
   const { data: obras = [], isLoading: loadingObras } = useObras();
   const { data: legacyEtapas = [], isLoading: loadingEtapas } = useEtapas();
   const { data: contractItems = [], isLoading: loadingItems } = useAllContractItems();
@@ -146,22 +149,24 @@ export default function ObrasPage() {
             Visualização consolidada (somente leitura). Para cadastrar/editar obras, use Cadastros → Obras.
           </p>
         </div>
-        <div className="flex items-center gap-2 flex-wrap">
-          <Button
-            variant="secondary"
-            className="text-sm"
-            onClick={() => exportarOrcamentoPDF(obrasFiltradas, legacyEtapas)}
-          >
-            Exportar PDF
-          </Button>
-          <Button
-            variant="secondary"
-            className="text-sm"
-            onClick={() => exportarOrcamentoExcel(obrasFiltradas, legacyEtapas)}
-          >
-            Exportar Excel
-          </Button>
-        </div>
+        {canExport && (
+          <div className="flex items-center gap-2 flex-wrap">
+            <Button
+              variant="secondary"
+              className="text-sm"
+              onClick={() => exportarOrcamentoPDF(obrasFiltradas, legacyEtapas)}
+            >
+              Exportar PDF
+            </Button>
+            <Button
+              variant="secondary"
+              className="text-sm"
+              onClick={() => exportarOrcamentoExcel(obrasFiltradas, legacyEtapas)}
+            >
+              Exportar Excel
+            </Button>
+          </div>
+        )}
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">

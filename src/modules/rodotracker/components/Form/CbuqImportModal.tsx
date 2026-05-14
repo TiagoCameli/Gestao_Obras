@@ -4,6 +4,7 @@ import * as XLSX from "xlsx";
 import type { CbuqCarga } from "../../types/activity";
 import { generateId } from "../../utils/format";
 import { downloadCbuqTemplate } from "../../utils/cbuqTemplate";
+import { useAuth } from "../../../../contexts/AuthContext";
 
 type FieldKey = "data" | "placa" | "hora" | "peso";
 
@@ -106,6 +107,18 @@ interface CbuqImportModalProps {
 }
 
 export function CbuqImportModal({ onImport, onClose }: CbuqImportModalProps) {
+  const { temAcao } = useAuth();
+  const canImportPerm = temAcao("importar_cbuq_medicao");
+  if (!canImportPerm) {
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60" onClick={onClose}>
+        <div className="bg-[#14161e] border border-white/[0.08] rounded-2xl w-full max-w-sm p-6" onClick={(e) => e.stopPropagation()}>
+          <p className="text-sm text-[#f1f5f9] mb-3">Você não tem permissão para importar CBUQ.</p>
+          <button onClick={onClose} className="text-xs text-[#94a3b8] hover:text-[#f1f5f9]">Fechar</button>
+        </div>
+      </div>
+    );
+  }
   const fileRef = useRef<HTMLInputElement>(null);
   const [headers, setHeaders] = useState<string[]>([]);
   const [rows, setRows] = useState<unknown[][]>([]);

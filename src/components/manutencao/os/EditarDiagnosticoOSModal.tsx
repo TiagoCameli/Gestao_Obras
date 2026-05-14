@@ -5,6 +5,7 @@ import { useState, useCallback, type FormEvent } from 'react';
 import type { OrdemServico } from '../../../types';
 import Modal from '../../ui/Modal';
 import Button from '../../ui/Button';
+import { useAuth } from '../../../contexts/AuthContext';
 
 interface Props {
   open: boolean;
@@ -29,8 +30,11 @@ export default function EditarDiagnosticoOSModal({ open, onClose, os, onSubmit }
     setSistemasAfetados((arr) => arr.includes(s) ? arr.filter((x) => x !== s) : [...arr, s]);
   }
 
+  const { temAcao } = useAuth();
+  const canEditarDiag = temAcao('editar_diagnostico_os');
   const handleSubmit = useCallback(async (e: FormEvent) => {
     e.preventDefault();
+    if (!canEditarDiag) return;
     if (submitting) return;
     setSubmitting(true);
     try {

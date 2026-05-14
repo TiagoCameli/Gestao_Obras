@@ -71,10 +71,11 @@ export default function EspecificacoesEquipamentoSection({ equipamento }: Props)
   const salvarMutation = useSalvarEspecificacoes();
   const [formOpen, setFormOpen] = useState(false);
 
-  const canEdit = temAcao('editar_cadastros');
+  const canEdit = temAcao('editar_especificacoes_equipamento');
 
   async function handleSalvar(novo: typeof spec) {
     if (!novo) return;
+    if (!canEdit) return;
     await salvarMutation.mutateAsync({
       ...novo,
       updatedBy: usuario?.nome ?? '',

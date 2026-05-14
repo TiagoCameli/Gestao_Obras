@@ -7,6 +7,7 @@ import Select from '../ui/Select';
 import Button from '../ui/Button';
 import ImportExcelModal, { parseStr, parseNumero, type ParsedRow } from '../ui/ImportExcelModal';
 import AnexosUploader from './AnexosUploader';
+import { useAuth } from '../../contexts/AuthContext';
 
 interface EntradaFormProps {
   initial?: EntradaCombustivel | null;
@@ -216,8 +217,11 @@ export default function EntradaForm({
     [onImportBatch]
   );
 
+  const { temAcao } = useAuth();
+  const canAct = initial ? temAcao('editar_combustivel') : temAcao('criar_entrada_combustivel');
   function handleSubmit(e: FormEvent) {
     e.preventDefault();
+    if (!canAct) return;
     onSubmit({
       id: initial?.id || pastaId,
       dataHora,

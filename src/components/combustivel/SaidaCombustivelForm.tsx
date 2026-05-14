@@ -37,6 +37,7 @@ import Button from '../ui/Button';
 import AnexosUploader from './AnexosUploader';
 import { useAdicionarInsumo } from '../../hooks/useInsumos';
 import { useMedicaoAtual } from '../../hooks/useMedicoesEquipamento';
+import { useAuth } from '../../contexts/AuthContext';
 
 const TIPO_MEDICAO_LABEL: Record<TipoMedicao, string> = {
   horimetro: 'Horímetro',
@@ -401,9 +402,17 @@ export default function SaidaCombustivelForm({
   }, [litros, valorTotal]);
 
   // ── Submit ──
+  const { temAcao } = useAuth();
+  const isEditing = !!initial;
+  const canAct = isEditing ? temAcao('editar_combustivel') : (
+    tipoConsumidor === 'carreta_transportadora'
+      ? temAcao('criar_abastecimento_carreta')
+      : temAcao('criar_saida_combustivel')
+  );
   const handleSubmit = useCallback(
     async (e: FormEvent) => {
       e.preventDefault();
+      if (!canAct) return;
       if (!isValid) return;
 
       const alocacoes: AlocacaoEtapa[] | null = etapaId
@@ -469,7 +478,7 @@ export default function SaidaCombustivelForm({
       litros, precoMedioTanque, taxaLitro, precoUnitario, valorTotal,
       precoCombustivelNum, precoCombustivelAreacreNum, precoUnitarioManual,
       tanqueExterno, tipoMedicaoEquipamento, medicaoValida, medicaoValor,
-      fotoUrls, arquivoUrls, observacoes, pago, pagoEm, onSubmit,
+      fotoUrls, arquivoUrls, observacoes, pago, pagoEm, onSubmit, canAct,
     ]
   );
 

@@ -6,6 +6,7 @@ import "leaflet/dist/leaflet.css";
 import type { Obra, TipoObra } from "../../types/activity";
 import { TIPO_OBRA_OPTIONS, TIPOS_COM_KM } from "../../types/activity";
 import { generateId } from "../../utils/format";
+import { useAuth } from "../../../../contexts/AuthContext";
 
 // Custom marker icons
 const startIcon = L.divIcon({
@@ -162,9 +163,12 @@ export function ObraFormModal({ editObra, onSave, onClose }: ObraFormModalProps)
     return () => window.removeEventListener("keydown", handler);
   }, [onClose]);
 
+  const { temAcao } = useAuth();
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim()) return;
+    const canAct = editObra ? temAcao("editar_obra_medicao") : temAcao("criar_obra_medicao");
+    if (!canAct) return;
 
     // Calculate center from route or points or fallback
     let centerLat = -13.5;

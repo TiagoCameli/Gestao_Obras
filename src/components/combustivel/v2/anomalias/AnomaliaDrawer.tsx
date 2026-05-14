@@ -33,6 +33,7 @@ import {
 } from './detect';
 import SaidasAfetadasList from './SaidasAfetadasList';
 import type { AnomaliaCheck } from '../../../../hooks/useAnomaliasChecks';
+import { useAuth } from '../../../../contexts/AuthContext';
 
 interface Props {
   anomalia: Anomalia | null;
@@ -162,7 +163,10 @@ export default function AnomaliaDrawer({
     onEditSaida(s);
   }
 
+  const { temAcao } = useAuth();
+  const canCorrigir = temAcao('corrigir_anomalias_combustivel');
   async function handleAtribuir() {
+    if (!canCorrigir) return;
     if (!equipSelecionado || saidasAfetadas.length === 0) return;
     setAtribuindo(true);
     try {

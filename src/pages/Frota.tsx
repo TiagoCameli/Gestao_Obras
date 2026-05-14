@@ -68,9 +68,9 @@ export default function Frota() {
   const [excluindoEquip, setExcluindoEquip] = useState<Equipamento | null>(null);
   const [filtrosAvancadosOpen, setFiltrosAvancadosOpen] = useState(false);
 
-  const canCreate = temAcao('criar_cadastros');
-  const canEdit = temAcao('editar_cadastros');
-  const canDelete = temAcao('excluir_cadastros');
+  const canCreate = temAcao('criar_veiculo');
+  const canEdit = temAcao('editar_veiculo');
+  const canDelete = temAcao('excluir_veiculo');
 
   async function handleChangeStatus(
     eq: Equipamento,

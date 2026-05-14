@@ -9,6 +9,7 @@ import { countActivitiesByObra } from "../../utils/rodotrackerApi";
 import { migrateLocalDataToSupabase } from "../../utils/migrateFromLocal";
 import { ObraFormModal } from "./ObraFormModal";
 import { Tag } from "../UI/Tag";
+import { useAuth } from "../../../../contexts/AuthContext";
 
 interface HomePageProps {
   onOpenObra: (obra: Obra) => void;
@@ -16,23 +17,36 @@ interface HomePageProps {
 
 export function HomePage({ onOpenObra }: HomePageProps) {
   const { obras, addObra, updateObra, deleteObra } = useObras();
+  const { temAcao } = useAuth();
+  const canCreate = temAcao("criar_obra_medicao");
+  const canEdit = temAcao("editar_obra_medicao");
+  const canDelete = temAcao("excluir_obra_medicao");
+  const canMigrar = temAcao("migrar_medicao_local");
+
   const [showForm, setShowForm] = useState(false);
   const [editObra, setEditObra] = useState<Obra | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
 
   const handleSave = (obra: Obra) => {
-    if (editObra) updateObra(obra);
-    else addObra(obra);
+    if (editObra) {
+      if (!canEdit) return;
+      updateObra(obra);
+    } else {
+      if (!canCreate) return;
+      addObra(obra);
+    }
     setShowForm(false);
     setEditObra(null);
   };
 
   const handleEdit = (obra: Obra) => {
+    if (!canEdit) return;
     setEditObra(obra);
     setShowForm(true);
   };
 
   const handleDelete = (id: string) => {
+    if (!canDelete) return;
     deleteObra(id);
     setDeleteConfirm(null);
   };
@@ -103,6 +117,7 @@ export function HomePage({ onOpenObra }: HomePageProps) {
             </div>
           </div>
 
+          {canCreate && (
           <button
             onClick={() => { setEditObra(null); setShowForm(true); }}
             className="btn btn-primary shimmer-wrap"
@@ -111,6 +126,7 @@ export function HomePage({ onOpenObra }: HomePageProps) {
             <Plus className="h-4 w-4" />
             <span className="hidden sm:inline">Nova Obra</span>
           </button>
+          )}
         </div>
 
         <div
@@ -177,12 +193,14 @@ export function HomePage({ onOpenObra }: HomePageProps) {
           </div>
 
           {/* Botão de migração one-shot — só exibe se houver chaves locais */}
-          <LocalMigrationBanner
-            onDone={() => {
-              // Força reload pra carregar dados novos do Supabase
-              window.location.reload();
-            }}
-          />
+          {canMigrar && (
+            <LocalMigrationBanner
+              onDone={() => {
+                // Força reload pra carregar dados novos do Supabase
+                window.location.reload();
+              }}
+            />
+          )}
 
           {/* Section header */}
           <div className="anim-section flex items-center gap-4" style={{ marginBottom: 18 }}>
@@ -200,7 +218,9 @@ export function HomePage({ onOpenObra }: HomePageProps) {
 
           {/* Grid or empty */}
           {obras.length === 0 ? (
-            <EmptyState onCreate={() => { setEditObra(null); setShowForm(true); }} />
+            <EmptyState
+              onCreate={canCreate ? () => { setEditObra(null); setShowForm(true); } : null}
+            />
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
               {obras.map((obra, i) => {
@@ -213,13 +233,14 @@ export function HomePage({ onOpenObra }: HomePageProps) {
                     count={count}
                     animClass={animClass}
                     onOpen={() => onOpenObra(obra)}
-                    onEdit={() => handleEdit(obra)}
-                    onDelete={() => setDeleteConfirm(obra.id)}
+                    onEdit={canEdit ? () => handleEdit(obra) : null}
+                    onDelete={canDelete ? () => setDeleteConfirm(obra.id) : null}
                   />
                 );
               })}
 
               {/* Add card */}
+              {canCreate && (
               <button
                 onClick={() => { setEditObra(null); setShowForm(true); }}
                 className="group relative flex flex-col items-center justify-center gap-3"
@@ -256,6 +277,7 @@ export function HomePage({ onOpenObra }: HomePageProps) {
                   Cadastrar nova obra
                 </span>
               </button>
+              )}
             </div>
           )}
         </div>
@@ -398,8 +420,8 @@ function ObraCard({
   count: number;
   animClass: string;
   onOpen: () => void;
-  onEdit: () => void;
-  onDelete: () => void;
+  onEdit: (() => void) | null;
+  onDelete: (() => void) | null;
 }) {
   const extension =
     obra.kmInicial != null && obra.kmFinal != null
@@ -427,24 +449,28 @@ function ObraCard({
     >
       {/* Actions */}
       <div className="absolute top-4 right-4 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-        <button
-          onClick={(e) => { e.stopPropagation(); onEdit(); }}
-          className="p-1.5 rounded-lg"
-          style={{ color: "var(--text-faint)", transition: "all 0.2s" }}
-          onMouseEnter={(e) => { e.currentTarget.style.color = "var(--accent)"; e.currentTarget.style.background = "var(--accent-faint)"; }}
-          onMouseLeave={(e) => { e.currentTarget.style.color = "var(--text-faint)"; e.currentTarget.style.background = "transparent"; }}
-        >
-          <Pencil className="h-3.5 w-3.5" />
-        </button>
-        <button
-          onClick={(e) => { e.stopPropagation(); onDelete(); }}
-          className="p-1.5 rounded-lg"
-          style={{ color: "var(--text-faint)", transition: "all 0.2s" }}
-          onMouseEnter={(e) => { e.currentTarget.style.color = "var(--danger)"; e.currentTarget.style.background = "var(--danger-dim)"; }}
-          onMouseLeave={(e) => { e.currentTarget.style.color = "var(--text-faint)"; e.currentTarget.style.background = "transparent"; }}
-        >
-          <Trash2 className="h-3.5 w-3.5" />
-        </button>
+        {onEdit && (
+          <button
+            onClick={(e) => { e.stopPropagation(); onEdit(); }}
+            className="p-1.5 rounded-lg"
+            style={{ color: "var(--text-faint)", transition: "all 0.2s" }}
+            onMouseEnter={(e) => { e.currentTarget.style.color = "var(--accent)"; e.currentTarget.style.background = "var(--accent-faint)"; }}
+            onMouseLeave={(e) => { e.currentTarget.style.color = "var(--text-faint)"; e.currentTarget.style.background = "transparent"; }}
+          >
+            <Pencil className="h-3.5 w-3.5" />
+          </button>
+        )}
+        {onDelete && (
+          <button
+            onClick={(e) => { e.stopPropagation(); onDelete(); }}
+            className="p-1.5 rounded-lg"
+            style={{ color: "var(--text-faint)", transition: "all 0.2s" }}
+            onMouseEnter={(e) => { e.currentTarget.style.color = "var(--danger)"; e.currentTarget.style.background = "var(--danger-dim)"; }}
+            onMouseLeave={(e) => { e.currentTarget.style.color = "var(--text-faint)"; e.currentTarget.style.background = "transparent"; }}
+          >
+            <Trash2 className="h-3.5 w-3.5" />
+          </button>
+        )}
       </div>
 
       {/* Name */}
@@ -535,7 +561,7 @@ function ObraCard({
   );
 }
 
-function EmptyState({ onCreate }: { onCreate: () => void }) {
+function EmptyState({ onCreate }: { onCreate: (() => void) | null }) {
   return (
     <div className="anim-content flex-1 flex items-center justify-center" style={{ minHeight: 320 }}>
       <div className="text-center" style={{ maxWidth: 420 }}>
@@ -562,10 +588,12 @@ function EmptyState({ onCreate }: { onCreate: () => void }) {
         <p style={{ fontSize: 14, lineHeight: 1.6, color: "var(--text-secondary)", marginBottom: 28 }}>
           Cadastre sua primeira obra para começar a registrar atividades e acompanhar o progresso no mapa.
         </p>
-        <button onClick={onCreate} className="btn btn-primary shimmer-wrap" style={{ padding: "12px 22px", fontSize: 14 }}>
-          <Plus className="h-4 w-4" />
-          Cadastrar Primeira Obra
-        </button>
+        {onCreate && (
+          <button onClick={onCreate} className="btn btn-primary shimmer-wrap" style={{ padding: "12px 22px", fontSize: 14 }}>
+            <Plus className="h-4 w-4" />
+            Cadastrar Primeira Obra
+          </button>
+        )}
       </div>
     </div>
   );

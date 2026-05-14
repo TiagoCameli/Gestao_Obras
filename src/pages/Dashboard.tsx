@@ -27,6 +27,12 @@ import { useSaidasCombustivel } from '../hooks/useSaidasCombustivel';
 import { useSaidasMaterial } from '../hooks/useSaidasMaterial';
 import { useInsumos } from '../hooks/useInsumos';
 import { useEtapas } from '../hooks/useEtapas';
+import { useDashboardPrefs } from '../hooks/useDashboardPrefs';
+import PainelToggles from '../components/dashboard/PainelToggles';
+import ResumoCombustivel from '../components/dashboard/ResumoCombustivel';
+import ResumoInsumos from '../components/dashboard/ResumoInsumos';
+import ResumoManutencao from '../components/dashboard/ResumoManutencao';
+import ResumoObras from '../components/dashboard/ResumoObras';
 
 function getEtapaIds(a: Abastecimento): string[] {
   if (a.alocacoes && a.alocacoes.length > 0) return a.alocacoes.map((al) => al.etapaId);
@@ -54,6 +60,7 @@ function valorProporcionalSaida(s: SaidaMaterial, etapaIds: Set<string>): number
 export default function Dashboard() {
   const { temAcao } = useAuth();
   const canFilter = temAcao('filtros_dashboard');
+  const { visible } = useDashboardPrefs();
   const { data: obras = [], isLoading: loadingObras } = useObras();
   const { data: etapas = [] } = useEtapas();
   const { data: saidasCombustivel = [] } = useSaidasCombustivel();
@@ -190,6 +197,9 @@ export default function Dashboard() {
         <p className="text-sm text-[var(--color-fg-muted)] mt-1">Visão consolidada de obras e gastos.</p>
       </div>
 
+      {/* Toggles de painéis — usuário escolhe quais painéis visualizar */}
+      <PainelToggles />
+
       {/* Filtros */}
       {canFilter && (
         <div className="card-premium p-4 mb-6">
@@ -281,34 +291,46 @@ export default function Dashboard() {
         </div>
       )}
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
-        <div className="card-premium p-5">
-          <h2 className="text-xs font-medium text-[var(--color-fg-muted)] uppercase tracking-wider">Total de Obras</h2>
-          <p className="text-3xl font-semibold text-[var(--color-fg)] mt-2 tracking-tight tabular-nums">{obras.length}</p>
+      {visible('kpis_obras') && (
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+          <div className="card-premium p-5">
+            <h2 className="text-xs font-medium text-[var(--color-fg-muted)] uppercase tracking-wider">Total de Obras</h2>
+            <p className="text-3xl font-semibold text-[var(--color-fg)] mt-2 tracking-tight tabular-nums">{obras.length}</p>
+          </div>
+          <div className="card-premium p-5">
+            <h2 className="text-xs font-medium text-[var(--color-fg-muted)] uppercase tracking-wider">Em Andamento</h2>
+            <p className="text-3xl font-semibold text-[var(--color-warning-fg)] mt-2 tracking-tight tabular-nums">{emAndamento}</p>
+          </div>
+          <div className="card-premium p-5">
+            <h2 className="text-xs font-medium text-[var(--color-fg-muted)] uppercase tracking-wider">Concluídas</h2>
+            <p className="text-3xl font-semibold text-[var(--color-accent)] mt-2 tracking-tight tabular-nums">{concluidas}</p>
+          </div>
+          <div className="card-premium p-5">
+            <h2 className="text-xs font-medium text-[var(--color-fg-muted)] uppercase tracking-wider">
+              Gasto Total
+            </h2>
+            <p className="text-3xl font-semibold text-[var(--color-fg)] mt-2 tracking-tight tabular-nums">
+              {formatCurrency(gastoTotal)}
+            </p>
+            <p className="text-xs text-[var(--color-fg-subtle)] mt-1">
+              Combustível + Insumos
+            </p>
+          </div>
         </div>
-        <div className="card-premium p-5">
-          <h2 className="text-xs font-medium text-[var(--color-fg-muted)] uppercase tracking-wider">Em Andamento</h2>
-          <p className="text-3xl font-semibold text-[var(--color-warning-fg)] mt-2 tracking-tight tabular-nums">{emAndamento}</p>
+      )}
+
+      {/* Sub-dashboards por módulo — cada bloco aparece se o usuário tem permissão E ligou o toggle */}
+      {(visible('resumo_obras') || visible('resumo_combustivel') || visible('resumo_insumos') || visible('resumo_manutencao')) && (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mt-6">
+          {visible('resumo_obras') && <ResumoObras />}
+          {visible('resumo_combustivel') && <ResumoCombustivel obraId={filtroObraId || undefined} />}
+          {visible('resumo_insumos') && <ResumoInsumos obraId={filtroObraId || undefined} />}
+          {visible('resumo_manutencao') && <ResumoManutencao />}
         </div>
-        <div className="card-premium p-5">
-          <h2 className="text-xs font-medium text-[var(--color-fg-muted)] uppercase tracking-wider">Concluídas</h2>
-          <p className="text-3xl font-semibold text-[var(--color-accent)] mt-2 tracking-tight tabular-nums">{concluidas}</p>
-        </div>
-        <div className="card-premium p-5">
-          <h2 className="text-xs font-medium text-[var(--color-fg-muted)] uppercase tracking-wider">
-            Gasto Total
-          </h2>
-          <p className="text-3xl font-semibold text-[var(--color-fg)] mt-2 tracking-tight tabular-nums">
-            {formatCurrency(gastoTotal)}
-          </p>
-          <p className="text-xs text-[var(--color-fg-subtle)] mt-1">
-            Combustível + Insumos
-          </p>
-        </div>
-      </div>
+      )}
 
       {/* Grafico de gastos por tipo */}
-      {chartData.length > 0 && (
+      {visible('grafico_gastos') && chartData.length > 0 && (
         <div className="card-premium p-6 mt-6">
           <h3 className="text-sm font-semibold text-[var(--color-fg)] mb-4">
             Gastos por Tipo de Insumo e Combustível (R$)

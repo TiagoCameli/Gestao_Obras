@@ -9,6 +9,7 @@ import { STATUS_OS_LABEL } from '../../../types';
 import Modal from '../../ui/Modal';
 import Button from '../../ui/Button';
 import { STATUS_COLOR } from './styles';
+import { useAuth } from '../../../contexts/AuthContext';
 
 interface Props {
   open: boolean;
@@ -45,9 +46,18 @@ export default function MudarStatusOSModal({
   const precisaObs = escolhido && PRECISA_OBS.has(escolhido);
   const podeSalvar = !!escolhido && (!precisaObs || obs.trim().length > 0);
 
+  const { temAcao } = useAuth();
+  const canMudar = temAcao('mudar_status_os');
+  const canAprovar = temAcao('aprovar_os');
+  const canCancelar = temAcao('cancelar_os');
+
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     if (!podeSalvar || submitting || !escolhido) return;
+    // Gates específicos por transição
+    if (escolhido === 'cancelada' && !canCancelar) return;
+    if (escolhido === 'concluida' && !canAprovar && !canMudar) return;
+    if (!canMudar && !canAprovar && !canCancelar) return;
     setSubmitting(true);
     try {
       await onConfirm(escolhido, obs.trim());

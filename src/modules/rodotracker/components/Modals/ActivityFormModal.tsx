@@ -13,6 +13,7 @@ import { CbuqForm } from "../Form/CbuqForm";
 import FilterCombobox from "../../../../components/ui/FilterCombobox";
 import { serviceColors } from "../../utils/colors";
 import { generateId, todayISO } from "../../utils/format";
+import { useAuth } from "../../../../contexts/AuthContext";
 import { calcKmAlongRoute } from "../../utils/route";
 import { usePhotoDB } from "../../hooks/usePhotoDB";
 import { usePdfDB } from "../../hooks/usePdfDB";
@@ -702,9 +703,14 @@ export function ActivityFormModal({
     return () => window.removeEventListener("keydown", handler);
   }, [onClose]);
 
+  const { temAcao } = useAuth();
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (isSaving) return; // guarda contra double-click / Enter duplo
+
+    const isEditing = !!editActivity;
+    const canAct = isEditing ? temAcao("editar_atividade_medicao") : temAcao("criar_atividade_medicao");
+    if (!canAct) return;
 
     // Conserva não tem localização exata — pular validação de coords.
     if (service !== "Conserva" && lat === 0 && lng === 0) {

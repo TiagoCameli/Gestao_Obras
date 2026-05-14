@@ -14,7 +14,7 @@ import NovoPlanoModal from './planos/NovoPlanoModal';
 export default function PlanosPreventivosPage() {
   const { data: planos = [], isLoading } = usePlanosPreventivos();
   const { temAcao } = useAuth();
-  const canCreate = temAcao('criar_cadastros') || temAcao('editar_cadastros');
+  const canCreate = temAcao('criar_plano_preventivo');
   const [novoOpen, setNovoOpen] = useState(false);
 
   return (

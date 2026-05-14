@@ -8,6 +8,7 @@ import {
   useAtualizarAjusteManualTransportadora,
 } from '../../hooks/useTransportadoraMovimentos';
 import type { TransportadoraMovimento } from '../../types';
+import { useAuth } from '../../contexts/AuthContext';
 
 interface Props {
   transportadoraId: string;
@@ -63,8 +64,12 @@ export default function AjusteManualTransportadoraForm({
 
   const isPending = criarMut.isPending || atualizarMut.isPending;
 
+  const { temAcao } = useAuth();
+  const canAjustar = temAcao('ajustar_saldo_transportadora');
+
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
+    if (!canAjustar) return;
     if (!isValid) return;
     const payload = {
       transportadoraId,
@@ -193,7 +198,7 @@ export default function AjusteManualTransportadoraForm({
         <Button type="button" variant="secondary" onClick={onCancel}>
           Cancelar
         </Button>
-        <Button type="submit" disabled={!isValid || isPending}>
+        <Button type="submit" disabled={!isValid || isPending || !canAjustar} title={!canAjustar ? 'Sem permissão para ajustar saldo' : undefined}>
           {isPending ? 'Salvando...' : editing ? 'Salvar Alterações' : 'Criar Ajuste'}
         </Button>
       </div>

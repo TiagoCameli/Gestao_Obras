@@ -35,7 +35,7 @@ export default function PlanoPreventivoEquipamentoSection({ equipamento }: Props
   const { temAcao, usuario } = useAuth();
   const { showToast } = useToast();
   const navigate = useNavigate();
-  const podeEditar = temAcao('criar_cadastros') || temAcao('editar_cadastros');
+  const podeEditar = temAcao('aplicar_plano_preventivo_equip');
 
   const { data: equipamentoPlanos = [], isLoading: loadingAplicados } =
     usePlanosDeEquipamento(equipamento.id);

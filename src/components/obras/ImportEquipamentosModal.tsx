@@ -1,6 +1,7 @@
 import { useCallback } from 'react';
 import type { Equipamento } from '../../types';
 import ImportExcelModal, { parseNumero, parseData, parseStr, type ParsedRow } from '../ui/ImportExcelModal';
+import { useAuth } from '../../contexts/AuthContext';
 
 interface ImportEquipamentosModalProps {
   open: boolean;
@@ -28,6 +29,20 @@ export default function ImportEquipamentosModal({
   equipamentosExistentes,
   empresasMap,
 }: ImportEquipamentosModalProps) {
+  const { temAcao } = useAuth();
+  if (open && !temAcao('importar_equipamentos_obra')) {
+    return (
+      <div
+        className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
+        onClick={onClose}
+      >
+        <div className="bg-white rounded-lg shadow-xl p-6 max-w-sm" onClick={(e) => e.stopPropagation()}>
+          <p className="text-sm text-gray-800 mb-3">Sem permissão para importar equipamentos.</p>
+          <button onClick={onClose} className="text-xs text-emt-verde">Fechar</button>
+        </div>
+      </div>
+    );
+  }
   const parseRow = useCallback(
     (row: unknown[]): ParsedRow => {
       const erros: string[] = [];

@@ -83,7 +83,15 @@ function hojeIso() {
 
 export default function RegistroPontoTab() {
   const qc = useQueryClient();
-  const { usuario } = useAuth();
+  const { usuario, temAcao } = useAuth();
+  const canRegistrar = temAcao("registrar_ponto");
+  const canRegistrarLote = temAcao("registrar_ponto_lote");
+  const canLancarManual = temAcao("lancar_ponto_manual");
+  const canEditarBatida = temAcao("editar_batida_ponto");
+  const canExcluirBatida = temAcao("excluir_batida_ponto");
+  const canReabrirPonto = temAcao("reabrir_periodo");
+  const canSincOffline = temAcao("sincronizar_fila_offline");
+  const canMarcarFalta = temAcao("lancar_ausencia");
   const sync = useOfflineSync();
   const { data: obras = [] } = useObrasApont();
   const [obraId, setObraId] = useState<string>("");
@@ -256,6 +264,7 @@ export default function RegistroPontoTab() {
     pos: GeolocationCoordinates | null
   ) {
     if (!capturando) return;
+    if (!canRegistrar) return;
     try {
       await registrarBatida({
         funcionarioId: capturando.funcionario.id,
@@ -312,6 +321,7 @@ export default function RegistroPontoTab() {
    * geolocalização em best-effort.
    */
   async function iniciarBatida(funcionario: Funcionario, tipo: TipoBatida) {
+    if (!canRegistrar) return;
     const temFoto =
       (funcionario.fotosReferenciaFacial?.length ?? 0) > 0 ||
       !!funcionario.fotoPerfil;
@@ -470,7 +480,7 @@ export default function RegistroPontoTab() {
               </span>
             )}
           </div>
-          {sync.online && sync.countBatidas > 0 && (
+          {sync.online && sync.countBatidas > 0 && canSincOffline && (
             <button
               type="button"
               onClick={() => sync.sync()}
@@ -605,6 +615,7 @@ export default function RegistroPontoTab() {
               </span>
               <button
                 onClick={async () => {
+                  if (!canReabrirPonto) return;
                   if (
                     !confirm(
                       "Reabrir o ponto deste dia? Será removida a aprovação."
@@ -677,16 +688,16 @@ export default function RegistroPontoTab() {
                     fotosUrl={fotosUrl}
                     podeEditar={!congelado}
                     onVerFoto={(r) => setVendoFoto(r)}
-                    onEditarHora={(r) => setEditandoHora(r)}
-                    onExcluir={(r) => setExcluindoBatida(r)}
+                    onEditarHora={canEditarBatida ? (r) => setEditandoHora(r) : null}
+                    onExcluir={canExcluirBatida ? (r) => setExcluindoBatida(r) : null}
                   />
 
                   {!congelado && (
                     <AcoesFuncionario
                       status={status}
                       onCapturar={(tipo) => void iniciarBatida(f, tipo)}
-                      onLancarManual={() => setManualPara(f)}
-                      onMarcarFalta={() => setMarcandoFalta(f)}
+                      onLancarManual={canLancarManual ? () => setManualPara(f) : null}
+                      onMarcarFalta={canMarcarFalta ? () => setMarcandoFalta(f) : null}
                     />
                   )}
                 </article>
@@ -796,6 +807,7 @@ export default function RegistroPontoTab() {
         open={excluindoBatida !== null}
         onClose={() => setExcluindoBatida(null)}
         onConfirm={async () => {
+          if (!canExcluirBatida) { setExcluindoBatida(null); return; }
           if (!excluindoBatida) return;
           await excluirBatida(excluindoBatida.id);
           qc.invalidateQueries({ queryKey: registrosKey });
@@ -957,8 +969,9 @@ export default function RegistroPontoTab() {
               Cancelar
             </Button>
             <Button
-              disabled={loteIds.size === 0 || loteSalvando || !loteMotivo.trim()}
+              disabled={loteIds.size === 0 || loteSalvando || !loteMotivo.trim() || !canRegistrarLote}
               onClick={async () => {
+                if (!canRegistrarLote) return;
                 if (loteIds.size === 0 || !loteMotivo.trim()) return;
                 setLoteSalvando(true);
                 const horaIso = new Date(`${data}T${loteHora}:00`).toISOString();
@@ -1144,8 +1157,8 @@ function BatidasList({
   fotosUrl: Record<string, string>;
   podeEditar: boolean;
   onVerFoto: (r: RegistroPonto) => void;
-  onEditarHora: (r: RegistroPonto) => void;
-  onExcluir: (r: RegistroPonto) => void;
+  onEditarHora: ((r: RegistroPonto) => void) | null;
+  onExcluir: ((r: RegistroPonto) => void) | null;
 }) {
   if (registros.length === 0) return null;
   return (
@@ -1201,22 +1214,26 @@ function BatidasList({
               </span>
             )}
             {/* UX1 — Aprovação/rejeição agora é feita só na aba Aprovação (centraliza decisão) */}
-            {podeEditar && (
+            {podeEditar && (onEditarHora || onExcluir) && (
               <span className="ml-auto flex gap-1">
-                <button
-                  onClick={() => onEditarHora(r)}
-                  title="Alterar hora"
-                  className="text-[10px] text-[var(--color-fg-muted)] hover:text-[var(--color-accent)] px-1.5 py-0.5 rounded hover:bg-[var(--color-surface-2)]"
-                >
-                  ✎
-                </button>
-                <button
-                  onClick={() => onExcluir(r)}
-                  title="Excluir batida"
-                  className="text-[10px] text-[var(--color-fg-muted)] hover:text-[var(--color-danger)] px-1.5 py-0.5 rounded hover:bg-[var(--color-surface-2)]"
-                >
-                  ✕
-                </button>
+                {onEditarHora && (
+                  <button
+                    onClick={() => onEditarHora(r)}
+                    title="Alterar hora"
+                    className="text-[10px] text-[var(--color-fg-muted)] hover:text-[var(--color-accent)] px-1.5 py-0.5 rounded hover:bg-[var(--color-surface-2)]"
+                  >
+                    ✎
+                  </button>
+                )}
+                {onExcluir && (
+                  <button
+                    onClick={() => onExcluir(r)}
+                    title="Excluir batida"
+                    className="text-[10px] text-[var(--color-fg-muted)] hover:text-[var(--color-danger)] px-1.5 py-0.5 rounded hover:bg-[var(--color-surface-2)]"
+                  >
+                    ✕
+                  </button>
+                )}
               </span>
             )}
           </div>
@@ -1235,6 +1252,8 @@ function EditarHoraModal({
   onClose: () => void;
   onSaved: () => void;
 }) {
+  const { temAcao } = useAuth();
+  const canEditar = temAcao("editar_batida_ponto");
   const [hora, setHora] = useState("");
   const [saving, setSaving] = useState(false);
 
@@ -1261,6 +1280,7 @@ function EditarHoraModal({
         <form
           onSubmit={async (e) => {
             e.preventDefault();
+            if (!canEditar) return;
             if (!hora) return;
             setSaving(true);
             try {
@@ -1367,8 +1387,8 @@ function AcoesFuncionario({
 }: {
   status: StatusFunc;
   onCapturar: (tipo: TipoBatida) => void;
-  onLancarManual: () => void;
-  onMarcarFalta: () => void;
+  onLancarManual: (() => void) | null;
+  onMarcarFalta: (() => void) | null;
 }) {
   // Define quais batidas fazem sentido pelo estado atual
   const podeEntrar = status === "aguardando";
@@ -1399,12 +1419,16 @@ function AcoesFuncionario({
           Saída final
         </BotaoBatida>
       )}
-      <BotaoBatida onClick={onLancarManual} variant="ghost">
-        Lançar manual
-      </BotaoBatida>
-      <BotaoBatida onClick={onMarcarFalta} variant="ghost">
-        Marcar falta
-      </BotaoBatida>
+      {onLancarManual && (
+        <BotaoBatida onClick={onLancarManual} variant="ghost">
+          Lançar manual
+        </BotaoBatida>
+      )}
+      {onMarcarFalta && (
+        <BotaoBatida onClick={onMarcarFalta} variant="ghost">
+          Marcar falta
+        </BotaoBatida>
+      )}
     </div>
   );
 }

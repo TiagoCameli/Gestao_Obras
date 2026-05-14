@@ -5,6 +5,7 @@ import Select from '../ui/Select';
 import Button from '../ui/Button';
 import ImportExcelModal, { parseStr, parseNumero, parseData, type ParsedRow } from '../ui/ImportExcelModal';
 import AnexosUploader from '../combustivel/AnexosUploader';
+import { useAuth } from '../../contexts/AuthContext';
 
 interface PedidoMaterialFormProps {
   initial?: PedidoMaterial | null;
@@ -34,6 +35,10 @@ export default function PedidoMaterialForm({
   insumos,
   onImportBatch,
 }: PedidoMaterialFormProps) {
+  const { temAcao } = useAuth();
+  const canAct = initial
+    ? temAcao('editar_pedido_material_frete')
+    : temAcao('criar_pedido_material_frete');
   const [data, setData] = useState(initial?.data || '');
   const [fornecedorId, setFornecedorId] = useState(initial?.fornecedorId || '');
   const [itens, setItens] = useState<ItemPedidoMaterial[]>(
@@ -181,6 +186,7 @@ export default function PedidoMaterialForm({
     itens.every((item) => item.insumoId && item.quantidade > 0 && item.valorUnitario > 0);
 
   function handleSubmit(e: FormEvent) {
+    if (!canAct) return;
     e.preventDefault();
     if (!isValid) return;
     onSubmit({

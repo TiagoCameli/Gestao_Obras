@@ -1,6 +1,7 @@
 import { useCallback, useRef, useState } from "react";
 import { FileText, Upload, X, Eye, Download } from "lucide-react";
 import { generateId } from "../../utils/format";
+import { useAuth } from "../../../../contexts/AuthContext";
 
 export interface PdfItem {
   id: string;
@@ -73,8 +74,18 @@ function downloadPdf(item: PdfItem) {
 }
 
 export function PdfUpload({ pdfs, onChange }: PdfUploadProps) {
+  const { temAcao } = useAuth();
+  const canUpload = temAcao("upload_pdfs_medicao");
   const inputRef = useRef<HTMLInputElement>(null);
   const [isDragging, setIsDragging] = useState(false);
+
+  if (!canUpload && pdfs.length === 0) {
+    return (
+      <div className="rounded-lg border border-white/[0.08] bg-white/[0.02] p-4 text-center text-xs text-[#94a3b8]">
+        Sem permissão para upload de PDFs.
+      </div>
+    );
+  }
 
   const addFiles = useCallback(
     async (files: FileList) => {

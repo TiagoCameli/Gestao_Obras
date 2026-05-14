@@ -13,6 +13,7 @@ import { usePagamentosFreteDeletados, useRestaurarPagamentoFrete } from '../../h
 import { usePedidosMaterialDeletados, useRestaurarPedidoMaterial } from '../../hooks/usePedidosMaterial';
 import type { Obra, Fornecedor, Insumo } from '../../types';
 import Button from '../ui/Button';
+import { useAuth } from '../../contexts/AuthContext';
 
 interface Props {
   obras: Obra[];
@@ -38,6 +39,10 @@ function fmtBRL(n: number): string {
 }
 
 export default function LixeiraFreteTab({ obras, fornecedores, insumos }: Props) {
+  const { temAcao } = useAuth();
+  const canVerLixeira = temAcao('ver_lixeira_frete');
+  const canRestaurar = temAcao('restaurar_lixeira_frete');
+
   const fretesQ = useFretesDeletados();
   const pagamentosQ = usePagamentosFreteDeletados();
   const pedidosQ = usePedidosMaterialDeletados();
@@ -65,6 +70,10 @@ export default function LixeiraFreteTab({ obras, fornecedores, insumos }: Props)
     tipo: 'frete' | 'pagamento' | 'pedido',
     id: string,
   ) {
+    if (!canRestaurar) {
+      alert('Sem permissão para restaurar itens da lixeira.');
+      return;
+    }
     if (!window.confirm('Restaurar este registro?')) return;
     try {
       if (tipo === 'frete') await restaurarFrete.mutateAsync(id);
@@ -75,6 +84,14 @@ export default function LixeiraFreteTab({ obras, fornecedores, insumos }: Props)
       console.error('[lixeira-frete] falha ao restaurar', e);
       alert('Falha ao restaurar. Tente novamente.');
     }
+  }
+
+  if (!canVerLixeira) {
+    return (
+      <div className="py-12 text-center text-sm text-[var(--color-fg-muted)]">
+        Você não tem permissão para visualizar a lixeira de frete.
+      </div>
+    );
   }
 
   if (isLoading) {
