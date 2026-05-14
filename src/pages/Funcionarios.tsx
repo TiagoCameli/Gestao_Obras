@@ -67,11 +67,42 @@ export default function Funcionarios() {
     [editando, adicionarMutation, atualizarMutation, salvarPerfilMutation, atualizarSessao]
   );
 
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+
+  /**
+   * Valida regras de proteção antes de excluir um usuário:
+   *  - Não pode excluir a si próprio
+   *  - Não pode excluir o último Administrador
+   *  - Só Administrador pode excluir outro Administrador
+   */
+  function validarExclusao(id: string): string | null {
+    const alvo = funcionarios.find((f) => f.id === id);
+    if (!alvo) return 'Usuário não encontrado.';
+    if (alvo.id === usuario?.funcionarioId) return 'Você não pode excluir o próprio usuário.';
+    if (alvo.cargo === 'Administrador') {
+      if (usuario?.cargo !== 'Administrador') {
+        return 'Apenas um Administrador pode excluir outro Administrador.';
+      }
+      const totalAdmins = funcionarios.filter(
+        (f) => f.cargo === 'Administrador' && f.status === 'ativo'
+      ).length;
+      if (totalAdmins <= 1) return 'Não é possível excluir o último Administrador ativo.';
+    }
+    return null;
+  }
+
   const handleDelete = useCallback(async (id: string) => {
+    const erro = validarExclusao(id);
+    if (erro) {
+      setDeleteError(erro);
+      setDeleteId(null);
+      return;
+    }
     await excluirMutation.mutateAsync(id);
     setDeleteId(null);
     atualizarSessao();
-  }, [excluirMutation, atualizarSessao]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [excluirMutation, atualizarSessao, funcionarios, usuario]);
 
   if (isLoading) {
     return (
@@ -153,8 +184,17 @@ export default function Funcionarios() {
         open={deleteId !== null}
         onClose={() => setDeleteId(null)}
         onConfirm={() => { if (deleteId) handleDelete(deleteId); }}
-        title="Excluir Funcionario"
-        message="Tem certeza que deseja excluir este funcionario? Esta acao nao pode ser desfeita."
+        title="Excluir Usuário"
+        message="Tem certeza que deseja excluir este usuário? Esta ação não pode ser desfeita."
+      />
+
+      {/* Erro ao tentar exclusão proibida */}
+      <ConfirmDialog
+        open={deleteError !== null}
+        onClose={() => setDeleteError(null)}
+        onConfirm={() => setDeleteError(null)}
+        title="Não permitido"
+        message={deleteError ?? ''}
       />
     </div>
   );

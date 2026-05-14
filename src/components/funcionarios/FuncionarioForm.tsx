@@ -1,8 +1,19 @@
-import { useCallback, useState, type FormEvent } from 'react';
+import { useCallback, useMemo, useState, type FormEvent } from 'react';
 import type { CargoFuncionario, EnderecoFuncionario, Funcionario } from '../../types';
 import { useFuncionarios } from '../../hooks/useFuncionarios';
+import { useAuth } from '../../contexts/AuthContext';
 import { formatCPF, formatTelefone, formatCEP } from '../../utils/formatters';
-import { CARGOS, ACOES_PLATAFORMA, TODAS_ACOES_PLATAFORMA, GRUPOS_ACOES } from '../../utils/permissions';
+import {
+  CARGOS,
+  ACOES_PLATAFORMA_VISIVEIS,
+  GRUPOS_ACOES_VISIVEIS,
+  acoesPadraoDoCargo,
+  resolverDependencias,
+  validarDependencias,
+  ACOES_PERIGOSAS_OPERACIONAL,
+  CARGOS_OPERACIONAIS,
+  ACOES_DESTRUTIVAS,
+} from '../../utils/permissions';
 import Input from '../ui/Input';
 import Select from '../ui/Select';
 import Button from '../ui/Button';
@@ -49,6 +60,7 @@ interface FuncionarioFormProps {
 
 export default function FuncionarioForm({ initial, onSubmit, onCancel, onImportBatch }: FuncionarioFormProps) {
   const { data: funcionariosData } = useFuncionarios();
+  const { usuario: usuarioLogado } = useAuth();
   const allFuncionarios = funcionariosData ?? [];
 
   const [nome, setNome] = useState(initial?.nome || '');
@@ -75,26 +87,108 @@ export default function FuncionarioForm({ initial, onSubmit, onCancel, onImportB
   const [senha, setSenha] = useState('');
   const [confirmarSenha, setConfirmarSenha] = useState('');
 
-  // Acoes permitidas
+  // Ações Permitidas
+  // - Novo usuário: começa com o template do cargo (least-privilege; admin marca extras)
+  // - Edição: respeita o que está salvo (pode ser array vazio = usuário sem nenhum acesso)
   const [acoesPermitidas, setAcoesPermitidas] = useState<string[]>(
-    initial?.acoesPermitidas ?? [...TODAS_ACOES_PLATAFORMA]
+    initial?.acoesPermitidas ?? acoesPadraoDoCargo(cargo)
   );
 
+  /**
+   * Quando o cargo muda em CRIAÇÃO, reaplica o template do novo cargo
+   * automaticamente. Em EDIÇÃO, não mexemos — o admin usa o botão
+   * "Aplicar template do cargo" se quiser.
+   */
+  function trocarCargo(novoCargo: CargoFuncionario) {
+    setCargo(novoCargo);
+    if (!initial) {
+      setAcoesPermitidas(acoesPadraoDoCargo(novoCargo));
+    }
+  }
+
+  function aplicarTemplateDoCargo() {
+    if (
+      confirm(
+        `Aplicar o template padrão do cargo "${cargo}"?\n\n` +
+          'Isso substituirá as ações marcadas atualmente.'
+      )
+    ) {
+      setAcoesPermitidas(acoesPadraoDoCargo(cargo));
+    }
+  }
+
+  /**
+   * Liga/desliga uma ação. Ao LIGAR, também liga automaticamente
+   * suas dependências (ex: marcar "Excluir obras" marca "Visualizar obras"
+   * e "Editar obras"). Ao DESLIGAR uma "Visualizar X", desliga em cascata
+   * os filhos que dependem dela.
+   */
   function toggleAcao(chave: string) {
-    setAcoesPermitidas((prev) =>
-      prev.includes(chave) ? prev.filter((a) => a !== chave) : [...prev, chave]
-    );
+    setAcoesPermitidas((prev) => {
+      if (prev.includes(chave)) {
+        // desmarcar: remove tudo que depende desta
+        const dependentes = Object.entries({} as Record<string, string[]>)
+          .filter(([, deps]) => deps.includes(chave))
+          .map(([k]) => k);
+        const cascade = new Set<string>([chave]);
+        // detectar dependentes via varredura: para cada ação marcada,
+        // se suas dependências incluem `chave`, ela também sai.
+        for (const k of prev) {
+          if (k === chave) continue;
+          const deps = resolverDependencias(k);
+          if (deps.includes(chave)) cascade.add(k);
+        }
+        void dependentes;
+        return prev.filter((a) => !cascade.has(a));
+      }
+      // marcar: adiciona dependências
+      const novas = new Set<string>(prev);
+      novas.add(chave);
+      for (const d of resolverDependencias(chave)) novas.add(d);
+      return [...novas];
+    });
   }
 
   function toggleGrupo(grupo: string) {
-    const chavesDoGrupo = ACOES_PLATAFORMA.filter((a) => a.grupo === grupo).map((a) => a.chave);
+    const chavesDoGrupo = ACOES_PLATAFORMA_VISIVEIS
+      .filter((a) => a.grupo === grupo)
+      .map((a) => a.chave);
     const todasMarcadas = chavesDoGrupo.every((c) => acoesPermitidas.includes(c));
     if (todasMarcadas) {
-      setAcoesPermitidas((prev) => prev.filter((a) => !chavesDoGrupo.includes(a)));
+      // Desmarca todo o grupo + dependentes externos
+      setAcoesPermitidas((prev) => {
+        const removidas = new Set(chavesDoGrupo);
+        // remove também ações que dependem de qualquer ação do grupo
+        for (const k of prev) {
+          if (removidas.has(k)) continue;
+          const deps = resolverDependencias(k);
+          if (deps.some((d) => removidas.has(d))) removidas.add(k);
+        }
+        return prev.filter((a) => !removidas.has(a));
+      });
     } else {
-      setAcoesPermitidas((prev) => [...new Set([...prev, ...chavesDoGrupo])]);
+      // Marca todas do grupo + dependências
+      setAcoesPermitidas((prev) => {
+        const novas = new Set(prev);
+        for (const c of chavesDoGrupo) {
+          novas.add(c);
+          for (const d of resolverDependencias(c)) novas.add(d);
+        }
+        return [...novas];
+      });
     }
   }
+
+  // --- Avisos visuais ---
+  const acoesPerigosasMarcadas = useMemo(() => {
+    if (!CARGOS_OPERACIONAIS.has(cargo)) return [];
+    return acoesPermitidas.filter((a) => ACOES_PERIGOSAS_OPERACIONAL.has(a));
+  }, [acoesPermitidas, cargo]);
+
+  const errosDependencia = useMemo(
+    () => validarDependencias(acoesPermitidas),
+    [acoesPermitidas]
+  );
 
   const [importModalOpen, setImportModalOpen] = useState(false);
   const [toastMsg, setToastMsg] = useState('');
@@ -122,6 +216,28 @@ export default function FuncionarioForm({ initial, onSubmit, onCancel, onImportB
       else if (senha.length < 6) e.push('A senha deve ter pelo menos 6 caracteres.');
       if (senha !== confirmarSenha) e.push('As senhas nao conferem.');
     }
+
+    // Dependências entre ações
+    e.push(...errosDependencia);
+
+    // Auto-edição: o admin não pode remover a própria capacidade de gerenciar permissões
+    if (initial && usuarioLogado && initial.id === usuarioLogado.funcionarioId) {
+      if (usuarioLogado.cargo === 'Administrador' && cargo !== 'Administrador') {
+        e.push('Você não pode alterar o seu próprio cargo de Administrador.');
+      }
+      if (
+        usuarioLogado.acoesPermitidas?.includes('gerenciar_permissoes') &&
+        !acoesPermitidas.includes('gerenciar_permissoes')
+      ) {
+        e.push('Você não pode remover sua própria permissão de "Gerenciar permissões".');
+      }
+    }
+
+    // Apenas Administrador pode atribuir o cargo Administrador
+    if (cargo === 'Administrador' && usuarioLogado?.cargo !== 'Administrador') {
+      e.push('Apenas um Administrador pode atribuir o cargo de Administrador.');
+    }
+
     return e;
   }
 
@@ -210,7 +326,7 @@ export default function FuncionarioForm({ initial, onSubmit, onCancel, onImportB
       observacoes: d.observacoes || '',
       dataCriacao: now,
       dataAtualizacao: now,
-      acoesPermitidas: [...TODAS_ACOES_PLATAFORMA],
+      acoesPermitidas: acoesPadraoDoCargo((d.cargo as CargoFuncionario) || 'Operador'),
       _senha: d.senha,
     };
   }, []);
@@ -237,7 +353,7 @@ export default function FuncionarioForm({ initial, onSubmit, onCancel, onImportB
             label="Cargo"
             id="funcCargo"
             value={cargo}
-            onChange={(e) => setCargo(e.target.value as CargoFuncionario)}
+            onChange={(e) => trocarCargo(e.target.value as CargoFuncionario)}
             options={CARGOS.map((c) => ({ value: c.valor, label: c.label }))}
             required
           />
@@ -312,15 +428,22 @@ export default function FuncionarioForm({ initial, onSubmit, onCancel, onImportB
 
       {/* Acoes Permitidas */}
       <div>
-        <div className="flex items-center justify-between mb-3">
-          <h3 className="text-sm font-semibold text-gray-700">Ações Permitidas</h3>
-          <div className="flex gap-2">
+        <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
+          <div>
+            <h3 className="text-sm font-semibold text-gray-700">Ações Permitidas</h3>
+            <p className="text-xs text-gray-500 mt-0.5">
+              {acoesPermitidas.length} de {ACOES_PLATAFORMA_VISIVEIS.length} ações marcadas
+              {' · '}template padrão de <strong>{cargo}</strong>
+            </p>
+          </div>
+          <div className="flex gap-2 items-center">
             <button
               type="button"
               className="text-xs text-emt-verde hover:text-emt-verde-escuro font-medium"
-              onClick={() => setAcoesPermitidas([...TODAS_ACOES_PLATAFORMA])}
+              onClick={aplicarTemplateDoCargo}
+              title="Substituir as marcações atuais pelo template padrão do cargo selecionado"
             >
-              Selecionar Todos
+              Aplicar template do cargo
             </button>
             <span className="text-gray-300">|</span>
             <button
@@ -332,9 +455,25 @@ export default function FuncionarioForm({ initial, onSubmit, onCancel, onImportB
             </button>
           </div>
         </div>
+
+        {acoesPerigosasMarcadas.length > 0 && (
+          <div className="mb-3 bg-amber-50 border border-amber-300 rounded-lg px-3 py-2">
+            <p className="text-xs font-semibold text-amber-800 mb-1">
+              ⚠️ Permissões destrutivas para um cargo operacional ({cargo})
+            </p>
+            <p className="text-xs text-amber-700">
+              Revise se este cargo realmente precisa de:&nbsp;
+              {acoesPerigosasMarcadas
+                .map((c) => ACOES_PLATAFORMA_VISIVEIS.find((a) => a.chave === c)?.label ?? c)
+                .join(', ')}
+              .
+            </p>
+          </div>
+        )}
+
         <div className="space-y-4">
-          {GRUPOS_ACOES.map((grupo) => {
-            const acoesDoGrupo = ACOES_PLATAFORMA.filter((a) => a.grupo === grupo);
+          {GRUPOS_ACOES_VISIVEIS.map((grupo) => {
+            const acoesDoGrupo = ACOES_PLATAFORMA_VISIVEIS.filter((a) => a.grupo === grupo);
             const todasMarcadas = acoesDoGrupo.every((a) => acoesPermitidas.includes(a.chave));
             const algumaMarcada = acoesDoGrupo.some((a) => acoesPermitidas.includes(a.chave));
             return (
@@ -350,17 +489,25 @@ export default function FuncionarioForm({ initial, onSubmit, onCancel, onImportB
                   <span className="text-sm font-semibold text-gray-700">{grupo}</span>
                 </label>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-1 ml-6">
-                  {acoesDoGrupo.map((acao) => (
-                    <label key={acao.chave} className="flex items-center gap-2 cursor-pointer py-0.5">
-                      <input
-                        type="checkbox"
-                        checked={acoesPermitidas.includes(acao.chave)}
-                        onChange={() => toggleAcao(acao.chave)}
-                        className="w-3.5 h-3.5 text-emt-verde border-gray-300 rounded focus:ring-emt-verde"
-                      />
-                      <span className="text-sm text-gray-600">{acao.label}</span>
-                    </label>
-                  ))}
+                  {acoesDoGrupo.map((acao) => {
+                    const destrutiva = ACOES_DESTRUTIVAS.has(acao.chave);
+                    return (
+                      <label key={acao.chave} className="flex items-center gap-2 cursor-pointer py-0.5">
+                        <input
+                          type="checkbox"
+                          checked={acoesPermitidas.includes(acao.chave)}
+                          onChange={() => toggleAcao(acao.chave)}
+                          className="w-3.5 h-3.5 text-emt-verde border-gray-300 rounded focus:ring-emt-verde"
+                        />
+                        <span
+                          className={`text-sm ${destrutiva ? 'text-red-700 font-medium' : 'text-gray-600'}`}
+                          title={destrutiva ? 'Ação destrutiva — atribua com cuidado' : undefined}
+                        >
+                          {acao.label}
+                        </span>
+                      </label>
+                    );
+                  })}
                 </div>
               </div>
             );
@@ -388,7 +535,7 @@ export default function FuncionarioForm({ initial, onSubmit, onCancel, onImportB
 
       <div className="flex justify-end gap-3 pt-2">
         <Button variant="secondary" type="button" onClick={onCancel}>Cancelar</Button>
-        <Button type="submit">{initial ? 'Salvar Alterações' : 'Cadastrar Funcionário'}</Button>
+        <Button type="submit">{initial ? 'Salvar Alterações' : 'Cadastrar Usuário'}</Button>
       </div>
 
       {onImportBatch && (

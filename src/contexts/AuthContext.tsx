@@ -194,8 +194,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const temAcao = useCallback((chave: string): boolean => {
     if (!usuario) return false;
+    // Administrador sempre tem todas as ações.
     if (usuario.cargo === 'Administrador') return true;
-    if (!usuario.acoesPermitidas) return true;
+    // Fail-CLOSED: se o array de ações não veio (null/undefined) ou está vazio,
+    // o usuário NÃO tem acesso. Isso evita o bug onde um usuário recém-criado
+    // sem permissões configuradas acabava com acesso total.
+    if (!usuario.acoesPermitidas || usuario.acoesPermitidas.length === 0) return false;
     return usuario.acoesPermitidas.includes(chave);
   }, [usuario]);
 
