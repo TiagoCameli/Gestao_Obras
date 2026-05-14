@@ -2,7 +2,7 @@ import { createContext, useContext, useState, useEffect, useCallback, useRef, ty
 import type { AcaoPermissao, ModuloPermissao, PermissoesFuncionario, SessaoUsuario } from '../types';
 import { supabase } from '../lib/supabase';
 import { dbToFuncionario, dbToPerfilPermissao } from '../lib/mappers';
-import { perfilPadraoPorCargo } from '../utils/permissions';
+import { perfilPadraoPorCargo, acoesPadraoDoCargo } from '../utils/permissions';
 import { adicionarAuditLogAsync } from '../hooks/useAuditLog';
 
 interface AuthContextValue {
@@ -43,6 +43,24 @@ async function buildSessao(authUserId: string, lembrarMe: boolean): Promise<Sess
     permissoes = perfilPadraoPorCargo(func.cargo);
   }
 
+  // Fallback: se o usuário não tem `acoesPermitidas` salvas (null ou
+  // array vazio), aplica o template padrão do cargo. Sem isso, com o
+  // fail-CLOSED do `temAcao`, o usuário fica sem acesso a nada.
+  //
+  // Importante: NÃO mesclamos o template com o que está salvo. Se o
+  // admin desmarcou alguma chave do próprio usuário (ou de outro
+  // qualquer), essa decisão É respeitada. O template só entra quando
+  // o array está totalmente vazio (usuário novo nunca configurado).
+  //
+  // O risco de Admin se trancar fora é mitigado por:
+  //   1. Validação no FuncionarioForm — não deixa salvar Admin sem
+  //      `ver_funcionarios`, `editar_funcionarios`, `gerenciar_permissoes`.
+  //   2. Esta lógica de fallback — Admin com banco vazio recebe TUDO.
+  let acoesPermitidas = func.acoesPermitidas;
+  if (!acoesPermitidas || acoesPermitidas.length === 0) {
+    acoesPermitidas = acoesPadraoDoCargo(func.cargo);
+  }
+
   const now = Date.now();
   return {
     funcionarioId: func.id,
@@ -53,7 +71,7 @@ async function buildSessao(authUserId: string, lembrarMe: boolean): Promise<Sess
     loginAt: now,
     expiresAt: lembrarMe ? now + 7 * 24 * 60 * 60 * 1000 : now + 8 * 60 * 60 * 1000,
     lembrarMe,
-    acoesPermitidas: func.acoesPermitidas,
+    acoesPermitidas,
   };
 }
 
@@ -61,6 +79,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [usuario, setUsuario] = useState<SessaoUsuario | null>(null);
   const [loading, setLoading] = useState(true);
   const loginHandledRef = useRef(false);
+
+  // Limpa flag obsoleta do modo de teste de permissões (rodada anterior).
+  useEffect(() => {
+    try {
+      localStorage.removeItem('emt-modo-teste-permissoes');
+    } catch {
+      // silencia
+    }
+  }, []);
 
   // Bootstrap: check if there's an existing Supabase session
   useEffect(() => {
@@ -194,11 +221,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const temAcao = useCallback((chave: string): boolean => {
     if (!usuario) return false;
-    // Administrador sempre tem todas as ações.
-    if (usuario.cargo === 'Administrador') return true;
-    // Fail-CLOSED: se o array de ações não veio (null/undefined) ou está vazio,
-    // o usuário NÃO tem acesso. Isso evita o bug onde um usuário recém-criado
-    // sem permissões configuradas acabava com acesso total.
+    // Sem bypass de Administrador: TODOS respeitam `acoesPermitidas`.
+    // O cargo Administrador recebe naturalmente todas as 238 chaves no
+    // template (`PERFIL_ADMINISTRADOR` em permissions.ts), então em
+    // operação normal continua tendo acesso a tudo. Mas se o admin
+    // desmarcar uma chave do próprio usuário, isso passa a valer.
+    //
+    // Fail-CLOSED: se o array não foi carregado (null/undefined/vazio),
+    // ninguém tem acesso. Isso evita que um usuário recém-criado sem
+    // permissões configuradas acabe com acesso total.
     if (!usuario.acoesPermitidas || usuario.acoesPermitidas.length === 0) return false;
     return usuario.acoesPermitidas.includes(chave);
   }, [usuario]);

@@ -220,16 +220,33 @@ export default function FuncionarioForm({ initial, onSubmit, onCancel, onImportB
     // Dependências entre ações
     e.push(...errosDependencia);
 
-    // Auto-edição: o admin não pode remover a própria capacidade de gerenciar permissões
+    // Auto-edição: o admin não pode remover a própria capacidade de
+    // gerenciar permissões / ver usuários / editar usuários. Sem essas,
+    // ele se tranca fora do controle de acesso. Como agora não tem mais
+    // bypass de Admin, isso é REAL — uma vez sem essas chaves, perde o
+    // acesso.
     if (initial && usuarioLogado && initial.id === usuarioLogado.funcionarioId) {
       if (usuarioLogado.cargo === 'Administrador' && cargo !== 'Administrador') {
         e.push('Você não pode alterar o seu próprio cargo de Administrador.');
       }
-      if (
-        usuarioLogado.acoesPermitidas?.includes('gerenciar_permissoes') &&
-        !acoesPermitidas.includes('gerenciar_permissoes')
-      ) {
-        e.push('Você não pode remover sua própria permissão de "Gerenciar permissões".');
+      const ACOES_AUTOPROTECAO = [
+        { chave: 'ver_funcionarios', label: 'Visualizar usuários' },
+        { chave: 'editar_funcionarios', label: 'Editar usuários' },
+        { chave: 'gerenciar_permissoes', label: 'Gerenciar permissões de outros usuários' },
+      ];
+      for (const a of ACOES_AUTOPROTECAO) {
+        if (!acoesPermitidas.includes(a.chave)) {
+          e.push(
+            `Você não pode remover a própria permissão "${a.label}" — sem ela perde o controle sobre os usuários.`
+          );
+        }
+      }
+      // Salvaguarda extra: Admin nunca pode salvar a si mesmo com
+      // menos de 10 permissões (sinal de marcação acidental).
+      if (usuarioLogado.cargo === 'Administrador' && acoesPermitidas.length < 10) {
+        e.push(
+          'Você está prestes a salvar com pouquíssimas permissões. Clique em "Aplicar template do cargo" ou marque as ações que precisa.'
+        );
       }
     }
 
