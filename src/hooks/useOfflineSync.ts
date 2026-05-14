@@ -22,7 +22,12 @@ import {
   countPendingOSNovas,
   removeOSNova,
   markOSNovaAttempt,
+  listPendingBatidas,
+  countPendingBatidas,
+  removeBatida,
+  markBatidaAttempt,
 } from '../lib/offlineQueue';
+import { registrarBatida } from '../modules/apontamento/utils/pontoApi';
 import { useEnviarChecklist } from './useChecklists';
 import type { MedicaoEquipamento } from '../types';
 
@@ -33,6 +38,7 @@ export interface UseOfflineSyncResult {
   countChecklists: number;
   countMedicoes: number;
   countOS: number;
+  countBatidas: number;
   status: SyncStatus;
   sync: () => Promise<void>;
   refresh: () => Promise<void>;
@@ -49,6 +55,7 @@ export function useOfflineSync(): UseOfflineSyncResult {
   const [countChecklists, setCountChecklists] = useState(0);
   const [countMedicoes, setCountMedicoes] = useState(0);
   const [countOS, setCountOS] = useState(0);
+  const [countBatidas, setCountBatidas] = useState(0);
   const [status, setStatus] = useState<SyncStatus>('idle');
   const [online, setOnline] = useState(
     typeof navigator !== 'undefined' ? navigator.onLine : true
@@ -58,14 +65,16 @@ export function useOfflineSync(): UseOfflineSyncResult {
   const refresh = useCallback(async () => {
     if (!indexedDBSuportado()) return;
     try {
-      const [c, m, o] = await Promise.all([
+      const [c, m, o, b] = await Promise.all([
         countPendingChecklists(),
         countPendingMedicoes(),
         countPendingOSNovas(),
+        countPendingBatidas(),
       ]);
       setCountChecklists(c);
       setCountMedicoes(m);
       setCountOS(o);
+      setCountBatidas(b);
     } catch (err) {
       console.error('[offline-sync] refresh falhou', err);
     }
@@ -225,6 +234,31 @@ export function useOfflineSync(): UseOfflineSyncResult {
     qc.invalidateQueries({ queryKey: ['ordens_servico'] });
   }, [qc]);
 
+  // PR-PWA1 — sync das batidas de ponto enfileiradas
+  const syncBatidas = useCallback(async () => {
+    const fila = await listPendingBatidas();
+    for (const item of fila) {
+      try {
+        await registrarBatida({
+          funcionarioId: item.funcionarioId,
+          data: item.data,
+          tipoBatida: item.tipoBatida,
+          hora: item.hora,
+          latitude: null,
+          longitude: null,
+          origem: 'manual',
+          motivoManual: item.motivo,
+          statusAprovacao: 'pendente_aprovacao',
+        });
+        await removeBatida(item.localId);
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : 'Erro';
+        await markBatidaAttempt(item.localId, msg);
+      }
+    }
+    qc.invalidateQueries({ queryKey: ['apont', 'registros'] });
+  }, [qc]);
+
   const sync = useCallback(async () => {
     if (!indexedDBSuportado()) return;
     if (syncingRef.current) return;
@@ -236,6 +270,7 @@ export function useOfflineSync(): UseOfflineSyncResult {
       await syncChecklists();
       await syncMedicoes();
       await syncOSNovas();
+      await syncBatidas();
       setStatus('idle');
     } catch (err) {
       console.error('[offline-sync] geral falhou', err);
@@ -244,7 +279,7 @@ export function useOfflineSync(): UseOfflineSyncResult {
       syncingRef.current = false;
       await refresh();
     }
-  }, [syncChecklists, syncMedicoes, syncOSNovas, refresh]);
+  }, [syncChecklists, syncMedicoes, syncOSNovas, syncBatidas, refresh]);
 
   useEffect(() => {
     refresh();
@@ -269,10 +304,11 @@ export function useOfflineSync(): UseOfflineSyncResult {
   }, [refresh]);
 
   return {
-    totalPendentes: countChecklists + countMedicoes + countOS,
+    totalPendentes: countChecklists + countMedicoes + countOS + countBatidas,
     countChecklists,
     countMedicoes,
     countOS,
+    countBatidas,
     status,
     sync,
     refresh,

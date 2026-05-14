@@ -6,13 +6,15 @@ import Input from "../../../components/ui/Input";
 import Modal from "../../../components/ui/Modal";
 import ConfirmDialog from "../../../components/ui/ConfirmDialog";
 import { useAuth } from "../../../contexts/AuthContext";
+import { useOfflineSync } from "../../../hooks/useOfflineSync";
+import { enqueueBatidaPonto } from "../../../lib/offlineQueue";
+import { SkeletonCard } from "../../../components/ui/Skeleton";
 import {
   useEquipesApont,
   useFuncionarios,
   useObrasApont,
 } from "../hooks/useApontamentoData";
 import {
-  aprovarBatidaManual,
   atualizarHoraBatida,
   excluirBatida,
   getAprovacaoDia,
@@ -22,7 +24,6 @@ import {
   listRegistrosPontoRange,
   reabrirPontoDia,
   registrarBatida,
-  rejeitarBatidaManual,
   type RegistroPonto,
   type TipoBatida,
 } from "../utils/pontoApi";
@@ -83,6 +84,7 @@ function hojeIso() {
 export default function RegistroPontoTab() {
   const qc = useQueryClient();
   const { usuario } = useAuth();
+  const sync = useOfflineSync();
   const { data: obras = [] } = useObrasApont();
   const [obraId, setObraId] = useState<string>("");
   // Carrega TODAS as equipes — o filtro de equipe é independente do
@@ -446,6 +448,41 @@ export default function RegistroPontoTab() {
 
   return (
     <div className="space-y-4">
+      {/* PR-PWA1 — Status de conexão e fila de batidas */}
+      {(!sync.online || sync.countBatidas > 0) && (
+        <div
+          className={
+            "flex items-center justify-between gap-3 px-4 py-2.5 rounded-lg border " +
+            (!sync.online
+              ? "bg-[var(--color-warning-soft)] border-[var(--color-warning)]/30 text-[var(--color-warning-fg)]"
+              : "bg-[var(--color-info-soft)] border-[var(--color-info)]/30 text-[var(--color-info-fg)]")
+          }
+        >
+          <div className="flex items-center gap-2 text-xs font-medium">
+            <span className={`w-2 h-2 rounded-full ${!sync.online ? "bg-[var(--color-warning)] animate-pulse" : "bg-[var(--color-info)]"}`} />
+            {!sync.online ? (
+              <span>
+                Offline — batidas vão para a fila e sincronizam quando voltar a conexão.
+              </span>
+            ) : (
+              <span>
+                {sync.countBatidas} batida{sync.countBatidas !== 1 ? "s" : ""} na fila aguardando sincronização.
+              </span>
+            )}
+          </div>
+          {sync.online && sync.countBatidas > 0 && (
+            <button
+              type="button"
+              onClick={() => sync.sync()}
+              disabled={sync.status === "syncing"}
+              className="text-xs font-semibold px-3 py-1 rounded-md bg-[var(--color-surface-1)] border border-[var(--color-border)] hover:bg-[var(--color-surface-2)] disabled:opacity-50"
+            >
+              {sync.status === "syncing" ? "Sincronizando…" : "Sincronizar agora"}
+            </button>
+          )}
+        </div>
+      )}
+
       <div className="space-y-3">
         <div>
           <h3 className="text-sm font-semibold tracking-tight text-[var(--color-fg)]">
@@ -545,9 +582,11 @@ export default function RegistroPontoTab() {
       )}
 
       {loadingRegs ? (
-        <p className="py-8 text-center text-sm text-[var(--color-fg-subtle)]">
-          Carregando...
-        </p>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3" aria-busy="true">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <SkeletonCard key={`sk-ponto-${i}`} />
+          ))}
+        </div>
       ) : funcsDaEquipe.length === 0 ? (
         <p className="py-8 text-center text-sm text-[var(--color-fg-subtle)]">
           {equipeId
@@ -637,14 +676,6 @@ export default function RegistroPontoTab() {
                     onVerFoto={(r) => setVendoFoto(r)}
                     onEditarHora={(r) => setEditandoHora(r)}
                     onExcluir={(r) => setExcluindoBatida(r)}
-                    onAprovar={async (id) => {
-                      await aprovarBatidaManual(id);
-                      qc.invalidateQueries({ queryKey: registrosKey });
-                    }}
-                    onRejeitar={async (id) => {
-                      await rejeitarBatidaManual(id);
-                      qc.invalidateQueries({ queryKey: registrosKey });
-                    }}
                   />
 
                   {!congelado && (
@@ -930,32 +961,66 @@ export default function RegistroPontoTab() {
                 const horaIso = new Date(`${data}T${loteHora}:00`).toISOString();
                 let ok = 0;
                 let fail = 0;
+                let enfileirados = 0;
+                // PR-PWA1: se offline, enfileira tudo direto.
+                const isOffline = typeof navigator !== "undefined" && !navigator.onLine;
                 for (const id of loteIds) {
+                  const func = funcionarios.find((f) => f.id === id);
                   try {
-                    await registrarBatida({
-                      funcionarioId: id,
-                      data,
-                      tipoBatida: loteTipo,
-                      hora: horaIso,
-                      latitude: null,
-                      longitude: null,
-                      origem: "manual",
-                      motivoManual: loteMotivo.trim(),
-                      statusAprovacao: "pendente_aprovacao",
-                    });
-                    ok++;
-                  } catch {
-                    fail++;
+                    if (isOffline) {
+                      await enqueueBatidaPonto({
+                        funcionarioId: id,
+                        funcionarioNome: func?.nome ?? "",
+                        data,
+                        hora: horaIso,
+                        tipoBatida: loteTipo,
+                        motivo: loteMotivo.trim(),
+                      });
+                      enfileirados++;
+                    } else {
+                      await registrarBatida({
+                        funcionarioId: id,
+                        data,
+                        tipoBatida: loteTipo,
+                        hora: horaIso,
+                        latitude: null,
+                        longitude: null,
+                        origem: "manual",
+                        motivoManual: loteMotivo.trim(),
+                        statusAprovacao: "pendente_aprovacao",
+                      });
+                      ok++;
+                    }
+                  } catch (err) {
+                    // Se a chamada online falhar (rede caiu agora), tenta enfileirar
+                    try {
+                      await enqueueBatidaPonto({
+                        funcionarioId: id,
+                        funcionarioNome: func?.nome ?? "",
+                        data,
+                        hora: horaIso,
+                        tipoBatida: loteTipo,
+                        motivo: loteMotivo.trim(),
+                      });
+                      enfileirados++;
+                    } catch {
+                      fail++;
+                    }
                   }
                 }
                 setLoteSalvando(false);
                 setLoteOpen(false);
                 setLoteIds(new Set());
                 qc.invalidateQueries({ queryKey: registrosKey });
-                alert(
-                  `${ok} batida${ok !== 1 ? "s" : ""} registrada${ok !== 1 ? "s" : ""}` +
-                    (fail > 0 ? ` · ${fail} falha${fail !== 1 ? "s" : ""}` : "")
-                );
+                await sync.refresh();
+                const partes: string[] = [];
+                if (ok > 0) partes.push(`${ok} registrada${ok !== 1 ? "s" : ""}`);
+                if (enfileirados > 0)
+                  partes.push(
+                    `${enfileirados} na fila offline (sincroniza quando voltar online)`
+                  );
+                if (fail > 0) partes.push(`${fail} falha${fail !== 1 ? "s" : ""}`);
+                alert(partes.join(" · ") || "Nada para registrar");
               }}
             >
               {loteSalvando ? "Registrando…" : `Registrar para ${loteIds.size}`}
@@ -1071,8 +1136,6 @@ function BatidasList({
   onVerFoto,
   onEditarHora,
   onExcluir,
-  onAprovar,
-  onRejeitar,
 }: {
   registros: RegistroPonto[];
   fotosUrl: Record<string, string>;
@@ -1080,8 +1143,6 @@ function BatidasList({
   onVerFoto: (r: RegistroPonto) => void;
   onEditarHora: (r: RegistroPonto) => void;
   onExcluir: (r: RegistroPonto) => void;
-  onAprovar: (id: string) => Promise<void>;
-  onRejeitar: (id: string) => Promise<void>;
 }) {
   if (registros.length === 0) return null;
   return (
@@ -1136,22 +1197,7 @@ function BatidasList({
                 manual · {r.statusAprovacao.replace("_", " ")}
               </span>
             )}
-            {r.statusAprovacao === "pendente_aprovacao" && (
-              <>
-                <button
-                  onClick={() => onAprovar(r.id)}
-                  className="text-[10px] text-emerald-400 hover:underline"
-                >
-                  aprovar
-                </button>
-                <button
-                  onClick={() => onRejeitar(r.id)}
-                  className="text-[10px] text-rose-400 hover:underline"
-                >
-                  rejeitar
-                </button>
-              </>
-            )}
+            {/* UX1 — Aprovação/rejeição agora é feita só na aba Aprovação (centraliza decisão) */}
             {podeEditar && (
               <span className="ml-auto flex gap-1">
                 <button

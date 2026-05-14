@@ -8,8 +8,10 @@ import { useAuth } from "../../../contexts/AuthContext";
 import { useObrasApont } from "../hooks/useApontamentoData";
 import {
   atualizarHoraBatida,
+  excluirBatida,
   getFotoPontoUrls,
   listRegistrosPontoRange,
+  registrarBatida,
   type RegistroPonto,
 } from "../utils/pontoApi";
 import {
@@ -99,6 +101,13 @@ export default function AprovacaoTab() {
 
   // Inline edit state
   const [editandoBatida, setEditandoBatida] = useState<RegistroPonto | null>(null);
+  // UX1 — criar batida que ainda não foi feita direto da Aprovação
+  const [criandoBatida, setCriandoBatida] = useState<{
+    funcionarioId: string;
+    funcionarioNome: string;
+    data: string;
+    tipoBatida: 'entrada' | 'saida_almoco' | 'retorno_almoco' | 'saida_final';
+  } | null>(null);
   const [editandoServicoFunc, setEditandoServicoFunc] = useState<{
     funcionarioId: string;
     nome: string;
@@ -386,14 +395,33 @@ export default function AprovacaoTab() {
 
         {/* Cards do dia */}
         <div>
-          <div className="flex items-baseline justify-between mb-3">
-            <h3 className="text-base font-semibold tracking-tight">
-              Dia {fmtData(selectedDay)}
-            </h3>
-            <span className="text-xs text-[var(--color-fg-subtle)]">
-              {Array.from(battersDoDia).filter((id) => aprovadosDoDia.has(id)).length} de{" "}
-              {funcionariosDoDia.length} aprovados
-            </span>
+          {/* PWA2 — Sticky header: mantém o dia + progresso visível ao rolar.
+              `top-0` (mobile) / `lg:top-0` ativam sticky em todas as larguras. */}
+          <div className="sticky top-0 z-10 -mx-4 sm:-mx-6 px-4 sm:px-6 py-2 mb-3 bg-[var(--color-bg)]/90 backdrop-blur-sm border-b border-[var(--color-border)]">
+            <div className="flex items-baseline justify-between gap-2">
+              <h3 className="text-base font-semibold tracking-tight">
+                Dia {fmtData(selectedDay)}
+              </h3>
+              <span className="text-xs text-[var(--color-fg-muted)] tabular-nums shrink-0">
+                {Array.from(battersDoDia).filter((id) => aprovadosDoDia.has(id)).length} / {funcionariosDoDia.length}{" "}
+                aprovados
+              </span>
+            </div>
+            {/* Barra de progresso mini */}
+            {funcionariosDoDia.length > 0 && (
+              <div className="mt-1.5 h-1 rounded-full bg-[var(--color-surface-2)] overflow-hidden">
+                <div
+                  className="h-full bg-[var(--color-success)] transition-all"
+                  style={{
+                    width: `${
+                      (Array.from(battersDoDia).filter((id) => aprovadosDoDia.has(id)).length /
+                        funcionariosDoDia.length) *
+                      100
+                    }%`,
+                  }}
+                />
+              </div>
+            )}
           </div>
 
           {funcionariosDoDia.length === 0 ? (
@@ -583,6 +611,29 @@ export default function AprovacaoTab() {
                                 </button>
                               );
                             }
+                            // UX1 — sem batida + permissão → permite criar
+                            if (!r && canAprovar) {
+                              return (
+                                <button
+                                  key={tipo}
+                                  type="button"
+                                  onClick={() =>
+                                    setCriandoBatida({
+                                      funcionarioId: f.id,
+                                      funcionarioNome: f.nome,
+                                      data: selectedDay,
+                                      tipoBatida: tipo,
+                                    })
+                                  }
+                                  className="text-left rounded text-[11px] px-2 py-1.5 border border-dashed border-[var(--color-border)] text-[var(--color-fg-subtle)] hover:border-[var(--color-accent)] hover:text-[var(--color-accent-fg)] hover:bg-[var(--color-accent-soft)]/30 transition-colors"
+                                >
+                                  <div className="text-[9px] uppercase tracking-wider">
+                                    {TIPO_BATIDA_LABEL[tipo]}
+                                  </div>
+                                  <div className="text-[10px]">+ Adicionar</div>
+                                </button>
+                              );
+                            }
                             return <div key={tipo}>{cell}</div>;
                           })}
                         </div>
@@ -762,6 +813,8 @@ export default function AprovacaoTab() {
 /* ─── Foto + mini-mapa de uma batida ──────────────────────────────────── */
 function FotoMapaThumb({ registro }: { registro: RegistroPonto }) {
   const [fotoUrl, setFotoUrl] = useState<string | null>(null);
+  // PWA3 — overlay de foto em tela cheia
+  const [zoom, setZoom] = useState(false);
 
   useEffect(() => {
     if (!registro.foto) return;
@@ -774,6 +827,20 @@ function FotoMapaThumb({ registro }: { registro: RegistroPonto }) {
     };
   }, [registro.foto]);
 
+  // PWA3 — fecha com ESC
+  useEffect(() => {
+    if (!zoom) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setZoom(false);
+    };
+    window.addEventListener('keydown', onKey);
+    document.body.style.overflow = 'hidden';
+    return () => {
+      window.removeEventListener('keydown', onKey);
+      document.body.style.overflow = '';
+    };
+  }, [zoom]);
+
   const hasGps = registro.latitude != null && registro.longitude != null;
   const tipoLabel = TIPO_BATIDA_LABEL[registro.tipoBatida] ?? registro.tipoBatida;
 
@@ -784,11 +851,11 @@ function FotoMapaThumb({ registro }: { registro: RegistroPonto }) {
       </div>
       <div className="grid grid-cols-2">
         {fotoUrl ? (
-          <a
-            href={fotoUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="block aspect-square bg-black"
+          <button
+            type="button"
+            onClick={() => setZoom(true)}
+            className="block aspect-square bg-black focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]/40"
+            aria-label={`Ampliar foto da ${tipoLabel}`}
           >
             <img
               src={fotoUrl}
@@ -796,10 +863,38 @@ function FotoMapaThumb({ registro }: { registro: RegistroPonto }) {
               className="w-full h-full object-cover"
               loading="lazy"
             />
-          </a>
+          </button>
         ) : (
           <div className="aspect-square flex items-center justify-center text-[10px] text-[var(--color-fg-subtle)]">
             sem foto
+          </div>
+        )}
+        {/* PWA3 — overlay de tela cheia */}
+        {zoom && fotoUrl && (
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-label={`Foto da ${tipoLabel} em tela cheia`}
+            className="fixed inset-0 z-[60] bg-black/95 flex items-center justify-center"
+            onClick={() => setZoom(false)}
+          >
+            <button
+              type="button"
+              onClick={(e) => { e.stopPropagation(); setZoom(false); }}
+              aria-label="Fechar"
+              className="absolute top-4 right-4 w-10 h-10 inline-flex items-center justify-center rounded-full bg-white/10 text-white hover:bg-white/20"
+            >
+              <X className="w-5 h-5" />
+            </button>
+            <div className="absolute top-4 left-4 text-white text-sm font-medium">
+              {tipoLabel} · {fmtHora(registro.hora)}
+            </div>
+            <img
+              src={fotoUrl}
+              alt={`Foto ${tipoLabel} ampliada`}
+              className="max-w-[95vw] max-h-[95vh] object-contain"
+              onClick={(e) => e.stopPropagation()}
+            />
           </div>
         )}
         {hasGps ? (
@@ -901,13 +996,36 @@ function EditarBatidaModal({
             {erro}
           </div>
         )}
-        <div className="flex justify-end gap-2 pt-2 border-t border-[var(--color-border)]">
-          <Button type="button" variant="secondary" onClick={onClose}>
-            Cancelar
+        <div className="flex justify-between gap-2 pt-2 border-t border-[var(--color-border)]">
+          {/* UX1 — Excluir a batida toda (não só editar hora) */}
+          <Button
+            type="button"
+            variant="secondary"
+            onClick={async () => {
+              if (!confirm(`Excluir definitivamente a batida "${TIPO_BATIDA_LABEL[registro.tipoBatida]}" de ${fmtHora(registro.hora)}? Esta ação não pode ser desfeita.`)) return;
+              setSaving(true);
+              setErro(null);
+              try {
+                await excluirBatida(registro.id);
+                onSaved();
+              } catch (err) {
+                setErro(err instanceof Error ? err.message : String(err));
+              } finally {
+                setSaving(false);
+              }
+            }}
+            className="!text-[var(--color-danger)] hover:!bg-[var(--color-danger-soft)]"
+          >
+            Excluir batida
           </Button>
-          <Button type="submit" disabled={saving}>
-            {saving ? "Salvando..." : "Salvar"}
-          </Button>
+          <div className="flex gap-2">
+            <Button type="button" variant="secondary" onClick={onClose}>
+              Cancelar
+            </Button>
+            <Button type="submit" disabled={saving}>
+              {saving ? "Salvando..." : "Salvar"}
+            </Button>
+          </div>
         </div>
       </form>
     </Modal>

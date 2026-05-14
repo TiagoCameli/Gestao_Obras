@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import ConfirmDialog from "../../../components/ui/ConfirmDialog";
+import { SkeletonTableRow } from "../../../components/ui/Skeleton";
 import { useAuth } from "../../../contexts/AuthContext";
 import {
   listRegistrosPontoRange,
@@ -511,10 +512,7 @@ function PontoTable({
   canDelete: boolean;
   onDelete: (r: RegistroPonto) => void;
 }) {
-  if (isLoading) {
-    return <div className="p-12 text-center text-sm text-[var(--color-fg-muted)]">Carregando…</div>;
-  }
-  if (registros.length === 0) {
+  if (registros.length === 0 && !isLoading) {
     return <div className="p-12 text-center text-sm text-[var(--color-fg-muted)]">Nenhuma batida no período.</div>;
   }
   return (
@@ -533,6 +531,10 @@ function PontoTable({
           </tr>
         </thead>
         <tbody className="divide-y divide-[var(--color-border)]">
+          {/* PWA4 — Skeleton enquanto carrega */}
+          {isLoading && Array.from({ length: 6 }).map((_, i) => (
+            <SkeletonTableRow key={`sk-${i}`} columns={canDelete ? 8 : 7} />
+          ))}
           {registros.map((r) => {
             const f = funcsById.get(r.funcionarioId);
             return (
@@ -586,10 +588,7 @@ function ServicoTable({
   canDelete: boolean;
   onDelete: (a: ApontamentoServico) => void;
 }) {
-  if (isLoading) {
-    return <div className="p-12 text-center text-sm text-[var(--color-fg-muted)]">Carregando…</div>;
-  }
-  if (apontamentos.length === 0) {
+  if (apontamentos.length === 0 && !isLoading) {
     return <div className="p-12 text-center text-sm text-[var(--color-fg-muted)]">Nenhum apontamento no período.</div>;
   }
   return (
@@ -608,6 +607,10 @@ function ServicoTable({
           </tr>
         </thead>
         <tbody className="divide-y divide-[var(--color-border)]">
+          {/* PWA4 — Skeleton enquanto carrega */}
+          {isLoading && Array.from({ length: 6 }).map((_, i) => (
+            <SkeletonTableRow key={`sk2-${i}`} columns={canDelete ? 8 : 7} />
+          ))}
           {apontamentos.map((a) => {
             const f = funcsById.get(a.funcionarioId);
             const s = a.servicoId ? servicosById.get(a.servicoId) : null;
@@ -679,10 +682,7 @@ function AusenciaTable({
   canDelete: boolean;
   onDelete: (a: Ausencia) => void;
 }) {
-  if (isLoading) {
-    return <div className="p-12 text-center text-sm text-[var(--color-fg-muted)]">Carregando…</div>;
-  }
-  if (ausencias.length === 0) {
+  if (ausencias.length === 0 && !isLoading) {
     return <div className="p-12 text-center text-sm text-[var(--color-fg-muted)]">Nenhuma ausência no período.</div>;
   }
   return (
@@ -698,6 +698,10 @@ function AusenciaTable({
           </tr>
         </thead>
         <tbody>
+          {/* PWA4 — Skeleton enquanto carrega */}
+          {isLoading && Array.from({ length: 4 }).map((_, i) => (
+            <SkeletonTableRow key={`sk3-${i}`} columns={canDelete ? 5 : 4} />
+          ))}
           {ausencias.map((a) => {
             const f = funcsById.get(a.funcionarioId);
             const periodo =

@@ -10,10 +10,11 @@
 import type { OrigemMedicao, TipoMedicao, TipoOS, PrioridadeOS } from '../types';
 
 const DB_NAME = 'emt-obras-offline';
-const DB_VERSION = 2;
+const DB_VERSION = 3;
 const STORE_MEDICOES = 'medicoes';
 const STORE_OS = 'os_novas';
 const STORE_CHECKLISTS = 'checklists';
+const STORE_BATIDAS = 'batidas_ponto'; // PR-PWA1 — fila de batidas manuais em lote
 
 // ── Tipos das filas ──────────────────────────────────────────────
 
@@ -32,6 +33,26 @@ export interface MedicaoQueueItem {
   observacoes: string;
   origem: OrigemMedicao;
   operadorNome: string;
+}
+
+/**
+ * PR-PWA1 — Batida de ponto manual em lote.
+ * O Encarregado bate ponto para vários funcionários offline; ao voltar online,
+ * cada item gera um `registrarBatida` com origem='manual' e status='pendente_aprovacao'.
+ */
+export interface BatidaPontoQueueItem {
+  localId: string;
+  criadoEm: string;
+  ultimaTentativaEm: string;
+  ultimoErro: string;
+  tentativas: number;
+  // Payload
+  funcionarioId: string;
+  funcionarioNome: string;
+  data: string; // YYYY-MM-DD
+  hora: string; // ISO completo do timestamp da batida
+  tipoBatida: 'entrada' | 'saida_almoco' | 'retorno_almoco' | 'saida_final';
+  motivo: string;
 }
 
 export interface OSNovaQueueItem {
@@ -74,6 +95,9 @@ function openDB(): Promise<IDBDatabase> {
       }
       if (!db.objectStoreNames.contains(STORE_OS)) {
         db.createObjectStore(STORE_OS, { keyPath: 'localId' });
+      }
+      if (!db.objectStoreNames.contains(STORE_BATIDAS)) {
+        db.createObjectStore(STORE_BATIDAS, { keyPath: 'localId' });
       }
     };
   });
@@ -193,3 +217,26 @@ export const countPendingOSNovas = () => count(STORE_OS);
 export const removeOSNova = (localId: string) => remove(STORE_OS, localId);
 export const markOSNovaAttempt = (localId: string, err: string) =>
   markAttempt<OSNovaQueueItem>(STORE_OS, localId, err);
+
+// ── API pública: Batidas de Ponto (PR-PWA1) ──────────────────────────────────
+
+export async function enqueueBatidaPonto(
+  item: Omit<BatidaPontoQueueItem, 'localId' | 'criadoEm' | 'ultimaTentativaEm' | 'ultimoErro' | 'tentativas'>
+): Promise<string> {
+  const full: BatidaPontoQueueItem = {
+    ...item,
+    localId: gerarLocalId('b'),
+    criadoEm: new Date().toISOString(),
+    ultimaTentativaEm: '',
+    ultimoErro: '',
+    tentativas: 0,
+  };
+  await add(STORE_BATIDAS, full);
+  return full.localId;
+}
+
+export const listPendingBatidas = () => list<BatidaPontoQueueItem>(STORE_BATIDAS);
+export const countPendingBatidas = () => count(STORE_BATIDAS);
+export const removeBatida = (localId: string) => remove(STORE_BATIDAS, localId);
+export const markBatidaAttempt = (localId: string, err: string) =>
+  markAttempt<BatidaPontoQueueItem>(STORE_BATIDAS, localId, err);

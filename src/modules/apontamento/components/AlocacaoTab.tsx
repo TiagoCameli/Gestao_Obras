@@ -48,6 +48,31 @@ function EquipesView() {
   const [alocandoEquipe, setAlocandoEquipe] = useState<Equipe | null>(null);
   const [transferindoEquipe, setTransferindoEquipe] = useState<Equipe | null>(null);
 
+  // PWA5 — Drag-and-drop: alvo atualmente sob o cursor ('sem-equipe' ou id da equipe)
+  const [dragOverTarget, setDragOverTarget] = useState<string | null>(null);
+
+  /** Aplica a alocação quando um funcionário é solto numa equipe (ou sem alocação). */
+  function handleDropFuncionario(funcionarioId: string, targetEquipeId: string | null) {
+    setDragOverTarget(null);
+    if (!funcionarioId) return;
+    if (targetEquipeId) {
+      const eq = equipes.find((e) => e.id === targetEquipeId);
+      if (!eq) return;
+      alocar.mutate({
+        funcionarioIds: [funcionarioId],
+        equipeId: eq.id,
+        obraId: eq.obraId,
+      });
+    } else {
+      alocar.mutate({
+        funcionarioIds: [funcionarioId],
+        equipeId: null,
+        obraId: null,
+        encarregadoId: null,
+      });
+    }
+  }
+
   const obraNome = useMemo(
     () => Object.fromEntries(obras.map((o) => [o.id, o.nome])),
     [obras]
@@ -124,11 +149,33 @@ function EquipesView() {
         </div>
       </div>
 
-      {/* Funcionários sem equipe */}
-      {semEquipe.length > 0 && (
-        <section className="rounded-xl border border-amber-500/40 bg-amber-500/5 p-4">
+      {/* Funcionários sem equipe — também aceita drop pra desalocar */}
+      {(semEquipe.length > 0 || dragOverTarget === "sem-equipe") && (
+        <section
+          className={
+            "rounded-xl border p-4 transition-colors " +
+            (dragOverTarget === "sem-equipe"
+              ? "border-amber-500 bg-amber-500/20 ring-2 ring-amber-500/40"
+              : "border-amber-500/40 bg-amber-500/5")
+          }
+          onDragOver={(e) => {
+            e.preventDefault();
+            if (dragOverTarget !== "sem-equipe") setDragOverTarget("sem-equipe");
+          }}
+          onDragLeave={(e) => {
+            // Só limpa se o cursor saiu DO container externo (não de um filho)
+            if (e.currentTarget.contains(e.relatedTarget as Node)) return;
+            setDragOverTarget((cur) => (cur === "sem-equipe" ? null : cur));
+          }}
+          onDrop={(e) => {
+            e.preventDefault();
+            const id = e.dataTransfer.getData("application/x-funcionario-id");
+            handleDropFuncionario(id, null);
+          }}
+        >
           <h3 className="text-xs font-semibold uppercase tracking-wider text-amber-400 mb-2">
             Sem alocação ({semEquipe.length})
+            {dragOverTarget === "sem-equipe" && " · soltar aqui para desalocar"}
           </h3>
           <div className="flex flex-wrap gap-2">
             {semEquipe.map((f) => (
@@ -160,14 +207,41 @@ function EquipesView() {
             : "Nenhuma equipe ainda."}
         </div>
       ) : (
+        <>
+          {/* PWA5 — Dica sutil de drag (oculta em mobile / touch onde drag é ruim) */}
+          <p className="hidden md:flex items-center gap-1.5 text-[11px] text-[var(--color-fg-subtle)]">
+            <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M5 9h14M5 15h14M9 5v14M15 5v14" />
+            </svg>
+            Dica: arraste qualquer chip de funcionário para outra equipe (ou para "Sem alocação") para realocar.
+          </p>
         <div className="space-y-3">
           {equipesFiltradas.map((eq) => {
             const membros = funcsPorEquipe[eq.id] ?? [];
             const encarregado = membros.find((m) => m.id === eq.encarregadoId);
+            const isDragOver = dragOverTarget === eq.id;
             return (
               <section
                 key={eq.id}
-                className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-1)] p-4"
+                className={
+                  "rounded-xl border p-4 transition-colors " +
+                  (isDragOver
+                    ? "border-[var(--color-accent)] bg-[var(--color-accent-soft)]/30 ring-2 ring-[var(--color-accent)]/40"
+                    : "border-[var(--color-border)] bg-[var(--color-surface-1)]")
+                }
+                onDragOver={(e) => {
+                  e.preventDefault();
+                  if (dragOverTarget !== eq.id) setDragOverTarget(eq.id);
+                }}
+                onDragLeave={(e) => {
+                  if (e.currentTarget.contains(e.relatedTarget as Node)) return;
+                  setDragOverTarget((cur) => (cur === eq.id ? null : cur));
+                }}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  const id = e.dataTransfer.getData("application/x-funcionario-id");
+                  handleDropFuncionario(id, eq.id);
+                }}
               >
                 <header className="flex items-start justify-between gap-3 mb-3">
                   <div className="min-w-0 flex-1">
@@ -255,6 +329,7 @@ function EquipesView() {
             );
           })}
         </div>
+        </>
       )}
 
       <Modal
@@ -681,12 +756,23 @@ function FuncBadge({
   const hash = Array.from(f.nome).reduce((acc, c) => acc + c.charCodeAt(0), 0);
   const avatarPalette = ['bg-emerald-500/30', 'bg-blue-500/30', 'bg-amber-500/30', 'bg-rose-500/30', 'bg-purple-500/30', 'bg-cyan-500/30'];
   const avatarBg = avatarPalette[hash % avatarPalette.length];
+  // PWA5 — drag visual state
+  const [dragging, setDragging] = useState(false);
   return (
     <div className="relative">
       <button
+        draggable
+        onDragStart={(e) => {
+          e.dataTransfer.setData("application/x-funcionario-id", f.id);
+          e.dataTransfer.effectAllowed = "move";
+          setDragging(true);
+        }}
+        onDragEnd={() => setDragging(false)}
         onClick={() => setOpen((v) => !v)}
+        title="Arraste para outra equipe ou clique para mais ações"
         className={
-          "inline-flex items-center gap-2 pl-1 pr-3 py-1 rounded-full text-xs border transition-colors " +
+          "inline-flex items-center gap-2 pl-1 pr-3 py-1 rounded-full text-xs border transition-colors cursor-grab active:cursor-grabbing " +
+          (dragging ? "opacity-40 " : "") +
           (isEncarregado
             ? "bg-[var(--color-accent)]/15 border-[var(--color-accent)] text-[var(--color-fg)]"
             : "bg-[var(--color-surface-2)] border-[var(--color-border)] text-[var(--color-fg)]")
