@@ -27,6 +27,9 @@ dist-ssr
 # Supabase CLI temp metadata
 supabase/.temp/
 
+# Diretórios de trabalho temporário de Marcos (drafts, exports, JSON dumps)
+.tmp-*/
+
 # Pacote de seed (dados ficam no Supabase)
 manutencao-app/
 

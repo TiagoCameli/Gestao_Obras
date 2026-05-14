@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid,
@@ -220,18 +221,19 @@ export default function DashboardTab() {
         </span>
       </div>
 
-      {/* KPIs */}
+      {/* KPIs — drill-down: clique abre a aba relacionada */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-        <Kpi label="Batidas hoje" value={kpis.batidasHoje} hint="registros do dia" />
-        <Kpi label="Presentes hoje" value={kpis.presentesHoje} hint="entradas registradas" tone="success" />
-        <Kpi label="Pendentes" value={kpis.pendentes} hint="aguardando aprovação" tone={kpis.pendentes > 0 ? "warning" : "neutral"} />
-        <Kpi label="Total batidas" value={kpis.totalBatidas} hint="no período" />
-        <Kpi label="Horas apontadas" value={kpis.totalHoras.toFixed(1)} hint="produtivas + improdutivas" />
+        <Kpi label="Batidas hoje" value={kpis.batidasHoje} hint="registros do dia" to="/apontamento?tab=ponto" />
+        <Kpi label="Presentes hoje" value={kpis.presentesHoje} hint="entradas registradas" tone="success" to="/apontamento?tab=ponto" />
+        <Kpi label="Pendentes" value={kpis.pendentes} hint="aguardando aprovação" tone={kpis.pendentes > 0 ? "warning" : "neutral"} to="/apontamento?tab=aprovacao" />
+        <Kpi label="Total batidas" value={kpis.totalBatidas} hint="no período" to="/apontamento?tab=historico" />
+        <Kpi label="Horas apontadas" value={kpis.totalHoras.toFixed(1)} hint="produtivas + improdutivas" to="/apontamento?tab=servico" />
         <Kpi
           label="% produtivo"
           value={kpis.totalHoras > 0 ? `${((kpis.horasProd / kpis.totalHoras) * 100).toFixed(0)}%` : "—"}
           hint={`${kpis.horasProd.toFixed(1)} h produtivas`}
           tone="success"
+          to="/apontamento?tab=servico"
         />
       </div>
 
@@ -367,14 +369,22 @@ function Kpi({
   value,
   hint,
   tone = "neutral",
+  to,
 }: {
   label: string;
   value: number | string;
   hint?: string;
   tone?: "neutral" | "success" | "warning" | "danger";
+  /** Quando preenchido, o card vira link clicável (drill-down). */
+  to?: string;
 }) {
-  return (
-    <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-1)] p-4 shadow-[var(--shadow-xs)]">
+  const baseClass =
+    "rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-1)] p-4 shadow-[var(--shadow-xs)]" +
+    (to
+      ? " block transition-all hover:border-[var(--color-border-strong)] hover:shadow-[var(--shadow-md)] hover:-translate-y-0.5 cursor-pointer focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]/40"
+      : "");
+  const content = (
+    <>
       <p className="text-[10px] uppercase tracking-wider text-[var(--color-fg-subtle)] font-semibold">
         {label}
       </p>
@@ -382,8 +392,16 @@ function Kpi({
         {value}
       </p>
       {hint && <p className="text-xs text-[var(--color-fg-muted)] mt-0.5">{hint}</p>}
-    </div>
+    </>
   );
+  if (to) {
+    return (
+      <Link to={to} className={baseClass} aria-label={`${label}: ${value}. Abrir detalhes.`}>
+        {content}
+      </Link>
+    );
+  }
+  return <div className={baseClass}>{content}</div>;
 }
 
 function ChartCard({

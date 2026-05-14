@@ -90,6 +90,13 @@ export default function AprovacaoTab() {
   const [selectedDay, setSelectedDay] = useState<string>(todayIso());
   const [obraId, setObraId] = useState<string>("");
 
+  // MW1 — Aprovação em lote: ids selecionados no dia atual
+  const [selecionados, setSelecionados] = useState<Set<string>>(new Set());
+  // Limpa seleção ao trocar de dia
+  useEffect(() => {
+    setSelecionados(new Set());
+  }, [selectedDay]);
+
   // Inline edit state
   const [editandoBatida, setEditandoBatida] = useState<RegistroPonto | null>(null);
   const [editandoServicoFunc, setEditandoServicoFunc] = useState<{
@@ -446,25 +453,42 @@ export default function AprovacaoTab() {
                     }
                   >
                     <header className="flex items-start justify-between gap-2 mb-3">
-                      <div className="min-w-0">
-                        <h4 className="text-sm font-semibold text-[var(--color-fg)] truncate">
-                          {f.nome}
-                        </h4>
-                        <span
-                          className={
-                            "inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-semibold mt-1 " +
-                            (aprovado
-                              ? "bg-[var(--color-success-soft)] text-[var(--color-success-fg)]"
-                              : "bg-[var(--color-danger-soft)] text-[var(--color-danger-fg)]")
-                          }
-                        >
-                          {aprovado ? (
-                            <Check className="w-3 h-3" />
-                          ) : (
-                            <AlertCircle className="w-3 h-3" />
-                          )}
-                          {aprovado ? "Aprovado" : "Pendente"}
-                        </span>
+                      <div className="min-w-0 flex items-start gap-2">
+                        {/* MW1 — checkbox de seleção para aprovação em lote */}
+                        {canAprovar && !aprovado && podeAprovar && (
+                          <input
+                            type="checkbox"
+                            checked={selecionados.has(f.id)}
+                            onChange={(e) => {
+                              const next = new Set(selecionados);
+                              if (e.target.checked) next.add(f.id);
+                              else next.delete(f.id);
+                              setSelecionados(next);
+                            }}
+                            className="w-4 h-4 mt-0.5 shrink-0"
+                            aria-label={`Selecionar ${f.nome} para aprovação em lote`}
+                          />
+                        )}
+                        <div className="min-w-0">
+                          <h4 className="text-sm font-semibold text-[var(--color-fg)] truncate">
+                            {f.nome}
+                          </h4>
+                          <span
+                            className={
+                              "inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-semibold mt-1 " +
+                              (aprovado
+                                ? "bg-[var(--color-success-soft)] text-[var(--color-success-fg)]"
+                                : "bg-[var(--color-danger-soft)] text-[var(--color-danger-fg)]")
+                            }
+                          >
+                            {aprovado ? (
+                              <Check className="w-3 h-3" />
+                            ) : (
+                              <AlertCircle className="w-3 h-3" />
+                            )}
+                            {aprovado ? "Aprovado" : "Pendente"}
+                          </span>
+                        </div>
                       </div>
                       {canAprovar && (
                         <button
@@ -699,6 +723,37 @@ export default function AprovacaoTab() {
             qc.invalidateQueries({ queryKey: ["apont", "aprov-servico"] });
           }}
         />
+      )}
+
+      {/* MW1 — Barra flutuante de aprovação em lote */}
+      {canAprovar && selecionados.size > 0 && (
+        <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-30 flex items-center gap-3 bg-[var(--color-surface-1)] border border-[var(--color-border)] rounded-full shadow-[var(--shadow-xl)] pl-5 pr-2 py-2">
+          <span className="text-sm font-medium text-[var(--color-fg)]">
+            {selecionados.size} selecionado{selecionados.size > 1 ? 's' : ''}
+          </span>
+          <button
+            type="button"
+            onClick={() => setSelecionados(new Set())}
+            className="text-xs px-3 py-1.5 rounded-full text-[var(--color-fg-muted)] hover:text-[var(--color-fg)] hover:bg-[var(--color-surface-2)]"
+          >
+            Limpar
+          </button>
+          <button
+            type="button"
+            onClick={async () => {
+              const ids = Array.from(selecionados);
+              for (const id of ids) {
+                await aprovarM.mutateAsync({ funcionarioId: id, data: selectedDay });
+              }
+              setSelecionados(new Set());
+            }}
+            disabled={aprovarM.isPending}
+            className="inline-flex items-center gap-1.5 text-sm font-semibold px-4 py-2 rounded-full bg-[var(--color-success)] text-white hover:brightness-110 disabled:opacity-50 transition-all"
+          >
+            <Check className="w-4 h-4" />
+            {aprovarM.isPending ? 'Aprovando…' : `Aprovar ${selecionados.size}`}
+          </button>
+        </div>
       )}
     </div>
   );

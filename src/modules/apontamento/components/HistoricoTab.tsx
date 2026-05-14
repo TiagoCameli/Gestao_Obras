@@ -191,6 +191,102 @@ export default function HistoricoTab() {
     });
   }, [apontamentos, busca, funcsById, servicosById]);
 
+  async function exportXlsx() {
+    const ExcelJS = (await import('exceljs')).default;
+    const wb = new ExcelJS.Workbook();
+    wb.creator = 'EMT Construtora';
+    wb.created = new Date();
+    const ws = wb.addWorksheet(
+      sub === 'ponto' ? 'Registros de Ponto' :
+      sub === 'servico' ? 'Apontamento por Serviço' :
+      'Faltas / Ausências'
+    );
+
+    if (sub === 'ponto') {
+      ws.columns = [
+        { header: 'Data', key: 'data', width: 12 },
+        { header: 'Funcionário', key: 'nome', width: 32 },
+        { header: 'CPF', key: 'cpf', width: 16 },
+        { header: 'Tipo', key: 'tipo', width: 16 },
+        { header: 'Hora', key: 'hora', width: 8 },
+        { header: 'Status', key: 'status', width: 12 },
+        { header: 'Origem', key: 'origem', width: 12 },
+      ];
+      for (const r of registrosFiltrados) {
+        const f = funcsById.get(r.funcionarioId);
+        ws.addRow({
+          data: fmtData(r.data),
+          nome: f?.nome ?? '',
+          cpf: f?.cpf ?? '',
+          tipo: TIPO_BATIDA_LABEL[r.tipoBatida] ?? r.tipoBatida,
+          hora: fmtHora(r.hora),
+          status: STATUS_LABEL[r.statusAprovacao] ?? r.statusAprovacao,
+          origem: r.origem,
+        });
+      }
+    } else if (sub === 'servico') {
+      ws.columns = [
+        { header: 'Data', key: 'data', width: 12 },
+        { header: 'Funcionário', key: 'nome', width: 32 },
+        { header: 'Serviço', key: 'servico', width: 40 },
+        { header: 'Tipo', key: 'tipo', width: 14 },
+        { header: 'Horas', key: 'horas', width: 10 },
+        { header: 'Estaca inicial', key: 'ei', width: 14 },
+        { header: 'Estaca final', key: 'ef', width: 14 },
+        { header: 'Lado', key: 'lado', width: 8 },
+        { header: 'Motivo improdutivo', key: 'motivo', width: 32 },
+      ];
+      for (const a of apontamentosFiltrados) {
+        const f = funcsById.get(a.funcionarioId);
+        const s = a.servicoId ? servicosById.get(a.servicoId) : null;
+        ws.addRow({
+          data: fmtData(a.data),
+          nome: f?.nome ?? '',
+          servico: s?.nome ?? '',
+          tipo: a.tipo,
+          horas: Number(a.horas ?? 0),
+          ei: a.estacaInicial ?? '',
+          ef: a.estacaFinal ?? '',
+          lado: a.lado ?? '',
+          motivo: a.motivoImprodutivo ?? '',
+        });
+      }
+    } else {
+      ws.columns = [
+        { header: 'Data início', key: 'dataIni', width: 12 },
+        { header: 'Data fim', key: 'dataFim', width: 12 },
+        { header: 'Funcionário', key: 'nome', width: 32 },
+        { header: 'Tipo', key: 'tipo', width: 16 },
+        { header: 'Observação', key: 'obs', width: 40 },
+      ];
+      for (const a of ausencias) {
+        const f = funcsById.get(a.funcionarioId);
+        ws.addRow({
+          dataIni: fmtData(a.dataInicio),
+          dataFim: fmtData(a.dataFim),
+          nome: f?.nome ?? '',
+          tipo: TIPO_AUSENCIA_LABEL[a.tipo] ?? a.tipo,
+          obs: a.observacao ?? '',
+        });
+      }
+    }
+
+    // Cabeçalho em negrito + fundo verde
+    ws.getRow(1).font = { bold: true, color: { argb: 'FFFFFFFF' } };
+    ws.getRow(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF16A34A' } };
+    ws.getRow(1).height = 22;
+    ws.views = [{ state: 'frozen', ySplit: 1 }];
+
+    const buffer = await wb.xlsx.writeBuffer();
+    const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `historico_${sub}_${dataInicio}_a_${dataFim}.xlsx`;
+    link.click();
+    URL.revokeObjectURL(url);
+  }
+
   function exportCsv() {
     const lines: string[] = [];
     if (sub === "ponto") {
@@ -302,18 +398,27 @@ export default function HistoricoTab() {
             ? `${apontamentosFiltrados.length} lançamento${apontamentosFiltrados.length !== 1 ? "s" : ""}`
             : `${ausencias.length} registro${ausencias.length !== 1 ? "s" : ""} de ausência`}
         </p>
-        <button
-          type="button"
-          onClick={exportCsv}
-          className="inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-md bg-[var(--color-surface-1)] border border-[var(--color-border)] hover:border-[var(--color-border-strong)] hover:bg-[var(--color-surface-2)] transition-colors"
-        >
-          <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-            <polyline points="7 10 12 15 17 10" />
-            <line x1="12" y1="15" x2="12" y2="3" />
-          </svg>
-          Exportar CSV
-        </button>
+        <div className="flex gap-2">
+          <button
+            type="button"
+            onClick={exportXlsx}
+            className="inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-md bg-[var(--color-accent)] text-white hover:opacity-90 transition-opacity"
+          >
+            <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+              <polyline points="7 10 12 15 17 10" />
+              <line x1="12" y1="15" x2="12" y2="3" />
+            </svg>
+            Exportar Excel
+          </button>
+          <button
+            type="button"
+            onClick={exportCsv}
+            className="inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-md bg-[var(--color-surface-1)] border border-[var(--color-border)] hover:border-[var(--color-border-strong)] hover:bg-[var(--color-surface-2)] transition-colors"
+          >
+            CSV
+          </button>
+        </div>
       </div>
 
       {/* Table */}

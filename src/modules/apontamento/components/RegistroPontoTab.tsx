@@ -5,6 +5,7 @@ import Select from "../../../components/ui/Select";
 import Input from "../../../components/ui/Input";
 import Modal from "../../../components/ui/Modal";
 import ConfirmDialog from "../../../components/ui/ConfirmDialog";
+import { useAuth } from "../../../contexts/AuthContext";
 import {
   useEquipesApont,
   useFuncionarios,
@@ -81,6 +82,7 @@ function hojeIso() {
 
 export default function RegistroPontoTab() {
   const qc = useQueryClient();
+  const { usuario } = useAuth();
   const { data: obras = [] } = useObrasApont();
   const [obraId, setObraId] = useState<string>("");
   // Carrega TODAS as equipes — o filtro de equipe é independente do
@@ -91,6 +93,39 @@ export default function RegistroPontoTab() {
   const [busca, setBusca] = useState<string>("");
 
   const { data: funcionarios = [] } = useFuncionarios();
+
+  // QW4 — Auto-filtrar equipe do encarregado logado.
+  // Pré-seleciona a equipe na primeira render se o usuário for encarregado
+  // de UMA equipe ativa. Só auto-seleciona uma vez — depois o usuário pode
+  // trocar à vontade. Match por email do usuário → encarregadoId via lookup
+  // no funcionario correspondente. Mantém comportamento atual se não houver
+  // match (Admin/Supervisor vê tudo).
+  const autoFiltroAplicado = useRef(false);
+  useEffect(() => {
+    if (autoFiltroAplicado.current) return;
+    if (!usuario || funcionarios.length === 0 || equipes.length === 0) return;
+    const funcUser = funcionarios.find((f) => f.cpf && usuario.email && f.cpf !== "");
+    const meuFuncionarioId = funcionarios.find((f) =>
+      f.nome.toLowerCase() === (usuario.nome ?? "").toLowerCase()
+    )?.id ?? funcUser?.id;
+    if (!meuFuncionarioId) return;
+    const minhasEquipes = equipes.filter((e) => e.encarregadoId === meuFuncionarioId);
+    if (minhasEquipes.length === 1) {
+      setEquipeId(minhasEquipes[0].id);
+      autoFiltroAplicado.current = true;
+    }
+  }, [usuario, funcionarios, equipes]);
+
+  // MW3 — Estado para registro de ponto em lote (FAB)
+  const [loteOpen, setLoteOpen] = useState(false);
+  const [loteTipo, setLoteTipo] = useState<TipoBatida>("entrada");
+  const [loteHora, setLoteHora] = useState<string>(() => {
+    const d = new Date();
+    return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+  });
+  const [loteIds, setLoteIds] = useState<Set<string>>(new Set());
+  const [loteMotivo, setLoteMotivo] = useState("Lançamento em lote pelo encarregado");
+  const [loteSalvando, setLoteSalvando] = useState(false);
   // Lista de funcionários a exibir respeita os filtros aplicados. Quando
   // nada está filtrado, mostra todos os ativos pra permitir registrar
   // ponto sem precisar escolher obra/equipe primeiro.
@@ -747,6 +782,187 @@ export default function RegistroPontoTab() {
         }
         requirePassword={false}
       />
+
+      {/* MW3 — FAB "Registrar em lote" — visível só quando há lista filtrada */}
+      {funcsDaEquipe.length > 0 && (
+        <button
+          type="button"
+          onClick={() => {
+            // Pré-seleciona todos os funcionários filtrados
+            setLoteIds(new Set(funcsDaEquipe.map((f) => f.id)));
+            setLoteOpen(true);
+          }}
+          aria-label="Registrar ponto em lote"
+          className="fixed bottom-5 right-5 z-30 inline-flex items-center gap-2 pl-4 pr-5 py-3.5 rounded-full bg-[var(--color-accent)] text-white shadow-[var(--shadow-xl)] hover:brightness-110 transition-all"
+        >
+          <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M12 5v14M5 12h14" />
+          </svg>
+          <span className="text-sm font-semibold">Registrar em lote</span>
+        </button>
+      )}
+
+      {/* MW3 — Modal de registro em lote */}
+      <Modal
+        open={loteOpen}
+        onClose={() => setLoteOpen(false)}
+        title="Registrar ponto em lote"
+        size="lg"
+      >
+        <div className="space-y-4">
+          <p className="text-xs text-[var(--color-fg-muted)]">
+            Marque o tipo de batida, ajuste a hora e selecione os funcionários. As batidas serão
+            registradas como <b>manuais</b> (origem manual, aguardando aprovação).
+          </p>
+
+          {/* Tipo de batida em pills */}
+          <div>
+            <p className="text-[10px] uppercase tracking-wider text-[var(--color-fg-subtle)] mb-1.5">
+              Tipo de batida
+            </p>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+              {(["entrada", "saida_almoco", "retorno_almoco", "saida_final"] as TipoBatida[]).map(
+                (t) => (
+                  <button
+                    key={t}
+                    type="button"
+                    onClick={() => setLoteTipo(t)}
+                    className={
+                      "px-3 py-2 rounded-lg text-xs font-medium border transition-colors " +
+                      (loteTipo === t
+                        ? "border-[var(--color-accent)] bg-[var(--color-accent)]/15 text-[var(--color-fg)]"
+                        : "border-[var(--color-border)] text-[var(--color-fg-muted)] hover:bg-[var(--color-surface-2)]")
+                    }
+                  >
+                    {TIPO_BATIDA_LABEL[t]}
+                  </button>
+                )
+              )}
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <Input
+              label="Data"
+              type="date"
+              value={data}
+              onChange={(e) => setData(e.target.value)}
+            />
+            <Input
+              label="Hora"
+              type="time"
+              value={loteHora}
+              onChange={(e) => setLoteHora(e.target.value)}
+            />
+          </div>
+
+          <Input
+            label="Motivo / justificativa"
+            type="text"
+            value={loteMotivo}
+            onChange={(e) => setLoteMotivo(e.target.value)}
+          />
+
+          {/* Lista de funcionários */}
+          <div>
+            <div className="flex items-center justify-between mb-1.5">
+              <p className="text-[10px] uppercase tracking-wider text-[var(--color-fg-subtle)]">
+                Funcionários ({loteIds.size}/{funcsDaEquipe.length} selecionados)
+              </p>
+              <div className="flex gap-2 text-xs">
+                <button
+                  type="button"
+                  onClick={() => setLoteIds(new Set(funcsDaEquipe.map((f) => f.id)))}
+                  className="text-[var(--color-accent)] hover:underline"
+                >
+                  Todos
+                </button>
+                <span className="text-[var(--color-fg-subtle)]">·</span>
+                <button
+                  type="button"
+                  onClick={() => setLoteIds(new Set())}
+                  className="text-[var(--color-fg-muted)] hover:underline"
+                >
+                  Nenhum
+                </button>
+              </div>
+            </div>
+            <div className="max-h-64 overflow-y-auto rounded-lg border border-[var(--color-border)] divide-y divide-[var(--color-border)]">
+              {funcsDaEquipe.map((f) => {
+                const sel = loteIds.has(f.id);
+                return (
+                  <label
+                    key={f.id}
+                    className="flex items-center gap-3 px-3 py-2 cursor-pointer hover:bg-[var(--color-surface-2)]"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={sel}
+                      onChange={(e) => {
+                        const next = new Set(loteIds);
+                        if (e.target.checked) next.add(f.id);
+                        else next.delete(f.id);
+                        setLoteIds(next);
+                      }}
+                      className="w-4 h-4"
+                    />
+                    <span className="text-sm text-[var(--color-fg)]">{f.nome}</span>
+                  </label>
+                );
+              })}
+              {funcsDaEquipe.length === 0 && (
+                <p className="px-3 py-4 text-sm text-[var(--color-fg-subtle)]">
+                  Nenhum funcionário no filtro atual.
+                </p>
+              )}
+            </div>
+          </div>
+
+          <div className="flex justify-end gap-2">
+            <Button variant="secondary" onClick={() => setLoteOpen(false)}>
+              Cancelar
+            </Button>
+            <Button
+              disabled={loteIds.size === 0 || loteSalvando || !loteMotivo.trim()}
+              onClick={async () => {
+                if (loteIds.size === 0 || !loteMotivo.trim()) return;
+                setLoteSalvando(true);
+                const horaIso = new Date(`${data}T${loteHora}:00`).toISOString();
+                let ok = 0;
+                let fail = 0;
+                for (const id of loteIds) {
+                  try {
+                    await registrarBatida({
+                      funcionarioId: id,
+                      data,
+                      tipoBatida: loteTipo,
+                      hora: horaIso,
+                      latitude: null,
+                      longitude: null,
+                      origem: "manual",
+                      motivoManual: loteMotivo.trim(),
+                      statusAprovacao: "pendente_aprovacao",
+                    });
+                    ok++;
+                  } catch {
+                    fail++;
+                  }
+                }
+                setLoteSalvando(false);
+                setLoteOpen(false);
+                setLoteIds(new Set());
+                qc.invalidateQueries({ queryKey: registrosKey });
+                alert(
+                  `${ok} batida${ok !== 1 ? "s" : ""} registrada${ok !== 1 ? "s" : ""}` +
+                    (fail > 0 ? ` · ${fail} falha${fail !== 1 ? "s" : ""}` : "")
+                );
+              }}
+            >
+              {loteSalvando ? "Registrando…" : `Registrar para ${loteIds.size}`}
+            </Button>
+          </div>
+        </div>
+      </Modal>
 
     </div>
   );

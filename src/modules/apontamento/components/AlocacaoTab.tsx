@@ -669,18 +669,36 @@ function FuncBadge({
   obraNome?: Record<string, string>;
 }) {
   const [open, setOpen] = useState(false);
+  // QW5 — Avatar: iniciais do nome (até 2 letras). Cor de fundo derivada
+  // do hash do nome pra dar consistência visual entre sessões.
+  const iniciais = f.nome
+    .trim()
+    .split(/\s+/)
+    .map((p) => p[0])
+    .slice(0, 2)
+    .join('')
+    .toUpperCase();
+  const hash = Array.from(f.nome).reduce((acc, c) => acc + c.charCodeAt(0), 0);
+  const avatarPalette = ['bg-emerald-500/30', 'bg-blue-500/30', 'bg-amber-500/30', 'bg-rose-500/30', 'bg-purple-500/30', 'bg-cyan-500/30'];
+  const avatarBg = avatarPalette[hash % avatarPalette.length];
   return (
     <div className="relative">
       <button
         onClick={() => setOpen((v) => !v)}
         className={
-          "inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs border transition-colors " +
+          "inline-flex items-center gap-2 pl-1 pr-3 py-1 rounded-full text-xs border transition-colors " +
           (isEncarregado
             ? "bg-[var(--color-accent)]/15 border-[var(--color-accent)] text-[var(--color-fg)]"
             : "bg-[var(--color-surface-2)] border-[var(--color-border)] text-[var(--color-fg)]")
         }
       >
-        {isEncarregado && <span title="Encarregado">★</span>}
+        <span
+          className={`w-6 h-6 rounded-full inline-flex items-center justify-center text-[10px] font-semibold ${avatarBg} text-[var(--color-fg)]`}
+          aria-hidden="true"
+        >
+          {iniciais || '?'}
+        </span>
+        {isEncarregado && <span title="Encarregado" className="text-amber-400">★</span>}
         <span>{f.nome}</span>
         <span className="text-[var(--color-fg-subtle)] capitalize">
           {f.funcao}

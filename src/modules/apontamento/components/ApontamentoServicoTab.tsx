@@ -243,9 +243,97 @@ export default function ApontamentoServicoTab() {
         </p>
       ) : (
         <>
-          {/* Tabela de funcionários do dia */}
-          <div className="overflow-x-auto rounded-xl border border-[var(--color-border)]">
-            <table className="w-full text-sm">
+          {/* MW2 — Cards de progresso para mobile (< sm), tabela densa em telas maiores */}
+          <div className="sm:hidden space-y-2">
+            {/* Header de seleção em mobile */}
+            <div className="flex items-center justify-between px-2 py-1.5 bg-[var(--color-surface-2)] rounded-lg border border-[var(--color-border)]">
+              <label className="flex items-center gap-2 text-xs text-[var(--color-fg-muted)] cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={selecionados.size === funcsComPonto.length && funcsComPonto.length > 0}
+                  onChange={toggleAll}
+                  className="w-4 h-4"
+                />
+                <span>Selecionar todos ({funcsComPonto.length})</span>
+              </label>
+            </div>
+            {funcsComPonto.map((f) => {
+              const horasPonto = horasPorFunc[f.id] ?? 0;
+              const horasApr = apropriadasPorFunc[f.id] ?? 0;
+              const pendente = +(horasPonto - horasApr).toFixed(2);
+              const status: "ok" | "pendente" | "excedido" =
+                horasApr > horasPonto + 0.001 ? "excedido" : pendente > 0.05 ? "pendente" : "ok";
+              const pct = horasPonto > 0 ? Math.min(100, (horasApr / horasPonto) * 100) : 0;
+              const barCor =
+                status === "ok"
+                  ? "bg-[var(--color-success)]"
+                  : status === "excedido"
+                  ? "bg-[var(--color-danger)]"
+                  : "bg-[var(--color-warning)]";
+              // Avatar com iniciais
+              const iniciais = f.nome
+                .trim()
+                .split(/\s+/)
+                .map((p) => p[0])
+                .slice(0, 2)
+                .join("")
+                .toUpperCase();
+              return (
+                <article
+                  key={`m-${f.id}`}
+                  className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-1)] p-3"
+                >
+                  <div className="flex items-start gap-3">
+                    <input
+                      type="checkbox"
+                      checked={selecionados.has(f.id)}
+                      onChange={() => toggleSel(f.id)}
+                      className="w-4 h-4 mt-1.5 shrink-0"
+                    />
+                    <div className="w-10 h-10 rounded-full bg-[var(--color-accent-soft)] text-[var(--color-accent-fg)] inline-flex items-center justify-center text-xs font-semibold shrink-0">
+                      {iniciais || "?"}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-start justify-between gap-2 mb-1">
+                        <p className="text-sm font-medium text-[var(--color-fg)] truncate">
+                          {f.nome}
+                        </p>
+                        <StatusBadge status={status} />
+                      </div>
+                      <div className="text-[11px] text-[var(--color-fg-muted)] mb-1.5 font-mono">
+                        {horasApr.toFixed(1)}h / {horasPonto.toFixed(1)}h
+                        {pendente > 0.05 && (
+                          <span className="text-[var(--color-warning-fg)] ml-1.5">
+                            (faltam {pendente.toFixed(1)}h)
+                          </span>
+                        )}
+                      </div>
+                      {/* Barra de progresso */}
+                      <div className="h-2 rounded-full bg-[var(--color-surface-2)] overflow-hidden mb-2">
+                        <div
+                          className={`h-full ${barCor} transition-all`}
+                          style={{ width: `${pct}%` }}
+                        />
+                      </div>
+                      <button
+                        onClick={() => abrirLancamento([f.id])}
+                        className="w-full text-sm font-medium py-2 rounded-lg bg-[var(--color-accent)] text-white hover:brightness-110 transition-all"
+                      >
+                        {(lancamentosPorFunc[f.id]?.length ?? 0) > 0
+                          ? "Editar apontamento"
+                          : "Apontar serviço"}
+                      </button>
+                    </div>
+                  </div>
+                </article>
+              );
+            })}
+          </div>
+
+          {/* Tabela de funcionários do dia (visível >= sm).
+              min-w garante scroll horizontal real em tablets/desktop. */}
+          <div className="hidden sm:block overflow-x-auto rounded-xl border border-[var(--color-border)]">
+            <table className="w-full min-w-[560px] text-sm">
               <thead className="bg-[var(--color-surface-2)] text-[var(--color-fg-muted)]">
                 <tr className="text-left">
                   <th className="px-3 py-2.5 w-10">
@@ -261,10 +349,10 @@ export default function ApontamentoServicoTab() {
                   </th>
                   <th className="px-3 py-2.5 font-medium">Funcionário</th>
                   <th className="px-3 py-2.5 font-medium text-right">Ponto</th>
-                  <th className="px-3 py-2.5 font-medium text-right">
+                  <th className="px-3 py-2.5 font-medium text-right hidden sm:table-cell">
                     Apropriado
                   </th>
-                  <th className="px-3 py-2.5 font-medium text-right">
+                  <th className="px-3 py-2.5 font-medium text-right hidden sm:table-cell">
                     Pendente
                   </th>
                   <th className="px-3 py-2.5 font-medium">Status</th>
@@ -299,10 +387,10 @@ export default function ApontamentoServicoTab() {
                       <td className="px-3 py-2 text-right font-mono">
                         {horasPonto.toFixed(2)}h
                       </td>
-                      <td className="px-3 py-2 text-right font-mono">
+                      <td className="px-3 py-2 text-right font-mono hidden sm:table-cell">
                         {horasApr.toFixed(2)}h
                       </td>
-                      <td className="px-3 py-2 text-right font-mono">
+                      <td className="px-3 py-2 text-right font-mono hidden sm:table-cell">
                         {pendente > 0 ? `${pendente.toFixed(2)}h` : "—"}
                       </td>
                       <td className="px-3 py-2">
