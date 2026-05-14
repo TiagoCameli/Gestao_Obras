@@ -58,14 +58,25 @@ export default function DashboardTab() {
 
   const filtros = { dataInicio, dataFim, obraId: obraId || undefined, equipeId: equipeId || undefined };
 
-  const { data: registros = [], isLoading: loadingPonto } = useQuery({
+  // B2.2 — Auto-refresh do dashboard a cada 60s + tracking de última atualização
+  const { data: registros = [], isLoading: loadingPonto, dataUpdatedAt: pontoAt, refetch: refetchPonto } = useQuery({
     queryKey: ["apont", "dash", "ponto", filtros],
     queryFn: () => listRegistrosPontoRange(filtros),
+    refetchInterval: 60_000,
+    refetchIntervalInBackground: false,
   });
-  const { data: apontamentos = [], isLoading: loadingServ } = useQuery({
+  const { data: apontamentos = [], isLoading: loadingServ, dataUpdatedAt: servAt, refetch: refetchServ } = useQuery({
     queryKey: ["apont", "dash", "servico", filtros],
     queryFn: () => listApontamentosServicoRange(filtros),
+    refetchInterval: 60_000,
+    refetchIntervalInBackground: false,
   });
+  // Última atualização (qualquer das duas queries)
+  const ultimaAtt = Math.max(pontoAt ?? 0, servAt ?? 0);
+  const handleRefresh = () => {
+    refetchPonto();
+    refetchServ();
+  };
 
   const isLoading = loadingPonto || loadingServ;
 
@@ -216,9 +227,32 @@ export default function DashboardTab() {
             ))}
           </select>
         </Field>
-        <span className="text-xs text-[var(--color-fg-subtle)] ml-auto">
-          {dataInicio} a {dataFim}
-        </span>
+        <div className="flex items-center gap-2 ml-auto">
+          <span className="text-xs text-[var(--color-fg-subtle)]">
+            {dataInicio} a {dataFim}
+          </span>
+          {/* B2.2 — Botão refresh + última atualização */}
+          {ultimaAtt > 0 && (
+            <span className="text-[10px] text-[var(--color-fg-subtle)] tabular-nums">
+              ⟳ {new Date(ultimaAtt).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", second: "2-digit" })}
+            </span>
+          )}
+          <button
+            type="button"
+            onClick={handleRefresh}
+            disabled={isLoading}
+            aria-label="Atualizar agora"
+            title="Atualizar agora (auto-refresh a cada 60s)"
+            className="inline-flex items-center justify-center w-8 h-8 rounded-md border border-[var(--color-border)] bg-[var(--color-surface-1)] hover:bg-[var(--color-surface-2)] disabled:opacity-50 transition-colors"
+          >
+            <svg className={"w-3.5 h-3.5 " + (isLoading ? "animate-spin" : "")} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M21 12a9 9 0 0 1-9 9 9 9 0 0 1-6.7-3" />
+              <path d="M3 12a9 9 0 0 1 9-9 9 9 0 0 1 6.7 3" />
+              <polyline points="21 3 21 9 15 9" />
+              <polyline points="3 21 3 15 9 15" />
+            </svg>
+          </button>
+        </div>
       </div>
 
       {/* KPIs — drill-down: clique abre a aba relacionada */}

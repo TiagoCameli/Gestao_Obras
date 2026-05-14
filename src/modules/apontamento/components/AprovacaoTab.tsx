@@ -83,6 +83,21 @@ export default function AprovacaoTab() {
   const { temAcao } = useAuth();
   const canAprovar = temAcao("aprovar_apontamento_rh");
 
+  // B3.6 — Detecta offline para congelar mutações que dependem de rede ativa
+  const [online, setOnline] = useState<boolean>(
+    typeof navigator !== "undefined" ? navigator.onLine : true
+  );
+  useEffect(() => {
+    function on() { setOnline(true); }
+    function off() { setOnline(false); }
+    window.addEventListener("online", on);
+    window.addEventListener("offline", off);
+    return () => {
+      window.removeEventListener("online", on);
+      window.removeEventListener("offline", off);
+    };
+  }, []);
+
   // Estado: mês exibido + dia selecionado + filtro obra
   const initialDate = new Date();
   const [view, setView] = useState({
@@ -98,6 +113,25 @@ export default function AprovacaoTab() {
   useEffect(() => {
     setSelecionados(new Set());
   }, [selectedDay]);
+
+  // B1.1 — Atalhos de teclado: cursor (índice do card em foco) + ajuda
+  const [cursor, setCursor] = useState<number>(0);
+  const [mostrarAjuda, setMostrarAjuda] = useState<boolean>(false);
+
+  // B1.2 — Filtro "Ocultar aprovados"
+  const [ocultarAprovados, setOcultarAprovados] = useState<boolean>(false);
+
+  // B1.4 — Ids elegíveis para aprovação em lote (pendentes + sem bloqueio)
+  // Calculados num único useMemo abaixo, depois de registrosPorFunc / apontPorFunc estarem prontos.
+  // Primeira vez: mostrar mini-tutorial
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const visto = localStorage.getItem('aprovacao_atalhos_visto');
+    if (!visto) {
+      setMostrarAjuda(true);
+      localStorage.setItem('aprovacao_atalhos_visto', '1');
+    }
+  }, []);
 
   // Inline edit state
   const [editandoBatida, setEditandoBatida] = useState<RegistroPonto | null>(null);
@@ -209,6 +243,37 @@ export default function AprovacaoTab() {
     [servicos]
   );
 
+  // B1.4 — Elegíveis: têm entrada, saída final, e horas apontadas cobrem ponto.
+  const idsElegiveis = useMemo<string[]>(() => {
+    const out: string[] = [];
+    const aprovados = aprovadosNoMesPorDia.get(selectedDay) ?? new Set<string>();
+    const batters = battersPorDia.get(selectedDay) ?? new Set<string>();
+    for (const f of funcionarios) {
+      if (!batters.has(f.id)) continue;
+      if (aprovados.has(f.id)) continue;
+      const rs = (registrosPorFunc.get(f.id) ?? []).filter((r) => r.statusAprovacao !== 'rejeitado');
+      const entrada = rs.find((r) => r.tipoBatida === 'entrada');
+      const saidaFinal = rs.find((r) => r.tipoBatida === 'saida_final');
+      const saidaAlmoco = rs.find((r) => r.tipoBatida === 'saida_almoco');
+      const retornoAlmoco = rs.find((r) => r.tipoBatida === 'retorno_almoco');
+      if (!entrada || !saidaFinal) continue;
+      const aps = apontPorFunc.get(f.id) ?? [];
+      const totalH = aps.reduce((s, a) => s + (a.horas ?? 0), 0);
+      const ms = (a: RegistroPonto, b: RegistroPonto) =>
+        new Date(b.hora).getTime() - new Date(a.hora).getTime();
+      let horasPonto = 0;
+      if (saidaAlmoco && retornoAlmoco) {
+        horasPonto = (ms(entrada, saidaAlmoco) + ms(retornoAlmoco, saidaFinal)) / 3_600_000;
+      } else {
+        horasPonto = ms(entrada, saidaFinal) / 3_600_000;
+      }
+      if (horasPonto > 0 && totalH + 0.01 >= horasPonto) {
+        out.push(f.id);
+      }
+    }
+    return out;
+  }, [funcionarios, aprovadosNoMesPorDia, battersPorDia, selectedDay, registrosPorFunc, apontPorFunc]);
+
   // Mutations
   const aprovarM = useMutation({
     mutationFn: ({ funcionarioId, data }: { funcionarioId: string; data: string }) =>
@@ -229,9 +294,14 @@ export default function AprovacaoTab() {
   // Quem não bateu ponto não aparece (= dia não-trabalhado, ausência etc.).
   const aprovadosDoDia = aprovadosNoMesPorDia.get(selectedDay) ?? new Set<string>();
   const battersDoDia = battersPorDia.get(selectedDay) ?? new Set<string>();
-  const funcionariosDoDia = useMemo(
+  const funcionariosDoDiaTodos = useMemo(
     () => funcionarios.filter((f) => battersDoDia.has(f.id)),
     [funcionarios, battersDoDia]
+  );
+  // B1.2 — aplica filtro "ocultar aprovados"
+  const funcionariosDoDia = useMemo(
+    () => (ocultarAprovados ? funcionariosDoDiaTodos.filter((f) => !aprovadosDoDia.has(f.id)) : funcionariosDoDiaTodos),
+    [funcionariosDoDiaTodos, ocultarAprovados, aprovadosDoDia]
   );
 
   function changeMonth(delta: number) {
@@ -278,8 +348,72 @@ export default function AprovacaoTab() {
     return "pending";
   }
 
+  // B1.1 — Atalhos de teclado globais para a aba Aprovação
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      // Ignora se foco está em input/textarea/contentEditable
+      const tag = (e.target as HTMLElement)?.tagName?.toLowerCase();
+      if (tag === 'input' || tag === 'textarea' || (e.target as HTMLElement)?.isContentEditable) return;
+      // Ignora se algum modal está aberto
+      if (editandoBatida || criandoBatida || editandoServicoFunc) return;
+
+      const lista = funcionariosDoDia;
+      if (lista.length === 0) return;
+
+      if (e.key === 'ArrowRight') {
+        e.preventDefault();
+        setCursor((c) => Math.min(c + 1, lista.length - 1));
+      } else if (e.key === 'ArrowLeft') {
+        e.preventDefault();
+        setCursor((c) => Math.max(c - 1, 0));
+      } else if (e.key === '?') {
+        setMostrarAjuda((v) => !v);
+      } else if ((e.key === 'a' || e.key === 'A') && canAprovar) {
+        const f = lista[cursor];
+        if (!f) return;
+        if (aprovadosDoDia.has(f.id)) return; // já aprovado
+        e.preventDefault();
+        aprovarM.mutate({ funcionarioId: f.id, data: selectedDay });
+      } else if ((e.key === 'r' || e.key === 'R') && canAprovar) {
+        const f = lista[cursor];
+        if (!f) return;
+        if (!aprovadosDoDia.has(f.id)) return; // só pode reverter aprovado
+        e.preventDefault();
+        desaprovarM.mutate({ funcionarioId: f.id, data: selectedDay });
+      } else if ((e.key === 'e' || e.key === 'E') && canAprovar) {
+        const f = lista[cursor];
+        if (!f) return;
+        e.preventDefault();
+        setEditandoServicoFunc({
+          funcionarioId: f.id,
+          nome: f.nome,
+          iniciais: apontPorFunc.get(f.id) ?? [],
+        });
+      } else if (e.key === 'Escape') {
+        setMostrarAjuda(false);
+      }
+    }
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cursor, funcionariosDoDia, aprovadosDoDia, canAprovar, editandoBatida, criandoBatida, editandoServicoFunc]);
+
+  // Mantém cursor dentro do range quando a lista muda
+  useEffect(() => {
+    if (cursor >= funcionariosDoDia.length) setCursor(Math.max(0, funcionariosDoDia.length - 1));
+  }, [funcionariosDoDia.length, cursor]);
+
   return (
     <div className="space-y-5">
+      {/* B3.6 — Banner offline */}
+      {!online && (
+        <div className="flex items-center gap-2 px-4 py-2.5 rounded-lg border bg-[var(--color-warning-soft)] border-[var(--color-warning)]/30 text-[var(--color-warning-fg)]">
+          <span className="w-2 h-2 rounded-full bg-[var(--color-warning)] animate-pulse" />
+          <span className="text-xs font-medium">
+            Offline — botões de aprovar/reverter desabilitados. Volte online para continuar.
+          </span>
+        </div>
+      )}
       {/* Filtro */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3 items-end">
         <Field label="Obra">
@@ -398,24 +532,54 @@ export default function AprovacaoTab() {
           {/* PWA2 — Sticky header: mantém o dia + progresso visível ao rolar.
               `top-0` (mobile) / `lg:top-0` ativam sticky em todas as larguras. */}
           <div className="sticky top-0 z-10 -mx-4 sm:-mx-6 px-4 sm:px-6 py-2 mb-3 bg-[var(--color-bg)]/90 backdrop-blur-sm border-b border-[var(--color-border)]">
-            <div className="flex items-baseline justify-between gap-2">
+            <div className="flex items-baseline justify-between gap-2 flex-wrap">
               <h3 className="text-base font-semibold tracking-tight">
                 Dia {fmtData(selectedDay)}
               </h3>
-              <span className="text-xs text-[var(--color-fg-muted)] tabular-nums shrink-0">
-                {Array.from(battersDoDia).filter((id) => aprovadosDoDia.has(id)).length} / {funcionariosDoDia.length}{" "}
-                aprovados
-              </span>
+              <div className="flex items-center gap-3 ml-auto flex-wrap">
+                {/* B1.4 — Aprovar todos elegíveis */}
+                {canAprovar && idsElegiveis.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      if (!confirm(`Aprovar ${idsElegiveis.length} funcionário${idsElegiveis.length > 1 ? 's' : ''} elegíve${idsElegiveis.length > 1 ? 'is' : 'l'} de uma vez?`)) return;
+                      for (const id of idsElegiveis) {
+                        await aprovarM.mutateAsync({ funcionarioId: id, data: selectedDay });
+                      }
+                    }}
+                    disabled={aprovarM.isPending}
+                    className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-md bg-[var(--color-success)] text-white hover:brightness-110 disabled:opacity-50 transition-all"
+                    title={`${idsElegiveis.length} elegível${idsElegiveis.length > 1 ? 'eis' : ''} (com entrada/saída e horas batendo)`}
+                  >
+                    <Check className="w-3.5 h-3.5" />
+                    {aprovarM.isPending ? 'Aprovando…' : `Aprovar ${idsElegiveis.length} elegíve${idsElegiveis.length > 1 ? 'is' : 'l'}`}
+                  </button>
+                )}
+                {/* B1.2 — Switch ocultar aprovados */}
+                <label className="inline-flex items-center gap-1.5 cursor-pointer text-xs text-[var(--color-fg-muted)] hover:text-[var(--color-fg)]">
+                  <input
+                    type="checkbox"
+                    checked={ocultarAprovados}
+                    onChange={(e) => setOcultarAprovados(e.target.checked)}
+                    className="w-3.5 h-3.5"
+                  />
+                  Ocultar aprovados
+                </label>
+                <span className="text-xs text-[var(--color-fg-muted)] tabular-nums shrink-0">
+                  {Array.from(battersDoDia).filter((id) => aprovadosDoDia.has(id)).length} / {funcionariosDoDiaTodos.length}{" "}
+                  aprovados
+                </span>
+              </div>
             </div>
-            {/* Barra de progresso mini */}
-            {funcionariosDoDia.length > 0 && (
+            {/* Barra de progresso mini — sempre baseada no total do dia, não no filtrado */}
+            {funcionariosDoDiaTodos.length > 0 && (
               <div className="mt-1.5 h-1 rounded-full bg-[var(--color-surface-2)] overflow-hidden">
                 <div
                   className="h-full bg-[var(--color-success)] transition-all"
                   style={{
                     width: `${
                       (Array.from(battersDoDia).filter((id) => aprovadosDoDia.has(id)).length /
-                        funcionariosDoDia.length) *
+                        funcionariosDoDiaTodos.length) *
                       100
                     }%`,
                   }}
@@ -431,8 +595,9 @@ export default function AprovacaoTab() {
             </div>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
-              {funcionariosDoDia.map((f) => {
+              {funcionariosDoDia.map((f, idx) => {
                 const aprovado = aprovadosDoDia.has(f.id);
+                const isFocused = idx === cursor;
                 const rs = (registrosPorFunc.get(f.id) ?? []).filter(
                   (r) => r.statusAprovacao !== "rejeitado"
                 );
@@ -473,11 +638,13 @@ export default function AprovacaoTab() {
                 return (
                   <article
                     key={f.id}
+                    onClick={() => setCursor(idx)}
                     className={
-                      "rounded-xl border p-4 transition-colors " +
+                      "rounded-xl border p-4 transition-colors cursor-pointer " +
                       (aprovado
                         ? "border-[var(--color-success)]/40 bg-[var(--color-success-soft)]/30"
-                        : "border-[var(--color-border)] bg-[var(--color-surface-1)]")
+                        : "border-[var(--color-border)] bg-[var(--color-surface-1)]") +
+                      (isFocused ? " ring-2 ring-[var(--color-accent)] ring-offset-2 ring-offset-[var(--color-bg)]" : "")
                     }
                   >
                     <header className="flex items-start justify-between gap-2 mb-3">
@@ -541,10 +708,13 @@ export default function AprovacaoTab() {
                           disabled={
                             aprovarM.isPending ||
                             desaprovarM.isPending ||
-                            (!aprovado && !podeAprovar)
+                            (!aprovado && !podeAprovar) ||
+                            !online /* B3.6 — congela quando offline */
                           }
                           title={
-                            !aprovado && !podeAprovar
+                            !online
+                              ? "Sem conexão — volte online para aprovar/reverter"
+                              : !aprovado && !podeAprovar
                               ? `Não pode aprovar: ${motivosBloqueio.join(" · ")}`
                               : undefined
                           }
@@ -651,6 +821,21 @@ export default function AprovacaoTab() {
                       </div>
                     )}
 
+                    {/* B3.1 — Tempo trabalhado: hh:mm → hh:mm (Xh Ymin) */}
+                    {entrada && saidaFinal && horasPonto > 0 && (
+                      <div className="mb-3 flex items-center justify-between gap-2 px-2.5 py-1.5 rounded-md bg-[var(--color-info-soft)]/40 border border-[var(--color-info)]/20">
+                        <span className="text-[10px] uppercase tracking-wider text-[var(--color-fg-subtle)] font-semibold">
+                          Tempo trabalhado
+                        </span>
+                        <span className="text-xs tabular-nums font-medium text-[var(--color-fg)]">
+                          {fmtHora(entrada.hora)} → {fmtHora(saidaFinal.hora)}
+                          <span className="text-[var(--color-fg-muted)] ml-1.5">
+                            ({Math.floor(horasPonto)}h {Math.round((horasPonto % 1) * 60).toString().padStart(2, '0')}min)
+                          </span>
+                        </span>
+                      </div>
+                    )}
+
                     {/* Apontamento por serviço */}
                     <div>
                       <p className="text-[10px] uppercase tracking-wider text-[var(--color-fg-subtle)] font-semibold mb-1.5 flex items-center gap-1.5 justify-between">
@@ -738,6 +923,19 @@ export default function AprovacaoTab() {
         }}
       />
 
+      {/* UX1 — Modal: criar batida faltante direto da Aprovação */}
+      {criandoBatida && (
+        <CriarBatidaModal
+          info={criandoBatida}
+          onClose={() => setCriandoBatida(null)}
+          onSaved={() => {
+            setCriandoBatida(null);
+            qc.invalidateQueries({ queryKey: ["apont", "aprov-ponto"] });
+            qc.invalidateQueries({ queryKey: ["apont", "aprov-ponto-mes"] });
+          }}
+        />
+      )}
+
       {/* Modal: editar lançamento de serviço (reusa o LancamentoModal) */}
       {editandoServicoFunc && (
         <EditarServicoFuncWrapper
@@ -774,6 +972,64 @@ export default function AprovacaoTab() {
             qc.invalidateQueries({ queryKey: ["apont", "aprov-servico"] });
           }}
         />
+      )}
+
+      {/* B1.1 — Botão "?" fixo + painel de atalhos */}
+      <button
+        type="button"
+        onClick={() => setMostrarAjuda(true)}
+        aria-label="Mostrar atalhos de teclado"
+        title="Atalhos de teclado (?)"
+        className="hidden md:inline-flex fixed bottom-5 left-5 z-30 w-10 h-10 items-center justify-center rounded-full bg-[var(--color-surface-1)] border border-[var(--color-border)] text-[var(--color-fg-muted)] hover:text-[var(--color-fg)] hover:border-[var(--color-border-strong)] shadow-[var(--shadow-md)]"
+      >
+        ?
+      </button>
+      {mostrarAjuda && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-label="Atalhos de teclado"
+          className="fixed inset-0 z-[55] bg-black/40 backdrop-blur-sm flex items-center justify-center px-4"
+          onClick={() => setMostrarAjuda(false)}
+        >
+          <div
+            className="bg-[var(--color-surface-1)] border border-[var(--color-border)] rounded-2xl p-6 max-w-md w-full shadow-[var(--shadow-xl)]"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-start justify-between mb-4">
+              <h3 className="text-lg font-semibold tracking-tight">Atalhos de teclado</h3>
+              <button
+                type="button"
+                onClick={() => setMostrarAjuda(false)}
+                aria-label="Fechar"
+                className="w-8 h-8 inline-flex items-center justify-center rounded-lg text-[var(--color-fg-subtle)] hover:text-[var(--color-fg)] hover:bg-[var(--color-surface-2)]"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <dl className="space-y-2.5 text-sm">
+              {[
+                { k: "→", label: "Próximo funcionário" },
+                { k: "←", label: "Funcionário anterior" },
+                { k: "A", label: "Aprovar o card em foco" },
+                { k: "R", label: "Reverter aprovação (se já aprovado)" },
+                { k: "E", label: "Editar/lançar apontamento por serviço" },
+                { k: "?", label: "Abrir/fechar esta ajuda" },
+                { k: "Esc", label: "Fechar diálogos" },
+              ].map((it) => (
+                <div key={it.k} className="flex items-center justify-between gap-3">
+                  <span className="text-[var(--color-fg-muted)]">{it.label}</span>
+                  <kbd className="inline-flex items-center justify-center min-w-[2rem] h-7 px-2 rounded-md bg-[var(--color-surface-2)] border border-[var(--color-border)] text-xs font-mono font-semibold">
+                    {it.k}
+                  </kbd>
+                </div>
+              ))}
+            </dl>
+            <p className="text-[11px] text-[var(--color-fg-subtle)] mt-4 pt-3 border-t border-[var(--color-border)]">
+              Dica: o card em foco fica destacado com borda colorida. Clique em qualquer card para movê-lo o foco.
+            </p>
+          </div>
+        </div>
       )}
 
       {/* MW1 — Barra flutuante de aprovação em lote */}
@@ -815,6 +1071,8 @@ function FotoMapaThumb({ registro }: { registro: RegistroPonto }) {
   const [fotoUrl, setFotoUrl] = useState<string | null>(null);
   // PWA3 — overlay de foto em tela cheia
   const [zoom, setZoom] = useState(false);
+  // B3.2 — fallback quando foto falha ao carregar
+  const [fotoErro, setFotoErro] = useState(false);
 
   useEffect(() => {
     if (!registro.foto) return;
@@ -850,7 +1108,7 @@ function FotoMapaThumb({ registro }: { registro: RegistroPonto }) {
         {tipoLabel} · {fmtHora(registro.hora)}
       </div>
       <div className="grid grid-cols-2">
-        {fotoUrl ? (
+        {fotoUrl && !fotoErro ? (
           <button
             type="button"
             onClick={() => setZoom(true)}
@@ -862,11 +1120,18 @@ function FotoMapaThumb({ registro }: { registro: RegistroPonto }) {
               alt={`Foto ${tipoLabel}`}
               className="w-full h-full object-cover"
               loading="lazy"
+              onError={() => setFotoErro(true)}
             />
           </button>
         ) : (
-          <div className="aspect-square flex items-center justify-center text-[10px] text-[var(--color-fg-subtle)]">
-            sem foto
+          /* B3.2 — Fallback colorido com ícone quando foto não carrega ou não existe */
+          <div className="aspect-square flex flex-col items-center justify-center gap-1 bg-gradient-to-br from-[var(--color-surface-2)] to-[var(--color-surface-3)] text-[var(--color-fg-subtle)]">
+            <svg className="w-6 h-6 opacity-50" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+              <rect x="3" y="3" width="18" height="18" rx="2" />
+              <circle cx="9" cy="9" r="2" />
+              <path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21" />
+            </svg>
+            <span className="text-[9px]">{fotoErro ? "foto indisponível" : "sem foto"}</span>
           </div>
         )}
         {/* PWA3 — overlay de tela cheia */}
@@ -1105,5 +1370,104 @@ function Legend({ color, label }: { color: string; label: string }) {
       />
       {label}
     </span>
+  );
+}
+
+/* ─── UX1 — Criar batida faltante na Aprovação ───────────────────────── */
+function CriarBatidaModal({
+  info,
+  onClose,
+  onSaved,
+}: {
+  info: {
+    funcionarioId: string;
+    funcionarioNome: string;
+    data: string;
+    tipoBatida: 'entrada' | 'saida_almoco' | 'retorno_almoco' | 'saida_final';
+  };
+  onClose: () => void;
+  onSaved: () => void;
+}) {
+  const [hora, setHora] = useState(() => {
+    // Sugestão de hora padrão por tipo
+    const padroes: Record<typeof info.tipoBatida, string> = {
+      entrada: '06:00',
+      saida_almoco: '12:00',
+      retorno_almoco: '13:00',
+      saida_final: '17:00',
+    };
+    return padroes[info.tipoBatida];
+  });
+  const [motivo, setMotivo] = useState('Lançamento retroativo pela aprovação');
+  const [saving, setSaving] = useState(false);
+  const [erro, setErro] = useState<string | null>(null);
+
+  return (
+    <Modal
+      open
+      onClose={onClose}
+      title={`Adicionar ${TIPO_BATIDA_LABEL[info.tipoBatida]} — ${info.funcionarioNome}`}
+    >
+      <form
+        onSubmit={async (e) => {
+          e.preventDefault();
+          if (!hora || !motivo.trim()) return;
+          setSaving(true);
+          setErro(null);
+          try {
+            const horaIso = new Date(`${info.data}T${hora}:00`).toISOString();
+            await registrarBatida({
+              funcionarioId: info.funcionarioId,
+              data: info.data,
+              tipoBatida: info.tipoBatida,
+              hora: horaIso,
+              latitude: null,
+              longitude: null,
+              origem: 'manual',
+              motivoManual: motivo.trim(),
+              statusAprovacao: 'aprovado', // já criado dentro da Aprovação = aprovado
+            });
+            onSaved();
+          } catch (err) {
+            setErro(err instanceof Error ? err.message : String(err));
+          } finally {
+            setSaving(false);
+          }
+        }}
+        className="space-y-4"
+      >
+        <Input
+          label="Hora"
+          type="time"
+          value={hora}
+          onChange={(e) => setHora(e.target.value)}
+          required
+        />
+        <Input
+          label="Justificativa"
+          type="text"
+          value={motivo}
+          onChange={(e) => setMotivo(e.target.value)}
+          required
+        />
+        <p className="text-xs text-[var(--color-fg-subtle)]">
+          Batida criada com origem <b>manual</b>. Já entra como <b>aprovada</b> (você está
+          criando a partir da Aprovação).
+        </p>
+        {erro && (
+          <div className="rounded-lg bg-[var(--color-danger)]/10 border border-[var(--color-danger)] text-[var(--color-danger)] text-sm px-3 py-2">
+            {erro}
+          </div>
+        )}
+        <div className="flex justify-end gap-2 pt-2 border-t border-[var(--color-border)]">
+          <Button type="button" variant="secondary" onClick={onClose}>
+            Cancelar
+          </Button>
+          <Button type="submit" disabled={saving}>
+            {saving ? 'Adicionando…' : 'Adicionar batida'}
+          </Button>
+        </div>
+      </form>
+    </Modal>
   );
 }

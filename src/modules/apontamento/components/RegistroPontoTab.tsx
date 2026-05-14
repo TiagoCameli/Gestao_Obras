@@ -669,6 +669,9 @@ export default function RegistroPontoTab() {
                     </div>
                   </header>
 
+                  {/* B2.1 — Barra visual de progresso das 4 batidas do dia */}
+                  <ProgressoBatidas registros={rs} />
+
                   <BatidasList
                     registros={rs}
                     fotosUrl={fotosUrl}
@@ -1581,5 +1584,58 @@ function LancamentoManualModal({
         </form>
       )}
     </Modal>
+  );
+}
+
+/**
+ * B2.1 — Mini-stepper visual das 4 batidas do dia:
+ *   [🟢 06:13] [🍴 12:00] [🔁 —] [🏁 —]
+ * Ajuda o encarregado a ver de relance o estado do funcionário.
+ */
+function ProgressoBatidas({ registros }: { registros: RegistroPonto[] }) {
+  const ordem: { tipo: TipoBatida; label: string }[] = [
+    { tipo: "entrada", label: "Entrada" },
+    { tipo: "saida_almoco", label: "Almoço" },
+    { tipo: "retorno_almoco", label: "Retorno" },
+    { tipo: "saida_final", label: "Final" },
+  ];
+  return (
+    <div className="mt-2 grid grid-cols-4 gap-1">
+      {ordem.map((step) => {
+        const r = registros.find((x) => x.tipoBatida === step.tipo);
+        const feito = !!r;
+        return (
+          <div
+            key={step.tipo}
+            className={
+              "rounded-md px-1.5 py-1 text-center transition-colors " +
+              (feito
+                ? "bg-[var(--color-success-soft)] border border-[var(--color-success)]/40"
+                : "bg-[var(--color-surface-2)] border border-dashed border-[var(--color-border)]")
+            }
+            title={
+              step.label +
+              (feito && r
+                ? ` · ${new Date(r.hora).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}`
+                : " · pendente")
+            }
+          >
+            <div className="text-[10px] uppercase tracking-wider text-[var(--color-fg-subtle)]">
+              {step.label}
+            </div>
+            <div
+              className={
+                "text-[11px] tabular-nums font-medium " +
+                (feito ? "text-[var(--color-success-fg)]" : "text-[var(--color-fg-subtle)]")
+              }
+            >
+              {feito && r
+                ? new Date(r.hora).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })
+                : "—"}
+            </div>
+          </div>
+        );
+      })}
+    </div>
   );
 }

@@ -237,6 +237,65 @@ export default function ApontamentoServicoTab() {
         />
       </div>
 
+      {/* B1.3 — Botão Exportar Excel da visão do dia */}
+      {funcsComPonto.length > 0 && (
+        <div className="flex justify-end">
+          <button
+            type="button"
+            onClick={async () => {
+              const ExcelJS = (await import('exceljs')).default;
+              const wb = new ExcelJS.Workbook();
+              wb.creator = 'EMT Construtora';
+              wb.created = new Date();
+              const ws = wb.addWorksheet(`Apontamento ${data}`);
+              ws.columns = [
+                { header: 'Funcionário', key: 'nome', width: 32 },
+                { header: 'CPF', key: 'cpf', width: 16 },
+                { header: 'Ponto (h)', key: 'ponto', width: 12 },
+                { header: 'Apropriado (h)', key: 'apropriado', width: 14 },
+                { header: 'Pendente (h)', key: 'pendente', width: 12 },
+                { header: 'Status', key: 'status', width: 12 },
+              ];
+              for (const f of funcsComPonto) {
+                const horasPonto = horasPorFunc[f.id] ?? 0;
+                const horasApr = apropriadasPorFunc[f.id] ?? 0;
+                const pendente = +(horasPonto - horasApr).toFixed(2);
+                const status =
+                  horasApr > horasPonto + 0.001 ? 'Excedido' : pendente > 0.05 ? 'Pendente' : 'OK';
+                ws.addRow({
+                  nome: f.nome,
+                  cpf: f.cpf ?? '',
+                  ponto: Number(horasPonto.toFixed(2)),
+                  apropriado: Number(horasApr.toFixed(2)),
+                  pendente: pendente > 0 ? Number(pendente.toFixed(2)) : 0,
+                  status,
+                });
+              }
+              ws.getRow(1).font = { bold: true, color: { argb: 'FFFFFFFF' } };
+              ws.getRow(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF16A34A' } };
+              ws.getRow(1).height = 22;
+              ws.views = [{ state: 'frozen', ySplit: 1 }];
+              const buffer = await wb.xlsx.writeBuffer();
+              const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+              const url = URL.createObjectURL(blob);
+              const link = document.createElement('a');
+              link.href = url;
+              link.download = `apontamento_servico_${data}.xlsx`;
+              link.click();
+              URL.revokeObjectURL(url);
+            }}
+            className="inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-md bg-[var(--color-accent)] text-white hover:opacity-90 transition-opacity"
+          >
+            <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+              <polyline points="7 10 12 15 17 10" />
+              <line x1="12" y1="15" x2="12" y2="3" />
+            </svg>
+            Exportar Excel
+          </button>
+        </div>
+      )}
+
       {funcsComPonto.length === 0 ? (
         <p className="py-8 text-center text-sm text-[var(--color-fg-subtle)]">
           Nenhum funcionário {equipeId ? "desta equipe" : obraId ? "desta obra" : ""} tem ponto registrado em {data}.
