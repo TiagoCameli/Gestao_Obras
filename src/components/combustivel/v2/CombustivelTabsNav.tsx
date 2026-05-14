@@ -9,6 +9,7 @@
 
 import type { ReactNode } from 'react';
 import { useCombustivelFilter } from './filters/FilterContext';
+import { useAuth } from '../../../contexts/AuthContext';
 
 export type CombustivelTabId =
   | 'visao_geral'
@@ -36,34 +37,51 @@ interface GroupDef {
   tabs: TabDef[];
 }
 
-function buildGroups(consumidoresLabel: string, isAdmin: boolean): GroupDef[] {
+/** Mapeia cada aba para a chave de permissão correspondente. */
+const PERM_BY_TAB: Record<CombustivelTabId, string> = {
+  visao_geral: 'aba_combustivel_visao_geral',
+  saidas: 'aba_combustivel_saidas',
+  entradas: 'aba_combustivel_entradas',
+  transferencias: 'aba_combustivel_transferencias',
+  tanques: 'aba_combustivel_tanques',
+  consumidores: 'aba_combustivel_consumidores',
+  obras: 'aba_combustivel_obras',
+  fornecedores: 'aba_combustivel_fornecedores',
+  anomalias: 'aba_combustivel_anomalias',
+  relatorios: 'aba_combustivel_relatorios',
+  lixeira: 'aba_combustivel_lixeira',
+};
+
+function buildGroups(
+  consumidoresLabel: string,
+  temAcao: (chave: string) => boolean,
+): GroupDef[] {
+  const filterTabs = (tabs: TabDef[]) => tabs.filter((t) => temAcao(PERM_BY_TAB[t.key]));
   const groups: GroupDef[] = [
-    { label: '', tabs: [{ key: 'visao_geral', label: 'Visão Geral' }] },
+    { label: '', tabs: filterTabs([{ key: 'visao_geral', label: 'Visão Geral' }]) },
     {
       label: 'Operacional',
-      tabs: [
+      tabs: filterTabs([
         { key: 'saidas', label: 'Saídas' },
         { key: 'entradas', label: 'Entradas' },
         { key: 'transferencias', label: 'Transferências' },
         { key: 'tanques', label: 'Tanques' },
-      ],
+      ]),
     },
     {
       label: 'Analítico',
-      tabs: [
+      tabs: filterTabs([
         { key: 'consumidores', label: consumidoresLabel },
         { key: 'obras', label: 'Obras' },
         { key: 'fornecedores', label: 'Fornecedores' },
         { key: 'anomalias', label: 'Anomalias' },
-      ],
+      ]),
     },
-    { label: '', tabs: [{ key: 'relatorios', label: 'Relatórios' }] },
+    { label: '', tabs: filterTabs([{ key: 'relatorios', label: 'Relatórios' }]) },
+    { label: '', tabs: filterTabs([{ key: 'lixeira', label: 'Lixeira' }]) },
   ];
-  // F10 — Lixeira admin-only no fim do nav
-  if (isAdmin) {
-    groups.push({ label: '', tabs: [{ key: 'lixeira', label: 'Lixeira' }] });
-  }
-  return groups;
+  // Filtra grupos sem nenhuma aba permitida (não renderiza header vazio)
+  return groups.filter((g) => g.tabs.length > 0);
 }
 
 interface Props {
@@ -73,10 +91,12 @@ interface Props {
   isAdmin?: boolean;
 }
 
-export default function CombustivelTabsNav({ active, onChange, isAdmin = false }: Props) {
+export default function CombustivelTabsNav({ active, onChange, isAdmin: _isAdmin = false }: Props) {
   const { state } = useCombustivelFilter();
+  const { temAcao } = useAuth();
   const consumidoresLabel = state.mode === 'carretas' ? 'Carretas' : 'Equipamentos';
-  const groups = buildGroups(consumidoresLabel, isAdmin);
+  const groups = buildGroups(consumidoresLabel, temAcao);
+  void _isAdmin; // mantido por compatibilidade — gating agora é via temAcao('aba_combustivel_lixeira')
   return (
     <nav
       aria-label="Seções do módulo Combustível"

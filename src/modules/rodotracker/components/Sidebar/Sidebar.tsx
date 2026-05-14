@@ -23,8 +23,8 @@ interface SidebarProps {
   onDeleteActivity: (id: string) => void;
   onNewActivity: () => void;
   onCollapse?: () => void;
-  onOpenPlanning?: () => void;
-  onOpenMeasurement?: () => void;
+  onOpenPlanning?: (() => void) | null;
+  onOpenMeasurement?: (() => void) | null;
 }
 
 export function Sidebar({

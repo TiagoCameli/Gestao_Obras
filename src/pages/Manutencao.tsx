@@ -77,19 +77,20 @@ export default function ManutencaoPage() {
   );
 }
 
-const SUB_NAV_ITEMS: { to: string; label: string; icon: typeof BarChart3 }[] = [
-  { to: '/manutencao/dashboard', label: 'Dashboard', icon: BarChart3 },
-  { to: '/manutencao/os', label: 'Ordens de Serviço', icon: ClipboardList },
-  { to: '/manutencao/agenda', label: 'Agenda preventiva', icon: CalendarClock },
-  { to: '/manutencao/planos', label: 'Planos preventivos', icon: ClipboardCheck },
-  { to: '/manutencao/almoxarifado', label: 'Almoxarifado', icon: Package },
-  { to: '/manutencao/checklists', label: 'Checklists pré-uso', icon: HardHat },
+const SUB_NAV_ITEMS: { to: string; label: string; icon: typeof BarChart3; perm: string }[] = [
+  { to: '/manutencao/dashboard',     label: 'Dashboard',           icon: BarChart3,      perm: 'aba_manutencao_dashboard' },
+  { to: '/manutencao/os',            label: 'Ordens de Serviço',   icon: ClipboardList,  perm: 'aba_manutencao_os' },
+  { to: '/manutencao/agenda',        label: 'Agenda preventiva',   icon: CalendarClock,  perm: 'aba_manutencao_agenda' },
+  { to: '/manutencao/planos',        label: 'Planos preventivos',  icon: ClipboardCheck, perm: 'aba_manutencao_planos' },
+  { to: '/manutencao/almoxarifado',  label: 'Almoxarifado',        icon: Package,        perm: 'aba_manutencao_almoxarifado' },
+  { to: '/manutencao/checklists',    label: 'Checklists pré-uso',  icon: HardHat,        perm: 'aba_manutencao_checklists' },
 ];
 
 function SubNav({ pathname }: { pathname: string }) {
+  const { temAcao } = useAuth();
   return (
     <nav className="flex gap-1 border-b border-[var(--color-border)]">
-      {SUB_NAV_ITEMS.map((item) => {
+      {SUB_NAV_ITEMS.filter((i) => temAcao(i.perm)).map((item) => {
         const ativo = pathname === item.to || pathname.startsWith(item.to + '/');
         const Icon = item.icon;
         return (

@@ -3,6 +3,7 @@ import { Routes, Route, useNavigate, useParams } from "react-router-dom";
 import { PanelLeftOpen } from "lucide-react";
 import "leaflet/dist/leaflet.css";
 import "./rodotracker.css";
+import { useAuth } from "../../contexts/AuthContext";
 import type { Activity, Obra } from "./types/activity";
 import { useActivities } from "./hooks/useActivities";
 import { useFilters } from "./hooks/useFilters";
@@ -17,6 +18,9 @@ import { useContractItems } from "./hooks/useContractItems";
 import { listObras } from "./utils/rodotrackerApi";
 
 function TrackerView({ obra, onBack }: { obra: Obra; onBack: () => void }) {
+  const { temAcao } = useAuth();
+  const canPlanejamento = temAcao("aba_medicao_planejamento");
+  const canContrato = temAcao("aba_medicao_contrato");
   const { activities, addActivity, updateActivity, deleteActivity } = useActivities(obra.id);
   const { items: contractItems, replaceAll: replaceContract } = useContractItems(obra.id);
   const {
@@ -282,8 +286,8 @@ function TrackerView({ obra, onBack }: { obra: Obra; onBack: () => void }) {
           onDeleteActivity={(id) => setDeleteConfirm(id)}
           onNewActivity={handleNewActivity}
           onCollapse={() => setSidebarCollapsed(true)}
-          onOpenPlanning={() => setShowPlanning(true)}
-          onOpenMeasurement={() => setShowMeasurement(true)}
+          onOpenPlanning={canPlanejamento ? () => setShowPlanning(true) : null}
+          onOpenMeasurement={canContrato ? () => setShowMeasurement(true) : null}
         />
       </div>
 

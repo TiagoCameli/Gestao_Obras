@@ -57,8 +57,21 @@ export default function Frete() {
 
   const [searchParams, setSearchParams] = useSearchParams();
   const validTabs: Tab[] = ['dashboard', 'fretes', 'pagamentos', 'conta_corrente', 'pedidos', 'lixeira'];
+  // Filtra abas pelas permissões — se a aba pedida na URL não está liberada,
+  // cai na primeira permitida (ou null).
+  const permByTab: Record<Tab, string> = {
+    dashboard: 'aba_frete_dashboard',
+    fretes: 'aba_frete_fretes',
+    pagamentos: 'aba_frete_pagamentos',
+    conta_corrente: 'aba_frete_conta_corrente',
+    pedidos: 'aba_frete_pedidos',
+    lixeira: 'aba_frete_lixeira',
+  };
+  const allowedTabs = validTabs.filter((t) => temAcao(permByTab[t]));
   const tabParam = searchParams.get('tab') as Tab | null;
-  const tab: Tab = tabParam && validTabs.includes(tabParam) ? tabParam : 'dashboard';
+  const tab: Tab = tabParam && allowedTabs.includes(tabParam)
+    ? tabParam
+    : (allowedTabs[0] ?? 'dashboard');
   const setTab = useCallback((t: Tab) => setSearchParams({ tab: t }, { replace: true }), [setSearchParams]);
 
   const { data: fretes = [], isLoading } = useFretes();
@@ -320,17 +333,15 @@ export default function Frete() {
     );
   }
 
-  const tabs: { key: Tab; label: string; icon: React.ReactNode }[] = [
-    { key: 'dashboard', label: 'Dashboard', icon: <BarChart3 className="h-3.5 w-3.5" /> },
-    { key: 'fretes', label: 'Fretes', icon: <Truck className="h-3.5 w-3.5" /> },
-    { key: 'pagamentos', label: 'Pagamentos', icon: <Wallet className="h-3.5 w-3.5" /> },
-    { key: 'conta_corrente', label: 'Conta Corrente', icon: <Wallet2 className="h-3.5 w-3.5" /> },
-    { key: 'pedidos', label: 'Pedidos', icon: <PackageSearch className="h-3.5 w-3.5" /> },
-    // FF.7 — Aba Lixeira admin-only.
-    ...(usuario?.cargo === 'Administrador'
-      ? [{ key: 'lixeira' as Tab, label: 'Lixeira', icon: <Trash2 className="h-3.5 w-3.5" /> }]
-      : []),
+  const allTabs: { key: Tab; label: string; icon: React.ReactNode; perm: string }[] = [
+    { key: 'dashboard',      label: 'Dashboard',      icon: <BarChart3 className="h-3.5 w-3.5" />,     perm: 'aba_frete_dashboard' },
+    { key: 'fretes',         label: 'Fretes',         icon: <Truck className="h-3.5 w-3.5" />,         perm: 'aba_frete_fretes' },
+    { key: 'pagamentos',     label: 'Pagamentos',     icon: <Wallet className="h-3.5 w-3.5" />,        perm: 'aba_frete_pagamentos' },
+    { key: 'conta_corrente', label: 'Conta Corrente', icon: <Wallet2 className="h-3.5 w-3.5" />,       perm: 'aba_frete_conta_corrente' },
+    { key: 'pedidos',        label: 'Pedidos',        icon: <PackageSearch className="h-3.5 w-3.5" />, perm: 'aba_frete_pedidos' },
+    { key: 'lixeira',        label: 'Lixeira',        icon: <Trash2 className="h-3.5 w-3.5" />,        perm: 'aba_frete_lixeira' },
   ];
+  const tabs = allTabs.filter((t) => temAcao(t.perm));
 
   return (
     <div

@@ -25,12 +25,31 @@ const VALID_TABS: Tab[] = ["dashboard", "funcionarios", "alocacao", "ponto", "se
 
 export default function ApontamentoPage() {
   const { temAcao } = useAuth();
-  const canVerAprovacao = temAcao("ver_aprovacoes_rh");
+  // Permissões de aba (admin pode controlar por usuário em Cadastros → Usuários)
+  const canDashboard = temAcao("aba_rh_dashboard");
+  const canFuncionarios = temAcao("aba_rh_funcionarios");
+  const canAlocacao = temAcao("aba_rh_alocacao");
+  const canPonto = temAcao("aba_rh_ponto");
+  const canServico = temAcao("aba_rh_servico");
+  const canAprovacao = temAcao("aba_rh_aprovacao") && temAcao("ver_aprovacoes_rh");
+  const canHistorico = temAcao("aba_rh_historico");
+
+  const tabsPermitidas: Tab[] = [
+    canDashboard ? ("dashboard" as Tab) : null,
+    canFuncionarios ? ("funcionarios" as Tab) : null,
+    canAlocacao ? ("alocacao" as Tab) : null,
+    canPonto ? ("ponto" as Tab) : null,
+    canServico ? ("servico" as Tab) : null,
+    canAprovacao ? ("aprovacao" as Tab) : null,
+    canHistorico ? ("historico" as Tab) : null,
+  ].filter((x): x is Tab => x !== null);
 
   // Persiste a aba ativa em ?tab= pra sobreviver a refresh / link direto.
   const [searchParams, setSearchParams] = useSearchParams();
   const tabParam = searchParams.get("tab") as Tab | null;
-  const tab: Tab = tabParam && VALID_TABS.includes(tabParam) ? tabParam : "dashboard";
+  const tab: Tab = tabParam && VALID_TABS.includes(tabParam) && tabsPermitidas.includes(tabParam)
+    ? tabParam
+    : (tabsPermitidas[0] ?? "dashboard");
   const setTab = useCallback(
     (t: Tab) => setSearchParams({ tab: t }, { replace: true }),
     [setSearchParams]
@@ -75,29 +94,41 @@ export default function ApontamentoPage() {
       </header>
 
       <nav className="flex gap-1 border-b border-[var(--color-border)] overflow-x-auto">
-        <TabBtn active={tab === "dashboard"} onClick={() => setTab("dashboard")}>
-          Dashboard
-        </TabBtn>
-        <TabBtn active={tab === "funcionarios"} onClick={() => setTab("funcionarios")}>
-          Funcionários
-        </TabBtn>
-        <TabBtn active={tab === "alocacao"} onClick={() => setTab("alocacao")}>
-          Alocação
-        </TabBtn>
-        <TabBtn active={tab === "ponto"} onClick={() => setTab("ponto")}>
-          Registro de Ponto
-        </TabBtn>
-        <TabBtn active={tab === "servico"} onClick={() => setTab("servico")}>
-          Apontamento por Serviço
-        </TabBtn>
-        {canVerAprovacao && (
+        {canDashboard && (
+          <TabBtn active={tab === "dashboard"} onClick={() => setTab("dashboard")}>
+            Dashboard
+          </TabBtn>
+        )}
+        {canFuncionarios && (
+          <TabBtn active={tab === "funcionarios"} onClick={() => setTab("funcionarios")}>
+            Funcionários
+          </TabBtn>
+        )}
+        {canAlocacao && (
+          <TabBtn active={tab === "alocacao"} onClick={() => setTab("alocacao")}>
+            Alocação
+          </TabBtn>
+        )}
+        {canPonto && (
+          <TabBtn active={tab === "ponto"} onClick={() => setTab("ponto")}>
+            Registro de Ponto
+          </TabBtn>
+        )}
+        {canServico && (
+          <TabBtn active={tab === "servico"} onClick={() => setTab("servico")}>
+            Apontamento por Serviço
+          </TabBtn>
+        )}
+        {canAprovacao && (
           <TabBtn active={tab === "aprovacao"} onClick={() => setTab("aprovacao")}>
             Aprovação
           </TabBtn>
         )}
-        <TabBtn active={tab === "historico"} onClick={() => setTab("historico")}>
-          Histórico
-        </TabBtn>
+        {canHistorico && (
+          <TabBtn active={tab === "historico"} onClick={() => setTab("historico")}>
+            Histórico
+          </TabBtn>
+        )}
       </nav>
 
       {tab === "dashboard" && <DashboardTab />}
@@ -124,7 +155,7 @@ export default function ApontamentoPage() {
 
       {tab === "servico" && <ApontamentoServicoTab />}
 
-      {tab === "aprovacao" && canVerAprovacao && <AprovacaoTab />}
+      {tab === "aprovacao" && canAprovacao && <AprovacaoTab />}
 
       {tab === "historico" && <HistoricoTab />}
 

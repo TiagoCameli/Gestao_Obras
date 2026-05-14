@@ -439,6 +439,60 @@ export const ACOES_PLATAFORMA: AcaoPlataforma[] = [
   { chave: 'configurar_sistema', label: 'Configurar parâmetros do sistema', grupo: 'Sistema' },
   { chave: 'gerenciar_integracao_supabase', label: 'Gerenciar integração com Supabase', grupo: 'Sistema' },
   { chave: 'limpar_cache_sistema', label: 'Limpar cache / dados locais', grupo: 'Sistema' },
+
+  // ============================================================
+  // Abas dos módulos (controlam a VISIBILIDADE de cada tab interna)
+  //
+  // Cada chave abaixo controla se determinada aba aparece na nav do
+  // módulo. Útil pra esconder seções inteiras (ex: tirar a aba
+  // "Lixeira" de quem não é admin, ou tirar "Pagamentos" de operadores).
+  //
+  // O usuário só vê o módulo se tiver `ver_<modulo>` (ex: `ver_frete`)
+  // E tiver ao menos uma das abas habilitadas.
+  // ============================================================
+
+  // --- Frete ---
+  { chave: 'aba_frete_dashboard', label: 'Aba: Dashboard de Frete', grupo: 'Abas · Frete' },
+  { chave: 'aba_frete_fretes', label: 'Aba: Fretes', grupo: 'Abas · Frete' },
+  { chave: 'aba_frete_pagamentos', label: 'Aba: Pagamentos', grupo: 'Abas · Frete' },
+  { chave: 'aba_frete_conta_corrente', label: 'Aba: Conta Corrente', grupo: 'Abas · Frete' },
+  { chave: 'aba_frete_pedidos', label: 'Aba: Pedidos de Material', grupo: 'Abas · Frete' },
+  { chave: 'aba_frete_lixeira', label: 'Aba: Lixeira', grupo: 'Abas · Frete' },
+
+  // --- Manutenção ---
+  { chave: 'aba_manutencao_dashboard', label: 'Aba: Dashboard de Manutenção', grupo: 'Abas · Manutenção' },
+  { chave: 'aba_manutencao_os', label: 'Aba: Ordens de Serviço', grupo: 'Abas · Manutenção' },
+  { chave: 'aba_manutencao_agenda', label: 'Aba: Agenda Preventiva', grupo: 'Abas · Manutenção' },
+  { chave: 'aba_manutencao_planos', label: 'Aba: Planos Preventivos', grupo: 'Abas · Manutenção' },
+  { chave: 'aba_manutencao_almoxarifado', label: 'Aba: Almoxarifado', grupo: 'Abas · Manutenção' },
+  { chave: 'aba_manutencao_checklists', label: 'Aba: Checklists pré-uso', grupo: 'Abas · Manutenção' },
+
+  // --- Combustível ---
+  { chave: 'aba_combustivel_visao_geral', label: 'Aba: Visão Geral', grupo: 'Abas · Combustível' },
+  { chave: 'aba_combustivel_saidas', label: 'Aba: Saídas', grupo: 'Abas · Combustível' },
+  { chave: 'aba_combustivel_entradas', label: 'Aba: Entradas', grupo: 'Abas · Combustível' },
+  { chave: 'aba_combustivel_transferencias', label: 'Aba: Transferências', grupo: 'Abas · Combustível' },
+  { chave: 'aba_combustivel_tanques', label: 'Aba: Tanques', grupo: 'Abas · Combustível' },
+  { chave: 'aba_combustivel_consumidores', label: 'Aba: Equipamentos/Carretas', grupo: 'Abas · Combustível' },
+  { chave: 'aba_combustivel_obras', label: 'Aba: Obras (combustível)', grupo: 'Abas · Combustível' },
+  { chave: 'aba_combustivel_fornecedores', label: 'Aba: Fornecedores (combustível)', grupo: 'Abas · Combustível' },
+  { chave: 'aba_combustivel_anomalias', label: 'Aba: Anomalias', grupo: 'Abas · Combustível' },
+  { chave: 'aba_combustivel_relatorios', label: 'Aba: Relatórios', grupo: 'Abas · Combustível' },
+  { chave: 'aba_combustivel_lixeira', label: 'Aba: Lixeira (combustível)', grupo: 'Abas · Combustível' },
+
+  // --- Apontamento RH ---
+  { chave: 'aba_rh_dashboard', label: 'Aba: Dashboard RH', grupo: 'Abas · Apontamento RH' },
+  { chave: 'aba_rh_funcionarios', label: 'Aba: Funcionários', grupo: 'Abas · Apontamento RH' },
+  { chave: 'aba_rh_alocacao', label: 'Aba: Alocação', grupo: 'Abas · Apontamento RH' },
+  { chave: 'aba_rh_ponto', label: 'Aba: Registro de Ponto', grupo: 'Abas · Apontamento RH' },
+  { chave: 'aba_rh_servico', label: 'Aba: Apontamento por Serviço', grupo: 'Abas · Apontamento RH' },
+  { chave: 'aba_rh_aprovacao', label: 'Aba: Aprovação', grupo: 'Abas · Apontamento RH' },
+  { chave: 'aba_rh_historico', label: 'Aba: Histórico', grupo: 'Abas · Apontamento RH' },
+
+  // --- Medição (Rodotracker) ---
+  { chave: 'aba_medicao_mapa', label: 'Aba: Mapa de Atividades', grupo: 'Abas · Medição' },
+  { chave: 'aba_medicao_planejamento', label: 'Aba: Planejamento (Gantt)', grupo: 'Abas · Medição' },
+  { chave: 'aba_medicao_contrato', label: 'Aba: Medição/Contrato', grupo: 'Abas · Medição' },
 ];
 
 export const TODAS_ACOES_PLATAFORMA: string[] = ACOES_PLATAFORMA.map((a) => a.chave);
@@ -977,6 +1031,89 @@ export const TEMPLATES_ACOES_POR_CARGO: Record<CargoFuncionario, string[]> = {
     'ver_medicao', 'exportar_medicao',
   ],
 };
+
+// ============================================================
+// Distribuição automática de ABAS por cargo
+// ============================================================
+//
+// As 33 chaves de "Abas dos módulos" (aba_frete_*, aba_manutencao_*, etc.)
+// são distribuídas aqui em um passo pós-processado, para evitar repetição
+// nos templates acima.
+//
+// Regra:
+//   - Administrador     → todas as abas (já incluso via TODAS_ACOES_PLATAFORMA)
+//   - Gerente, Sup., Eng. Sênior → todas as abas (operação completa)
+//   - Eng. Civil, Gerente Financeiro, Gerente Compras, Financeiro → exceto lixeiras
+//   - Operador          → só abas operacionais essenciais do que vê
+//   - Apontador         → só abas operacionais essenciais do que vê
+
+const ABAS_TODAS = ACOES_PLATAFORMA
+  .filter((a) => a.chave.startsWith('aba_'))
+  .map((a) => a.chave);
+
+const ABAS_SEM_LIXEIRA = ABAS_TODAS.filter(
+  (k) => !k.includes('lixeira'),
+);
+
+const ABAS_OPERADOR = [
+  // Frete: operador só lança/vê fretes, não vê pagamentos/extrato
+  'aba_frete_fretes',
+  // Combustível: saídas/entradas/transferências
+  'aba_combustivel_visao_geral',
+  'aba_combustivel_saidas',
+  'aba_combustivel_entradas',
+  'aba_combustivel_transferencias',
+];
+
+const ABAS_APONTADOR = [
+  // RH: só ponto e serviço
+  'aba_rh_ponto',
+  'aba_rh_servico',
+  // Combustível básico
+  'aba_combustivel_visao_geral',
+  'aba_combustivel_saidas',
+  'aba_combustivel_entradas',
+];
+
+// Injeta abas em cada cargo (sem mutar os arrays originais)
+function withAbas(perms: string[], abas: string[]): string[] {
+  return Array.from(new Set([...perms, ...abas]));
+}
+
+TEMPLATES_ACOES_POR_CARGO.Gerente = withAbas(TEMPLATES_ACOES_POR_CARGO.Gerente, ABAS_TODAS);
+TEMPLATES_ACOES_POR_CARGO.Supervisor = withAbas(TEMPLATES_ACOES_POR_CARGO.Supervisor, ABAS_TODAS);
+TEMPLATES_ACOES_POR_CARGO['Engenheiro Civil Sênior'] = withAbas(
+  TEMPLATES_ACOES_POR_CARGO['Engenheiro Civil Sênior'],
+  ABAS_SEM_LIXEIRA,
+);
+TEMPLATES_ACOES_POR_CARGO['Engenheiro Civil'] = withAbas(
+  TEMPLATES_ACOES_POR_CARGO['Engenheiro Civil'],
+  ABAS_SEM_LIXEIRA.filter(
+    (k) =>
+      !k.startsWith('aba_combustivel_') ||
+      ['aba_combustivel_visao_geral'].includes(k),
+  ),
+);
+TEMPLATES_ACOES_POR_CARGO['Gerente Financeiro'] = withAbas(
+  TEMPLATES_ACOES_POR_CARGO['Gerente Financeiro'],
+  ABAS_SEM_LIXEIRA,
+);
+TEMPLATES_ACOES_POR_CARGO['Gerente de Compras'] = withAbas(
+  TEMPLATES_ACOES_POR_CARGO['Gerente de Compras'],
+  ABAS_SEM_LIXEIRA,
+);
+TEMPLATES_ACOES_POR_CARGO.Financeiro = withAbas(
+  TEMPLATES_ACOES_POR_CARGO.Financeiro,
+  ABAS_SEM_LIXEIRA,
+);
+TEMPLATES_ACOES_POR_CARGO.Operador = withAbas(
+  TEMPLATES_ACOES_POR_CARGO.Operador,
+  ABAS_OPERADOR,
+);
+TEMPLATES_ACOES_POR_CARGO.Apontador = withAbas(
+  TEMPLATES_ACOES_POR_CARGO.Apontador,
+  ABAS_APONTADOR,
+);
 
 /**
  * Permissões consideradas perigosas para cargos operacionais.
