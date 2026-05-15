@@ -176,9 +176,56 @@ export const ACOES_PLATAFORMA: AcaoPlataforma[] = [
   { chave: 'excluir_cadastros', label: 'Excluir cadastros', grupo: 'Cadastros' },
   { chave: 'importar_cadastros', label: 'Importar cadastros via Excel', grupo: 'Cadastros' },
   // Insumos
+  { chave: 'criar_insumos', label: 'Criar insumos', grupo: 'Cadastros' },
   { chave: 'editar_insumos', label: 'Editar insumos', grupo: 'Cadastros' },
   { chave: 'excluir_insumos', label: 'Excluir insumos', grupo: 'Cadastros' },
   { chave: 'exportar_insumos', label: 'Exportar insumos', grupo: 'Cadastros' },
+  // Sub-cadastros granulares (cards do Hub de Cadastros)
+  // Localidades
+  { chave: 'criar_localidades', label: 'Criar localidades', grupo: 'Cadastros' },
+  { chave: 'editar_localidades', label: 'Editar localidades', grupo: 'Cadastros' },
+  { chave: 'excluir_localidades', label: 'Excluir localidades', grupo: 'Cadastros' },
+  // Empresas
+  { chave: 'criar_empresas', label: 'Criar empresas', grupo: 'Cadastros' },
+  { chave: 'editar_empresas', label: 'Editar empresas', grupo: 'Cadastros' },
+  { chave: 'excluir_empresas', label: 'Excluir empresas', grupo: 'Cadastros' },
+  // Colaboradores
+  { chave: 'criar_colaboradores', label: 'Criar colaboradores', grupo: 'Cadastros' },
+  { chave: 'editar_colaboradores', label: 'Editar colaboradores', grupo: 'Cadastros' },
+  { chave: 'excluir_colaboradores', label: 'Excluir colaboradores', grupo: 'Cadastros' },
+  // Tipos de insumo
+  { chave: 'criar_tipos_insumo', label: 'Criar tipos de insumo', grupo: 'Cadastros' },
+  { chave: 'editar_tipos_insumo', label: 'Editar tipos de insumo', grupo: 'Cadastros' },
+  { chave: 'excluir_tipos_insumo', label: 'Excluir tipos de insumo', grupo: 'Cadastros' },
+  // Categorias de material
+  { chave: 'criar_categorias_material', label: 'Criar categorias de material', grupo: 'Cadastros' },
+  { chave: 'editar_categorias_material', label: 'Editar categorias de material', grupo: 'Cadastros' },
+  { chave: 'excluir_categorias_material', label: 'Excluir categorias de material', grupo: 'Cadastros' },
+  // Unidades
+  { chave: 'criar_unidades', label: 'Criar unidades de medida', grupo: 'Cadastros' },
+  { chave: 'editar_unidades', label: 'Editar unidades de medida', grupo: 'Cadastros' },
+  { chave: 'excluir_unidades', label: 'Excluir unidades de medida', grupo: 'Cadastros' },
+  // Depósitos de material
+  { chave: 'criar_depositos_material', label: 'Criar depósitos de material', grupo: 'Cadastros' },
+  { chave: 'editar_depositos_material', label: 'Editar depósitos de material', grupo: 'Cadastros' },
+  { chave: 'excluir_depositos_material', label: 'Excluir depósitos de material', grupo: 'Cadastros' },
+  // Fornecedores
+  { chave: 'criar_fornecedores', label: 'Criar fornecedores', grupo: 'Cadastros' },
+  { chave: 'editar_fornecedores', label: 'Editar fornecedores', grupo: 'Cadastros' },
+  { chave: 'excluir_fornecedores', label: 'Excluir fornecedores', grupo: 'Cadastros' },
+  // Tipos de equipamento
+  { chave: 'criar_tipos_equipamento', label: 'Criar tipos de equipamento', grupo: 'Cadastros' },
+  { chave: 'editar_tipos_equipamento', label: 'Editar tipos de equipamento', grupo: 'Cadastros' },
+  { chave: 'excluir_tipos_equipamento', label: 'Excluir tipos de equipamento', grupo: 'Cadastros' },
+  // Equipamentos (alias granular do Cadastros Hub — separado de criar_veiculo
+  // que pertence à Frota e dispara tela diferente)
+  { chave: 'criar_equipamentos', label: 'Criar equipamentos (cadastro)', grupo: 'Cadastros' },
+  { chave: 'editar_equipamentos', label: 'Editar equipamentos (cadastro)', grupo: 'Cadastros' },
+  { chave: 'excluir_equipamentos', label: 'Excluir equipamentos (cadastro)', grupo: 'Cadastros' },
+  // Tanques (cadastro Hub — separado das chaves de Combustível)
+  { chave: 'criar_tanques', label: 'Criar tanques (cadastro)', grupo: 'Cadastros' },
+  { chave: 'editar_tanques', label: 'Editar tanques (cadastro)', grupo: 'Cadastros' },
+  { chave: 'excluir_tanques', label: 'Excluir tanques (cadastro)', grupo: 'Cadastros' },
   // Etapas (sub-cadastro)
   { chave: 'ver_etapas', label: 'Visualizar etapas', grupo: 'Cadastros' },
   { chave: 'criar_etapas', label: 'Criar etapas', grupo: 'Cadastros' },
@@ -774,10 +821,25 @@ export function resolverDependencias(chave: string): string[] {
 export function validarDependencias(acoes: string[]): string[] {
   const set = new Set(acoes);
   const labelDe = (k: string) => ACOES_PLATAFORMA.find((a) => a.chave === k)?.label ?? k;
+  const grupoDe = (k: string) => ACOES_PLATAFORMA.find((a) => a.chave === k)?.grupo;
+
+  // Filtra silenciosamente dependências envolvendo chaves de grupos
+  // ocultos (Material, Compras, Sistema). Esses grupos estão escondidos
+  // do formulário, então o admin não consegue marcar essas chaves — não
+  // faz sentido cobrar dependências contra elas. Quando os módulos forem
+  // implementados (removidos de GRUPOS_NAO_IMPLEMENTADOS), as validações
+  // passam a ser cobradas automaticamente.
+  function isOculto(k: string): boolean {
+    const g = grupoDe(k);
+    return !!g && GRUPOS_NAO_IMPLEMENTADOS.has(g);
+  }
+
   const erros: string[] = [];
   for (const chave of acoes) {
+    if (isOculto(chave)) continue;
     const deps = DEPENDENCIAS_ACOES[chave] ?? [];
     for (const d of deps) {
+      if (isOculto(d)) continue;
       if (!set.has(d)) {
         erros.push(`"${labelDe(chave)}" requer também "${labelDe(d)}"`);
       }
@@ -1113,6 +1175,78 @@ TEMPLATES_ACOES_POR_CARGO.Operador = withAbas(
 TEMPLATES_ACOES_POR_CARGO.Apontador = withAbas(
   TEMPLATES_ACOES_POR_CARGO.Apontador,
   ABAS_APONTADOR,
+);
+
+// ============================================================
+// Distribuição automática dos cadastros granulares (cards do Hub)
+// ============================================================
+//
+// Cada card do CadastrosHub usa uma chave própria (criar_localidades,
+// criar_fornecedores, etc.). Aqui distribuímos essas 40 chaves nos
+// templates para que o card apareça em cada cargo relevante.
+
+const CADASTROS_GRANULARES_CRUD = [
+  // Localidades
+  'criar_localidades', 'editar_localidades', 'excluir_localidades',
+  // Empresas
+  'criar_empresas', 'editar_empresas', 'excluir_empresas',
+  // Colaboradores
+  'criar_colaboradores', 'editar_colaboradores', 'excluir_colaboradores',
+  // Insumos
+  'criar_insumos',
+  // Tipos de insumo
+  'criar_tipos_insumo', 'editar_tipos_insumo', 'excluir_tipos_insumo',
+  // Categorias de material
+  'criar_categorias_material', 'editar_categorias_material', 'excluir_categorias_material',
+  // Unidades
+  'criar_unidades', 'editar_unidades', 'excluir_unidades',
+  // Depósitos
+  'criar_depositos_material', 'editar_depositos_material', 'excluir_depositos_material',
+  // Fornecedores
+  'criar_fornecedores', 'editar_fornecedores', 'excluir_fornecedores',
+  // Tipos de equipamento
+  'criar_tipos_equipamento', 'editar_tipos_equipamento', 'excluir_tipos_equipamento',
+  // Equipamentos
+  'criar_equipamentos', 'editar_equipamentos', 'excluir_equipamentos',
+  // Tanques
+  'criar_tanques', 'editar_tanques', 'excluir_tanques',
+];
+
+const CADASTROS_GRANULARES_VIEW_ONLY = CADASTROS_GRANULARES_CRUD.filter(
+  (k) => k.startsWith('editar_')
+);
+
+const CADASTROS_GRANULARES_CRIAR_EDITAR = CADASTROS_GRANULARES_CRUD.filter(
+  (k) => !k.startsWith('excluir_')
+);
+
+TEMPLATES_ACOES_POR_CARGO.Gerente = withAbas(
+  TEMPLATES_ACOES_POR_CARGO.Gerente,
+  CADASTROS_GRANULARES_CRUD,
+);
+TEMPLATES_ACOES_POR_CARGO['Gerente Financeiro'] = withAbas(
+  TEMPLATES_ACOES_POR_CARGO['Gerente Financeiro'],
+  CADASTROS_GRANULARES_VIEW_ONLY,
+);
+TEMPLATES_ACOES_POR_CARGO['Gerente de Compras'] = withAbas(
+  TEMPLATES_ACOES_POR_CARGO['Gerente de Compras'],
+  CADASTROS_GRANULARES_CRUD,
+);
+TEMPLATES_ACOES_POR_CARGO.Supervisor = withAbas(
+  TEMPLATES_ACOES_POR_CARGO.Supervisor,
+  CADASTROS_GRANULARES_CRIAR_EDITAR,
+);
+TEMPLATES_ACOES_POR_CARGO['Engenheiro Civil Sênior'] = withAbas(
+  TEMPLATES_ACOES_POR_CARGO['Engenheiro Civil Sênior'],
+  CADASTROS_GRANULARES_CRIAR_EDITAR,
+);
+TEMPLATES_ACOES_POR_CARGO['Engenheiro Civil'] = withAbas(
+  TEMPLATES_ACOES_POR_CARGO['Engenheiro Civil'],
+  CADASTROS_GRANULARES_VIEW_ONLY,
+);
+TEMPLATES_ACOES_POR_CARGO.Financeiro = withAbas(
+  TEMPLATES_ACOES_POR_CARGO.Financeiro,
+  CADASTROS_GRANULARES_VIEW_ONLY,
 );
 
 /**
