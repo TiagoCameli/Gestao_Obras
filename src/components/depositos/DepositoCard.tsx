@@ -50,8 +50,13 @@ function CardMaterial({
           <h3 className="font-semibold text-[var(--color-fg)] tracking-tight truncate">
             {deposito.nome}
           </h3>
-          <div className="flex items-center gap-1.5 mt-1">
+          <div className="flex items-center gap-1.5 mt-1 flex-wrap">
             <BadgeTipoDeposito tipo="material" size="xs" />
+            {deposito.ehAlmoxarifadoPecas && (
+              <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-amber-50 text-amber-700 border border-amber-200">
+                🔧 almoxarifado
+              </span>
+            )}
             {!deposito.ativo && (
               <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-slate-100 text-slate-600 border border-slate-200">
                 inativo

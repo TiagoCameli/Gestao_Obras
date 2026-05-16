@@ -5,14 +5,14 @@ import { useTheme } from '../../contexts/ThemeContext';
 import UserMenu from './UserMenu';
 
 const links: { to: string; label: string; acao?: string }[] = [
+  { to: '/cadastros', label: 'Cadastros', acao: 'ver_cadastros' },
   { to: '/', label: 'Dashboard', acao: 'ver_dashboard' },
   { to: '/obras', label: 'Obras', acao: 'ver_obras' },
   { to: '/compras', label: 'Compras', acao: 'ver_compras' },
-  { to: '/cadastros', label: 'Cadastros', acao: 'ver_cadastros' },
-  { to: '/depositos', label: 'Depósitos', acao: 'ver_depositos' },
   { to: '/frete', label: 'Frete', acao: 'ver_frete' },
   { to: '/frota', label: 'Frota', acao: 'ver_frota' },
   { to: '/manutencao', label: 'Manutenção', acao: 'ver_frota' },
+  { to: '/depositos', label: 'Depósitos', acao: 'ver_depositos' },
   { to: '/combustivel', label: 'Combustível', acao: 'ver_frota' },
   { to: '/apontamento', label: 'Apontamento RH', acao: 'ver_apontamento_rh' },
   { to: '/medicao', label: 'Medição', acao: 'ver_medicao' },

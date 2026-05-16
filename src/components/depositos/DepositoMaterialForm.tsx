@@ -5,7 +5,7 @@
  * obras = avulso/central.
  */
 import { useCallback, useMemo, useState } from 'react';
-import { Building2, AlertCircle, X, Check, Plus } from 'lucide-react';
+import { Building2, AlertCircle, X, Check, Plus, Wrench } from 'lucide-react';
 import type { DepositoMaterial, Obra } from '../../types';
 import Button from '../ui/Button';
 import Input from '../ui/Input';
@@ -31,6 +31,7 @@ export default function DepositoMaterialForm({ initial, obras, onSubmit, onCance
   const [endereco, setEndereco] = useState(initial?.endereco || '');
   const [responsavel, setResponsavel] = useState(initial?.responsavel || '');
   const [ativo, setAtivo] = useState(initial?.ativo ?? true);
+  const [ehAlmoxarifadoPecas, setEhAlmoxarifadoPecas] = useState(initial?.ehAlmoxarifadoPecas ?? false);
   const [obrasIds, setObrasIds] = useState<string[]>(initial?.obrasIds ?? []);
   const [submitting, setSubmitting] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
@@ -55,6 +56,7 @@ export default function DepositoMaterialForm({ initial, obras, onSubmit, onCance
           endereco: endereco.trim(),
           responsavel: responsavel.trim(),
           ativo,
+          ehAlmoxarifadoPecas,
           criadoPor: initial?.criadoPor || usuario?.nome || '',
           atualizadoPor: usuario?.nome || '',
           obrasIds,
@@ -70,7 +72,7 @@ export default function DepositoMaterialForm({ initial, obras, onSubmit, onCance
         setSubmitting(false);
       }
     },
-    [podeSalvar, nome, endereco, responsavel, ativo, obrasIds, initial, usuario, onSubmit, showToast]
+    [podeSalvar, nome, endereco, responsavel, ativo, ehAlmoxarifadoPecas, obrasIds, initial, usuario, onSubmit, showToast]
   );
 
   return (
@@ -110,6 +112,28 @@ export default function DepositoMaterialForm({ initial, obras, onSubmit, onCance
         </p>
         <ObrasMultiSelect obras={obras} selected={obrasIds} onChange={setObrasIds} />
       </section>
+
+      {/* Tipo: almoxarifado de peças? */}
+      <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-1)] p-3.5">
+        <label className="inline-flex items-start gap-2.5 cursor-pointer">
+          <input
+            type="checkbox"
+            checked={ehAlmoxarifadoPecas}
+            onChange={(e) => setEhAlmoxarifadoPecas(e.target.checked)}
+            className="accent-[var(--color-accent)] w-4 h-4 mt-0.5"
+          />
+          <div>
+            <span className="text-sm font-medium text-[var(--color-fg)] flex items-center gap-1.5">
+              <Wrench className="w-3.5 h-3.5 text-[var(--color-fg-muted)]" />
+              Almoxarifado de peças (manutenção)
+            </span>
+            <p className="text-[11px] text-[var(--color-fg-subtle)] mt-0.5">
+              Marque se este depósito guarda peças/insumos pra Ordens de Serviço de equipamentos.
+              Só esses depósitos aparecem em OCs com destino <strong>Manutenção de equipamento</strong>.
+            </p>
+          </div>
+        </label>
+      </div>
 
       {/* Status */}
       <div>

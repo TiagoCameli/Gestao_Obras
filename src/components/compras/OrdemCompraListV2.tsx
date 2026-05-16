@@ -8,7 +8,7 @@
 import { useMemo, useState } from 'react';
 import {
   FileEdit, CheckCircle2, Banknote, FileDown, History, Trash2, Inbox,
-  Building2, Warehouse, Briefcase, Wrench,
+  Building2, Warehouse, Briefcase, Wrench, Fuel,
 } from 'lucide-react';
 import type {
   OrdemCompra, Obra, EtapaObra, Fornecedor, TipoDestinoOC, StatusOrdemCompra, StatusLancamentoFinanceiro,
@@ -42,6 +42,7 @@ const DESTINO_LABEL: Record<TipoDestinoOC, { label: string; Icon: typeof Buildin
   deposito_central:       { label: 'Dep. Central',   Icon: Warehouse },
   sede:                   { label: 'Sede',           Icon: Briefcase },
   manutencao_equipamento: { label: 'Manutenção',     Icon: Wrench },
+  tanque_combustivel:     { label: 'Tanque combustível', Icon: Fuel },
 };
 
 const STATUS_OPTIONS: { value: '' | StatusOrdemCompra; label: string }[] = [

@@ -21,7 +21,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Trash2, Plus, AlertCircle, Calendar, FileText, Truck, Banknote, FileDown,
-  CheckCircle2, ShoppingCart, Building2, Warehouse, Briefcase, Wrench,
+  CheckCircle2, ShoppingCart, Building2, Warehouse, Briefcase, Wrench, Fuel,
 } from 'lucide-react';
 import type {
   OrdemCompra,
@@ -34,6 +34,7 @@ import type {
   TipoItemCompra,
   TipoDestinoOC,
   DepositoMaterial,
+  Deposito,
 } from '../../types';
 import Button from '../ui/Button';
 import Input from '../ui/Input';
@@ -55,6 +56,8 @@ interface Props {
   insumos: Insumo[];
   equipamentos: Equipamento[];
   depositosMaterial: DepositoMaterial[];
+  /** Tanques de combustível — aparecem juntos com depósitos de material no select de destino */
+  tanquesCombustivel?: Deposito[];
   proximoNumero: string;
   onSubmit: (oc: OrdemCompra) => Promise<void>;
   onCancel: () => void;
@@ -70,7 +73,8 @@ const DESTINOS: { value: TipoDestinoOC; label: string; Icon: typeof Building2; s
   { value: 'obra_deposito',          label: 'Obra (depósito)',         Icon: Warehouse, sub: 'Apenas material' },
   { value: 'deposito_central',       label: 'Depósito Central',        Icon: Warehouse, sub: 'Apenas material' },
   { value: 'sede',                   label: 'Sede da empresa',         Icon: Briefcase, sub: 'Material + Serviço' },
-  { value: 'manutencao_equipamento', label: 'Manutenção de equipamento', Icon: Wrench,  sub: 'Material (almox) + Serviço' },
+  { value: 'manutencao_equipamento', label: 'Manutenção de equipamento', Icon: Wrench,  sub: 'Vai pro almoxarifado · destinado depois via OS' },
+  { value: 'tanque_combustivel',     label: 'Tanque de combustível',   Icon: Fuel,      sub: 'Distribuição por obra é feita na saída' },
 ];
 
 function genId() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
@@ -92,6 +96,7 @@ function novoItem(): ItemOrdemCompra {
 
 export default function OrdemCompraFormV2({
   initial, obras, etapas, fornecedores, insumos, equipamentos, depositosMaterial,
+  tanquesCombustivel = [],
   proximoNumero, onSubmit, onCancel, onCreateFornecedor, onAprovar, onGerarLancamento,
 }: Props) {
   const { temAcao, usuario } = useAuth();
@@ -343,7 +348,7 @@ export default function OrdemCompraFormV2({
       {/* ── Destino ───────────────────────────────────────────────────── */}
       <section>
         <SectionHeader titulo="Destino da compra" subtitulo="Define onde os itens vão e quais campos extras são exigidos" />
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
           {DESTINOS.map(({ value, label, Icon, sub }) => {
             const ativo = tipoDestino === value;
             return (
@@ -398,22 +403,65 @@ export default function OrdemCompraFormV2({
                 </select>
               </div>
             )}
-            {regra.exigeDeposito && (
-              <div>
-                <Label>
-                  Depósito {tipoDestino === 'manutencao_equipamento' ? '(almoxarifado)' : 'destino'} <span className="text-rose-500">*</span>
-                </Label>
-                <select
-                  value={depositoDestinoId}
-                  onChange={(e) => setDepositoDestinoId(e.target.value)}
-                  required
-                  className="w-full h-[42px] rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-1)] px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]/40 focus:border-[var(--color-accent)]"
-                >
-                  <option value="">— selecione —</option>
-                  {depositosMaterial.map((d) => (<option key={d.id} value={d.id}>{d.nome}</option>))}
-                </select>
-              </div>
-            )}
+            {regra.exigeDeposito && (() => {
+              const ehTanque = tipoDestino === 'tanque_combustivel';
+              const ehManutencao = tipoDestino === 'manutencao_equipamento';
+              const labelDep = ehTanque ? 'Tanque destino'
+                : ehManutencao ? 'Almoxarifado de peças'
+                : 'Depósito destino';
+
+              // Filtragem inteligente do select conforme destino:
+              //  - tanque_combustivel    → só tanques de combustível
+              //  - manutencao_equipamento → só depósitos marcados como almoxarifado de peças
+              //  - obra_deposito / deposito_central → depósitos de material que NÃO são almoxarifado
+              const depositosFiltrados = ehManutencao
+                ? depositosMaterial.filter((d) => d.ativo && d.ehAlmoxarifadoPecas)
+                : depositosMaterial.filter((d) => d.ativo && !d.ehAlmoxarifadoPecas);
+              const tanquesAtivos = tanquesCombustivel.filter((t) => t.ativo);
+
+              const hint = ehTanque
+                ? 'Combustível fica no tanque até ser usado nos equipamentos (saídas)'
+                : ehManutencao
+                  ? 'Peça vai pro almoxarifado e depois é alocada a uma OS de equipamento específico'
+                  : 'Materiais vão pra esse depósito até serem alocados';
+
+              return (
+                <div>
+                  <Label>{labelDep} <span className="text-rose-500">*</span></Label>
+                  <select
+                    value={depositoDestinoId}
+                    onChange={(e) => setDepositoDestinoId(e.target.value)}
+                    required
+                    className="w-full h-[42px] rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-1)] px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]/40 focus:border-[var(--color-accent)]"
+                  >
+                    <option value="">— selecione —</option>
+                    {ehTanque ? (
+                      tanquesAtivos.length === 0
+                        ? <option disabled>Nenhum tanque cadastrado</option>
+                        : tanquesAtivos.map((t) => (
+                            <option key={t.id} value={t.id}>
+                              ⛽ {t.apelido || t.nome}
+                              {t.capacidadeLitros ? ` (${Math.round(t.nivelAtualLitros || 0)}/${Math.round(t.capacidadeLitros)} L)` : ''}
+                            </option>
+                          ))
+                    ) : (
+                      depositosFiltrados.length === 0
+                        ? <option disabled>
+                            {ehManutencao
+                              ? 'Nenhum almoxarifado de peças — cadastre em Depósitos com a flag marcada'
+                              : 'Nenhum depósito de material cadastrado'}
+                          </option>
+                        : depositosFiltrados.map((d) => (
+                            <option key={d.id} value={d.id}>
+                              {ehManutencao ? '🔧' : '📦'} {d.nome}
+                            </option>
+                          ))
+                    )}
+                  </select>
+                  <p className="text-[10px] text-[var(--color-fg-subtle)] mt-0.5">{hint}</p>
+                </div>
+              );
+            })()}
             {regra.exigeEquipamento && (
               <div>
                 <Label>Equipamento <span className="text-rose-500">*</span></Label>

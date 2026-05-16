@@ -366,6 +366,7 @@ export function dbToDepositoMaterial(row: any): DepositoMaterial {
     ativo: row.ativo,
     criadoPor: row.criado_por ?? '',
     // v2 — campos de auditoria/soft delete (obrasIds vem de junction, populado no hook)
+    ehAlmoxarifadoPecas: row.eh_almoxarifado_pecas ?? false,
     criadoEm: row.criado_em ?? undefined,
     atualizadoEm: row.atualizado_em ?? undefined,
     atualizadoPor: row.atualizado_por ?? undefined,
@@ -383,6 +384,7 @@ export function depositoMaterialToDb(d: DepositoMaterial) {
     responsavel: d.responsavel,
     ativo: d.ativo,
     criado_por: d.criadoPor,
+    eh_almoxarifado_pecas: d.ehAlmoxarifadoPecas ?? false,
     atualizado_por: d.atualizadoPor ?? null,
     deletado_em: d.deletadoEm ?? null,
     deletado_por: d.deletadoPor ?? null,

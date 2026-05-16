@@ -73,14 +73,29 @@ export const REGRAS_DESTINO: Record<TipoDestinoOC, RegraDestino> = {
     label: 'Sede da empresa',
   },
   manutencao_equipamento: {
+    // Material vai pro almoxarifado de peças (filtrado no select).
+    // NÃO exige equipamento aqui — a peça será destinada ao equipamento
+    // específico mais tarde, via Ordem de Serviço de manutenção.
     aceitaMaterial: true,
     aceitaServico: true,
     exigeObra: false,
     exigeEtapa: false,
-    exigeDeposito: true, // almoxarifado
-    exigeEquipamento: true,
+    exigeDeposito: true, // almoxarifado de peças
+    exigeEquipamento: false,
     geraEntradaDeposito: true,
     label: 'Manutenção de equipamento',
+  },
+  tanque_combustivel: {
+    // Entrada de combustível: vai pro tanque e PRONTO. A distribuição
+    // por obra/etapa é feita depois, via saída de combustível.
+    aceitaMaterial: true, // combustível é "material" tipo "combustível"
+    aceitaServico: false,
+    exigeObra: false,
+    exigeEtapa: false,
+    exigeDeposito: true, // o "depósito" aqui é o tanque
+    exigeEquipamento: false,
+    geraEntradaDeposito: true,
+    label: 'Tanque de combustível',
   },
 };
 

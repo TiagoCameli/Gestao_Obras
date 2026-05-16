@@ -267,6 +267,8 @@ export interface DepositoMaterial {
   // Depósitos v2 — N:N com obras + auditoria + soft delete
   /** Lista de obras vinculadas (vazia = depósito central/avulso) */
   obrasIds?: string[];
+  /** true = almoxarifado de peças (manutenção). Aparece em OCs com destino "manutenção_equipamento". */
+  ehAlmoxarifadoPecas?: boolean;
   criadoEm?: string;
   atualizadoEm?: string;
   atualizadoPor?: string;
@@ -898,7 +900,8 @@ export type TipoDestinoOC =
   | 'obra_deposito'
   | 'deposito_central'
   | 'sede'
-  | 'manutencao_equipamento';
+  | 'manutencao_equipamento'
+  | 'tanque_combustivel';
 export type StatusLancamentoFinanceiro =
   | 'nao_aplicavel' | 'pendente' | 'lancada' | 'cancelada';
 

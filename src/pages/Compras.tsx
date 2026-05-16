@@ -9,7 +9,7 @@ import type {
 import { usePedidosCompra, useAdicionarPedidoCompra, useAtualizarPedidoCompra, useExcluirPedidoCompra } from '../hooks/usePedidosCompra';
 import { useCotacoes, useAdicionarCotacao, useAtualizarCotacao, useExcluirCotacao } from '../hooks/useCotacoes';
 import { useOrdensCompra, useAdicionarOrdemCompra, useAtualizarOrdemCompra, useExcluirOrdemCompra } from '../hooks/useOrdensCompra';
-import { useDepositosMaterial } from '../hooks/useDepositosMaterial';
+import { useDepositosMaterialV2 } from '../hooks/useDepositosObras';
 import { useDepositos } from '../hooks/useDepositos';
 import { useAdicionarEntradaMaterial } from '../hooks/useEntradasMaterial';
 import { useAdicionarEntradaCombustivel } from '../hooks/useEntradasCombustivel';
@@ -68,7 +68,7 @@ export default function Compras() {
   const { data: insumos = [] } = useInsumos();
   const { data: unidades = [] } = useUnidades();
   const { data: categoriasMaterial = [] } = useCategoriasMaterial();
-  const { data: depositosMaterial = [] } = useDepositosMaterial();
+  const { data: depositosMaterial = [] } = useDepositosMaterialV2();
   const { data: depositosCombustivel = [] } = useDepositos();
 
   const categoriasOptions = useMemo(
@@ -138,8 +138,8 @@ export default function Compras() {
     return () => window.removeEventListener('keydown', onKey);
   }, [tab]);
 
-  // Mantém referências em uso (depósitos serão usados quando a aba "Recebimento" for criada)
-  void depositosMaterial; void depositosCombustivel;
+  // Mantém referência em uso (será usada quando a aba "Recebimento" for criada)
+  void depositosMaterial;
 
   const pedidosAprovados = useMemo(
     () => pedidos.filter((p) => (p.status === 'aprovado' || p.status === 'em_cotacao' || p.status === 'cotado') && !p.deletadoEm),
@@ -929,6 +929,7 @@ export default function Compras() {
           insumos={insumos}
           equipamentos={equipamentos}
           depositosMaterial={depositosMaterial}
+          tanquesCombustivel={depositosCombustivel}
           proximoNumero={proxOC}
           onSubmit={handleOCSubmit}
           onCancel={() => { setOcModalOpen(false); setEditandoOC(null); }}
