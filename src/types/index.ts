@@ -918,8 +918,13 @@ export interface ItemOrdemCompra {
   tipo?: TipoItemCompra;
   /** marca/modelo */
   marca?: string;
-  /** ref ao insumo cadastrado (opcional) */
+  /** ref ao insumo cadastrado (opcional para outros destinos; OBRIGATÓRIO
+   * para itens material em OCs com destino "manutencao_equipamento" — só
+   * aceita insumos com usado_em_manutencao=true) */
   insumoId?: string;
+  /** OBRIGATÓRIO para itens servico em OCs com destino "manutencao_equipamento":
+   * vincula o serviço a uma Ordem de Serviço de equipamento específica. */
+  osId?: string;
 }
 
 export interface CustosAdicionaisOC {

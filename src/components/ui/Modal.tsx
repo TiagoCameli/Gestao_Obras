@@ -1,4 +1,5 @@
 import { useEffect, useRef, type ReactNode, type MouseEvent } from 'react';
+import { createPortal } from 'react-dom';
 
 interface ModalProps {
   open: boolean;
@@ -51,7 +52,12 @@ export default function Modal({ open, onClose, title, children, size = 'default'
     mouseDownOnBackdrop.current = false;
   };
 
-  return (
+  // Renderiza via portal direto no document.body para escapar de
+  // qualquer <form> ancestral. Sem isso, modais com <form> interno
+  // (como cadastros rápidos de insumo/peça dentro do form da OC)
+  // ficam com forms aninhados, que são HTML inválido — o navegador
+  // descarta o form interno e o submit acaba no form externo.
+  return createPortal(
     <div className="fixed inset-0 z-50 flex items-center justify-center">
       <div
         className="fixed inset-0 bg-black/40 backdrop-blur-[2px] dark:bg-black/70"
@@ -100,6 +106,7 @@ export default function Modal({ open, onClose, title, children, size = 'default'
         </div>
         <div className="p-4 sm:p-6">{children}</div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

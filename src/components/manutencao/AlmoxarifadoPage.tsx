@@ -5,13 +5,18 @@
 // card abre modal/painel de detalhe (incluindo saldo por depósito).
 
 import { useState, useMemo } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   Package, Plus, AlertTriangle, Search, Settings2, Factory, FileInput,
+  Warehouse, MapPin, User, ArrowRight,
 } from 'lucide-react';
 import Button from '../ui/Button';
 import { useSaldoEstoqueTotal } from '../../hooks/useSaldoEstoque';
 import { useInsumos } from '../../hooks/useInsumos';
+import {
+  useDepositosMaterialV2, useResumoSaldosTodos,
+} from '../../hooks/useDepositosObras';
+import { useObras } from '../../hooks/useObras';
 import { useAuth } from '../../contexts/AuthContext';
 import type { SaldoEstoque, Insumo, StatusEstoque } from '../../types';
 import PecaFormModal from './almoxarifado/PecaFormModal';
@@ -45,10 +50,21 @@ function fmtQty(n: number, unidade: string): string {
 
 export default function AlmoxarifadoPage() {
   const { temAcao } = useAuth();
+  const navigate = useNavigate();
   const canCreate = temAcao('criar_peca_almoxarifado') || temAcao('criar_entrada_almoxarifado');
 
   const { data: saldos = [], isLoading } = useSaldoEstoqueTotal({ apenasManutencao: true });
   const { data: insumos = [] } = useInsumos();
+  // Depósitos marcados como almoxarifado de peças (ativos)
+  const { data: todosDepositos = [] } = useDepositosMaterialV2();
+  const { data: obras = [] } = useObras();
+  const { data: resumoSaldos } = useResumoSaldosTodos();
+
+  const almoxarifados = useMemo(
+    () => todosDepositos.filter((d) => d.ehAlmoxarifadoPecas && d.ativo),
+    [todosDepositos]
+  );
+  const obrasMap = useMemo(() => new Map(obras.map((o) => [o.id, o.nome])), [obras]);
 
   const [searchParams, setSearchParams] = useSearchParams();
   const [busca, setBusca] = useState('');
@@ -159,6 +175,111 @@ export default function AlmoxarifadoPage() {
         <KPI label="Valor em estoque" valor={fmtBRL(kpis.valorTotal)} icon={Factory}
           cor="bg-[var(--color-surface-2)] text-[var(--color-fg)]" />
       </div>
+
+      {/* Depósitos marcados como almoxarifado de peças */}
+      <section>
+        <div className="flex items-end justify-between gap-3 mb-2">
+          <div>
+            <h2 className="text-sm font-semibold text-[var(--color-fg)] flex items-center gap-2">
+              <Warehouse className="w-4 h-4 text-[var(--color-fg-muted)]" />
+              Almoxarifados de peças
+              <span className="text-xs font-normal text-[var(--color-fg-muted)]">({almoxarifados.length})</span>
+            </h2>
+            <p className="text-xs text-[var(--color-fg-subtle)] mt-0.5">
+              Depósitos onde as peças ficam armazenadas. Marque a flag "Almoxarifado de peças" em <strong>Depósitos</strong> pra adicionar.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => navigate('/depositos')}
+            className="inline-flex items-center gap-1.5 px-2.5 h-8 rounded-md text-xs font-medium border border-[var(--color-border)] hover:bg-[var(--color-surface-2)] transition-colors"
+          >
+            Gerenciar em Depósitos <ArrowRight className="w-3.5 h-3.5" />
+          </button>
+        </div>
+
+        {almoxarifados.length === 0 ? (
+          <div className="rounded-xl border border-dashed border-[var(--color-border)] py-8 text-center text-sm text-[var(--color-fg-muted)]">
+            <Warehouse className="w-7 h-7 mx-auto text-[var(--color-fg-subtle)] mb-2 opacity-60" />
+            <p>Nenhum almoxarifado cadastrado ainda.</p>
+            <p className="text-xs text-[var(--color-fg-subtle)] mt-1">
+              Vá em <strong>Depósitos</strong> → crie ou edite um depósito → marque a opção "Almoxarifado de peças".
+            </p>
+            <button
+              type="button"
+              onClick={() => navigate('/depositos')}
+              className="mt-3 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium bg-[var(--color-accent)] text-[var(--color-fg-on-accent)] hover:opacity-90 transition-opacity"
+            >
+              <Plus className="w-3.5 h-3.5" /> Ir para Depósitos
+            </button>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-2">
+            {almoxarifados.map((d) => {
+              const resumo = resumoSaldos?.get(d.id);
+              const obrasVinc = (d.obrasIds ?? []).map((id) => obrasMap.get(id)).filter(Boolean) as string[];
+              const ehAvulso = obrasVinc.length === 0;
+              return (
+                <button
+                  key={d.id}
+                  type="button"
+                  onClick={() => navigate('/depositos')}
+                  className="text-left rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-1)] p-3 hover:border-[var(--color-border-strong)] hover:shadow-[var(--shadow-xs)] transition-all group"
+                >
+                  <div className="flex items-start justify-between gap-2 mb-2">
+                    <h3 className="font-semibold text-sm text-[var(--color-fg)] tracking-tight truncate flex-1">
+                      🔧 {d.nome}
+                    </h3>
+                    <ArrowRight className="w-3.5 h-3.5 text-[var(--color-fg-subtle)] opacity-0 group-hover:opacity-100 transition-opacity shrink-0" />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2 mb-2">
+                    <div>
+                      <div className="text-[10px] uppercase tracking-wide text-[var(--color-fg-muted)]">Insumos</div>
+                      <div className="text-base font-bold text-[var(--color-fg)] tabular-nums">{resumo?.qtdInsumos ?? 0}</div>
+                    </div>
+                    <div>
+                      <div className="text-[10px] uppercase tracking-wide text-[var(--color-fg-muted)]">Estoque</div>
+                      <div className="text-base font-bold text-[var(--color-fg)] tabular-nums">
+                        {resumo?.valorTotal != null
+                          ? resumo.valorTotal.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 })
+                          : 'R$ 0'}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-wrap gap-1 mb-2 min-h-[18px]">
+                    {ehAvulso ? (
+                      <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-violet-50 text-violet-700 border border-violet-200">
+                        central
+                      </span>
+                    ) : (
+                      <>
+                        {obrasVinc.slice(0, 2).map((nome) => (
+                          <span key={nome} className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-[var(--color-surface-2)] text-[var(--color-fg-muted)] border border-[var(--color-border)] truncate max-w-[100px]">
+                            {nome}
+                          </span>
+                        ))}
+                        {obrasVinc.length > 2 && (
+                          <span className="text-[10px] text-[var(--color-fg-subtle)] px-1">+{obrasVinc.length - 2}</span>
+                        )}
+                      </>
+                    )}
+                  </div>
+
+                  <div className="text-[11px] text-[var(--color-fg-subtle)] truncate flex items-center gap-1 pt-1.5 border-t border-[var(--color-border)]">
+                    {d.responsavel
+                      ? <><User className="w-3 h-3 shrink-0" /> {d.responsavel}</>
+                      : d.endereco
+                        ? <><MapPin className="w-3 h-3 shrink-0" /> {d.endereco}</>
+                        : <span className="italic">sem responsável</span>}
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        )}
+      </section>
 
       {/* Filtros */}
       <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-1)] p-3 flex flex-wrap gap-2 items-center">

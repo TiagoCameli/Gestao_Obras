@@ -5,10 +5,14 @@ import type {
   Cotacao,
   OrdemCompra,
   ItemOrdemCompra,
+  OrdemServico,
 } from '../types';
 import { usePedidosCompra, useAdicionarPedidoCompra, useAtualizarPedidoCompra, useExcluirPedidoCompra } from '../hooks/usePedidosCompra';
 import { useCotacoes, useAdicionarCotacao, useAtualizarCotacao, useExcluirCotacao } from '../hooks/useCotacoes';
 import { useOrdensCompra, useAdicionarOrdemCompra, useAtualizarOrdemCompra, useExcluirOrdemCompra } from '../hooks/useOrdensCompra';
+import { useAtualizarOS } from '../hooks/useOrdensServico';
+import { supabase } from '../lib/supabase';
+import { dbToOrdemServico } from '../lib/mappers';
 import { useDepositosMaterialV2 } from '../hooks/useDepositosObras';
 import { useDepositos } from '../hooks/useDepositos';
 import { useAdicionarEntradaMaterial } from '../hooks/useEntradasMaterial';
@@ -17,6 +21,7 @@ import { useObras } from '../hooks/useObras';
 import { useEtapas } from '../hooks/useEtapas';
 import { useFornecedores, useAdicionarFornecedor } from '../hooks/useFornecedores';
 import { useEquipamentos } from '../hooks/useEquipamentos';
+import { useEmpresas } from '../hooks/useEmpresas';
 import { useInsumos } from '../hooks/useInsumos';
 import { useUnidades } from '../hooks/useUnidades';
 import { useCategoriasMaterial } from '../hooks/useCategoriasMaterial';
@@ -65,6 +70,7 @@ export default function Compras() {
   const { data: etapas = [] } = useEtapas();
   const { data: fornecedores = [] } = useFornecedores();
   const { data: equipamentos = [] } = useEquipamentos();
+  const { data: empresas = [] } = useEmpresas();
   const { data: insumos = [] } = useInsumos();
   const { data: unidades = [] } = useUnidades();
   const { data: categoriasMaterial = [] } = useCategoriasMaterial();
@@ -88,6 +94,7 @@ export default function Compras() {
   const excluirOCMut = useExcluirOrdemCompra();
   const adicionarEntradaMaterialMut = useAdicionarEntradaMaterial();
   const adicionarEntradaCombustivelMut = useAdicionarEntradaCombustivel();
+  const atualizarOSMut = useAtualizarOS();
 
   // State
   const [pedidoModalOpen, setPedidoModalOpen] = useState(false);
@@ -150,6 +157,25 @@ export default function Compras() {
   const proxPedido = proximoNumeroPorAno('PED', pedidos.map((p) => p.numero));
   const proxCotacao = proximoNumeroPorAno('COT', cotacoes.map((c) => c.numero));
   const proxOC = proximoNumeroPorAno('OC', ordens.map((o) => o.numero));
+
+  // Empresas exibidas no combobox "Faturar para" da OC.
+  // Por enquanto, só EMT Construtora. Se a empresa estiver cadastrada na
+  // tabela `empresas`, usa o registro real (com CNPJ). Caso contrário,
+  // injeta uma opção sintética só com o nome — assim o combobox nunca
+  // fica vazio enquanto o cadastro não é feito.
+  const empresasFaturamento = useMemo(() => {
+    const emt = empresas.filter((e) => /emt\s*construtora/i.test(e.nome));
+    if (emt.length > 0) return emt;
+    return [{
+      id: '__emt_sintetica__',
+      nome: 'EMT Construtora',
+      cnpj: '',
+      endereco: '',
+      areaAtuacao: '',
+      ativo: true,
+      criadoPor: '',
+    }];
+  }, [empresas]);
 
   // ── Pedido handlers ──
   const handlePedidoSubmit = useCallback(async (pedido: PedidoCompra, anexosPendentes: File[] = []) => {
@@ -474,10 +500,72 @@ export default function Compras() {
     setEditandoOC(null);
   }, [editandoOC, adicionarOCMut, atualizarOCMut, usuario, showToast]);
 
-  // Aprovação separada (workflow b — quem cria envia, outro usuário aprova)
+  // Aprovação separada (workflow b — quem cria envia, outro usuário aprova).
+  //
+  // Side effect importante para destino "manutenção de equipamento":
+  // todo item do tipo 'serviço' vinculado a uma OS é AUTOMATICAMENTE
+  // registrado naquela OS (somando o subtotal a custoServicoTerceiro e
+  // anotando na observação). A operação é IDEMPOTENTE via tag
+  // "[OC ${numero}]" — se a OC já foi processada antes, pula a OS.
   const handleAprovarOCv2 = useCallback(async (oc: OrdemCompra) => {
     const nomeUsuario = usuario?.nome || '';
     const agora = new Date().toISOString();
+
+    // ── 1. Registra serviços nas OSs (se for OC de manutenção) ────────
+    if (oc.tipoDestino === 'manutencao_equipamento') {
+      const servicosPorOS = new Map<string, { total: number; itens: ItemOrdemCompra[] }>();
+      for (const it of oc.itens) {
+        const tipo = it.tipo ?? 'material';
+        if (tipo === 'servico' && it.osId) {
+          const atual = servicosPorOS.get(it.osId) ?? { total: 0, itens: [] };
+          atual.total += it.subtotal;
+          atual.itens.push(it);
+          servicosPorOS.set(it.osId, atual);
+        }
+      }
+
+      for (const [osId, info] of servicosPorOS.entries()) {
+        // Busca a OS atual no banco para ter o estado mais recente
+        const { data: osDb, error: osErr } = await supabase
+          .from('ordens_servico')
+          .select('*')
+          .eq('id', osId)
+          .is('deleted_at', null)
+          .maybeSingle();
+        if (osErr || !osDb) {
+          showToast({
+            kind: 'error',
+            message: `OS vinculada não encontrada (id=${osId}). Aprovação interrompida.`,
+          });
+          return;
+        }
+        const os: OrdemServico = dbToOrdemServico(osDb);
+
+        // Idempotência: se a OC já foi registrada antes, pula
+        const tag = `[OC ${oc.numero}]`;
+        if (os.observacoes.includes(tag)) continue;
+
+        const linhaServicos = info.itens
+          .map((it) => `  • ${it.descricao} — ${it.quantidade} ${it.unidade} × R$ ${it.precoUnitario.toFixed(2)} = R$ ${it.subtotal.toFixed(2)}`)
+          .join('\n');
+        const novaObs = [
+          os.observacoes.trim(),
+          `${tag} Serviços registrados via aprovação da OC em ${agora.slice(0, 10)} por ${nomeUsuario}:`,
+          linhaServicos,
+        ].filter(Boolean).join('\n');
+
+        const osAtualizada: OrdemServico = {
+          ...os,
+          custoServicoTerceiro: (os.custoServicoTerceiro || 0) + info.total,
+          observacoes: novaObs,
+          updatedAt: agora,
+          updatedBy: nomeUsuario,
+        };
+        await atualizarOSMut.mutateAsync(osAtualizada);
+      }
+    }
+
+    // ── 2. Marca OC como aprovada ─────────────────────────────────────
     const aprovada: OrdemCompra = {
       ...oc,
       aprovada: true,
@@ -499,11 +587,15 @@ export default function Compras() {
       mensagem: `${nomeUsuario} aprovou a OC. Lançamento financeiro pendente.`,
       link: `/compras?tab=ordens&id=${oc.id}`,
     });
-    showToast({ kind: 'success', message: `OC ${oc.numero} aprovada. Aguardando lançamento financeiro.` });
+
+    const msgExtra = oc.tipoDestino === 'manutencao_equipamento'
+      && oc.itens.some((it) => (it.tipo ?? 'material') === 'servico' && it.osId)
+      ? ' Serviços registrados nas OSs.' : '';
+    showToast({ kind: 'success', message: `OC ${oc.numero} aprovada. Aguardando lançamento financeiro.${msgExtra}` });
     // Fecha o modal se estava aberto
     setOcModalOpen(false);
     setEditandoOC(null);
-  }, [atualizarOCMut, usuario, showToast]);
+  }, [atualizarOCMut, atualizarOSMut, usuario, showToast]);
 
   // Gerar lançamento financeiro — placeholder até módulo Financeiro existir
   const handleConfirmarLancamento = useCallback(async (oc: OrdemCompra, observacao: string) => {
@@ -928,6 +1020,9 @@ export default function Compras() {
           fornecedores={fornecedores}
           insumos={insumos}
           equipamentos={equipamentos}
+          // Temporariamente exibe só EMT Construtora no combobox "Faturar para".
+          // Para liberar todas as empresas cadastradas, basta trocar por `empresas`.
+          empresas={empresasFaturamento}
           depositosMaterial={depositosMaterial}
           tanquesCombustivel={depositosCombustivel}
           proximoNumero={proxOC}

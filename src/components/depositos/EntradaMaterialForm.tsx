@@ -8,7 +8,7 @@
  * contexto do modal de detalhe).
  */
 import { useCallback, useMemo, useState } from 'react';
-import { Package, AlertCircle, Calendar } from 'lucide-react';
+import { Package, AlertCircle, Calendar, ShieldAlert } from 'lucide-react';
 import type {
   DepositoMaterial, EntradaMaterial, Insumo, Fornecedor,
 } from '../../types';
@@ -77,7 +77,9 @@ export default function EntradaMaterialForm({
     else if (ultimoEdit === 'total' && v > 0) setValorUnitario(valorTotal / v);
   };
 
-  const podeSalvar = !!insumoId && quantidade > 0;
+  const obsTrim = observacoes.trim();
+  const obsValida = obsTrim.length >= 10;
+  const podeSalvar = !!insumoId && quantidade > 0 && obsValida;
 
   const handleSubmit = useCallback(
     async (e: React.FormEvent) => {
@@ -85,6 +87,10 @@ export default function EntradaMaterialForm({
       setErro(null);
       if (!insumoId) { setErro('Selecione um insumo.'); return; }
       if (quantidade <= 0) { setErro('Quantidade precisa ser maior que zero.'); return; }
+      if (!obsValida) {
+        setErro('Justificativa obrigatória — explique o motivo desta entrada avulsa (mín. 10 chars).');
+        return;
+      }
       setSubmitting(true);
       try {
         const entrada: EntradaMaterial = {
@@ -112,12 +118,25 @@ export default function EntradaMaterialForm({
         setSubmitting(false);
       }
     },
-    [insumoId, quantidade, dataHora, deposito, valorUnitario, valorTotal,
+    [insumoId, quantidade, obsValida, dataHora, deposito, valorUnitario, valorTotal,
      fornecedorId, notaFiscal, observacoes, usuario, insumoSelecionado, onSubmit, showToast]
   );
 
   return (
     <form onSubmit={handleSubmit} className="space-y-5">
+      {/* Aviso de seriedade — entrada avulsa é exceção, não regra */}
+      <div className="flex items-start gap-3 px-4 py-3 rounded-xl border border-amber-300 bg-amber-50 dark:bg-amber-950/30 text-sm text-amber-900 dark:text-amber-200">
+        <ShieldAlert className="w-5 h-5 mt-0.5 shrink-0" />
+        <div>
+          <div className="font-semibold">Entrada avulsa (sem Ordem de Compra)</div>
+          <div className="text-xs mt-0.5 opacity-90">
+            Esta operação é <strong>rara e auditada</strong>. Use somente quando não há OC correspondente
+            (ex.: doação, devolução, ajuste de inventário). Preencha a justificativa nas observações —
+            ela ficará registrada permanentemente no histórico do depósito.
+          </div>
+        </div>
+      </div>
+
       {/* Info do depósito */}
       <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-[var(--color-surface-2)] border border-[var(--color-border)] text-sm">
         <Package className="w-4 h-4 text-[var(--color-fg-muted)]" />
@@ -229,14 +248,24 @@ export default function EntradaMaterialForm({
       </div>
 
       <div>
-        <Label>Observações</Label>
+        <Label>Justificativa da entrada avulsa <span className="text-rose-500">*</span></Label>
         <textarea
           value={observacoes}
           onChange={(e) => setObservacoes(e.target.value)}
-          rows={2}
-          placeholder="Ex.: chegada de pedido OC-2026-0042"
-          className="w-full rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-1)] px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]/40 focus:border-[var(--color-accent)] resize-y"
+          rows={3}
+          placeholder="Ex.: Doação do fornecedor X · Devolução de OC anterior · Ajuste de inventário do dia 15/05"
+          className={
+            'w-full rounded-lg border bg-[var(--color-surface-1)] px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]/40 resize-y ' +
+            (obsValida || obsTrim.length === 0
+              ? 'border-[var(--color-border)] focus:border-[var(--color-accent)]'
+              : 'border-amber-400 focus:border-amber-500')
+          }
         />
+        <p className={'text-[11px] mt-1 ' + (obsValida ? 'text-emerald-700' : 'text-[var(--color-fg-muted)]')}>
+          {obsValida
+            ? `✓ Justificativa OK (${obsTrim.length} chars)`
+            : `Mínimo 10 caracteres — descreva claramente o motivo (${obsTrim.length}/10)`}
+        </p>
       </div>
 
       {erro && (

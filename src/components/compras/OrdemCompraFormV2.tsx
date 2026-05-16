@@ -18,10 +18,12 @@
  * Os campos extras aparecem/somem dinamicamente conforme o destino escolhido.
  * Itens incompatíveis com o destino são bloqueados na validação.
  */
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import {
   Trash2, Plus, AlertCircle, Calendar, FileText, Truck, Banknote, FileDown,
   CheckCircle2, ShoppingCart, Building2, Warehouse, Briefcase, Wrench, Fuel,
+  PackagePlus, ClipboardPlus,
 } from 'lucide-react';
 import type {
   OrdemCompra,
@@ -29,24 +31,32 @@ import type {
   Obra,
   EtapaObra,
   Equipamento,
+  Empresa,
   Fornecedor,
   Insumo,
   TipoItemCompra,
   TipoDestinoOC,
   DepositoMaterial,
   Deposito,
+  OrdemServico,
 } from '../../types';
 import Button from '../ui/Button';
 import Input from '../ui/Input';
+import FilterCombobox from '../ui/FilterCombobox';
 import { useToast } from '../ui/Toast';
 import { useAuth } from '../../contexts/AuthContext';
 import {
   REGRAS_DESTINO,
   validarOrdemCompra,
   validarItemNoDestino,
-  buscarInsumosSimilares,
+  insumoCabeNoDestino,
 } from '../../utils/comprasValidator';
 import { gerarPdfOrdemCompra } from '../../utils/comprasPdf';
+import { useOrdensServico } from '../../hooks/useOrdensServico';
+import PecaFormModal from '../manutencao/almoxarifado/PecaFormModal';
+import NovaOSModal from '../manutencao/os/NovaOSModal';
+import InsumoQuickModal from './InsumoQuickModal';
+import { useCategoriasMaterial } from '../../hooks/useCategoriasMaterial';
 
 interface Props {
   initial: OrdemCompra | null;
@@ -58,6 +68,8 @@ interface Props {
   depositosMaterial: DepositoMaterial[];
   /** Tanques de combustível — aparecem juntos com depósitos de material no select de destino */
   tanquesCombustivel?: Deposito[];
+  /** Empresas cadastradas — usadas no combobox "Faturar para" */
+  empresas?: Empresa[];
   proximoNumero: string;
   onSubmit: (oc: OrdemCompra) => Promise<void>;
   onCancel: () => void;
@@ -69,12 +81,12 @@ interface Props {
 }
 
 const DESTINOS: { value: TipoDestinoOC; label: string; Icon: typeof Building2; sub: string }[] = [
-  { value: 'obra_etapa',             label: 'Obra (etapa específica)', Icon: Building2, sub: 'Material + Serviço' },
-  { value: 'obra_deposito',          label: 'Obra (depósito)',         Icon: Warehouse, sub: 'Apenas material' },
-  { value: 'deposito_central',       label: 'Depósito Central',        Icon: Warehouse, sub: 'Apenas material' },
-  { value: 'sede',                   label: 'Sede da empresa',         Icon: Briefcase, sub: 'Material + Serviço' },
-  { value: 'manutencao_equipamento', label: 'Manutenção de equipamento', Icon: Wrench,  sub: 'Vai pro almoxarifado · destinado depois via OS' },
-  { value: 'tanque_combustivel',     label: 'Tanque de combustível',   Icon: Fuel,      sub: 'Distribuição por obra é feita na saída' },
+  { value: 'obra_etapa',             label: 'Obra (etapa específica)', Icon: Building2, sub: 'Material + Serviço (vai pra etapa)' },
+  { value: 'obra_deposito',          label: 'Obra (depósito)',         Icon: Warehouse, sub: 'Só material — sem combustível' },
+  { value: 'deposito_central',       label: 'Depósito Central',        Icon: Warehouse, sub: 'Só material — sem combustível' },
+  { value: 'sede',                   label: 'Sede da empresa',         Icon: Briefcase, sub: 'Só material' },
+  { value: 'manutencao_equipamento', label: 'Manutenção de equipamento', Icon: Wrench,  sub: 'Peça do almoxarifado · serviço pra OS' },
+  { value: 'tanque_combustivel',     label: 'Tanque de combustível',   Icon: Fuel,      sub: 'Só combustível — distribuição na saída' },
 ];
 
 function genId() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
@@ -96,7 +108,7 @@ function novoItem(): ItemOrdemCompra {
 
 export default function OrdemCompraFormV2({
   initial, obras, etapas, fornecedores, insumos, equipamentos, depositosMaterial,
-  tanquesCombustivel = [],
+  tanquesCombustivel = [], empresas = [],
   proximoNumero, onSubmit, onCancel, onCreateFornecedor, onAprovar, onGerarLancamento,
 }: Props) {
   const { temAcao, usuario } = useAuth();
@@ -133,6 +145,44 @@ export default function OrdemCompraFormV2({
   const [aprovando, setAprovando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
 
+  // ── Modais de cadastro rápido ─────────────────────────────────────────
+  // O id guarda o item que disparou o modal — usado pra vincular o
+  // insumo/OS criado de volta naquela linha. null = modal fechado.
+  // - pecaModalItemId: cadastro de PEÇA (usadoEmManutencao=true) — destino manutenção
+  // - insumoModalItemId: cadastro de MATERIAL genérico — qualquer outro destino
+  // - osModalItemId: cadastro de Ordem de Serviço — destino manutenção, item serviço
+  const [pecaModalItemId, setPecaModalItemId] = useState<string | null>(null);
+  const [insumoModalItemId, setInsumoModalItemId] = useState<string | null>(null);
+  const [insumoModalNomeInicial, setInsumoModalNomeInicial] = useState('');
+  const [osModalItemId, setOsModalItemId] = useState<string | null>(null);
+
+  // Categorias de material para o modal de cadastro rápido
+  const { data: categoriasMaterial = [] } = useCategoriasMaterial();
+  const categoriasOptions = useMemo(
+    () => categoriasMaterial
+      .filter((c) => c.ativo)
+      .map((c) => ({ value: c.valor, label: c.nome })),
+    [categoriasMaterial]
+  );
+
+  // OSs abertas (pra vincular serviços de manutenção a uma OS específica).
+  // Carrega só quando destino = manutencao_equipamento pra evitar requests
+  // desnecessários nos outros fluxos.
+  const ehDestinoManutencao = tipoDestino === 'manutencao_equipamento';
+  const { data: osList = [] } = useOrdensServico({
+    status: ehDestinoManutencao
+      ? ['rascunho', 'aberta', 'aguardando_pecas', 'em_execucao', 'aguardando_aprovacao']
+      : 'todas',
+  });
+  // Filtra OSs pelo equipamento caso já tenha sido escolhido (não obrigatório),
+  // mas sempre lista todas se nenhum equipamento foi pré-fixado.
+  const osDisponiveis = useMemo(
+    () => osList.filter((os) =>
+      ['rascunho', 'aberta', 'aguardando_pecas', 'em_execucao', 'aguardando_aprovacao'].includes(os.status)
+    ),
+    [osList]
+  );
+
   // ── Cálculos ───────────────────────────────────────────────────────────
   const totalMateriais = useMemo(
     () => itens.reduce((sum, it) => sum + (it.precoUnitario * it.quantidade), 0),
@@ -151,6 +201,31 @@ export default function OrdemCompraFormV2({
     [etapas, obraId]
   );
 
+  // Em destino manutenção, a exigência de almoxarifado é dinâmica:
+  // só aparece se houver pelo menos uma peça (material) na OC.
+  // Serviços vão direto pra OS — não estocam.
+  const temPecasManutencao = useMemo(
+    () => tipoDestino === 'manutencao_equipamento'
+      && itens.some((it) => (it.tipo ?? 'material') === 'material'),
+    [tipoDestino, itens]
+  );
+  const mostrarSelectDeposito = (regra?.exigeDeposito ?? false)
+    || (tipoDestino === 'manutencao_equipamento' && temPecasManutencao);
+
+  // Quando destino = tanque e o tanque escolhido já tem combustível
+  // corrente (combustivelAtualId), a OC só pode trazer ESSE combustível.
+  // Calculamos aqui e propagamos para ItemOCRow filtrar o autocomplete.
+  const tanqueSelecionado = useMemo(
+    () => tipoDestino === 'tanque_combustivel' && depositoDestinoId
+      ? tanquesCombustivel.find((t) => t.id === depositoDestinoId)
+      : undefined,
+    [tipoDestino, depositoDestinoId, tanquesCombustivel]
+  );
+  const combustivelObrigatorioId = tanqueSelecionado?.combustivelAtualId ?? null;
+  const combustivelObrigatorio = combustivelObrigatorioId
+    ? insumos.find((i) => i.id === combustivelObrigatorioId)
+    : undefined;
+
   // ── Item helpers ───────────────────────────────────────────────────────
   const adicionarItem = useCallback(() => setItens((prev) => [...prev, novoItem()]), []);
   const atualizarItem = useCallback((id: string, patch: Partial<ItemOrdemCompra>) => {
@@ -165,14 +240,17 @@ export default function OrdemCompraFormV2({
     setItens((prev) => prev.filter((it) => it.id !== id));
   }, []);
 
-  // Quando muda destino, limpa campos extras inválidos
+  // Quando muda destino, limpa campos extras inválidos.
+  // Atenção: em destino manutenção o depósito é DINÂMICO (só exigido se
+  // houver peças). Por isso a limpeza usa mostrarSelectDeposito ao invés
+  // de regra.exigeDeposito.
   useEffect(() => {
     if (!regra) return;
     if (!regra.exigeObra && obraId) setObraId('');
     if (!regra.exigeEtapa && etapaObraId) setEtapaObraId('');
-    if (!regra.exigeDeposito && depositoDestinoId) setDepositoDestinoId('');
+    if (!mostrarSelectDeposito && depositoDestinoId) setDepositoDestinoId('');
     if (!regra.exigeEquipamento && equipamentoId) setEquipamentoId('');
-  }, [regra, obraId, etapaObraId, depositoDestinoId, equipamentoId]);
+  }, [regra, mostrarSelectDeposito, obraId, etapaObraId, depositoDestinoId, equipamentoId]);
 
   // ── Construir OC ───────────────────────────────────────────────────────
   const construirOC = useCallback((overrides: Partial<OrdemCompra> = {}): OrdemCompra => ({
@@ -226,7 +304,7 @@ export default function OrdemCompraFormV2({
     e.preventDefault();
     setErro(null);
     const oc = construirOC();
-    const v = validarOrdemCompra(oc);
+    const v = validarOrdemCompra(oc, insumos, tanquesCombustivel);
     if (!v.ok) {
       setErro(v.erro);
       showToast({ kind: 'error', message: v.erro });
@@ -240,12 +318,12 @@ export default function OrdemCompraFormV2({
     } finally {
       setSubmitting(false);
     }
-  }, [construirOC, onSubmit, showToast]);
+  }, [construirOC, onSubmit, showToast, insumos, tanquesCombustivel]);
 
   const handleAprovar = async () => {
     if (!onAprovar) return;
     const oc = construirOC();
-    const v = validarOrdemCompra(oc);
+    const v = validarOrdemCompra(oc, insumos, tanquesCombustivel);
     if (!v.ok) {
       setErro(v.erro);
       showToast({ kind: 'error', message: v.erro });
@@ -341,7 +419,19 @@ export default function OrdemCompraFormV2({
         </div>
         <div>
           <Label>Faturar para (empresa)</Label>
-          <Input value={empresaFaturamento} onChange={(e) => setEmpresaFaturamento(e.target.value)} placeholder="EMT Construtora" />
+          <FilterCombobox
+            value={empresaFaturamento}
+            onChange={setEmpresaFaturamento}
+            options={empresas
+              .filter((e) => e.ativo !== false)
+              .map((e) => ({
+                value: e.nome,
+                label: e.cnpj ? `${e.nome} — ${e.cnpj}` : e.nome,
+              }))
+              .sort((a, b) => a.label.localeCompare(b.label, 'pt-BR'))
+            }
+            placeholder={empresas.length === 0 ? 'Nenhuma empresa cadastrada' : '— selecione a empresa —'}
+          />
         </div>
       </header>
 
@@ -370,6 +460,17 @@ export default function OrdemCompraFormV2({
             );
           })}
         </div>
+
+        {/* Banner explicativo para destino manutenção (regras complexas) */}
+        {ehDestinoManutencao && (
+          <div className="mt-3 px-3.5 py-2.5 rounded-lg border border-amber-200 bg-amber-50/70 dark:bg-amber-950/30 text-[12px] text-amber-900 dark:text-amber-200 leading-relaxed">
+            <strong className="font-semibold">Como funciona OC de manutenção:</strong>{' '}
+            <span className="opacity-90">
+              <em>Peças</em> precisam estar cadastradas no almoxarifado (vínculo obrigatório) e entram no estoque do almoxarifado escolhido.{' '}
+              <em>Serviços</em> não estocam — cada um precisa estar vinculado a uma <strong>Ordem de Serviço</strong> de equipamento. Ao aprovar a OC, os serviços são <strong>registrados automaticamente</strong> nas OSs vinculadas.
+            </span>
+          </div>
+        )}
 
         {/* Campos extras dinâmicos por destino */}
         {regra && (
@@ -403,7 +504,7 @@ export default function OrdemCompraFormV2({
                 </select>
               </div>
             )}
-            {regra.exigeDeposito && (() => {
+            {mostrarSelectDeposito && (() => {
               const ehTanque = tipoDestino === 'tanque_combustivel';
               const ehManutencao = tipoDestino === 'manutencao_equipamento';
               const labelDep = ehTanque ? 'Tanque destino'
@@ -420,7 +521,9 @@ export default function OrdemCompraFormV2({
               const tanquesAtivos = tanquesCombustivel.filter((t) => t.ativo);
 
               const hint = ehTanque
-                ? 'Combustível fica no tanque até ser usado nos equipamentos (saídas)'
+                ? (combustivelObrigatorio
+                    ? `Tanque atualmente com ${combustivelObrigatorio.nome} — só ele pode entrar. Esvazie-o para trocar de combustível.`
+                    : 'Combustível fica no tanque até ser usado nos equipamentos (saídas)')
                 : ehManutencao
                   ? 'Peça vai pro almoxarifado e depois é alocada a uma OS de equipamento específico'
                   : 'Materiais vão pra esse depósito até serem alocados';
@@ -438,12 +541,18 @@ export default function OrdemCompraFormV2({
                     {ehTanque ? (
                       tanquesAtivos.length === 0
                         ? <option disabled>Nenhum tanque cadastrado</option>
-                        : tanquesAtivos.map((t) => (
-                            <option key={t.id} value={t.id}>
-                              ⛽ {t.apelido || t.nome}
-                              {t.capacidadeLitros ? ` (${Math.round(t.nivelAtualLitros || 0)}/${Math.round(t.capacidadeLitros)} L)` : ''}
-                            </option>
-                          ))
+                        : tanquesAtivos.map((t) => {
+                            const combAtual = t.combustivelAtualId
+                              ? insumos.find((i) => i.id === t.combustivelAtualId)
+                              : undefined;
+                            return (
+                              <option key={t.id} value={t.id}>
+                                ⛽ {t.apelido || t.nome}
+                                {t.capacidadeLitros ? ` (${Math.round(t.nivelAtualLitros || 0)}/${Math.round(t.capacidadeLitros)} L)` : ''}
+                                {combAtual ? ` — ${combAtual.nome}` : ' — vazio'}
+                              </option>
+                            );
+                          })
                     ) : (
                       depositosFiltrados.length === 0
                         ? <option disabled>
@@ -515,8 +624,18 @@ export default function OrdemCompraFormV2({
                     item={item}
                     insumos={insumos}
                     destino={tipoDestino || undefined}
+                    osDisponiveis={osDisponiveis}
+                    equipamentos={equipamentos}
+                    combustivelObrigatorioId={combustivelObrigatorioId}
+                    combustivelObrigatorioNome={combustivelObrigatorio?.nome}
                     onChange={(patch) => atualizarItem(item.id, patch)}
                     onRemove={() => removerItem(item.id)}
+                    onAbrirCadastroPeca={() => setPecaModalItemId(item.id)}
+                    onAbrirCadastroMaterial={() => {
+                      setInsumoModalNomeInicial(item.descricao);
+                      setInsumoModalItemId(item.id);
+                    }}
+                    onAbrirNovaOS={() => setOsModalItemId(item.id)}
                   />
                 ))}
               </tbody>
@@ -613,6 +732,47 @@ export default function OrdemCompraFormV2({
 
       {/* Hint sobre Truck pra evitar warning de import não utilizado */}
       <span className="hidden"><Truck /></span>
+
+      {/* ── Modal: Cadastro rápido de peça ─────────────────────────────
+          Quando o usuário clica em "+ Cadastrar peça" numa linha de item
+          de manutenção e a peça não existe no almoxarifado. Após salvar,
+          o React Query invalida a lista de insumos e a peça aparece no
+          autocomplete — basta o usuário selecionar de novo. */}
+      <PecaFormModal
+        open={pecaModalItemId !== null}
+        onClose={() => setPecaModalItemId(null)}
+      />
+
+      {/* ── Modal: Cadastro rápido de material genérico ────────────────
+          Para qualquer destino que não seja manutenção. Vincula
+          automaticamente o item à linha que disparou o cadastro. Em
+          destino "tanque de combustível", o insumo é criado já com
+          tipo=combustivel. */}
+      <InsumoQuickModal
+        open={insumoModalItemId !== null}
+        onClose={() => { setInsumoModalItemId(null); setInsumoModalNomeInicial(''); }}
+        nomeInicial={insumoModalNomeInicial}
+        categorias={categoriasOptions}
+        tipoInsumo={tipoDestino === 'tanque_combustivel' ? 'combustivel' : 'material'}
+        onCriado={(novoInsumo) => {
+          if (!insumoModalItemId) return;
+          atualizarItem(insumoModalItemId, {
+            descricao: novoInsumo.nome,
+            unidade: novoInsumo.unidade,
+            insumoId: novoInsumo.id,
+          });
+        }}
+      />
+
+      {/* ── Modal: Nova OS rápida ──────────────────────────────────────
+          Para itens do tipo serviço em destino manutenção. Após salvar
+          a OS, ela aparece no select de "OS vinculada" daquela linha. */}
+      <NovaOSModal
+        open={osModalItemId !== null}
+        onClose={() => setOsModalItemId(null)}
+        equipamentos={equipamentos}
+        equipamentoIdInicial={equipamentoId || undefined}
+      />
     </form>
   );
 }
@@ -668,74 +828,368 @@ function ResumoLinha({ label, valor, bold }: { label: string; valor: number; bol
 }
 
 function ItemOCRow({
-  item, insumos, destino, onChange, onRemove,
+  item, insumos, destino, osDisponiveis, equipamentos,
+  combustivelObrigatorioId, combustivelObrigatorioNome,
+  onChange, onRemove, onAbrirCadastroPeca, onAbrirCadastroMaterial, onAbrirNovaOS,
 }: {
   item: ItemOrdemCompra;
   insumos: Insumo[];
   destino?: TipoDestinoOC;
+  osDisponiveis: OrdemServico[];
+  equipamentos: Equipamento[];
+  /** Quando destino=tanque e o tanque já tem combustível corrente, esse
+   *  id força o autocomplete a mostrar SÓ esse insumo. null = qualquer. */
+  combustivelObrigatorioId: string | null;
+  combustivelObrigatorioNome?: string;
   onChange: (patch: Partial<ItemOrdemCompra>) => void;
   onRemove: () => void;
+  onAbrirCadastroPeca: () => void;
+  onAbrirCadastroMaterial: () => void;
+  onAbrirNovaOS: () => void;
 }) {
   const [aberto, setAberto] = useState(false);
+  const ehManutencao = destino === 'manutencao_equipamento';
+  const tipo = item.tipo ?? 'material';
+
+  // Ref do input para calcular a posição do dropdown (renderizado via
+  // portal pra não ser cortado por overflow-hidden da tabela ou do modal).
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [posicaoDropdown, setPosicaoDropdown] = useState<{ top: number; left: number; width: number } | null>(null);
+
+  useLayoutEffect(() => {
+    if (!aberto || !inputRef.current) return;
+    const recalcular = () => {
+      const el = inputRef.current;
+      if (!el) return;
+      const r = el.getBoundingClientRect();
+      setPosicaoDropdown({ top: r.bottom + 4, left: r.left, width: r.width });
+    };
+    recalcular();
+    // Recalcula em scroll/resize do modal pra acompanhar o input
+    window.addEventListener('resize', recalcular);
+    window.addEventListener('scroll', recalcular, true);
+    return () => {
+      window.removeEventListener('resize', recalcular);
+      window.removeEventListener('scroll', recalcular, true);
+    };
+  }, [aberto]);
+
+  // Filtragem do catálogo conforme destino — as regras vivem em
+  // comprasValidator.ts (insumoCabeNoDestino) para garantir que a UI e a
+  // validação estão sempre alinhadas:
+  //
+  //   tanque_combustivel        → só insumos tipo=combustivel
+  //                                + (se tanque tem combustivel atual)
+  //                                  SÓ o combustivel atual do tanque
+  //   manutencao_equipamento    → só peças usadoEmManutencao=true (sem combustível)
+  //   demais destinos           → qualquer insumo EXCETO combustível
+  //                                (combustível sempre vai pra tanque)
+  const insumosFiltrados = useMemo(() => {
+    if (tipo !== 'material') return insumos;
+    if (ehManutencao) {
+      return insumos.filter((i) => i.usadoEmManutencao && i.ativo !== false);
+    }
+    if (!destino) return insumos.filter((i) => i.ativo !== false);
+    // Tanque com combustível corrente: só o combustível atual aparece.
+    if (destino === 'tanque_combustivel' && combustivelObrigatorioId) {
+      return insumos.filter((i) => i.id === combustivelObrigatorioId);
+    }
+    return insumos.filter((i) =>
+      i.ativo !== false
+      && insumoCabeNoDestino(i.tipo, destino)
+      // Em destinos não-manutenção, NÃO mostra peças do almoxarifado
+      // de manutenção (essas só fazem sentido em OC de manutenção).
+      && !i.usadoEmManutencao
+    );
+  }, [insumos, ehManutencao, tipo, destino, combustivelObrigatorioId]);
+
+  // Busca para o autocomplete da linha.
+  //  - Vazio + tipo material: mostra TODOS os materiais cadastrados (até 15).
+  //  - Vazio + tipo serviço: nada (serviço é descrição livre).
+  //  - Com texto: substring match (normalizado, sem acento, case-insensitive)
+  //    sobre nome, SKU e fabricante.
   const sugestoes = useMemo(() => {
-    if (item.descricao.trim().length < 2) return [];
-    return buscarInsumosSimilares(item.descricao, insumos, 4);
-  }, [item.descricao, insumos]);
+    const termoRaw = item.descricao.trim();
+    if (termoRaw.length === 0) {
+      if (tipo === 'material') {
+        return insumosFiltrados.slice(0, 15);
+      }
+      return [];
+    }
+    const termo = termoRaw
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[̀-ͯ]/g, '');
+    const norm = (s: string) =>
+      (s ?? '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+    return insumosFiltrados
+      .filter((i) =>
+        norm(i.nome).includes(termo)
+        || norm(i.codigoSku ?? '').includes(termo)
+        || norm(i.fabricante ?? '').includes(termo)
+      )
+      .slice(0, 15);
+  }, [item.descricao, insumosFiltrados, tipo]);
 
   // Validação visual: se item incompatível com destino, mostra hint
   const incompatibilidade = destino ? validarItemNoDestino(item, destino) : { ok: true };
-  const tipo = item.tipo ?? 'material';
+
+  // Regras visuais por tipo de item
+  //  - exigeInsumoPeca: PEÇA em destino manutenção (catálogo restrito a usadoEmManutencao=true)
+  //  - exigeInsumoMaterial: MATERIAL em qualquer destino que NÃO seja manutenção
+  //  - exigeOSServico: SERVIÇO em destino manutenção (vincula a uma OS)
+  const exigeInsumoPeca = ehManutencao && tipo === 'material';
+  const exigeInsumoMaterial = !ehManutencao && tipo === 'material';
+  const exigeQualquerInsumo = exigeInsumoPeca || exigeInsumoMaterial;
+  const exigeOSServico = ehManutencao && tipo === 'servico';
+  const pecaNaoVinculada = exigeInsumoPeca && !item.insumoId;
+  const materialNaoVinculado = exigeInsumoMaterial && !item.insumoId;
+  const servicoSemOS = exigeOSServico && !item.osId;
+  const temAlertaManutencao = pecaNaoVinculada || materialNaoVinculado || servicoSemOS;
+
+  const osSelecionada = item.osId ? osDisponiveis.find((o) => o.id === item.osId) : undefined;
+  const equipamentoDaOS = osSelecionada
+    ? equipamentos.find((eq) => eq.id === osSelecionada.equipamentoId)
+    : undefined;
 
   return (
-    <tr className={'hover:bg-[var(--color-surface-2)]/40 transition-colors ' + (!incompatibilidade.ok ? 'bg-rose-50/40 dark:bg-rose-950/20' : '')}>
+    <tr className={
+      'hover:bg-[var(--color-surface-2)]/40 transition-colors ' +
+      (!incompatibilidade.ok || temAlertaManutencao ? 'bg-amber-50/40 dark:bg-amber-950/20' : '')
+    }>
       <td className="px-3 py-2 align-top relative">
         <input
+          ref={inputRef}
           type="text"
           value={item.descricao}
-          onChange={(e) => { onChange({ descricao: e.target.value }); setAberto(true); }}
+          onChange={(e) => {
+            // Editar manualmente quebra o vínculo com o cadastro
+            // (evita salvar um material com texto desalinhado do cadastro).
+            const desvinculaInsumo = exigeQualquerInsumo && item.insumoId
+              ? { insumoId: undefined } : {};
+            onChange({ descricao: e.target.value, ...desvinculaInsumo });
+            setAberto(true);
+          }}
           onFocus={() => setAberto(true)}
-          onBlur={() => setTimeout(() => setAberto(false), 150)}
-          placeholder="Buscar ou digitar…"
+          onBlur={() => setTimeout(() => setAberto(false), 200)}
+          placeholder={
+            exigeInsumoPeca ? 'Buscar peça cadastrada no almoxarifado…'
+              : exigeInsumoMaterial ? 'Buscar material cadastrado…'
+              : 'Buscar ou digitar…'
+          }
           className="w-full px-2.5 py-1.5 text-sm rounded-md border border-transparent bg-transparent hover:bg-[var(--color-surface-2)] focus:outline-none focus:bg-[var(--color-surface-1)] focus:border-[var(--color-border-strong)]"
         />
+
+        {/* Vínculos visuais e botões de cadastro rápido (PEÇA = manutenção) */}
+        {exigeInsumoPeca && (
+          <div className="flex items-center gap-1.5 mt-0.5 ml-1.5 text-[11px]">
+            {item.insumoId ? (
+              <span className="inline-flex items-center gap-1 text-emerald-700 dark:text-emerald-300">
+                ✓ vinculado ao almoxarifado
+              </span>
+            ) : (
+              <span className="inline-flex items-center gap-1 text-amber-700 dark:text-amber-300">
+                ⚠ peça precisa estar cadastrada no almoxarifado
+              </span>
+            )}
+            <button
+              type="button"
+              onClick={onAbrirCadastroPeca}
+              className="ml-auto inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium bg-[var(--color-accent)]/10 text-[var(--color-accent)] hover:bg-[var(--color-accent)]/20 transition-colors"
+            >
+              <PackagePlus className="w-3 h-3" /> Cadastrar peça
+            </button>
+          </div>
+        )}
+
+        {/* Hint específico quando tanque está travado num combustível */}
+        {destino === 'tanque_combustivel' && combustivelObrigatorioId && (
+          <div className="mt-0.5 ml-1.5 text-[11px] text-amber-700 dark:text-amber-300">
+            🔒 Tanque já contém <strong>{combustivelObrigatorioNome || 'esse combustível'}</strong> —
+            só ele pode ser comprado pra este tanque. Esvazie-o para trocar.
+          </div>
+        )}
+
+        {/* Vínculos visuais e botões de cadastro rápido (MATERIAL = qualquer destino não-manutenção) */}
+        {exigeInsumoMaterial && (
+          <div className="flex items-center gap-1.5 mt-0.5 ml-1.5 text-[11px]">
+            {item.insumoId ? (
+              <span className="inline-flex items-center gap-1 text-emerald-700 dark:text-emerald-300">
+                ✓ {destino === 'tanque_combustivel' ? 'combustível' : 'material'} cadastrado
+              </span>
+            ) : (
+              <span className="inline-flex items-center gap-1 text-amber-700 dark:text-amber-300">
+                ⚠ {destino === 'tanque_combustivel' ? 'combustível' : 'material'} precisa estar cadastrado
+              </span>
+            )}
+            <button
+              type="button"
+              onClick={onAbrirCadastroMaterial}
+              className="ml-auto inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium bg-[var(--color-accent)]/10 text-[var(--color-accent)] hover:bg-[var(--color-accent)]/20 transition-colors"
+            >
+              <PackagePlus className="w-3 h-3" /> Cadastrar {destino === 'tanque_combustivel' ? 'combustível' : 'material'}
+            </button>
+          </div>
+        )}
+        {exigeOSServico && (
+          <div className="flex items-center gap-2 mt-1 ml-1.5 text-[11px]">
+            <span className="text-[var(--color-fg-subtle)] whitespace-nowrap">OS:</span>
+            <select
+              value={item.osId ?? ''}
+              onChange={(e) => onChange({ osId: e.target.value || undefined })}
+              className="flex-1 min-w-0 h-7 rounded border border-[var(--color-border)] bg-[var(--color-surface-1)] px-1.5 text-[11px] focus:outline-none focus:border-[var(--color-accent)]"
+            >
+              <option value="">— selecione a OS —</option>
+              {osDisponiveis.length === 0 && <option disabled>Nenhuma OS aberta</option>}
+              {osDisponiveis.map((os) => {
+                const eq = equipamentos.find((e) => e.id === os.equipamentoId);
+                const eqLabel = eq ? (eq.codigoPatrimonio || eq.modelo || eq.tipo) : '?';
+                return (
+                  <option key={os.id} value={os.id}>
+                    {os.numero} — {eqLabel}
+                  </option>
+                );
+              })}
+            </select>
+            <button
+              type="button"
+              onClick={onAbrirNovaOS}
+              className="shrink-0 inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium bg-[var(--color-accent)]/10 text-[var(--color-accent)] hover:bg-[var(--color-accent)]/20 transition-colors"
+            >
+              <ClipboardPlus className="w-3 h-3" /> Nova OS
+            </button>
+          </div>
+        )}
+        {osSelecionada && equipamentoDaOS && (
+          <div className="text-[10px] text-[var(--color-fg-subtle)] mt-0.5 ml-2">
+            Equipamento: {equipamentoDaOS.codigoPatrimonio ? `${equipamentoDaOS.codigoPatrimonio} — ` : ''}{equipamentoDaOS.modelo || equipamentoDaOS.tipo}
+          </div>
+        )}
+
         {!incompatibilidade.ok && 'erro' in incompatibilidade && (
           <div className="text-[11px] text-rose-700 mt-0.5 ml-2.5">
             ⚠ {incompatibilidade.erro}
           </div>
         )}
-        {aberto && sugestoes.length > 0 && (
-          <div className="absolute z-30 left-2 right-2 mt-1 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-1)] shadow-lg max-h-48 overflow-auto">
-            {sugestoes.map((s) => {
-              const ins = insumos.find((i) => i.id === s.id);
-              return (
-                <button
-                  key={s.id}
-                  type="button"
-                  onMouseDown={() => {
-                    onChange({
-                      descricao: s.nome,
-                      unidade: ins?.unidade ?? item.unidade,
-                      insumoId: s.id,
-                    });
-                    setAberto(false);
-                  }}
-                  className="w-full text-left px-3 py-1.5 text-sm hover:bg-[var(--color-surface-2)]"
-                >
-                  {s.nome}
-                </button>
-              );
-            })}
-          </div>
+        {/* Dropdown renderizado via portal direto no body, posicionado
+            em coordenadas fixed. Isso o tira de QUALQUER container com
+            overflow (tabela, modal) e garante que aparece na frente. */}
+        {aberto && posicaoDropdown && sugestoes.length > 0 && createPortal(
+          <div
+            style={{
+              position: 'fixed',
+              top: posicaoDropdown.top,
+              left: posicaoDropdown.left,
+              width: posicaoDropdown.width,
+              zIndex: 9999,
+            }}
+            className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-1)] shadow-2xl max-h-72 overflow-auto"
+            // Impede o blur do input antes do click registrar
+            onMouseDown={(e) => e.preventDefault()}
+          >
+            {tipo === 'material' && (
+              <div className="px-3 py-1.5 text-[10px] uppercase tracking-wide font-semibold text-[var(--color-fg-subtle)] border-b border-[var(--color-border)] bg-[var(--color-surface-2)] sticky top-0">
+                {destino === 'tanque_combustivel'
+                  ? (combustivelObrigatorioId
+                      ? `🔒 Travado no combustível atual do tanque`
+                      : `Combustíveis cadastrados · ${insumosFiltrados.length} no total`)
+                  : ehManutencao
+                    ? `Peças cadastradas no almoxarifado · ${insumosFiltrados.length} no total`
+                    : `Materiais cadastrados · ${insumosFiltrados.length} no total`}
+              </div>
+            )}
+            {sugestoes.map((ins) => (
+              <button
+                key={ins.id}
+                type="button"
+                onClick={() => {
+                  onChange({
+                    descricao: ins.nome,
+                    unidade: ins.unidade ?? item.unidade,
+                    insumoId: ins.id,
+                  });
+                  setAberto(false);
+                  inputRef.current?.blur();
+                }}
+                className="w-full text-left px-3 py-2 text-sm hover:bg-[var(--color-surface-2)] border-b border-[var(--color-border)]/50 last:border-b-0"
+              >
+                <div className="flex items-baseline justify-between gap-2">
+                  <span className="font-medium text-[var(--color-fg)] truncate">{ins.nome}</span>
+                  {ins.unidade && (
+                    <span className="shrink-0 inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-mono font-semibold bg-[var(--color-accent)]/10 text-[var(--color-accent)]">
+                      {ins.unidade}
+                    </span>
+                  )}
+                </div>
+                {(ins.codigoSku || ins.fabricante) && (
+                  <div className="text-[10px] text-[var(--color-fg-subtle)] mt-0.5">
+                    {ins.fabricante && <span>{ins.fabricante}</span>}
+                    {ins.codigoSku && <span>{ins.fabricante ? ' · ' : ''}SKU: {ins.codigoSku}</span>}
+                  </div>
+                )}
+              </button>
+            ))}
+          </div>,
+          document.body
+        )}
+        {aberto && posicaoDropdown && exigeQualquerInsumo && sugestoes.length === 0 && createPortal(
+          <div
+            style={{
+              position: 'fixed',
+              top: posicaoDropdown.top,
+              left: posicaoDropdown.left,
+              width: posicaoDropdown.width,
+              zIndex: 9999,
+            }}
+            className="rounded-lg border border-amber-300 bg-amber-50 dark:bg-amber-950/90 shadow-2xl p-3 text-[12px] text-amber-800 dark:text-amber-200"
+            onMouseDown={(e) => e.preventDefault()}
+          >
+            {insumosFiltrados.length === 0
+              ? (exigeInsumoPeca
+                  ? <>Nenhuma peça cadastrada no almoxarifado ainda.</>
+                  : <>Nenhum material cadastrado ainda.</>)
+              : (exigeInsumoPeca
+                  ? <>Nenhuma peça encontrada com &quot;{item.descricao}&quot;.</>
+                  : <>Nenhum material encontrado com &quot;{item.descricao}&quot;.</>)
+            }
+            <button
+              type="button"
+              onClick={() => {
+                setAberto(false);
+                if (exigeInsumoPeca) onAbrirCadastroPeca();
+                else onAbrirCadastroMaterial();
+              }}
+              className="ml-2 underline font-medium hover:text-amber-900"
+            >
+              {exigeInsumoPeca ? 'Cadastrar nova peça' : 'Cadastrar novo material'}
+            </button>
+          </div>,
+          document.body
         )}
       </td>
       <td className="px-3 py-2 align-top">
         <select
           value={tipo}
-          onChange={(e) => onChange({ tipo: e.target.value as TipoItemCompra })}
-          className="w-full px-2 py-1.5 text-sm rounded-md border border-transparent bg-transparent hover:bg-[var(--color-surface-2)] focus:outline-none focus:bg-[var(--color-surface-1)] focus:border-[var(--color-border-strong)]"
+          onChange={(e) => {
+            const novoTipo = e.target.value as TipoItemCompra;
+            // Limpa vínculos específicos ao mudar de tipo
+            // (insumoId pertence ao material/peça, osId pertence ao serviço).
+            onChange({ tipo: novoTipo, insumoId: undefined, osId: undefined });
+          }}
+          disabled={destino === 'tanque_combustivel'} // tanque só aceita combustível, não tem outra opção
+          className="w-full px-2 py-1.5 text-sm rounded-md border border-transparent bg-transparent hover:bg-[var(--color-surface-2)] focus:outline-none focus:bg-[var(--color-surface-1)] focus:border-[var(--color-border-strong)] disabled:opacity-70 disabled:cursor-not-allowed"
         >
-          <option value="material">Material</option>
-          <option value="servico">Serviço</option>
+          <option value="material">
+            {destino === 'tanque_combustivel' ? 'Combustível'
+              : ehManutencao ? 'Peça'
+              : 'Material'}
+          </option>
+          {/* Só mostra "Serviço" se o destino aceita. Mantém compatibilidade
+              com OCs antigas que possam ter tipo=serviço em destinos hoje
+              não aceitos — nesse caso a opção aparece. */}
+          {(destino === undefined || REGRAS_DESTINO[destino]?.aceitaServico || tipo === 'servico') && (
+            <option value="servico">Serviço</option>
+          )}
         </select>
       </td>
       <td className="px-3 py-2 align-top">

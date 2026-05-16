@@ -307,7 +307,7 @@ export const ACOES_PLATAFORMA: AcaoPlataforma[] = [
   { chave: 'editar_deposito', label: 'Editar depósito', grupo: 'Material' },
   { chave: 'excluir_deposito', label: 'Excluir depósito (lixeira)', grupo: 'Material' },
   { chave: 'ver_saldos', label: 'Ver saldos por depósito', grupo: 'Material' },
-  { chave: 'criar_entrada_material_avulsa', label: 'Lançar entrada avulsa de material', grupo: 'Material' },
+  { chave: 'criar_entrada_material_avulsa', label: 'Lançar entrada avulsa de material (sensível — sem OC)', grupo: 'Material' },
   { chave: 'criar_perda_material', label: 'Lançar perda de material', grupo: 'Material' },
   { chave: 'restaurar_lixeira_depositos', label: 'Restaurar itens da lixeira de Depósitos', grupo: 'Material' },
   { chave: 'excluir_permanente_depositos', label: 'Excluir permanentemente itens da lixeira de Depósitos', grupo: 'Material' },

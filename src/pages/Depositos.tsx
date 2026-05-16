@@ -49,7 +49,10 @@ export default function Depositos() {
   const podeEditar = temAcao('editar_deposito');
   const podeExcluir = temAcao('excluir_deposito');
   const podeLixeira = temAcao('restaurar_lixeira_depositos');
-  const podeEntrada = temAcao('criar_entrada_material_avulsa') || temAcao('criar_entrada_material');
+  // Entrada AVULSA é ação sensível — só quem tem a permissão específica
+  // `criar_entrada_material_avulsa` libera o botão. NÃO usar fallback com
+  // `criar_entrada_material` (essa é da entrada via OC, que tem rastro).
+  const podeEntrada = temAcao('criar_entrada_material_avulsa');
   const podeSaida = temAcao('criar_saida_material');
   const podeTransferencia = temAcao('criar_transferencia_material');
 
