@@ -258,11 +258,28 @@ export interface Fornecedor {
 export interface DepositoMaterial {
   id: string;
   nome: string;
+  /** @deprecated em v2 — agora é N:N via `obrasIds`. Mantido pra compatibilidade legada (1ª obra). */
   obraId: string;
   endereco: string;
   responsavel: string;
   ativo: boolean;
   criadoPor: string;
+  // Depósitos v2 — N:N com obras + auditoria + soft delete
+  /** Lista de obras vinculadas (vazia = depósito central/avulso) */
+  obrasIds?: string[];
+  criadoEm?: string;
+  atualizadoEm?: string;
+  atualizadoPor?: string;
+  deletadoEm?: string;
+  deletadoPor?: string;
+}
+
+export interface SaldoDepositoInsumo {
+  depositoId: string;
+  insumoId: string;
+  saldo: number;
+  valorTotalEntradas: number;
+  ultimaMovimentacao?: string;
 }
 
 export interface UnidadeMedida {
@@ -287,16 +304,30 @@ export interface EntradaMaterial {
   insumoId: string;
   obraId: string;
   quantidade: number;
+  /** Valor unitário (R$/unidade) — calculado ou informado */
+  valorUnitario?: number;
   valorTotal: number;
   fornecedorId: string;
   notaFiscal: string;
   observacoes: string;
   criadoPor: string;
+  // Depósitos v2
+  criadoEm?: string;
+  atualizadoEm?: string;
+  atualizadoPor?: string;
+  deletadoEm?: string;
+  deletadoPor?: string;
 }
+
+export type TipoSaidaMaterial = 'consumo' | 'perda';
+export type MotivoPerda = 'chuva' | 'quebra' | 'vencimento' | 'roubo' | 'outros';
 
 export interface AlocacaoEtapa {
   etapaId: string;
-  percentual: number;
+  /** v1 (legado) — usado em saídas antigas */
+  percentual?: number;
+  /** v2 — quantidade alocada por etapa (decisão 3-a) */
+  quantidade?: number;
 }
 
 export interface SaidaMaterial {
@@ -310,6 +341,14 @@ export interface SaidaMaterial {
   alocacoes: AlocacaoEtapa[];
   observacoes: string;
   criadoPor: string;
+  // Depósitos v2 — tipo de saída + motivo de perda
+  tipoSaida?: TipoSaidaMaterial;
+  motivoPerda?: MotivoPerda | string;
+  criadoEm?: string;
+  atualizadoEm?: string;
+  atualizadoPor?: string;
+  deletadoEm?: string;
+  deletadoPor?: string;
 }
 
 export interface TransferenciaMaterial {
@@ -322,6 +361,12 @@ export interface TransferenciaMaterial {
   valorTotal: number;
   observacoes: string;
   criadoPor: string;
+  // Depósitos v2
+  criadoEm?: string;
+  atualizadoEm?: string;
+  atualizadoPor?: string;
+  deletadoEm?: string;
+  deletadoPor?: string;
 }
 
 export interface FiltrosInsumos {
@@ -741,11 +786,14 @@ export interface Colaborador {
   criadoPor: string;
 }
 
-// === Módulo de Compras ===
+// === Módulo de Compras (v2 — premium SaaS) ===
 
 export type UrgenciaPedidoCompra = 'baixa' | 'normal' | 'alta' | 'critica';
-export type StatusPedidoCompra = 'pendente' | 'aprovado' | 'reprovado';
+export type StatusPedidoCompra =
+  | 'pendente' | 'aprovado' | 'reprovado'
+  | 'em_cotacao' | 'cotado' | 'comprado' | 'cancelado';
 export type CategoriaMaterialCompra = string;
+export type TipoItemCompra = 'material' | 'servico';
 
 export interface CategoriaMaterial {
   id: string;
@@ -762,6 +810,12 @@ export interface ItemPedidoCompra {
   categoria: CategoriaMaterialCompra;
   quantidade: number;
   unidade: UnidadeCompra;
+  /** material ou servico — default 'material' para compatibilidade */
+  tipo?: TipoItemCompra;
+  /** se já existe na base de Insumos, referência aqui (vazio = item livre) */
+  insumoId?: string;
+  /** flag transitória: solicitante marcou "salvar este item na base" */
+  criarNaBase?: boolean;
 }
 
 export interface PedidoCompra {
@@ -773,15 +827,32 @@ export interface PedidoCompra {
   urgencia: UrgenciaPedidoCompra;
   status: StatusPedidoCompra;
   observacoes: string;
+  /** texto livre opcional (modelo híbrido — pode ter itens E descrição) */
+  descricaoLivre?: string;
+  /** valor estimado opcional (preenchido por quem aprova quando pertinente) */
+  valorEstimado?: number;
   itens: ItemPedidoCompra[];
   criadoPor: string;
+  // Auditoria
+  aprovadoPor?: string;
+  aprovadoEm?: string;
+  reprovadoPor?: string;
+  reprovadoEm?: string;
+  motivoReprovacao?: string;
+  atualizadoEm?: string;
+  atualizadoPor?: string;
+  // Soft delete
+  deletadoEm?: string;
+  deletadoPor?: string;
 }
 
-export type StatusCotacao = 'em_cotacao' | 'parcial' | 'cotado';
+export type StatusCotacao = 'em_cotacao' | 'parcial' | 'cotado' | 'cancelada';
 
 export interface ItemPrecoCotacao {
   itemPedidoId: string;
   precoUnitario: number;
+  /** marca/modelo informada pelo fornecedor (preenchido via portal ou manual) */
+  marca?: string;
 }
 
 export interface CotacaoFornecedor {
@@ -802,14 +873,34 @@ export interface Cotacao {
   data: string;
   pedidoCompraId: string;
   prazoResposta: string;
+  /** mesma data, formato timestamptz — para alertas */
+  prazoRespostaAt?: string;
+  /** texto livre opcional (vem do pedido quando pedido é em texto livre) */
+  descricaoLivre?: string;
   status: StatusCotacao;
   fornecedores: CotacaoFornecedor[];
   itensPedido: ItemPedidoCompra[];
   observacoes: string;
   criadoPor: string;
+  // Auditoria
+  canceladaPor?: string;
+  canceladaEm?: string;
+  atualizadoEm?: string;
+  atualizadoPor?: string;
+  // Soft delete
+  deletadoEm?: string;
+  deletadoPor?: string;
 }
 
-export type StatusOrdemCompra = 'emitida' | 'entregue' | 'cancelada';
+export type StatusOrdemCompra = 'emitida' | 'aprovada' | 'entregue' | 'cancelada' | 'recebida';
+export type TipoDestinoOC =
+  | 'obra_etapa'
+  | 'obra_deposito'
+  | 'deposito_central'
+  | 'sede'
+  | 'manutencao_equipamento';
+export type StatusLancamentoFinanceiro =
+  | 'nao_aplicavel' | 'pendente' | 'lancada' | 'cancelada';
 
 export interface ItemOrdemCompra {
   id: string;
@@ -820,6 +911,12 @@ export interface ItemOrdemCompra {
   subtotal: number;
   obraId: string;
   etapaObraId: string;
+  /** material ou servico — default 'material' para compatibilidade */
+  tipo?: TipoItemCompra;
+  /** marca/modelo */
+  marca?: string;
+  /** ref ao insumo cadastrado (opcional) */
+  insumoId?: string;
 }
 
 export interface CustosAdicionaisOC {
@@ -860,6 +957,122 @@ export interface OrdemCompra {
   empresaFaturamento: string;
   aprovada: boolean;
   criadoPor: string;
+  // Destinos múltiplos
+  tipoDestino?: TipoDestinoOC;
+  equipamentoId?: string;
+  depositoDestinoId?: string;
+  // Auditoria
+  aprovadaPor?: string;
+  aprovadaEm?: string;
+  canceladaPor?: string;
+  canceladaEm?: string;
+  recebidaPor?: string;
+  recebidaEm?: string;
+  atualizadoEm?: string;
+  atualizadoPor?: string;
+  // Lançamento financeiro pendente (consumido pelo módulo Financeiro futuramente)
+  lancamentoFinanceiroStatus?: StatusLancamentoFinanceiro;
+  lancadoFinanceiroEm?: string;
+  lancadoFinanceiroPor?: string;
+  lancamentoFinanceiroId?: string;
+  // Soft delete
+  deletadoEm?: string;
+  deletadoPor?: string;
+}
+
+// ── Anexos / Auditoria / Lixeira / Notificações / Portal Fornecedor ──
+
+export type EntidadeCompra = 'pedido' | 'cotacao' | 'oc';
+
+export interface ComprasAnexo {
+  id: string;
+  entidade: EntidadeCompra;
+  entidadeId: string;
+  nomeArquivo: string;
+  tipoMime: string;
+  tamanhoBytes: number;
+  storagePath: string;
+  enviadoPor: string;
+  enviadoEm: string;
+}
+
+export type AcaoAuditoriaCompras =
+  | 'created' | 'updated' | 'approved' | 'rejected' | 'cancelled'
+  | 'deleted' | 'restored' | 'received' | 'sent_to_supplier'
+  | 'quote_received' | 'financial_posted' | 'financial_cancelled';
+
+export interface ComprasAuditoria {
+  id: number;
+  entidade: EntidadeCompra;
+  entidadeId: string;
+  acao: AcaoAuditoriaCompras;
+  usuarioId?: string;
+  usuarioNome: string;
+  diffAntes?: Record<string, unknown>;
+  diffDepois?: Record<string, unknown>;
+  observacao?: string;
+  criadoEm: string;
+}
+
+export interface ComprasLixeiraItem {
+  id: string;
+  entidade: EntidadeCompra;
+  entidadeId: string;
+  payload: Record<string, unknown>;
+  deletadoPor: string;
+  deletadoEm: string;
+  retencaoAte: string;
+  restauradoEm?: string;
+  restauradoPor?: string;
+}
+
+export interface ComprasNotificacao {
+  id: string;
+  destinatarioId: string;
+  tipo: string;
+  titulo: string;
+  mensagem: string;
+  link?: string;
+  lida: boolean;
+  lidaEm?: string;
+  enviadoWhatsapp: boolean;
+  enviadoWhatsappEm?: string;
+  criadoEm: string;
+}
+
+export type CanalEnvioCotacao = 'whatsapp' | 'email' | 'link';
+
+export interface CotacaoLinkPublico {
+  id: string;
+  cotacaoId: string;
+  fornecedorId: string;
+  token: string;
+  canalEnvio?: CanalEnvioCotacao;
+  expiresAt: string;
+  respondido: boolean;
+  respondidoEm?: string;
+  criadoPor: string;
+  criadoEm: string;
+}
+
+export interface CotacaoRespostaItem {
+  itemPedidoId: string;
+  precoUnitario: number;
+  marca?: string;
+}
+
+export interface CotacaoRespostaFornecedor {
+  id: string;
+  linkPublicoId: string;
+  cotacaoId: string;
+  fornecedorId: string;
+  itensResposta: CotacaoRespostaItem[];
+  condicaoPagamento: string;
+  prazoEntrega: string;
+  observacoes: string;
+  assinaturaBase64?: string;
+  respondidoEm: string;
+  ipOrigem?: string;
 }
 
 // === Planos Preventivos (PR14 - Marco 3) ===

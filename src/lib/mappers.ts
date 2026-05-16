@@ -360,11 +360,17 @@ export function dbToDepositoMaterial(row: any): DepositoMaterial {
   return {
     id: row.id,
     nome: row.nome,
-    obraId: row.obra_id,
-    endereco: row.endereco,
-    responsavel: row.responsavel,
+    obraId: row.obra_id ?? '',
+    endereco: row.endereco ?? '',
+    responsavel: row.responsavel ?? '',
     ativo: row.ativo,
     criadoPor: row.criado_por ?? '',
+    // v2 — campos de auditoria/soft delete (obrasIds vem de junction, populado no hook)
+    criadoEm: row.criado_em ?? undefined,
+    atualizadoEm: row.atualizado_em ?? undefined,
+    atualizadoPor: row.atualizado_por ?? undefined,
+    deletadoEm: row.deletado_em ?? undefined,
+    deletadoPor: row.deletado_por ?? undefined,
   };
 }
 
@@ -372,11 +378,14 @@ export function depositoMaterialToDb(d: DepositoMaterial) {
   return {
     id: d.id,
     nome: d.nome,
-    obra_id: d.obraId,
+    obra_id: d.obraId || null,
     endereco: d.endereco,
     responsavel: d.responsavel,
     ativo: d.ativo,
     criado_por: d.criadoPor,
+    atualizado_por: d.atualizadoPor ?? null,
+    deletado_em: d.deletadoEm ?? null,
+    deletado_por: d.deletadoPor ?? null,
   };
 }
 
@@ -460,11 +469,17 @@ export function dbToEntradaMaterial(row: any): EntradaMaterial {
     insumoId: row.insumo_id,
     obraId: row.obra_id ?? '',
     quantidade: Number(row.quantidade),
+    valorUnitario: row.valor_unitario != null ? Number(row.valor_unitario) : undefined,
     valorTotal: Number(row.valor_total),
-    fornecedorId: row.fornecedor_id,
-    notaFiscal: row.nota_fiscal,
-    observacoes: row.observacoes,
+    fornecedorId: row.fornecedor_id ?? '',
+    notaFiscal: row.nota_fiscal ?? '',
+    observacoes: row.observacoes ?? '',
     criadoPor: row.criado_por ?? '',
+    criadoEm: row.criado_em ?? undefined,
+    atualizadoEm: row.atualizado_em ?? undefined,
+    atualizadoPor: row.atualizado_por ?? undefined,
+    deletadoEm: row.deletado_em ?? undefined,
+    deletadoPor: row.deletado_por ?? undefined,
   };
 }
 
@@ -476,11 +491,15 @@ export function entradaMaterialToDb(e: EntradaMaterial) {
     insumo_id: e.insumoId,
     obra_id: e.obraId || null,
     quantidade: e.quantidade,
+    valor_unitario: e.valorUnitario ?? null,
     valor_total: e.valorTotal,
     fornecedor_id: e.fornecedorId,
     nota_fiscal: e.notaFiscal,
     observacoes: e.observacoes,
     criado_por: e.criadoPor,
+    atualizado_por: e.atualizadoPor ?? null,
+    deletado_em: e.deletadoEm ?? null,
+    deletado_por: e.deletadoPor ?? null,
   };
 }
 
@@ -493,12 +512,20 @@ export function dbToSaidaMaterial(row: any): SaidaMaterial {
     dataHora: row.data_hora,
     depositoMaterialId: row.deposito_material_id,
     insumoId: row.insumo_id,
-    obraId: row.obra_id,
+    obraId: row.obra_id ?? '',
     quantidade: Number(row.quantidade),
     valorTotal: Number(row.valor_total),
     alocacoes: row.alocacoes ?? [],
-    observacoes: row.observacoes,
+    observacoes: row.observacoes ?? '',
     criadoPor: row.criado_por ?? '',
+    // v2
+    tipoSaida: row.tipo_saida ?? 'consumo',
+    motivoPerda: row.motivo_perda ?? undefined,
+    criadoEm: row.criado_em ?? undefined,
+    atualizadoEm: row.atualizado_em ?? undefined,
+    atualizadoPor: row.atualizado_por ?? undefined,
+    deletadoEm: row.deletado_em ?? undefined,
+    deletadoPor: row.deletado_por ?? undefined,
   };
 }
 
@@ -508,12 +535,17 @@ export function saidaMaterialToDb(s: SaidaMaterial) {
     data_hora: s.dataHora,
     deposito_material_id: s.depositoMaterialId,
     insumo_id: s.insumoId,
-    obra_id: s.obraId,
+    obra_id: s.obraId || null,
     quantidade: s.quantidade,
     valor_total: s.valorTotal,
     alocacoes: s.alocacoes ?? [],
     observacoes: s.observacoes,
     criado_por: s.criadoPor,
+    tipo_saida: s.tipoSaida ?? 'consumo',
+    motivo_perda: s.motivoPerda ?? null,
+    atualizado_por: s.atualizadoPor ?? null,
+    deletado_em: s.deletadoEm ?? null,
+    deletado_por: s.deletadoPor ?? null,
   };
 }
 
@@ -529,8 +561,13 @@ export function dbToTransferenciaMaterial(row: any): TransferenciaMaterial {
     insumoId: row.insumo_id,
     quantidade: Number(row.quantidade),
     valorTotal: Number(row.valor_total),
-    observacoes: row.observacoes,
+    observacoes: row.observacoes ?? '',
     criadoPor: row.criado_por ?? '',
+    criadoEm: row.criado_em ?? undefined,
+    atualizadoEm: row.atualizado_em ?? undefined,
+    atualizadoPor: row.atualizado_por ?? undefined,
+    deletadoEm: row.deletado_em ?? undefined,
+    deletadoPor: row.deletado_por ?? undefined,
   };
 }
 
@@ -545,6 +582,9 @@ export function transferenciaMaterialToDb(t: TransferenciaMaterial) {
     valor_total: t.valorTotal,
     observacoes: t.observacoes,
     criado_por: t.criadoPor,
+    atualizado_por: t.atualizadoPor ?? null,
+    deletado_em: t.deletadoEm ?? null,
+    deletado_por: t.deletadoPor ?? null,
   };
 }
 
@@ -857,14 +897,29 @@ export function dbToPedidoCompra(row: any): PedidoCompra {
     urgencia: row.urgencia ?? 'normal',
     status: row.status ?? 'pendente',
     observacoes: row.observacoes ?? '',
-    itens: Array.isArray(row.itens) ? row.itens.map((i: { id?: string; descricao?: string; categoria?: string; quantidade?: number; unidade?: string }) => ({
+    descricaoLivre: row.descricao_livre ?? '',
+    valorEstimado: row.valor_estimado != null ? Number(row.valor_estimado) : undefined,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    itens: Array.isArray(row.itens) ? row.itens.map((i: any) => ({
       id: i.id ?? '',
       descricao: i.descricao ?? '',
       categoria: i.categoria ?? 'outros',
       quantidade: Number(i.quantidade ?? 0),
       unidade: i.unidade ?? 'un',
+      tipo: i.tipo ?? 'material',
+      insumoId: i.insumoId ?? i.insumo_id ?? undefined,
+      criarNaBase: i.criarNaBase ?? false,
     })) : [],
     criadoPor: row.criado_por ?? '',
+    aprovadoPor: row.aprovado_por ?? undefined,
+    aprovadoEm: row.aprovado_em ?? undefined,
+    reprovadoPor: row.reprovado_por ?? undefined,
+    reprovadoEm: row.reprovado_em ?? undefined,
+    motivoReprovacao: row.motivo_reprovacao ?? undefined,
+    atualizadoEm: row.atualizado_em ?? undefined,
+    atualizadoPor: row.atualizado_por ?? undefined,
+    deletadoEm: row.deletado_em ?? undefined,
+    deletadoPor: row.deletado_por ?? undefined,
   };
 }
 
@@ -873,13 +928,23 @@ export function pedidoCompraToDb(p: PedidoCompra) {
     id: p.id,
     numero: p.numero,
     data: p.data,
-    obra_id: p.obraId,
+    obra_id: p.obraId || null,
     solicitante: p.solicitante,
     urgencia: p.urgencia,
     status: p.status,
     observacoes: p.observacoes,
+    descricao_livre: p.descricaoLivre ?? '',
+    valor_estimado: p.valorEstimado ?? null,
     itens: p.itens,
     criado_por: p.criadoPor,
+    aprovado_por: p.aprovadoPor ?? null,
+    aprovado_em: p.aprovadoEm ?? null,
+    reprovado_por: p.reprovadoPor ?? null,
+    reprovado_em: p.reprovadoEm ?? null,
+    motivo_reprovacao: p.motivoReprovacao ?? null,
+    atualizado_por: p.atualizadoPor ?? null,
+    deletado_em: p.deletadoEm ?? null,
+    deletado_por: p.deletadoPor ?? null,
   };
 }
 
@@ -894,11 +959,19 @@ export function dbToCotacao(row: any): Cotacao {
     data: row.data,
     pedidoCompraId: row.pedido_compra_id ?? '',
     prazoResposta: row.prazo_resposta ?? '',
+    prazoRespostaAt: row.prazo_resposta_at ?? undefined,
+    descricaoLivre: row.descricao_livre ?? '',
     status: row.status ?? 'em_cotacao',
     fornecedores: Array.isArray(row.fornecedores) ? row.fornecedores : [],
     itensPedido: Array.isArray(row.itens_pedido) ? row.itens_pedido : [],
     observacoes: row.observacoes ?? '',
     criadoPor: row.criado_por ?? '',
+    canceladaPor: row.cancelada_por ?? undefined,
+    canceladaEm: row.cancelada_em ?? undefined,
+    atualizadoEm: row.atualizado_em ?? undefined,
+    atualizadoPor: row.atualizado_por ?? undefined,
+    deletadoEm: row.deletado_em ?? undefined,
+    deletadoPor: row.deletado_por ?? undefined,
   };
 }
 
@@ -910,11 +983,18 @@ export function cotacaoToDb(c: Cotacao) {
     data: c.data,
     pedido_compra_id: c.pedidoCompraId || null,
     prazo_resposta: c.prazoResposta,
+    prazo_resposta_at: c.prazoRespostaAt ?? null,
+    descricao_livre: c.descricaoLivre ?? '',
     status: c.status,
     fornecedores: c.fornecedores,
     itens_pedido: c.itensPedido,
     observacoes: c.observacoes,
     criado_por: c.criadoPor,
+    cancelada_por: c.canceladaPor ?? null,
+    cancelada_em: c.canceladaEm ?? null,
+    atualizado_por: c.atualizadoPor ?? null,
+    deletado_em: c.deletadoEm ?? null,
+    deletado_por: c.deletadoPor ?? null,
   };
 }
 
@@ -932,7 +1012,20 @@ export function dbToOrdemCompra(row: any): OrdemCompra {
     fornecedorId: row.fornecedor_id ?? '',
     cotacaoId: row.cotacao_id ?? '',
     pedidoCompraId: row.pedido_compra_id ?? '',
-    itens: Array.isArray(row.itens) ? row.itens : [],
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    itens: Array.isArray(row.itens) ? row.itens.map((i: any) => ({
+      id: i.id ?? '',
+      descricao: i.descricao ?? '',
+      quantidade: Number(i.quantidade ?? 0),
+      unidade: i.unidade ?? 'un',
+      precoUnitario: Number(i.precoUnitario ?? 0),
+      subtotal: Number(i.subtotal ?? 0),
+      obraId: i.obraId ?? '',
+      etapaObraId: i.etapaObraId ?? '',
+      tipo: i.tipo ?? 'material',
+      marca: i.marca ?? undefined,
+      insumoId: i.insumoId ?? undefined,
+    })) : [],
     custosAdicionais: row.custos_adicionais ?? { frete: 0, outrasDespesas: 0, impostos: 0, desconto: 0 },
     totalMateriais: Number(row.total_materiais ?? 0),
     totalGeral: Number(row.total_geral ?? 0),
@@ -947,6 +1040,23 @@ export function dbToOrdemCompra(row: any): OrdemCompra {
     empresaFaturamento: row.empresa_faturamento ?? '',
     aprovada: row.aprovada ?? false,
     criadoPor: row.criado_por ?? '',
+    tipoDestino: row.tipo_destino ?? undefined,
+    equipamentoId: row.equipamento_id ?? undefined,
+    depositoDestinoId: row.deposito_destino_id ?? undefined,
+    aprovadaPor: row.aprovada_por ?? undefined,
+    aprovadaEm: row.aprovada_em ?? undefined,
+    canceladaPor: row.cancelada_por ?? undefined,
+    canceladaEm: row.cancelada_em ?? undefined,
+    recebidaPor: row.recebida_por ?? undefined,
+    recebidaEm: row.recebida_em ?? undefined,
+    atualizadoEm: row.atualizado_em ?? undefined,
+    atualizadoPor: row.atualizado_por ?? undefined,
+    lancamentoFinanceiroStatus: row.lancamento_financeiro_status ?? 'nao_aplicavel',
+    lancadoFinanceiroEm: row.lancado_financeiro_em ?? undefined,
+    lancadoFinanceiroPor: row.lancado_financeiro_por ?? undefined,
+    lancamentoFinanceiroId: row.lancamento_financeiro_id ?? undefined,
+    deletadoEm: row.deletado_em ?? undefined,
+    deletadoPor: row.deletado_por ?? undefined,
   };
 }
 
@@ -976,6 +1086,22 @@ export function ordemCompraToDb(o: OrdemCompra) {
     empresa_faturamento: o.empresaFaturamento,
     aprovada: o.aprovada,
     criado_por: o.criadoPor,
+    tipo_destino: o.tipoDestino ?? null,
+    equipamento_id: o.equipamentoId || null,
+    deposito_destino_id: o.depositoDestinoId || null,
+    aprovada_por: o.aprovadaPor ?? null,
+    aprovada_em: o.aprovadaEm ?? null,
+    cancelada_por: o.canceladaPor ?? null,
+    cancelada_em: o.canceladaEm ?? null,
+    recebida_por: o.recebidaPor ?? null,
+    recebida_em: o.recebidaEm ?? null,
+    atualizado_por: o.atualizadoPor ?? null,
+    lancamento_financeiro_status: o.lancamentoFinanceiroStatus ?? 'nao_aplicavel',
+    lancado_financeiro_em: o.lancadoFinanceiroEm ?? null,
+    lancado_financeiro_por: o.lancadoFinanceiroPor ?? null,
+    lancamento_financeiro_id: o.lancamentoFinanceiroId ?? null,
+    deletado_em: o.deletadoEm ?? null,
+    deletado_por: o.deletadoPor ?? null,
   };
 }
 

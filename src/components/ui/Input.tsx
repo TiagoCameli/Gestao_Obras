@@ -1,7 +1,9 @@
 import type { InputHTMLAttributes } from 'react';
 
 interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
-  label: string;
+  /** Label opcional. Quando omitido, o Input não renderiza o <label> próprio —
+   *  útil em forms que usam um <Label> externo (ex: módulo Compras). */
+  label?: string;
   error?: string;
 }
 
@@ -20,13 +22,15 @@ export default function Input({ label, error, id, className = '', ...props }: In
 
   return (
     <div>
-      <label
-        htmlFor={id}
-        className="block text-xs font-medium text-[var(--color-fg-muted)] mb-1.5 tracking-wide"
-      >
-        {label}
-        {props.required && <span className="text-[var(--color-danger)] ml-0.5">*</span>}
-      </label>
+      {label !== undefined && (
+        <label
+          htmlFor={id}
+          className="block text-xs font-medium text-[var(--color-fg-muted)] mb-1.5 tracking-wide"
+        >
+          {label}
+          {props.required && <span className="text-[var(--color-danger)] ml-0.5">*</span>}
+        </label>
+      )}
       <input
         id={id}
         className={`${base} ${errorCls} ${readOnlyCls} ${className}`}

@@ -301,6 +301,15 @@ export const ACOES_PLATAFORMA: AcaoPlataforma[] = [
   { chave: 'editar_material', label: 'Editar movimentações de material', grupo: 'Material' },
   { chave: 'excluir_material', label: 'Excluir movimentações de material', grupo: 'Material' },
   { chave: 'exportar_material', label: 'Exportar movimentações de material', grupo: 'Material' },
+  // Depósitos v2
+  { chave: 'ver_depositos', label: 'Visualizar depósitos', grupo: 'Material' },
+  { chave: 'criar_deposito', label: 'Cadastrar depósito', grupo: 'Material' },
+  { chave: 'editar_deposito', label: 'Editar depósito', grupo: 'Material' },
+  { chave: 'excluir_deposito', label: 'Excluir depósito (lixeira)', grupo: 'Material' },
+  { chave: 'ver_saldos', label: 'Ver saldos por depósito', grupo: 'Material' },
+  { chave: 'criar_entrada_material_avulsa', label: 'Lançar entrada avulsa de material', grupo: 'Material' },
+  { chave: 'criar_perda_material', label: 'Lançar perda de material', grupo: 'Material' },
+  { chave: 'restaurar_lixeira_depositos', label: 'Restaurar itens da lixeira de Depósitos', grupo: 'Material' },
 
   // ============================================================
   // Compras
@@ -324,6 +333,17 @@ export const ACOES_PLATAFORMA: AcaoPlataforma[] = [
   { chave: 'reabrir_ordem_compra', label: 'Reabrir ordem de compra', grupo: 'Compras' },
   { chave: 'gerar_entrada_estoque_oc', label: 'Gerar entrada no estoque a partir de OC', grupo: 'Compras' },
   { chave: 'importar_oc', label: 'Importar OC via Excel', grupo: 'Compras' },
+  // Compras v2 — premium SaaS
+  { chave: 'ver_dashboard_compras', label: 'Ver dashboard de Compras', grupo: 'Compras' },
+  { chave: 'criar_pedido_compra', label: 'Criar pedido de compra (material/serviço)', grupo: 'Compras' },
+  { chave: 'editar_pedido_compra', label: 'Editar pedido de compra', grupo: 'Compras' },
+  { chave: 'enviar_cotacao_fornecedor', label: 'Enviar cotação para fornecedor (link/PDF)', grupo: 'Compras' },
+  { chave: 'cancelar_ordem_compra', label: 'Cancelar ordem de compra', grupo: 'Compras' },
+  { chave: 'marcar_oc_recebida', label: 'Marcar OC como recebida', grupo: 'Compras' },
+  { chave: 'restaurar_lixeira_compras', label: 'Restaurar itens da lixeira de Compras', grupo: 'Compras' },
+  { chave: 'excluir_permanente_compras', label: 'Excluir permanentemente itens da lixeira de Compras', grupo: 'Compras' },
+  { chave: 'ver_auditoria_compras', label: 'Ver histórico/auditoria de Compras', grupo: 'Compras' },
+  { chave: 'cadastrar_insumo_via_compra', label: 'Cadastrar novo insumo a partir de Compras', grupo: 'Compras' },
 
   // ============================================================
   // Frota
@@ -665,6 +685,15 @@ export const DEPENDENCIAS_ACOES: Record<string, string[]> = {
   editar_material: ['ver_materiais'],
   excluir_material: ['ver_materiais', 'editar_material'],
   exportar_material: ['ver_materiais'],
+  // Depósitos v2 — dependências
+  ver_depositos: [],
+  criar_deposito: ['ver_depositos'],
+  editar_deposito: ['ver_depositos', 'criar_deposito'],
+  excluir_deposito: ['ver_depositos', 'editar_deposito'],
+  ver_saldos: ['ver_depositos'],
+  criar_entrada_material_avulsa: ['ver_depositos', 'criar_entrada_material'],
+  criar_perda_material: ['ver_depositos', 'criar_saida_material'],
+  restaurar_lixeira_depositos: ['ver_depositos'],
 
   // Compras
   criar_compra: ['ver_compras'],
@@ -682,6 +711,17 @@ export const DEPENDENCIAS_ACOES: Record<string, string[]> = {
   reabrir_ordem_compra: ['ver_compras', 'aprovar_ordem_compra'],
   gerar_entrada_estoque_oc: ['ver_compras', 'aprovar_ordem_compra'],
   importar_oc: ['ver_compras', 'criar_ordem_compra'],
+  // Compras v2 — dependências
+  ver_dashboard_compras: ['ver_compras'],
+  criar_pedido_compra: ['ver_compras'],
+  editar_pedido_compra: ['ver_compras', 'criar_pedido_compra'],
+  enviar_cotacao_fornecedor: ['ver_compras', 'criar_cotacao'],
+  cancelar_ordem_compra: ['ver_compras', 'editar_ordem_compra'],
+  marcar_oc_recebida: ['ver_compras'],
+  restaurar_lixeira_compras: ['ver_compras'],
+  excluir_permanente_compras: ['ver_compras', 'restaurar_lixeira_compras'],
+  ver_auditoria_compras: ['ver_compras'],
+  cadastrar_insumo_via_compra: ['ver_compras'],
 
   // Frota
   criar_veiculo: ['ver_frota'],
@@ -900,6 +940,11 @@ export const TEMPLATES_ACOES_POR_CARGO: Record<CargoFuncionario, string[]> = {
     'criar_cotacao', 'editar_cotacao', 'exportar_cotacao_pdf', 'anexar_pdf_cotacao',
     'criar_ordem_compra', 'editar_ordem_compra', 'aprovar_ordem_compra',
     'gerar_entrada_estoque_oc', 'importar_oc',
+    // Compras v2
+    'ver_dashboard_compras', 'criar_pedido_compra', 'editar_pedido_compra',
+    'enviar_cotacao_fornecedor', 'cancelar_ordem_compra', 'marcar_oc_recebida',
+    'restaurar_lixeira_compras', 'ver_auditoria_compras',
+    'cadastrar_insumo_via_compra',
     'ver_frota',
     'ver_manutencao', 'ver_almoxarifado', 'criar_peca_almoxarifado',
     'criar_entrada_almoxarifado',

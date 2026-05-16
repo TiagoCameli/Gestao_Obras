@@ -46,14 +46,14 @@ function valorProporcionalAbastecimento(a: Abastecimento, etapaIds: Set<string>)
     : a.etapaId ? [{ etapaId: a.etapaId, percentual: 100 }] : [];
   const totalPct = alocs
     .filter((al) => etapaIds.has(al.etapaId))
-    .reduce((sum, al) => sum + al.percentual, 0);
+    .reduce((sum, al) => sum + (al.percentual ?? 0), 0);
   return a.valorTotal * (totalPct / 100);
 }
 
 function valorProporcionalSaida(s: SaidaMaterial, etapaIds: Set<string>): number {
   const totalPct = s.alocacoes
     .filter((al) => etapaIds.has(al.etapaId))
-    .reduce((sum, al) => sum + al.percentual, 0);
+    .reduce((sum, al) => sum + (al.percentual ?? 0), 0);
   return s.valorTotal * (totalPct / 100);
 }
 

@@ -7,7 +7,9 @@ import UserMenu from './UserMenu';
 const links: { to: string; label: string; acao?: string }[] = [
   { to: '/', label: 'Dashboard', acao: 'ver_dashboard' },
   { to: '/obras', label: 'Obras', acao: 'ver_obras' },
+  { to: '/compras', label: 'Compras', acao: 'ver_compras' },
   { to: '/cadastros', label: 'Cadastros', acao: 'ver_cadastros' },
+  { to: '/depositos', label: 'Depósitos', acao: 'ver_depositos' },
   { to: '/frete', label: 'Frete', acao: 'ver_frete' },
   { to: '/frota', label: 'Frota', acao: 'ver_frota' },
   { to: '/manutencao', label: 'Manutenção', acao: 'ver_frota' },
@@ -20,6 +22,8 @@ const links: { to: string; label: string; acao?: string }[] = [
 function isActive(pathname: string, to: string): boolean {
   if (to === '/') return pathname === '/';
   if (to === '/cadastros') return pathname === '/cadastros' || pathname.startsWith('/cadastros/');
+  if (to === '/compras') return pathname === '/compras' || pathname.startsWith('/compras/');
+  if (to === '/depositos') return pathname === '/depositos' || pathname.startsWith('/depositos/');
   if (to === '/manutencao') return pathname === '/manutencao' || pathname.startsWith('/manutencao/');
   return pathname === to;
 }
@@ -30,6 +34,7 @@ export default function Header() {
   const { dark, toggleTheme } = useTheme();
   const [menuOpen, setMenuOpen] = useState(false);
 
+  // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { setMenuOpen(false); }, [pathname]);
 
   const visibleLinks = links.filter(

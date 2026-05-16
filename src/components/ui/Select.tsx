@@ -6,7 +6,8 @@ interface Option {
 }
 
 interface SelectProps extends SelectHTMLAttributes<HTMLSelectElement> {
-  label: string;
+  /** Label opcional. Quando omitido, o Select não renderiza o <label> próprio. */
+  label?: string;
   options: Option[];
   placeholder?: string;
   error?: string;
@@ -22,13 +23,15 @@ export default function Select({
 }: SelectProps) {
   return (
     <div>
-      <label
-        htmlFor={id}
-        className="block text-xs font-medium text-[var(--color-fg-muted)] mb-1.5 tracking-wide"
-      >
-        {label}
-        {props.required && <span className="text-[var(--color-danger)] ml-0.5">*</span>}
-      </label>
+      {label !== undefined && (
+        <label
+          htmlFor={id}
+          className="block text-xs font-medium text-[var(--color-fg-muted)] mb-1.5 tracking-wide"
+        >
+          {label}
+          {props.required && <span className="text-[var(--color-danger)] ml-0.5">*</span>}
+        </label>
+      )}
       <select
         id={id}
         className={

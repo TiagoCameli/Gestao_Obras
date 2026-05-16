@@ -195,10 +195,10 @@ export default function SaidaMaterialForm({
   }, [quantidade, depositoMaterialId, insumoId, precoMedio, initial, qtd]);
 
   // Alocacoes
-  const totalPercentual = alocacoes.reduce((sum, a) => sum + a.percentual, 0);
+  const totalPercentual = alocacoes.reduce((sum, a) => sum + (a.percentual ?? 0), 0);
   const alocacoesValidas =
     alocacoes.length > 0 &&
-    alocacoes.every((a) => a.etapaId && a.percentual > 0) &&
+    alocacoes.every((a) => a.etapaId && (a.percentual ?? 0) > 0) &&
     Math.abs(totalPercentual - 100) < 0.01;
 
   function addAlocacao() {
@@ -419,7 +419,7 @@ export default function SaidaMaterialForm({
               </div>
               <span className="text-xs text-gray-400 w-20 text-right">
                 {qtd > 0
-                  ? `${((qtd * aloc.percentual) / 100).toFixed(2)} ${unidadeLabel}`
+                  ? `${((qtd * (aloc.percentual ?? 0)) / 100).toFixed(2)} ${unidadeLabel}`
                   : '-'}
               </span>
               {alocacoes.length > 1 && (

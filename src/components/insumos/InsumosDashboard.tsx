@@ -112,7 +112,7 @@ export default function InsumosDashboard({
   const gastoPorEtapa = new Map<string, number>();
   saidas.forEach((s) => {
     s.alocacoes.forEach((a) => {
-      const valorProporcional = s.valorTotal * (a.percentual / 100);
+      const valorProporcional = s.valorTotal * ((a.percentual ?? 0) / 100);
       gastoPorEtapa.set(
         a.etapaId,
         (gastoPorEtapa.get(a.etapaId) || 0) + valorProporcional
