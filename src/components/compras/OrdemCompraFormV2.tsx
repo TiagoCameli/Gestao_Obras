@@ -81,11 +81,11 @@ interface Props {
 }
 
 const DESTINOS: { value: TipoDestinoOC; label: string; Icon: typeof Building2; sub: string }[] = [
-  { value: 'obra_etapa',             label: 'Obra (etapa específica)', Icon: Building2, sub: 'Material + Serviço (vai pra etapa)' },
+  { value: 'obra_etapa',             label: 'Obra (etapa específica)', Icon: Building2, sub: 'Material + Mão de obra (vai pra etapa)' },
   { value: 'obra_deposito',          label: 'Obra (depósito)',         Icon: Warehouse, sub: 'Só material — sem combustível' },
   { value: 'deposito_central',       label: 'Depósito Central',        Icon: Warehouse, sub: 'Só material — sem combustível' },
-  { value: 'sede',                   label: 'Sede da empresa',         Icon: Briefcase, sub: 'Só material' },
-  { value: 'manutencao_equipamento', label: 'Manutenção de equipamento', Icon: Wrench,  sub: 'Peça do almoxarifado · serviço pra OS' },
+  { value: 'sede',                   label: 'Sede da empresa',         Icon: Briefcase, sub: 'Material + Mão de obra' },
+  { value: 'manutencao_equipamento', label: 'Manutenção de equipamento', Icon: Wrench,  sub: 'Peça do almoxarifado · mão de obra pra OS' },
   { value: 'tanque_combustivel',     label: 'Tanque de combustível',   Icon: Fuel,      sub: 'Só combustível — distribuição na saída' },
 ];
 
@@ -467,7 +467,7 @@ export default function OrdemCompraFormV2({
             <strong className="font-semibold">Como funciona OC de manutenção:</strong>{' '}
             <span className="opacity-90">
               <em>Peças</em> precisam estar cadastradas no almoxarifado (vínculo obrigatório) e entram no estoque do almoxarifado escolhido.{' '}
-              <em>Serviços</em> não estocam — cada um precisa estar vinculado a uma <strong>Ordem de Serviço</strong> de equipamento. Ao aprovar a OC, os serviços são <strong>registrados automaticamente</strong> nas OSs vinculadas.
+              <em>Mão de obra</em> não estoca — cada item precisa estar vinculado a uma <strong>Ordem de Serviço</strong> de equipamento. Ao aprovar a OC, os lançamentos de mão de obra são <strong>registrados automaticamente</strong> nas OSs vinculadas.
             </span>
           </div>
         )}
@@ -666,7 +666,7 @@ export default function OrdemCompraFormV2({
         <div>
           <SectionHeader titulo="Resumo" />
           <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-2)] p-4 space-y-1.5 text-sm">
-            <ResumoLinha label="Total materiais/serviços" valor={totalMateriais} />
+            <ResumoLinha label="Total materiais/mão de obra" valor={totalMateriais} />
             <ResumoLinha label="+ Frete" valor={custoFrete} />
             <ResumoLinha label="+ Outras despesas" valor={custoOutras} />
             <ResumoLinha label="+ Impostos" valor={custoImpostos} />
@@ -1184,11 +1184,11 @@ function ItemOCRow({
               : ehManutencao ? 'Peça'
               : 'Material'}
           </option>
-          {/* Só mostra "Serviço" se o destino aceita. Mantém compatibilidade
-              com OCs antigas que possam ter tipo=serviço em destinos hoje
-              não aceitos — nesse caso a opção aparece. */}
+          {/* Só mostra "Mão de obra" se o destino aceita. Internamente o
+              valor permanece 'servico' (TipoItemCompra) pra não quebrar
+              OCs antigas; o LABEL "Mão de obra" é o que o usuário vê. */}
           {(destino === undefined || REGRAS_DESTINO[destino]?.aceitaServico || tipo === 'servico') && (
-            <option value="servico">Serviço</option>
+            <option value="servico">Mão de obra</option>
           )}
         </select>
       </td>

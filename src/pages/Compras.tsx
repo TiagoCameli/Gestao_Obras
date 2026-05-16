@@ -550,7 +550,7 @@ export default function Compras() {
           .join('\n');
         const novaObs = [
           os.observacoes.trim(),
-          `${tag} Serviços registrados via aprovação da OC em ${agora.slice(0, 10)} por ${nomeUsuario}:`,
+          `${tag} Mão de obra registrada via aprovação da OC em ${agora.slice(0, 10)} por ${nomeUsuario}:`,
           linhaServicos,
         ].filter(Boolean).join('\n');
 
@@ -590,7 +590,7 @@ export default function Compras() {
 
     const msgExtra = oc.tipoDestino === 'manutencao_equipamento'
       && oc.itens.some((it) => (it.tipo ?? 'material') === 'servico' && it.osId)
-      ? ' Serviços registrados nas OSs.' : '';
+      ? ' Mão de obra registrada nas OSs.' : '';
     showToast({ kind: 'success', message: `OC ${oc.numero} aprovada. Aguardando lançamento financeiro.${msgExtra}` });
     // Fecha o modal se estava aberto
     setOcModalOpen(false);

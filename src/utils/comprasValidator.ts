@@ -63,12 +63,11 @@ export const REGRAS_DESTINO: Record<TipoDestinoOC, RegraDestino> = {
     label: 'Depósito Central',
   },
   sede: {
-    // Regra atualizada: SEDE só aceita material. Serviço SEMPRE tem que
-    // estar amarrado a uma etapa de obra (obra_etapa) ou a uma OS de
-    // manutenção (manutencao_equipamento) — não faz sentido pagar
-    // serviço pra "sede" sem rastreio de onde foi executado.
+    // Sede aceita material E mão de obra (despesas administrativas,
+    // serviços terceiros pra própria empresa, etc.). Nenhum vínculo
+    // extra é exigido — vai direto pro financeiro.
     aceitaMaterial: true,
-    aceitaServico: false,
+    aceitaServico: true,
     exigeObra: false,
     exigeEtapa: false,
     exigeDeposito: false,
@@ -163,7 +162,7 @@ export function validarItemNoDestino(
     return { ok: false, erro: `Destino "${regra.label}" não aceita materiais.` };
   }
   if (tipo === 'servico' && !regra.aceitaServico) {
-    return { ok: false, erro: `Destino "${regra.label}" não aceita serviços.` };
+    return { ok: false, erro: `Destino "${regra.label}" não aceita mão de obra.` };
   }
   return { ok: true };
 }
@@ -289,7 +288,7 @@ export function validarOrdemCompra(
       if (tipo === 'servico' && !item.osId) {
         return {
           ok: false,
-          erro: `Serviço "${item.descricao || 'sem descrição'}" precisa estar vinculado a uma Ordem de Serviço.`,
+          erro: `Mão de obra "${item.descricao || 'sem descrição'}" precisa estar vinculada a uma Ordem de Serviço (OS).`,
         };
       }
     }
