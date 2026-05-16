@@ -310,6 +310,7 @@ export const ACOES_PLATAFORMA: AcaoPlataforma[] = [
   { chave: 'criar_entrada_material_avulsa', label: 'Lançar entrada avulsa de material', grupo: 'Material' },
   { chave: 'criar_perda_material', label: 'Lançar perda de material', grupo: 'Material' },
   { chave: 'restaurar_lixeira_depositos', label: 'Restaurar itens da lixeira de Depósitos', grupo: 'Material' },
+  { chave: 'excluir_permanente_depositos', label: 'Excluir permanentemente itens da lixeira de Depósitos', grupo: 'Material' },
 
   // ============================================================
   // Compras
@@ -569,10 +570,12 @@ export const GRUPOS_ACOES = [...new Set(ACOES_PLATAFORMA.map((a) => a.grupo))];
 /**
  * Grupos cujos módulos ainda não estão implementados (rotas 404).
  * São escondidos da UI até que existam rotas reais.
+ *
+ * NOTA: "Material" e "Compras" foram REMOVIDOS desta lista quando esses
+ * módulos foram implementados (Compras v2 em mai/2026, Depósitos v2 em
+ * mai/2026). Suas ações agora aparecem normalmente na tela de permissões.
  */
 export const GRUPOS_NAO_IMPLEMENTADOS: ReadonlySet<string> = new Set([
-  'Material',
-  'Compras',
   'Sistema',
 ]);
 
@@ -694,6 +697,7 @@ export const DEPENDENCIAS_ACOES: Record<string, string[]> = {
   criar_entrada_material_avulsa: ['ver_depositos', 'criar_entrada_material'],
   criar_perda_material: ['ver_depositos', 'criar_saida_material'],
   restaurar_lixeira_depositos: ['ver_depositos'],
+  excluir_permanente_depositos: ['ver_depositos', 'restaurar_lixeira_depositos'],
 
   // Compras
   criar_compra: ['ver_compras'],

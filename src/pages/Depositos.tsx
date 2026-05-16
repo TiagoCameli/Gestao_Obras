@@ -6,7 +6,7 @@
  * vinculada e ativo. Click em card de material abre detalhe (Fase D2);
  * click em tanque leva pra /combustivel.
  */
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Plus, Search, Filter } from 'lucide-react';
 import {
@@ -15,6 +15,7 @@ import {
   useResumoSaldosTodos,
 } from '../hooks/useDepositosObras';
 import { useAdicionarDepositoMaterial, useAtualizarDepositoMaterial } from '../hooks/useDepositosMaterial';
+import { supabase } from '../lib/supabase';
 import { useDepositos } from '../hooks/useDepositos';
 import { useQueryClient } from '@tanstack/react-query';
 import { useObras } from '../hooks/useObras';
@@ -23,6 +24,7 @@ import { useInsumos } from '../hooks/useInsumos';
 import { useFornecedores } from '../hooks/useFornecedores';
 import { useAdicionarEntradaMaterial } from '../hooks/useEntradasMaterial';
 import { useAdicionarSaidaMaterial } from '../hooks/useSaidasMaterial';
+import { useAdicionarTransferenciaMaterial } from '../hooks/useTransferenciasMaterial';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../components/ui/Toast';
 import Button from '../components/ui/Button';
@@ -32,7 +34,9 @@ import DepositoMaterialForm from '../components/depositos/DepositoMaterialForm';
 import DepositoDetalheModal from '../components/depositos/DepositoDetalheModal';
 import EntradaMaterialForm from '../components/depositos/EntradaMaterialForm';
 import SaidaMaterialForm from '../components/depositos/SaidaMaterialForm';
-import type { DepositoMaterial, EntradaMaterial, SaidaMaterial } from '../types';
+import TransferenciaMaterialForm from '../components/depositos/TransferenciaMaterialForm';
+import LixeiraDepositos from '../components/depositos/LixeiraDepositos';
+import type { DepositoMaterial, EntradaMaterial, SaidaMaterial, TransferenciaMaterial } from '../types';
 
 type FiltroTipo = '' | 'material' | 'combustivel';
 type FiltroAtivo = '' | 'ativo' | 'inativo';
@@ -43,6 +47,8 @@ export default function Depositos() {
   const { showToast } = useToast();
   const podeCriar = temAcao('criar_deposito');
   const podeEditar = temAcao('editar_deposito');
+  const podeExcluir = temAcao('excluir_deposito');
+  const podeLixeira = temAcao('restaurar_lixeira_depositos');
   const podeEntrada = temAcao('criar_entrada_material_avulsa') || temAcao('criar_entrada_material');
   const podeSaida = temAcao('criar_saida_material');
   const podeTransferencia = temAcao('criar_transferencia_material');
@@ -56,6 +62,7 @@ export default function Depositos() {
   const { data: resumoSaldos } = useResumoSaldosTodos();
   const adicionarEntradaMut = useAdicionarEntradaMaterial();
   const adicionarSaidaMut = useAdicionarSaidaMaterial();
+  const adicionarTransferenciaMut = useAdicionarTransferenciaMaterial();
   const qc = useQueryClient();
   const adicionarMut = useAdicionarDepositoMaterial();
   const atualizarMut = useAtualizarDepositoMaterial();
@@ -71,6 +78,22 @@ export default function Depositos() {
   const [detalheDeposito, setDetalheDeposito] = useState<DepositoMaterial | null>(null);
   const [entradaPara, setEntradaPara] = useState<DepositoMaterial | null>(null);
   const [saidaPara, setSaidaPara] = useState<DepositoMaterial | null>(null);
+  const [transferenciaPara, setTransferenciaPara] = useState<DepositoMaterial | null>(null);
+  const [lixeiraAberta, setLixeiraAberta] = useState(false);
+
+  // Atalho global "/" pra focar busca da página
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== '/' || e.metaKey || e.ctrlKey || e.altKey) return;
+      const ativo = document.activeElement as HTMLElement | null;
+      const tag = ativo?.tagName?.toLowerCase();
+      if (tag === 'input' || tag === 'textarea' || ativo?.isContentEditable) return;
+      const input = document.getElementById('busca-depositos') as HTMLInputElement | null;
+      if (input) { e.preventDefault(); input.focus(); input.select(); }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
 
   const insumosMap = useMemo(() => new Map(insumos.map((i) => [i.id, i])), [insumos]);
 
@@ -130,16 +153,15 @@ export default function Depositos() {
     setDetalheDeposito(d);
   }, []);
 
-  const handleAvisarEmConstrucao = useCallback((tipo: string) => {
-    showToast({ kind: 'info', message: `Formulário de ${tipo} chega na próxima fase (D4).` });
-  }, [showToast]);
-
   // Invalida queries de saldo após movimentação
-  const invalidarSaldos = useCallback((depositoId: string) => {
-    qc.invalidateQueries({ queryKey: ['saldos_deposito', depositoId] });
+  const invalidarSaldos = useCallback((...depositoIds: string[]) => {
+    for (const id of depositoIds) {
+      qc.invalidateQueries({ queryKey: ['saldos_deposito', id] });
+    }
     qc.invalidateQueries({ queryKey: ['resumo_saldos_todos'] });
     qc.invalidateQueries({ queryKey: ['entradas_material'] });
     qc.invalidateQueries({ queryKey: ['saidas_material'] });
+    qc.invalidateQueries({ queryKey: ['transferencias_material'] });
   }, [qc]);
 
   const handleSubmitEntrada = useCallback(async (entrada: EntradaMaterial) => {
@@ -154,6 +176,31 @@ export default function Depositos() {
     setSaidaPara(null);
   }, [adicionarSaidaMut, invalidarSaldos]);
 
+  const handleSubmitTransferencia = useCallback(async (transf: TransferenciaMaterial) => {
+    await adicionarTransferenciaMut.mutateAsync(transf);
+    invalidarSaldos(transf.depositoOrigemId, transf.depositoDestinoId);
+    setTransferenciaPara(null);
+  }, [adicionarTransferenciaMut, invalidarSaldos]);
+
+  // Soft delete de depósito (vai pra lixeira)
+  const handleExcluirDeposito = useCallback(async (d: DepositoMaterial) => {
+    if (!confirm(`Mover depósito "${d.nome}" para a lixeira (30 dias)?`)) return;
+    const nomeUsuario = usuario?.nome || '';
+    const agora = new Date().toISOString();
+    await atualizarMut.mutateAsync({ ...d, deletadoEm: agora, deletadoPor: nomeUsuario });
+    await supabase.from('depositos_lixeira').insert({
+      id: d.id,
+      entidade: 'deposito',
+      entidade_id: d.id,
+      payload: d as unknown as Record<string, unknown>,
+      deletado_por: nomeUsuario,
+    }).then(({ error }) => { if (error) console.warn('[depositos_lixeira]', error.message); });
+    qc.invalidateQueries({ queryKey: ['depositos_material_v2'] });
+    qc.invalidateQueries({ queryKey: ['depositos_lixeira'] });
+    setDetalheDeposito(null);
+    showToast({ kind: 'info', message: `Depósito "${d.nome}" movido para a lixeira (30 dias).` });
+  }, [atualizarMut, qc, usuario, showToast]);
+
   const handleAbrirCombustivel = useCallback((tanqueId: string) => {
     showToast({ kind: 'info', message: 'Abrindo no módulo Combustível…' });
     navigate(`/combustivel?tanque=${tanqueId}`);
@@ -167,11 +214,26 @@ export default function Depositos() {
         <h1 className="text-2xl sm:text-[28px] font-semibold tracking-tight text-[var(--color-fg)]">
           Depósitos
         </h1>
-        {podeCriar && (
-          <Button onClick={() => { setEditando(null); setModalAberto(true); }}>
-            <Plus className="w-4 h-4" /> Novo depósito
-          </Button>
-        )}
+        <div className="flex items-center gap-2">
+          {podeCriar && (
+            <Button onClick={() => { setEditando(null); setModalAberto(true); }}>
+              <Plus className="w-4 h-4" /> Novo depósito
+            </Button>
+          )}
+          {podeLixeira && (
+            <button
+              type="button"
+              onClick={() => setLixeiraAberta(true)}
+              className="w-10 h-10 inline-flex items-center justify-center rounded-lg text-[var(--color-fg-muted)] hover:text-[var(--color-fg)] hover:bg-[var(--color-surface-2)] border border-[var(--color-border)] transition-colors"
+              title="Lixeira de Depósitos"
+              aria-label="Lixeira"
+            >
+              <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M3 6h18M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2m3 0v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6h14z" />
+              </svg>
+            </button>
+          )}
+        </div>
       </header>
 
       {/* Busca + filtros */}
@@ -181,7 +243,7 @@ export default function Depositos() {
           <input
             id="busca-depositos"
             className="w-full pl-9 pr-3 py-2 text-sm rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-1)] text-[var(--color-fg)] placeholder:text-[var(--color-fg-subtle)] focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]/40 focus:border-[var(--color-accent)]"
-            placeholder="Buscar por nome ou responsável…"
+            placeholder="Buscar… (atalho: /)"
             value={busca}
             onChange={(e) => setBusca(e.target.value)}
           />
@@ -281,11 +343,13 @@ export default function Depositos() {
         }}
         onNovaEntrada={(d) => { setDetalheDeposito(null); setEntradaPara(d); }}
         onNovaSaida={(d) => { setDetalheDeposito(null); setSaidaPara(d); }}
-        onNovaTransferencia={() => handleAvisarEmConstrucao('transferência')}
+        onNovaTransferencia={(d) => { setDetalheDeposito(null); setTransferenciaPara(d); }}
         canEdit={podeEditar}
+        canDelete={podeExcluir}
         canEntrada={podeEntrada}
         canSaida={podeSaida}
         canTransferencia={podeTransferencia}
+        onExcluir={handleExcluirDeposito}
       />
 
       {/* Modal de Entrada de material (D3) */}
@@ -324,6 +388,27 @@ export default function Depositos() {
           />
         )}
       </Modal>
+
+      {/* Modal de Transferência entre depósitos (D4) */}
+      <Modal
+        open={!!transferenciaPara}
+        onClose={() => setTransferenciaPara(null)}
+        title={transferenciaPara ? `Transferir de ${transferenciaPara.nome}` : 'Nova transferência'}
+        size="lg"
+      >
+        {transferenciaPara && (
+          <TransferenciaMaterialForm
+            origem={transferenciaPara}
+            depositos={depositosMat}
+            insumos={insumos}
+            onSubmit={handleSubmitTransferencia}
+            onCancel={() => setTransferenciaPara(null)}
+          />
+        )}
+      </Modal>
+
+      {/* Lixeira de Depósitos (D5) */}
+      <LixeiraDepositos open={lixeiraAberta} onClose={() => setLixeiraAberta(false)} />
     </div>
   );
 }

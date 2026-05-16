@@ -12,7 +12,7 @@
 import { useMemo, useState } from 'react';
 import {
   Plus, Minus, ArrowRightLeft, FileEdit, Package, Clock, MapPin, User,
-  AlertTriangle, ArrowDown, ArrowUp, ChevronDown,
+  AlertTriangle, ArrowDown, ArrowUp, ChevronDown, Trash2,
 } from 'lucide-react';
 import Modal from '../ui/Modal';
 import Button from '../ui/Button';
@@ -34,10 +34,12 @@ interface Props {
   fornecedores: Fornecedor[];
   onClose: () => void;
   onEditar: (d: DepositoMaterial) => void;
+  onExcluir?: (d: DepositoMaterial) => void;
   onNovaEntrada: (d: DepositoMaterial) => void;
   onNovaSaida: (d: DepositoMaterial) => void;
   onNovaTransferencia: (d: DepositoMaterial) => void;
   canEdit: boolean;
+  canDelete?: boolean;
   canEntrada: boolean;
   canSaida: boolean;
   canTransferencia: boolean;
@@ -60,8 +62,8 @@ function fmtDataHora(s: string): string {
 
 export default function DepositoDetalheModal({
   open, deposito, obras, insumos, fornecedores,
-  onClose, onEditar, onNovaEntrada, onNovaSaida, onNovaTransferencia,
-  canEdit, canEntrada, canSaida, canTransferencia,
+  onClose, onEditar, onExcluir, onNovaEntrada, onNovaSaida, onNovaTransferencia,
+  canEdit, canDelete = false, canEntrada, canSaida, canTransferencia,
 }: Props) {
   const { temAcao } = useAuth();
   const podeVerSaldos = temAcao('ver_saldos');
@@ -135,6 +137,11 @@ export default function DepositoDetalheModal({
             {canEdit && (
               <Button size="sm" variant="ghost" onClick={() => onEditar(deposito)}>
                 <FileEdit className="w-3.5 h-3.5" /> Editar
+              </Button>
+            )}
+            {canDelete && onExcluir && (
+              <Button size="sm" variant="ghost" onClick={() => onExcluir(deposito)}>
+                <Trash2 className="w-3.5 h-3.5" /> Excluir
               </Button>
             )}
           </div>
