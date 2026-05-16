@@ -182,18 +182,18 @@ export default function CotacaoListV2({
       {filtradas.length === 0 ? (
         <EmptyState busca={busca} canCreate={canCreate} />
       ) : (
-        <div className="hidden sm:block overflow-hidden rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-1)] shadow-[var(--shadow-xs)]">
+        <div className="hidden sm:block rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface-1)] overflow-hidden">
           <table className="w-full text-sm">
-            <thead className="bg-[var(--color-surface-2)] text-xs uppercase tracking-wide text-[var(--color-fg-muted)]">
+            <thead className="bg-[var(--color-surface-2)]/60 text-[10.5px] uppercase tracking-[0.06em] text-[var(--color-fg-muted)] border-b border-[var(--color-border)]">
               <tr>
-                <th className="px-4 py-2.5 text-left font-semibold">Número</th>
-                <th className="px-4 py-2.5 text-left font-semibold">Data</th>
-                <th className="px-4 py-2.5 text-left font-semibold">Pedido</th>
-                <th className="px-4 py-2.5 text-left font-semibold">Descrição</th>
-                <th className="px-4 py-2.5 text-left font-semibold">Itens</th>
-                <th className="px-4 py-2.5 text-left font-semibold">Fornecedores</th>
-                <th className="px-4 py-2.5 text-left font-semibold">Status</th>
-                <th className="px-4 py-2.5 text-right font-semibold">Ações</th>
+                <th className="px-4 py-3 text-left font-semibold">Número</th>
+                <th className="px-4 py-3 text-left font-semibold">Data</th>
+                <th className="px-4 py-3 text-left font-semibold">Pedido</th>
+                <th className="px-4 py-3 text-left font-semibold">Descrição</th>
+                <th className="px-4 py-3 text-left font-semibold">Itens</th>
+                <th className="px-4 py-3 text-left font-semibold">Fornecedores</th>
+                <th className="px-4 py-3 text-left font-semibold">Status</th>
+                <th className="px-4 py-3 text-right font-semibold">Ações</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-[var(--color-border)]">

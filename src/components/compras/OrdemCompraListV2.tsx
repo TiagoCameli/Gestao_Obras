@@ -211,17 +211,17 @@ export default function OrdemCompraListV2({
       {filtradas.length === 0 ? (
         <EmptyState busca={busca} canCreate={canCreate} />
       ) : (
-        <div className="overflow-hidden rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-1)] shadow-[var(--shadow-xs)]">
+        <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface-1)] overflow-hidden">
           <table className="w-full text-sm">
-            <thead className="bg-[var(--color-surface-2)] text-xs uppercase tracking-wide text-[var(--color-fg-muted)]">
+            <thead className="bg-[var(--color-surface-2)]/60 text-[10.5px] uppercase tracking-[0.06em] text-[var(--color-fg-muted)] border-b border-[var(--color-border)]">
               <tr>
-                <th className="px-4 py-2.5 text-left font-semibold">Número</th>
-                <th className="px-4 py-2.5 text-left font-semibold">Data</th>
-                <th className="px-4 py-2.5 text-left font-semibold">Fornecedor</th>
-                <th className="px-4 py-2.5 text-left font-semibold">Destino</th>
-                <th className="px-4 py-2.5 text-right font-semibold">Total</th>
-                <th className="px-4 py-2.5 text-left font-semibold">Status</th>
-                <th className="px-4 py-2.5 text-right font-semibold">Ações</th>
+                <th className="px-4 py-3 text-left font-semibold">Número</th>
+                <th className="px-4 py-3 text-left font-semibold">Data</th>
+                <th className="px-4 py-3 text-left font-semibold">Fornecedor</th>
+                <th className="px-4 py-3 text-left font-semibold">Destino</th>
+                <th className="px-4 py-3 text-right font-semibold">Total</th>
+                <th className="px-4 py-3 text-left font-semibold">Status</th>
+                <th className="px-4 py-3 text-right font-semibold">Ações</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-[var(--color-border)]">
@@ -231,45 +231,41 @@ export default function OrdemCompraListV2({
                 const DestIcon = destinoInfo?.Icon;
                 const lancFin = oc.lancamentoFinanceiroStatus ?? 'nao_aplicavel';
                 return (
-                  <tr key={oc.id} className="hover:bg-[var(--color-surface-2)]/50 transition-colors">
-                    <td className="px-4 py-3 font-mono text-xs whitespace-nowrap">{oc.numero}</td>
-                    <td className="px-4 py-3 text-[var(--color-fg-muted)] whitespace-nowrap">{formatarData(oc.dataCriacao)}</td>
-                    <td className="px-4 py-3">
-                      <div className="text-[var(--color-fg)] truncate max-w-[200px]">{fornecedor?.nome ?? '—'}</div>
+                  <tr key={oc.id} className="hover:bg-[var(--color-surface-2)]/40 transition-colors group">
+                    <td className="px-4 py-3.5 font-mono text-[12px] whitespace-nowrap text-[var(--color-fg)]">{oc.numero}</td>
+                    <td className="px-4 py-3.5 text-[12.5px] text-[var(--color-fg-muted)] whitespace-nowrap">{formatarData(oc.dataCriacao)}</td>
+                    <td className="px-4 py-3.5">
+                      <div className="text-[13px] text-[var(--color-fg)] truncate max-w-[220px] font-medium">{fornecedor?.nome ?? '—'}</div>
                       {oc.empresaFaturamento && (
-                        <div className="text-[10px] text-[var(--color-fg-subtle)]">Fat: {oc.empresaFaturamento}</div>
+                        <div className="text-[10.5px] text-[var(--color-fg-subtle)] mt-0.5">Fat: {oc.empresaFaturamento}</div>
                       )}
                     </td>
-                    <td className="px-4 py-3">
+                    <td className="px-4 py-3.5">
                       {destinoInfo ? (
-                        <div className="flex items-center gap-1.5 text-xs">
-                          {DestIcon && <DestIcon className="w-3.5 h-3.5 text-[var(--color-fg-muted)]" />}
+                        <div className="flex items-center gap-1.5 text-[12.5px]">
+                          {DestIcon && <DestIcon className="w-3.5 h-3.5 text-[var(--color-fg-muted)] shrink-0" />}
                           <span className="text-[var(--color-fg)]">{destinoInfo.label}</span>
                         </div>
                       ) : (
-                        <span className="text-xs text-[var(--color-fg-subtle)] italic">não definido</span>
+                        <span className="text-[12px] text-[var(--color-fg-subtle)] italic">não definido</span>
                       )}
                       {oc.obraId && (
-                        <div className="text-[10px] text-[var(--color-fg-subtle)] truncate max-w-[140px]">
+                        <div className="text-[10.5px] text-[var(--color-fg-subtle)] truncate max-w-[160px] mt-0.5">
                           {obrasMap.get(oc.obraId)}
                         </div>
                       )}
                     </td>
-                    <td className="px-4 py-3 text-right tabular-nums text-[var(--color-fg)] whitespace-nowrap font-medium">
+                    <td className="px-4 py-3.5 text-right tabular-nums text-[13px] text-[var(--color-fg)] whitespace-nowrap font-semibold">
                       {fmtMoeda(oc.totalGeral)}
                     </td>
-                    <td className="px-4 py-3">
-                      <div className="flex flex-col gap-1">
+                    <td className="px-4 py-3.5">
+                      <div className="flex flex-col gap-1 items-start">
                         <BadgeStatusCompra status={oc.status} />
                         {lancFin === 'pendente' && (
-                          <span className="inline-flex items-center gap-1 px-2 h-5 rounded-md text-[10px] font-medium bg-amber-50 text-amber-800 border border-amber-200 dark:bg-amber-950/30 dark:text-amber-300">
-                            🟠 Aguard. financeiro
-                          </span>
+                          <BadgeStatusCompra status="pendente" size="xs" label="Financ. pendente" />
                         )}
                         {lancFin === 'lancada' && (
-                          <span className="inline-flex items-center gap-1 px-2 h-5 rounded-md text-[10px] font-medium bg-emerald-50 text-emerald-800 border border-emerald-200 dark:bg-emerald-950/30 dark:text-emerald-300">
-                            ✓ Financeiro lançado
-                          </span>
+                          <BadgeStatusCompra status="lancada" size="xs" label="Financ. lançado" />
                         )}
                       </div>
                     </td>
@@ -337,15 +333,15 @@ function IconButton({
   variant?: 'default' | 'success' | 'warning' | 'danger';
 }) {
   const cls = {
-    default: 'text-[var(--color-fg-subtle)] hover:text-[var(--color-fg)] hover:bg-[var(--color-surface-2)]',
-    success: 'text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-950/40',
-    warning: 'text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-950/40',
-    danger:  'text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40',
+    default: 'text-[var(--color-fg-muted)] hover:text-[var(--color-fg)] hover:bg-[var(--color-surface-2)]',
+    success: 'text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-500/15',
+    warning: 'text-amber-600 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-500/15',
+    danger:  'text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-500/15',
   }[variant];
   return (
     <button
       type="button" onClick={onClick} title={title} aria-label={title}
-      className={`w-7 h-7 inline-flex items-center justify-center rounded-md transition-colors ${cls}`}
+      className={`w-8 h-8 inline-flex items-center justify-center rounded-lg transition-colors ${cls}`}
     >
       {children}
     </button>
@@ -354,14 +350,16 @@ function IconButton({
 
 function EmptyState({ busca, canCreate }: { busca: string; canCreate: boolean }) {
   return (
-    <div className="rounded-xl border border-dashed border-[var(--color-border)] py-14 text-center">
-      <Inbox className="w-8 h-8 mx-auto text-[var(--color-fg-subtle)] mb-2" />
-      <h3 className="text-sm font-semibold text-[var(--color-fg)] mb-1">
+    <div className="rounded-2xl border border-dashed border-[var(--color-border)] py-16 px-6 text-center bg-[var(--color-surface-1)]/40">
+      <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-[var(--color-surface-2)] mb-3">
+        <Inbox className="w-5 h-5 text-[var(--color-fg-muted)]" />
+      </div>
+      <h3 className="text-[14px] font-semibold text-[var(--color-fg)] mb-1.5">
         {busca ? 'Nenhuma OC encontrada' : 'Sem ordens de compra ainda'}
       </h3>
-      <p className="text-xs text-[var(--color-fg-muted)] max-w-sm mx-auto">
+      <p className="text-[12.5px] text-[var(--color-fg-muted)] max-w-sm mx-auto leading-relaxed">
         {busca
-          ? 'Ajuste a busca ou os filtros.'
+          ? 'Ajuste a busca ou os filtros para encontrar o que precisa.'
           : canCreate
             ? 'Crie uma OC direto, ou gere a partir de uma cotação aprovada.'
             : 'Quando alguém criar uma OC, ela aparecerá aqui.'}

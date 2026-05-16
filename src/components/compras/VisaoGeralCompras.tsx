@@ -274,24 +274,22 @@ export default function VisaoGeralCompras({
                   >
                     <div className="flex items-center gap-2">
                       <span className="font-mono text-xs text-[var(--color-fg-muted)]">{oc.numero}</span>
-                      <span className="inline-flex items-center px-1.5 h-5 rounded text-[10px] font-medium bg-amber-50 text-amber-800 border border-amber-200 dark:bg-amber-950/30 dark:text-amber-300">
-                        🟠 pendente
-                      </span>
+                      <BadgeStatusCompra status="pendente" size="xs" label="Pendente" />
                     </div>
-                    <div className="text-sm text-[var(--color-fg)] truncate">
+                    <div className="text-sm text-[var(--color-fg)] truncate mt-0.5">
                       {fornecedoresMap.get(oc.fornecedorId) ?? '—'}
                     </div>
                   </button>
-                  <span className="shrink-0 text-xs tabular-nums text-[var(--color-fg)] font-medium">
+                  <span className="shrink-0 text-sm tabular-nums text-[var(--color-fg)] font-semibold">
                     {fmtMoeda(oc.totalGeral, true)}
                   </span>
                   <button
                     type="button"
                     onClick={() => onGerarLancamento(oc)}
-                    className="shrink-0 inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-semibold bg-amber-600 text-white hover:bg-amber-700 transition-colors"
+                    className="shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11.5px] font-semibold bg-amber-600 text-white shadow-sm hover:bg-amber-700 active:bg-amber-800 transition-colors"
                     title="Gerar lançamento financeiro"
                   >
-                    <Banknote className="w-3 h-3" /> Lançar
+                    <Banknote className="w-3.5 h-3.5" /> Lançar
                   </button>
                 </div>
               ))}
@@ -435,40 +433,42 @@ function KpiCard({
   delta?: number;
   accent?: 'amber' | 'blue' | 'violet' | 'emerald' | 'orange' | 'slate';
 }) {
+  // KPI premium: ícone num quadradinho colorido suave, label acima
+  // (estilo SaaS), número grande logo abaixo, e sub/delta no rodapé.
   const accents = {
-    amber:   { bg: 'bg-amber-50 dark:bg-amber-950/30',     fg: 'text-amber-600 dark:text-amber-400' },
-    blue:    { bg: 'bg-blue-50 dark:bg-blue-950/30',       fg: 'text-blue-600 dark:text-blue-400' },
-    violet:  { bg: 'bg-violet-50 dark:bg-violet-950/30',   fg: 'text-violet-600 dark:text-violet-400' },
-    emerald: { bg: 'bg-emerald-50 dark:bg-emerald-950/30', fg: 'text-emerald-600 dark:text-emerald-400' },
-    orange:  { bg: 'bg-orange-50 dark:bg-orange-950/30',   fg: 'text-orange-600 dark:text-orange-400' },
-    slate:   { bg: 'bg-slate-50 dark:bg-slate-900/40',     fg: 'text-slate-600 dark:text-slate-400' },
+    amber:   { bg: 'bg-amber-100/80 dark:bg-amber-500/15',     fg: 'text-amber-700 dark:text-amber-300' },
+    blue:    { bg: 'bg-blue-100/80 dark:bg-blue-500/15',       fg: 'text-blue-700 dark:text-blue-300' },
+    violet:  { bg: 'bg-violet-100/80 dark:bg-violet-500/15',   fg: 'text-violet-700 dark:text-violet-300' },
+    emerald: { bg: 'bg-emerald-100/80 dark:bg-emerald-500/15', fg: 'text-emerald-700 dark:text-emerald-300' },
+    orange:  { bg: 'bg-orange-100/80 dark:bg-orange-500/15',   fg: 'text-orange-700 dark:text-orange-300' },
+    slate:   { bg: 'bg-slate-100/80 dark:bg-slate-500/15',     fg: 'text-slate-700 dark:text-slate-300' },
   }[accent];
 
   return (
-    <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-1)] p-3.5 shadow-[var(--shadow-xs)] hover:shadow-sm transition-shadow">
-      <div className="flex items-start justify-between mb-1.5">
-        <span className={`inline-flex items-center justify-center w-8 h-8 rounded-lg ${accents.bg} ${accents.fg}`}>
-          <Icon className="w-4 h-4" />
+    <div className="group rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface-1)] p-4 transition-all hover:border-[var(--color-border-strong)] hover:shadow-[var(--shadow-sm)]">
+      <div className="flex items-start justify-between mb-3">
+        <span className={`inline-flex items-center justify-center w-9 h-9 rounded-xl ${accents.bg} ${accents.fg} ring-1 ring-inset ring-current/10`}>
+          <Icon className="w-[18px] h-[18px]" strokeWidth={2} />
         </span>
         {delta !== undefined && Number.isFinite(delta) && (
           <span className={
-            'text-[10px] font-semibold tabular-nums px-1.5 py-0.5 rounded ' +
+            'inline-flex items-center gap-0.5 text-[11px] font-semibold tabular-nums px-1.5 py-0.5 rounded-md ' +
             (delta >= 0
-              ? 'text-emerald-700 bg-emerald-50 dark:bg-emerald-950/30 dark:text-emerald-300'
-              : 'text-rose-700 bg-rose-50 dark:bg-rose-950/30 dark:text-rose-300')
+              ? 'text-emerald-700 bg-emerald-50 dark:bg-emerald-500/15 dark:text-emerald-300'
+              : 'text-rose-700 bg-rose-50 dark:bg-rose-500/15 dark:text-rose-300')
           }>
             {delta >= 0 ? '↑' : '↓'} {Math.abs(delta).toFixed(0)}%
           </span>
         )}
       </div>
-      <div className="text-xl font-bold text-[var(--color-fg)] tracking-tight tabular-nums leading-tight">
-        {value}
-      </div>
-      <div className="text-[10px] uppercase tracking-wide text-[var(--color-fg-muted)] mt-0.5">
+      <div className="text-[11px] font-medium uppercase tracking-[0.06em] text-[var(--color-fg-muted)] mb-1">
         {label}
       </div>
+      <div className="text-2xl font-bold text-[var(--color-fg)] tracking-tight tabular-nums leading-none">
+        {value}
+      </div>
       {sub && (
-        <div className="text-[10px] text-[var(--color-fg-subtle)] mt-0.5">{sub}</div>
+        <div className="text-[11px] text-[var(--color-fg-subtle)] mt-1.5">{sub}</div>
       )}
     </div>
   );
@@ -484,14 +484,18 @@ function Card({
   children: React.ReactNode;
 }) {
   const headerCls = accent === 'amber'
-    ? 'border-amber-200 dark:border-amber-800/50 bg-amber-50/40 dark:bg-amber-950/10'
+    ? 'border-amber-200 dark:border-amber-500/25 bg-amber-50/60 dark:bg-amber-500/[0.06]'
     : '';
   return (
-    <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-1)] shadow-[var(--shadow-xs)] overflow-hidden">
-      <header className={`px-4 py-2.5 border-b border-[var(--color-border)] flex items-center justify-between gap-3 ${headerCls}`}>
+    <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface-1)] overflow-hidden">
+      <header className={`px-4 py-3 border-b border-[var(--color-border)] flex items-center justify-between gap-3 ${headerCls}`}>
         <div className="flex items-center gap-2">
-          {Icon && <Icon className="w-4 h-4 text-[var(--color-fg-muted)]" />}
-          <h3 className="text-sm font-semibold text-[var(--color-fg)] tracking-tight">{titulo}</h3>
+          {Icon && (
+            <span className="inline-flex items-center justify-center w-6 h-6 rounded-md bg-[var(--color-surface-2)] text-[var(--color-fg-muted)]">
+              <Icon className="w-[14px] h-[14px]" />
+            </span>
+          )}
+          <h3 className="text-[13.5px] font-semibold text-[var(--color-fg)] tracking-tight">{titulo}</h3>
         </div>
         {headerRight}
       </header>
@@ -504,8 +508,8 @@ function Card({
 
 function EmptyMini({ msg, icon: Icon = CheckCircle2 }: { msg: string; icon?: typeof CheckCircle2 }) {
   return (
-    <div className="text-center py-8 text-sm text-[var(--color-fg-muted)] flex flex-col items-center gap-1.5">
-      <Icon className="w-6 h-6 text-[var(--color-fg-subtle)] opacity-60" />
+    <div className="text-center py-10 text-sm text-[var(--color-fg-muted)] flex flex-col items-center gap-2">
+      <Icon className="w-7 h-7 text-[var(--color-fg-subtle)] opacity-50" strokeWidth={1.5} />
       {msg}
     </div>
   );

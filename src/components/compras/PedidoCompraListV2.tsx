@@ -42,10 +42,10 @@ const URGENCIA_LABEL: Record<UrgenciaPedidoCompra, string> = {
 };
 
 const URGENCIA_CHIP: Record<UrgenciaPedidoCompra, string> = {
-  baixa:    'bg-slate-50 text-slate-700 border-slate-200',
-  normal:   'bg-blue-50 text-blue-700 border-blue-200',
-  alta:     'bg-amber-50 text-amber-700 border-amber-200',
-  critica:  'bg-rose-50 text-rose-700 border-rose-200',
+  baixa:    'bg-slate-50 text-slate-700 border-slate-300 dark:bg-slate-500/10 dark:text-slate-200 dark:border-slate-500/30',
+  normal:   'bg-blue-50 text-blue-700 border-blue-300 dark:bg-blue-500/10 dark:text-blue-200 dark:border-blue-500/30',
+  alta:     'bg-amber-50 text-amber-700 border-amber-300 dark:bg-amber-500/10 dark:text-amber-200 dark:border-amber-500/30',
+  critica:  'bg-rose-50 text-rose-700 border-rose-300 dark:bg-rose-500/10 dark:text-rose-100 dark:border-rose-500/30',
 };
 
 const STATUS_OPTIONS: { value: '' | StatusPedidoCompra; label: string }[] = [
@@ -216,18 +216,18 @@ export default function PedidoCompraListV2({
         <EmptyState busca={busca} canCreate={canCreate} />
       ) : (
         <>
-          <div className="hidden sm:block overflow-hidden rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-1)] shadow-[var(--shadow-xs)]">
+          <div className="hidden sm:block rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface-1)] overflow-hidden">
             <table className="w-full text-sm">
-              <thead className="bg-[var(--color-surface-2)] text-xs uppercase tracking-wide text-[var(--color-fg-muted)]">
+              <thead className="bg-[var(--color-surface-2)]/60 text-[10.5px] uppercase tracking-[0.06em] text-[var(--color-fg-muted)] border-b border-[var(--color-border)]">
                 <tr>
-                  <th className="px-4 py-2.5 text-left font-semibold">Número</th>
-                  <th className="px-4 py-2.5 text-left font-semibold">Data</th>
-                  <th className="px-4 py-2.5 text-left font-semibold">Obra</th>
-                  <th className="px-4 py-2.5 text-left font-semibold">Solicitante</th>
-                  <th className="px-4 py-2.5 text-left font-semibold">Itens</th>
-                  <th className="px-4 py-2.5 text-left font-semibold">Urgência</th>
-                  <th className="px-4 py-2.5 text-left font-semibold">Status</th>
-                  <th className="px-4 py-2.5 text-right font-semibold">Ações</th>
+                  <th className="px-4 py-3 text-left font-semibold">Número</th>
+                  <th className="px-4 py-3 text-left font-semibold">Data</th>
+                  <th className="px-4 py-3 text-left font-semibold">Obra</th>
+                  <th className="px-4 py-3 text-left font-semibold">Solicitante</th>
+                  <th className="px-4 py-3 text-left font-semibold">Itens</th>
+                  <th className="px-4 py-3 text-left font-semibold">Urgência</th>
+                  <th className="px-4 py-3 text-left font-semibold">Status</th>
+                  <th className="px-4 py-3 text-right font-semibold">Ações</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-[var(--color-border)]">

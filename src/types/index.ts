@@ -818,6 +818,27 @@ export interface ItemPedidoCompra {
   insumoId?: string;
   /** flag transitória: solicitante marcou "salvar este item na base" */
   criarNaBase?: boolean;
+
+  /** ── DESTINO POR ITEM (v2.5+) — TODOS OPCIONAIS ─────────────────────
+   *  O solicitante PODE definir o destino do item já no pedido. Esses
+   *  campos sobem pela cadeia (Pedido → Cotação → OC), permitindo que
+   *  uma única OC tenha múltiplos destinos (blocos) gerados a partir
+   *  de um pedido onde o solicitante deixou tudo organizado.
+   *  Quando vazios, o comprador define os destinos no momento da OC. */
+  tipoDestino?: TipoDestinoOC;
+  /** Etapa específica (quando tipoDestino=obra_etapa). A obra usada é
+   *  a do header do pedido (PedidoCompra.obraId), mas o solicitante
+   *  pode misturar destinos diferentes nos itens. */
+  etapaObraId?: string;
+  /** ID do depósito/almoxarifado/tanque destino (opcional) */
+  depositoDestinoId?: string;
+  /** Equipamento (apenas pra manutencao_equipamento) */
+  equipamentoId?: string;
+  /** OS vinculada (apenas pra item serviço em manutenção) */
+  osId?: string;
+  /** Obra específica do item — quando o pedido cobre obras diferentes
+   *  (raro mas possível). Default é PedidoCompra.obraId. */
+  obraId?: string;
 }
 
 export interface PedidoCompra {
@@ -912,18 +933,38 @@ export interface ItemOrdemCompra {
   unidade: string;
   precoUnitario: number;
   subtotal: number;
+
+  /** OBSOLETOS no nível-OC global, mas mantidos pra retrocompat. A partir
+   *  da v2.5 (arquitetura de blocos) o destino é POR ITEM — os campos
+   *  abaixo (tipoDestino, obraId, etapaObraId, depositoDestinoId,
+   *  equipamentoId) carregam o destino daquele item específico. */
   obraId: string;
   etapaObraId: string;
+
   /** material ou servico — default 'material' para compatibilidade */
   tipo?: TipoItemCompra;
   /** marca/modelo */
   marca?: string;
+
+  /** ── DESTINO POR ITEM (v2.5+) ─────────────────────────────────────
+   *  Cada item de uma OC pode ir pra um destino diferente. A OC agrupa
+   *  itens em "blocos" no formulário, mas no banco cada item carrega
+   *  seu próprio destino. Quando todos os itens têm o mesmo destino, a
+   *  OC inteira herda esse destino nos campos OC-level (compat com
+   *  visualizações antigas). */
+  tipoDestino?: TipoDestinoOC;
+  /** Depósito de material/almoxarifado/tanque destino (depende do tipoDestino) */
+  depositoDestinoId?: string;
+  /** Equipamento (apenas pra manutencao_equipamento — opcional, herdado da OS) */
+  equipamentoId?: string;
+
   /** ref ao insumo cadastrado (opcional para outros destinos; OBRIGATÓRIO
-   * para itens material em OCs com destino "manutencao_equipamento" — só
-   * aceita insumos com usado_em_manutencao=true) */
+   * para itens material em qualquer destino — garante que todo material
+   * tem cadastro prévio. Em manutenção exige insumo com
+   * usadoEmManutencao=true; em tanque exige tipo=combustivel). */
   insumoId?: string;
-  /** OBRIGATÓRIO para itens servico em OCs com destino "manutencao_equipamento":
-   * vincula o serviço a uma Ordem de Serviço de equipamento específica. */
+  /** OBRIGATÓRIO para itens servico em destino "manutencao_equipamento":
+   * vincula o serviço (mão de obra) a uma Ordem de Serviço de equipamento. */
   osId?: string;
 }
 

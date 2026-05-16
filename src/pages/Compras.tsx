@@ -502,67 +502,72 @@ export default function Compras() {
 
   // Aprovação separada (workflow b — quem cria envia, outro usuário aprova).
   //
-  // Side effect importante para destino "manutenção de equipamento":
-  // todo item do tipo 'serviço' vinculado a uma OS é AUTOMATICAMENTE
-  // registrado naquela OS (somando o subtotal a custoServicoTerceiro e
-  // anotando na observação). A operação é IDEMPOTENTE via tag
-  // "[OC ${numero}]" — se a OC já foi processada antes, pula a OS.
+  // v2.5+: a OC pode ter destinos POR ITEM (multi-destino). Iteramos pela
+  // lista de itens e aplicamos os efeitos conforme o destino de cada um:
+  //   - manutencao_equipamento (serviço): registra na OS vinculada
+  //   - manutencao_equipamento (peça): trigger no banco já gera entrada
+  //   - obra_etapa, sede: lançamento financeiro direto (placeholder)
+  //   - obra_deposito/deposito_central/tanque: entrada no estoque
+  //
+  // Idempotência: cada OS marca uma tag "[OC ${numero}]" nas observações
+  // — se a aprovação rolar de novo, pula.
   const handleAprovarOCv2 = useCallback(async (oc: OrdemCompra) => {
     const nomeUsuario = usuario?.nome || '';
     const agora = new Date().toISOString();
 
-    // ── 1. Registra serviços nas OSs (se for OC de manutenção) ────────
-    if (oc.tipoDestino === 'manutencao_equipamento') {
-      const servicosPorOS = new Map<string, { total: number; itens: ItemOrdemCompra[] }>();
-      for (const it of oc.itens) {
-        const tipo = it.tipo ?? 'material';
-        if (tipo === 'servico' && it.osId) {
-          const atual = servicosPorOS.get(it.osId) ?? { total: 0, itens: [] };
-          atual.total += it.subtotal;
-          atual.itens.push(it);
-          servicosPorOS.set(it.osId, atual);
-        }
+    // ── 1. Agrupar itens de mão de obra por OS (efeito por item) ──────
+    // Cada item carrega seu próprio destino. Fallback pra oc.tipoDestino
+    // quando o item não tem (OC antiga retrocompat).
+    const servicosPorOS = new Map<string, { total: number; itens: ItemOrdemCompra[] }>();
+    for (const it of oc.itens) {
+      const destinoItem = it.tipoDestino ?? oc.tipoDestino;
+      const tipo = it.tipo ?? 'material';
+      if (destinoItem === 'manutencao_equipamento' && tipo === 'servico' && it.osId) {
+        const atual = servicosPorOS.get(it.osId) ?? { total: 0, itens: [] };
+        atual.total += it.subtotal;
+        atual.itens.push(it);
+        servicosPorOS.set(it.osId, atual);
       }
+    }
 
-      for (const [osId, info] of servicosPorOS.entries()) {
-        // Busca a OS atual no banco para ter o estado mais recente
-        const { data: osDb, error: osErr } = await supabase
-          .from('ordens_servico')
-          .select('*')
-          .eq('id', osId)
-          .is('deleted_at', null)
-          .maybeSingle();
-        if (osErr || !osDb) {
-          showToast({
-            kind: 'error',
-            message: `OS vinculada não encontrada (id=${osId}). Aprovação interrompida.`,
-          });
-          return;
-        }
-        const os: OrdemServico = dbToOrdemServico(osDb);
-
-        // Idempotência: se a OC já foi registrada antes, pula
-        const tag = `[OC ${oc.numero}]`;
-        if (os.observacoes.includes(tag)) continue;
-
-        const linhaServicos = info.itens
-          .map((it) => `  • ${it.descricao} — ${it.quantidade} ${it.unidade} × R$ ${it.precoUnitario.toFixed(2)} = R$ ${it.subtotal.toFixed(2)}`)
-          .join('\n');
-        const novaObs = [
-          os.observacoes.trim(),
-          `${tag} Mão de obra registrada via aprovação da OC em ${agora.slice(0, 10)} por ${nomeUsuario}:`,
-          linhaServicos,
-        ].filter(Boolean).join('\n');
-
-        const osAtualizada: OrdemServico = {
-          ...os,
-          custoServicoTerceiro: (os.custoServicoTerceiro || 0) + info.total,
-          observacoes: novaObs,
-          updatedAt: agora,
-          updatedBy: nomeUsuario,
-        };
-        await atualizarOSMut.mutateAsync(osAtualizada);
+    // ── 2. Aplica efeitos nas OSs (uma chamada por OS afetada) ────────
+    for (const [osId, info] of servicosPorOS.entries()) {
+      const { data: osDb, error: osErr } = await supabase
+        .from('ordens_servico')
+        .select('*')
+        .eq('id', osId)
+        .is('deleted_at', null)
+        .maybeSingle();
+      if (osErr || !osDb) {
+        showToast({
+          kind: 'error',
+          message: `OS vinculada não encontrada (id=${osId}). Aprovação interrompida.`,
+        });
+        return;
       }
+      const os: OrdemServico = dbToOrdemServico(osDb);
+
+      // Idempotência
+      const tag = `[OC ${oc.numero}]`;
+      if (os.observacoes.includes(tag)) continue;
+
+      const linhaServicos = info.itens
+        .map((it) => `  • ${it.descricao} — ${it.quantidade} ${it.unidade} × R$ ${it.precoUnitario.toFixed(2)} = R$ ${it.subtotal.toFixed(2)}`)
+        .join('\n');
+      const novaObs = [
+        os.observacoes.trim(),
+        `${tag} Mão de obra registrada via aprovação da OC em ${agora.slice(0, 10)} por ${nomeUsuario}:`,
+        linhaServicos,
+      ].filter(Boolean).join('\n');
+
+      const osAtualizada: OrdemServico = {
+        ...os,
+        custoServicoTerceiro: (os.custoServicoTerceiro || 0) + info.total,
+        observacoes: novaObs,
+        updatedAt: agora,
+        updatedBy: nomeUsuario,
+      };
+      await atualizarOSMut.mutateAsync(osAtualizada);
     }
 
     // ── 2. Marca OC como aprovada ─────────────────────────────────────
@@ -588,9 +593,11 @@ export default function Compras() {
       link: `/compras?tab=ordens&id=${oc.id}`,
     });
 
-    const msgExtra = oc.tipoDestino === 'manutencao_equipamento'
-      && oc.itens.some((it) => (it.tipo ?? 'material') === 'servico' && it.osId)
-      ? ' Mão de obra registrada nas OSs.' : '';
+    // Mensagem extra resume os efeitos automáticos aplicados
+    const numOSs = servicosPorOS.size;
+    const msgExtra = numOSs > 0
+      ? ` ${numOSs} OS${numOSs > 1 ? 's' : ''} atualizada${numOSs > 1 ? 's' : ''} com mão de obra.`
+      : '';
     showToast({ kind: 'success', message: `OC ${oc.numero} aprovada. Aguardando lançamento financeiro.${msgExtra}` });
     // Fecha o modal se estava aberto
     setOcModalOpen(false);
@@ -749,40 +756,57 @@ export default function Compras() {
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-6 gap-3">
-        <h1 className="text-2xl sm:text-[28px] font-semibold tracking-tight text-[var(--color-fg)]">Compras</h1>
-        <div className="flex items-center gap-2">
+      {/* ── Header premium ─────────────────────────────────────────────
+          Título + subtítulo discreto à esquerda; ações primárias à
+          direita, com separador visual antes dos ícones (sino/lixeira)
+          pra ficar claro que são utilitários. */}
+      <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between mb-6 gap-4">
+        <div>
+          <h1 className="text-2xl sm:text-[28px] font-semibold tracking-tight text-[var(--color-fg)] leading-none">
+            Compras
+          </h1>
+          <p className="mt-1.5 text-sm text-[var(--color-fg-subtle)]">
+            Pedidos → Cotações → Ordens de Compra · controle integrado
+          </p>
+        </div>
+        <div className="flex items-center gap-2 flex-wrap">
           {canCreate && (
             <>
-              <Button onClick={() => { setEditandoPedido(null); setPedidoModalOpen(true); }}>
-                Novo Pedido
+              <Button
+                variant="secondary"
+                onClick={() => { setEditandoPedido(null); setPedidoModalOpen(true); }}
+              >
+                + Pedido
               </Button>
-              <Button onClick={() => { setPedidoParaCotacao(null); setCotacaoModalOpen(true); }}>
-                Nova Cotação
+              <Button
+                variant="secondary"
+                onClick={() => { setPedidoParaCotacao(null); setCotacaoModalOpen(true); }}
+              >
+                + Cotação
               </Button>
               <Button onClick={() => { setEditandoOC(null); setOcModalOpen(true); }}>
-                Nova OC
+                + Nova OC
               </Button>
             </>
           )}
+          {/* Separador visual antes dos utilitários */}
+          <span className="hidden sm:block w-px h-6 bg-[var(--color-border)] mx-1" aria-hidden="true" />
           {/* Sino de notificações */}
           <NotificacoesSino
             onNavigate={(link) => {
-              // link no formato `/compras?tab=ordens&id=OC-2026-0001`
               const m = link.match(/tab=([a-z]+)(?:&id=([^&]+))?/);
               if (m) {
                 const newTab = m[1];
                 if (validTabs.includes(newTab as Tab)) setTab(newTab as Tab);
-                // (id é opcional — abrir o item individual fica como melhoria futura)
               }
             }}
           />
-          {/* Lixeira (acessível a quem tem permissão de restaurar) */}
+          {/* Lixeira */}
           {temAcao('restaurar_lixeira_compras') && (
             <button
               type="button"
               onClick={() => setLixeiraAberta(true)}
-              className="w-10 h-10 inline-flex items-center justify-center rounded-lg text-[var(--color-fg-muted)] hover:text-[var(--color-fg)] hover:bg-[var(--color-surface-2)] border border-[var(--color-border)] transition-colors"
+              className="w-9 h-9 inline-flex items-center justify-center rounded-lg text-[var(--color-fg-muted)] hover:text-[var(--color-fg)] hover:bg-[var(--color-surface-2)] border border-[var(--color-border)] transition-colors"
               title="Lixeira de Compras"
               aria-label="Lixeira"
             >
@@ -794,21 +818,30 @@ export default function Compras() {
         </div>
       </div>
 
-      {/* Tabs */}
-      <div className="flex gap-1 mb-6 bg-[var(--color-surface-2)] border border-[var(--color-border)] rounded-lg p-1 w-fit">
-        {tabs.map((t) => (
-          <button
-            key={t.key}
-            className={`px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${
-              tab === t.key
-                ? 'bg-[var(--color-surface-1)] text-[var(--color-fg)] shadow-[var(--shadow-xs)]'
-                : 'text-[var(--color-fg-muted)] hover:text-[var(--color-fg)]'
-            }`}
-            onClick={() => setTab(t.key)}
-          >
-            {t.label}
-          </button>
-        ))}
+      {/* ── Tabs com indicador inferior premium ───────────────────────
+          Antes era um pill-tab — agora é um underline-tab que ocupa
+          a largura completa e fica menos "miúdo" visualmente. */}
+      <div className="mb-6 border-b border-[var(--color-border)]">
+        <nav className="flex gap-1 -mb-px overflow-x-auto" aria-label="Compras tabs">
+          {tabs.map((t) => {
+            const ativo = tab === t.key;
+            return (
+              <button
+                key={t.key}
+                onClick={() => setTab(t.key)}
+                className={
+                  'px-4 py-2.5 text-sm font-medium transition-colors border-b-2 whitespace-nowrap ' +
+                  (ativo
+                    ? 'border-[var(--color-accent)] text-[var(--color-fg)]'
+                    : 'border-transparent text-[var(--color-fg-muted)] hover:text-[var(--color-fg)] hover:border-[var(--color-border-strong)]')
+                }
+                aria-current={ativo ? 'page' : undefined}
+              >
+                {t.label}
+              </button>
+            );
+          })}
+        </nav>
       </div>
 
       {/* ── Visão Geral Tab (V2 premium — Dashboard) ── */}

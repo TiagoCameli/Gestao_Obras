@@ -191,52 +191,58 @@ export function validarOrdemCompra(
   if (oc.itens.length === 0) {
     return { ok: false, erro: 'Adicione ao menos um item.', campo: 'itens' };
   }
-  if (!oc.tipoDestino) {
-    return { ok: false, erro: 'Selecione o destino da OC.', campo: 'tipoDestino' };
-  }
 
-  const regra = REGRAS_DESTINO[oc.tipoDestino];
+  // ─────────────────────────────────────────────────────────────────
+  // v2.5+: destino É POR ITEM. Cada item carrega `item.tipoDestino`,
+  // `item.obraId`, `item.etapaObraId`, `item.depositoDestinoId`,
+  // `item.equipamentoId`. A OC pode ter múltiplos destinos numa só.
+  //
+  // Fallback retrocompat: se o item não tem destino próprio (OC antiga),
+  // herdamos o destino global da OC (`oc.tipoDestino` etc.).
+  // ─────────────────────────────────────────────────────────────────
 
-  if (regra.exigeObra && !oc.obraId) {
-    return { ok: false, erro: `Destino "${regra.label}" exige selecionar a obra.`, campo: 'obraId' };
-  }
-  if (regra.exigeEtapa && !oc.etapaObraId) {
-    return { ok: false, erro: `Destino "${regra.label}" exige selecionar a etapa.`, campo: 'etapaObraId' };
-  }
-  if (regra.exigeDeposito && !oc.depositoDestinoId) {
-    return {
-      ok: false,
-      erro: `Destino "${regra.label}" exige selecionar o depósito de entrada.`,
-      campo: 'depositoDestinoId',
-    };
-  }
-  if (regra.exigeEquipamento && !oc.equipamentoId) {
-    return {
-      ok: false,
-      erro: `Destino "${regra.label}" exige indicar o equipamento.`,
-      campo: 'equipamentoId',
-    };
-  }
+  // Agrupa itens por "chave de destino" pra checar campos contextuais
+  // uma vez por grupo, e pra dar mensagens de erro mais úteis (índice
+  // do item, descrição).
+  for (let idx = 0; idx < oc.itens.length; idx++) {
+    const item = oc.itens[idx];
+    const destino = item.tipoDestino ?? oc.tipoDestino;
+    if (!destino) {
+      return {
+        ok: false,
+        erro: `Item ${idx + 1} ("${item.descricao || 'sem descrição'}") está sem destino. Selecione o destino do bloco.`,
+      };
+    }
+    const regra = REGRAS_DESTINO[destino];
 
-  // Cada item precisa ser compatível com o destino
-  for (const item of oc.itens) {
-    const r = validarItemNoDestino(item, oc.tipoDestino);
+    // Campos contextuais por item (herdam da OC quando não definidos)
+    const obraId = item.obraId || oc.obraId;
+    const etapaObraId = item.etapaObraId || oc.etapaObraId;
+    const depositoDestinoId = item.depositoDestinoId || oc.depositoDestinoId;
+    const equipamentoId = item.equipamentoId || oc.equipamentoId;
+
+    if (regra.exigeObra && !obraId) {
+      return { ok: false, erro: `Item "${item.descricao}" exige obra (destino: ${regra.label}).` };
+    }
+    if (regra.exigeEtapa && !etapaObraId) {
+      return { ok: false, erro: `Item "${item.descricao}" exige etapa (destino: ${regra.label}).` };
+    }
+    if (regra.exigeEquipamento && !equipamentoId) {
+      return { ok: false, erro: `Item "${item.descricao}" exige equipamento (destino: ${regra.label}).` };
+    }
+
+    // Compatibilidade tipo-item × destino
+    const r = validarItemNoDestino(item, destino);
     if (!r.ok) {
       return {
         ok: false,
         erro: `Item "${item.descricao || 'sem descrição'}" inválido: ${r.erro}`,
       };
     }
-  }
 
-  // Regra global: TODO item do tipo material precisa de vínculo com o
-  // cadastro de Insumos (consistência de descrições + saldo de estoque
-  // coerente quando a OC vira entrada). A regra de manutenção é mais
-  // estrita (precisa ser usadoEmManutencao=true) e é checada no bloco
-  // abaixo. Aqui só garantimos que existe `insumoId` e que o tipo do
-  // insumo bate com o destino (combustível só em tanque, etc.).
-  for (const item of oc.itens) {
     const tipo = item.tipo ?? 'material';
+
+    // Material precisa de vínculo com cadastro de insumos
     if (tipo === 'material' && !item.insumoId) {
       return {
         ok: false,
@@ -244,84 +250,117 @@ export function validarOrdemCompra(
       };
     }
 
+    // Material precisa de depósito de entrada quando o destino exige
+    //  - obra_deposito, deposito_central, tanque_combustivel: sempre exige
+    //  - manutencao_equipamento: exige apenas se for peça (material)
+    const exigeDeposito = regra.exigeDeposito
+      || (destino === 'manutencao_equipamento' && tipo === 'material');
+    if (exigeDeposito && !depositoDestinoId) {
+      const label = destino === 'manutencao_equipamento' ? 'almoxarifado'
+        : destino === 'tanque_combustivel' ? 'tanque'
+        : 'depósito';
+      return {
+        ok: false,
+        erro: `Item "${item.descricao}" exige selecionar o ${label}.`,
+      };
+    }
+
+    // Tipo de insumo × destino (combustível só em tanque, etc.)
     if (tipo === 'material' && item.insumoId && insumos) {
       const insumo = insumos.find((i) => i.id === item.insumoId);
-      if (insumo && !insumoCabeNoDestino(insumo.tipo, oc.tipoDestino)) {
-        const regraTipo = tipoInsumoEsperadoNoDestino(oc.tipoDestino);
+      if (insumo && !insumoCabeNoDestino(insumo.tipo, destino)) {
+        const regraTipo = tipoInsumoEsperadoNoDestino(destino);
         const explicacao = regraTipo.permitidos
           ? `Destino "${regra.label}" só aceita insumos do tipo: ${regraTipo.permitidos.join(', ')}. O insumo "${insumo.nome || item.descricao}" é do tipo "${insumo.tipo || 'não definido'}".`
           : `Destino "${regra.label}" não aceita insumos do tipo "${insumo.tipo || 'não definido'}". Combustível só pode ir para tanque de combustível.`;
         return { ok: false, erro: explicacao };
       }
+      // Em manutenção: insumo precisa estar marcado como usadoEmManutencao
+      if (destino === 'manutencao_equipamento' && insumo && !insumo.usadoEmManutencao) {
+        return {
+          ok: false,
+          erro: `"${insumo.nome || item.descricao}" não está cadastrado como peça de manutenção. Use "+ Cadastrar peça" ou marque o insumo como "usado em manutenção".`,
+        };
+      }
     }
-  }
 
-  // Regras adicionais para destino "manutenção de equipamento"
-  if (oc.tipoDestino === 'manutencao_equipamento') {
-    const temPecas = oc.itens.some((it) => (it.tipo ?? 'material') === 'material');
-    if (temPecas && !oc.depositoDestinoId) {
+    // Serviço em manutenção precisa de OS vinculada
+    if (destino === 'manutencao_equipamento' && tipo === 'servico' && !item.osId) {
       return {
         ok: false,
-        erro: 'Como há ao menos uma peça, selecione o almoxarifado de destino.',
-        campo: 'depositoDestinoId',
+        erro: `Mão de obra "${item.descricao || 'sem descrição'}" precisa estar vinculada a uma Ordem de Serviço (OS).`,
       };
     }
-    for (const item of oc.itens) {
-      const tipo = item.tipo ?? 'material';
-      if (tipo === 'material' && !item.insumoId) {
-        return {
-          ok: false,
-          erro: `Peça "${item.descricao || 'sem descrição'}" precisa estar vinculada a um cadastro do almoxarifado.`,
-        };
-      }
-      // Checagem extra: a peça precisa estar marcada como
-      // usadoEmManutencao=true (catalogada no almoxarifado de peças).
-      if (tipo === 'material' && item.insumoId && insumos) {
-        const insumo = insumos.find((i) => i.id === item.insumoId);
-        if (insumo && !insumo.usadoEmManutencao) {
-          return {
-            ok: false,
-            erro: `"${insumo.nome || item.descricao}" não está cadastrado como peça de manutenção. Use "+ Cadastrar peça" ou marque o insumo como "usado em manutenção".`,
-          };
-        }
-      }
-      if (tipo === 'servico' && !item.osId) {
-        return {
-          ok: false,
-          erro: `Mão de obra "${item.descricao || 'sem descrição'}" precisa estar vinculada a uma Ordem de Serviço (OS).`,
-        };
-      }
-    }
-  }
 
-  // ── Tanque de combustível: amarrar com combustivelAtualId ──────────
-  // Se o tanque destino já está em uso (tem um combustível corrente),
-  // a OC só pode trazer ESSE MESMO combustível. Evita misturar tipos
-  // diferentes no tanque (diesel num tanque que tem gasolina, etc.).
-  // O DB também tem trigger pra bloquear isso na entrada, mas validar
-  // no front evita o usuário só descobrir o erro depois.
-  if (oc.tipoDestino === 'tanque_combustivel' && oc.depositoDestinoId && tanques) {
-    const tanque = tanques.find((t) => t.id === oc.depositoDestinoId);
-    const combustivelAtual = tanque?.combustivelAtualId;
-    if (combustivelAtual && insumos) {
-      const insumoAtual = insumos.find((i) => i.id === combustivelAtual);
-      const nomeTanque = tanque?.apelido || tanque?.nome || 'tanque destino';
-      const nomeCombAtual = insumoAtual?.nome || 'combustível atual';
-      for (const item of oc.itens) {
-        if ((item.tipo ?? 'material') !== 'material') continue;
-        if (!item.insumoId) continue; // já bloqueado acima
-        if (item.insumoId !== combustivelAtual) {
-          const insumoItem = insumos.find((i) => i.id === item.insumoId);
-          return {
-            ok: false,
-            erro: `Tanque "${nomeTanque}" está com ${nomeCombAtual}. Não dá pra misturar com ${insumoItem?.nome || item.descricao}. Esvazie o tanque antes ou escolha outro tanque.`,
-          };
-        }
+    // Tanque com combustível corrente: só aceita esse combustível
+    if (destino === 'tanque_combustivel' && depositoDestinoId && tanques && insumos) {
+      const tanque = tanques.find((t) => t.id === depositoDestinoId);
+      const combustivelAtual = tanque?.combustivelAtualId;
+      if (combustivelAtual && item.insumoId && item.insumoId !== combustivelAtual) {
+        const insumoAtual = insumos.find((i) => i.id === combustivelAtual);
+        const nomeTanque = tanque?.apelido || tanque?.nome || 'tanque destino';
+        const insumoItem = insumos.find((i) => i.id === item.insumoId);
+        return {
+          ok: false,
+          erro: `Tanque "${nomeTanque}" está com ${insumoAtual?.nome || 'combustível atual'}. Não dá pra misturar com ${insumoItem?.nome || item.descricao}. Esvazie o tanque ou escolha outro tanque.`,
+        };
       }
     }
   }
 
   return { ok: true };
+}
+
+/**
+ * Rateia os custos adicionais (frete, impostos, outras despesas, desconto)
+ * proporcionalmente ao subtotal de cada item da OC.
+ *
+ * Retorna um Map<itemId, valorRateado> com a fatia somada de cada item.
+ * O desconto entra como negativo (reduz o valor do item).
+ *
+ * Exemplo:
+ *   itens: A=R$100, B=R$300 (total R$400)
+ *   custos: frete=R$40
+ *   → A recebe 40 × 100/400 = R$10
+ *   → B recebe 40 × 300/400 = R$30
+ *
+ * Caso o total seja 0 (sem itens com preço), distribui igualmente.
+ */
+export function ratearCustosAdicionais(
+  itens: { id: string; subtotal: number }[],
+  custos: { frete: number; outrasDespesas: number; impostos: number; desconto: number }
+): Map<string, number> {
+  const totalSubtotal = itens.reduce((s, it) => s + (it.subtotal || 0), 0);
+  const custoLiquido = (custos.frete || 0) + (custos.outrasDespesas || 0)
+    + (custos.impostos || 0) - (custos.desconto || 0);
+  const map = new Map<string, number>();
+  if (itens.length === 0) return map;
+  if (totalSubtotal === 0) {
+    // Distribuição igualitária quando todos têm subtotal 0
+    const parte = custoLiquido / itens.length;
+    for (const it of itens) map.set(it.id, parte);
+    return map;
+  }
+  for (const it of itens) {
+    const fatia = ((it.subtotal || 0) / totalSubtotal) * custoLiquido;
+    map.set(it.id, fatia);
+  }
+  return map;
+}
+
+/**
+ * Calcula o "destino consolidado" da OC a partir dos destinos dos itens.
+ *
+ * - Se todos os itens têm o mesmo destino → retorna esse destino
+ *   (compat com listas antigas que mostram só um destino).
+ * - Se misturam destinos → retorna undefined (a OC é "múltipla").
+ */
+export function destinoConsolidadoDaOC(
+  itens: { tipoDestino?: TipoDestinoOC }[]
+): TipoDestinoOC | undefined {
+  const destinos = new Set(itens.map((i) => i.tipoDestino).filter(Boolean));
+  if (destinos.size === 1) return [...destinos][0] as TipoDestinoOC;
+  return undefined;
 }
 
 /**
