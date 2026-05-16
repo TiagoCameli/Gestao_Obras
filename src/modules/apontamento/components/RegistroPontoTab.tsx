@@ -16,12 +16,14 @@ import {
 } from "../hooks/useApontamentoData";
 import {
   atualizarHoraBatida,
+  BatidaRegraError,
   excluirBatida,
   getAprovacaoDia,
   getFotoPontoUrls,
   listPendenciasSaida,
   listRegistrosDoDia,
   listRegistrosPontoRange,
+  mensagemErroBatida,
   reabrirPontoDia,
   registrarBatida,
   type RegistroPonto,
@@ -279,7 +281,7 @@ export default function RegistroPontoTab() {
       qc.invalidateQueries({ queryKey: pendenciasKey });
       setCapturando(null);
     } catch (e) {
-      alert("Falha ao registrar: " + (e instanceof Error ? e.message : String(e)));
+      alert(mensagemErroBatida(e));
     }
   }
 
@@ -342,7 +344,7 @@ export default function RegistroPontoTab() {
       qc.invalidateQueries({ queryKey: registrosKey });
       qc.invalidateQueries({ queryKey: pendenciasKey });
     } catch (e) {
-      alert("Falha ao registrar: " + (e instanceof Error ? e.message : String(e)));
+      alert(mensagemErroBatida(e));
     }
   }
 
@@ -444,7 +446,7 @@ export default function RegistroPontoTab() {
       setQuickOpen(false);
       setQuickTipo(null);
     } catch (e) {
-      alert("Falha ao registrar: " + (e instanceof Error ? e.message : String(e)));
+      alert(mensagemErroBatida(e));
     }
   }
 
@@ -978,6 +980,7 @@ export default function RegistroPontoTab() {
                 let ok = 0;
                 let fail = 0;
                 let enfileirados = 0;
+                const erroRegrasPorFunc: string[] = [];
                 // PR-PWA1: se offline, enfileira tudo direto.
                 const isOffline = typeof navigator !== "undefined" && !navigator.onLine;
                 for (const id of loteIds) {
@@ -1008,19 +1011,26 @@ export default function RegistroPontoTab() {
                       ok++;
                     }
                   } catch (err) {
-                    // Se a chamada online falhar (rede caiu agora), tenta enfileirar
-                    try {
-                      await enqueueBatidaPonto({
-                        funcionarioId: id,
-                        funcionarioNome: func?.nome ?? "",
-                        data,
-                        hora: horaIso,
-                        tipoBatida: loteTipo,
-                        motivo: loteMotivo.trim(),
-                      });
-                      enfileirados++;
-                    } catch {
+                    // Regra de negócio (entrada duplicada/saída sem entrada)
+                    // — NÃO enfileira offline, contabiliza como falha de regra.
+                    // Outros erros (rede): tenta enfileirar.
+                    if (err instanceof BatidaRegraError) {
                       fail++;
+                      erroRegrasPorFunc.push(`• ${func?.nome ?? id}: ${err.message}`);
+                    } else {
+                      try {
+                        await enqueueBatidaPonto({
+                          funcionarioId: id,
+                          funcionarioNome: func?.nome ?? "",
+                          data,
+                          hora: horaIso,
+                          tipoBatida: loteTipo,
+                          motivo: loteMotivo.trim(),
+                        });
+                        enfileirados++;
+                      } catch {
+                        fail++;
+                      }
                     }
                   }
                 }
@@ -1036,7 +1046,11 @@ export default function RegistroPontoTab() {
                     `${enfileirados} na fila offline (sincroniza quando voltar online)`
                   );
                 if (fail > 0) partes.push(`${fail} falha${fail !== 1 ? "s" : ""}`);
-                alert(partes.join(" · ") || "Nada para registrar");
+                const resumo = partes.join(" · ") || "Nada para registrar";
+                const detalheRegras = erroRegrasPorFunc.length > 0
+                  ? "\n\nMotivos:\n" + erroRegrasPorFunc.join("\n")
+                  : "";
+                alert(resumo + detalheRegras);
               }}
             >
               {loteSalvando ? "Registrando…" : `Registrar para ${loteIds.size}`}
@@ -1288,9 +1302,7 @@ function EditarHoraModal({
               await atualizarHoraBatida(registro.id, novaIso);
               onSaved();
             } catch (err) {
-              alert(
-                "Falha: " + (err instanceof Error ? err.message : String(err))
-              );
+              alert(mensagemErroBatida(err));
             } finally {
               setSaving(false);
             }
@@ -1554,9 +1566,7 @@ function LancamentoManualModal({
               });
               onSaved();
             } catch (err) {
-              alert(
-                "Falha: " + (err instanceof Error ? err.message : String(err))
-              );
+              alert(mensagemErroBatida(err));
             } finally {
               setSaving(false);
             }

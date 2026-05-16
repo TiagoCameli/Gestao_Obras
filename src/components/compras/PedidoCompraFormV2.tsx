@@ -21,10 +21,12 @@ import type {
   PedidoCompra,
   ItemPedidoCompra,
   Obra,
+  EtapaObra,
   Insumo,
   UnidadeMedida,
   UrgenciaPedidoCompra,
   TipoItemCompra,
+  TipoDestinoOC,
 } from '../../types';
 import Button from '../ui/Button';
 import Input from '../ui/Input';
@@ -39,6 +41,8 @@ import { useUploadAnexoCompras } from '../../hooks/useComprasAnexos';
 interface Props {
   initial: PedidoCompra | null;
   obras: Obra[];
+  /** Etapas — usadas no popover de "Destino sugerido" por item */
+  etapas?: EtapaObra[];
   insumos: Insumo[];
   unidades: UnidadeMedida[];
   categorias: { value: string; label: string }[];
@@ -47,6 +51,16 @@ interface Props {
   onSubmit: (pedido: PedidoCompra, anexosPendentes: File[]) => Promise<void>;
   onCancel: () => void;
 }
+
+/** Labels curtos pros chips de destino dentro da tabela de itens */
+const DESTINO_PEDIDO_LABEL: Record<TipoDestinoOC, string> = {
+  obra_etapa: 'Obra/Etapa',
+  obra_deposito: 'Depósito da obra',
+  deposito_central: 'Depósito Central',
+  sede: 'Sede',
+  manutencao_equipamento: 'Manutenção',
+  tanque_combustivel: 'Tanque',
+};
 
 const URGENCIAS: { value: UrgenciaPedidoCompra; label: string; chip: string }[] = [
   { value: 'baixa',    label: 'Baixa',    chip: 'bg-slate-50 dark:bg-slate-900 border-slate-300 text-slate-700 dark:text-slate-300' },
@@ -75,6 +89,7 @@ function novoItemVazio(): ItemPedidoCompra {
 export default function PedidoCompraFormV2({
   initial,
   obras,
+  etapas = [],
   insumos,
   unidades,
   categorias,
@@ -318,14 +333,15 @@ export default function PedidoCompraFormV2({
         ) : (
           <div className="overflow-hidden rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-1)]">
             <table className="w-full text-sm">
-              <thead className="bg-[var(--color-surface-2)] text-xs uppercase tracking-wide text-[var(--color-fg-muted)]">
+              <thead className="bg-[var(--color-surface-2)] text-[10.5px] uppercase tracking-[0.06em] text-[var(--color-fg-muted)] border-b border-[var(--color-border)]">
                 <tr>
-                  <th className="px-3 py-2 text-left font-semibold">Descrição</th>
-                  <th className="px-3 py-2 text-left font-semibold w-28">Tipo</th>
-                  <th className="px-3 py-2 text-left font-semibold w-32">Categoria</th>
-                  <th className="px-3 py-2 text-right font-semibold w-24">Quantidade</th>
-                  <th className="px-3 py-2 text-left font-semibold w-24">Unidade</th>
-                  <th className="px-3 py-2 w-10"></th>
+                  <th className="px-3 py-3 text-left font-semibold">Descrição</th>
+                  <th className="px-3 py-3 text-left font-semibold w-28">Tipo</th>
+                  <th className="px-3 py-3 text-left font-semibold w-32">Categoria</th>
+                  <th className="px-3 py-3 text-right font-semibold w-24">Qtd</th>
+                  <th className="px-3 py-3 text-left font-semibold w-20">Un</th>
+                  <th className="px-3 py-3 text-left font-semibold w-44">Destino sugerido</th>
+                  <th className="px-3 py-3 w-10"></th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-[var(--color-border)]">
@@ -336,6 +352,8 @@ export default function PedidoCompraFormV2({
                     insumos={insumos}
                     unidadesOptions={unidadesOptions}
                     categorias={categorias}
+                    etapasDaObra={etapas.filter((e) => e.obraId === obraId)}
+                    obraDoPedidoId={obraId}
                     podeCriarInsumo={podeCriarInsumo}
                     onChange={(patch) => atualizarItem(item.id, patch)}
                     onRemove={() => removerItem(item.id)}
@@ -463,13 +481,15 @@ function EmptyItens({ onAdd }: { onAdd: () => void }) {
 
 // ─── Linha do item (com autocomplete e dedup) ────────────────────────────
 function ItemPedidoRow({
-  item, insumos, unidadesOptions, categorias, podeCriarInsumo,
+  item, insumos, unidadesOptions, categorias, etapasDaObra, obraDoPedidoId, podeCriarInsumo,
   onChange, onRemove, onCadastrarInsumo,
 }: {
   item: ItemPedidoCompra;
   insumos: Insumo[];
   unidadesOptions: { value: string; label: string }[];
   categorias: { value: string; label: string }[];
+  etapasDaObra: EtapaObra[];
+  obraDoPedidoId: string;
   podeCriarInsumo: boolean;
   onChange: (patch: Partial<ItemPedidoCompra>) => void;
   onRemove: () => void;
@@ -612,6 +632,47 @@ function ItemPedidoRow({
             <option key={u.value} value={u.value}>{u.label}</option>
           ))}
         </select>
+      </td>
+
+      {/* Destino sugerido (OPCIONAL — pode preencher pra adiantar a OC) */}
+      <td className="px-3 py-2 align-top">
+        <select
+          value={item.tipoDestino ?? ''}
+          onChange={(e) => {
+            const novo = e.target.value as TipoDestinoOC | '';
+            // Limpa etapa se mudar pra destino que não usa etapa
+            const limpaEtapa = novo !== 'obra_etapa' ? { etapaObraId: undefined } : {};
+            onChange({ tipoDestino: novo || undefined, ...limpaEtapa });
+          }}
+          className="w-full px-2 py-1.5 text-sm rounded-md border border-transparent bg-transparent hover:bg-[var(--color-surface-2)] focus:outline-none focus:bg-[var(--color-surface-1)] focus:border-[var(--color-border-strong)]"
+        >
+          <option value="">— deixar pra OC —</option>
+          <option value="obra_etapa">{DESTINO_PEDIDO_LABEL.obra_etapa}</option>
+          <option value="obra_deposito">{DESTINO_PEDIDO_LABEL.obra_deposito}</option>
+          <option value="deposito_central">{DESTINO_PEDIDO_LABEL.deposito_central}</option>
+          <option value="sede">{DESTINO_PEDIDO_LABEL.sede}</option>
+          <option value="manutencao_equipamento">{DESTINO_PEDIDO_LABEL.manutencao_equipamento}</option>
+          <option value="tanque_combustivel">{DESTINO_PEDIDO_LABEL.tanque_combustivel}</option>
+        </select>
+        {/* Quando destino = obra_etapa, mostra a etapa específica */}
+        {item.tipoDestino === 'obra_etapa' && (
+          obraDoPedidoId ? (
+            <select
+              value={item.etapaObraId ?? ''}
+              onChange={(e) => onChange({ etapaObraId: e.target.value || undefined })}
+              className="w-full mt-1 px-2 py-1 text-[11.5px] rounded-md border border-[var(--color-border)] bg-[var(--color-surface-1)] focus:outline-none focus:border-[var(--color-accent)]"
+            >
+              <option value="">— etapa —</option>
+              {etapasDaObra.map((e) => (
+                <option key={e.id} value={e.id}>{e.nome}</option>
+              ))}
+            </select>
+          ) : (
+            <div className="mt-1 text-[10.5px] text-amber-700 dark:text-amber-300 ml-1">
+              Defina a obra do pedido pra escolher a etapa.
+            </div>
+          )
+        )}
       </td>
 
       {/* Remover */}

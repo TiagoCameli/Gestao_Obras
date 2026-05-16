@@ -29,6 +29,7 @@ import type {
   Insumo,
   UnidadeMedida,
   TipoItemCompra,
+  TipoDestinoOC,
 } from '../../types';
 import Button from '../ui/Button';
 import Input from '../ui/Input';
@@ -372,13 +373,14 @@ export default function CotacaoFormV2({
         ) : (
           <div className="overflow-hidden rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-1)]">
             <table className="w-full text-sm">
-              <thead className="bg-[var(--color-surface-2)] text-xs uppercase tracking-wide text-[var(--color-fg-muted)]">
+              <thead className="bg-[var(--color-surface-2)] text-[10.5px] uppercase tracking-[0.06em] text-[var(--color-fg-muted)] border-b border-[var(--color-border)]">
                 <tr>
-                  <th className="px-3 py-2 text-left font-semibold">Descrição</th>
-                  <th className="px-3 py-2 text-left font-semibold w-28">Tipo</th>
-                  <th className="px-3 py-2 text-right font-semibold w-24">Qtd</th>
-                  <th className="px-3 py-2 text-left font-semibold w-24">Un</th>
-                  <th className="px-3 py-2 w-10"></th>
+                  <th className="px-3 py-3 text-left font-semibold">Descrição</th>
+                  <th className="px-3 py-3 text-left font-semibold w-28">Tipo</th>
+                  <th className="px-3 py-3 text-right font-semibold w-24">Qtd</th>
+                  <th className="px-3 py-3 text-left font-semibold w-20">Un</th>
+                  <th className="px-3 py-3 text-left font-semibold w-36">Destino sugerido</th>
+                  <th className="px-3 py-3 w-10"></th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-[var(--color-border)]">
@@ -621,6 +623,21 @@ function ItemRow({
           {unidadesOptions.map((u) => (<option key={u.value} value={u.value}>{u.label}</option>))}
         </select>
       </td>
+      {/* Destino sugerido (read-only chip — vem do pedido; pode ser ajustado na OC) */}
+      <td className="px-3 py-2 align-top">
+        {item.tipoDestino ? (
+          <div className="inline-flex flex-col gap-0.5">
+            <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[10.5px] font-semibold bg-[var(--color-accent)]/10 text-[var(--color-accent)] border border-[var(--color-accent)]/30 w-fit">
+              {DESTINO_PEDIDO_LABEL_COTACAO[item.tipoDestino]}
+            </span>
+            {item.etapaObraId && (
+              <span className="text-[10px] text-[var(--color-fg-subtle)]">etapa específica</span>
+            )}
+          </div>
+        ) : (
+          <span className="text-[11px] text-[var(--color-fg-subtle)] italic">— a definir na OC —</span>
+        )}
+      </td>
       <td className="px-2 py-2 align-top text-center">
         <button
           type="button"
@@ -634,6 +651,16 @@ function ItemRow({
     </tr>
   );
 }
+
+// Labels curtos pros chips de destino na linha da cotação (inline na ItemRow)
+const DESTINO_PEDIDO_LABEL_COTACAO: Record<TipoDestinoOC, string> = {
+  obra_etapa: 'Obra/Etapa',
+  obra_deposito: 'Depósito da obra',
+  deposito_central: 'Depósito Central',
+  sede: 'Sede',
+  manutencao_equipamento: 'Manutenção',
+  tanque_combustivel: 'Tanque',
+};
 
 // ─── FornecedorPicker (busca + cadastro inline) ──────────────────────────
 function FornecedorPicker({

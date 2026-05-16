@@ -76,11 +76,51 @@ function rowToRegistro(r: Row): RegistroPonto {
   };
 }
 
+/**
+ * Erro elevado pelo trigger `fn_apont_validar_batida` no banco quando
+ * uma das regras de negócio é violada (entrada duplicada, saída final
+ * sem entrada, etc.). Usado pra UI mostrar a mensagem em português sem
+ * prefixos técnicos.
+ */
+export class BatidaRegraError extends Error {
+  readonly code: string;
+  constructor(code: string, message: string) {
+    super(message);
+    this.name = 'BatidaRegraError';
+    this.code = code;
+  }
+}
+
 function throwIfError(error: unknown, ctx: string) {
   if (error) {
-    const m = (error as { message?: string }).message ?? String(error);
+    // Erros do Postgres vêm com `code` (SQLState). Os códigos 23P01 e
+    // 23P02 são os que definimos no trigger de validação de batida.
+    const errObj = error as { code?: string; message?: string };
+    const code = errObj.code ?? '';
+    const m = errObj.message ?? String(error);
+    if (code === '23P01' || code === '23P02') {
+      throw new BatidaRegraError(code, m);
+    }
     throw new Error(`[ponto:${ctx}] ${m}`);
   }
+}
+
+/**
+ * Extrai mensagem amigável de qualquer erro vindo das funções deste
+ * módulo. Para regras de negócio (BatidaRegraError ou mensagens que
+ * sabidamente vêm do trigger), retorna a mensagem direta em português.
+ * Para outros erros (rede, etc.), retorna "Falha ao registrar: <msg>".
+ */
+export function mensagemErroBatida(err: unknown): string {
+  if (err instanceof BatidaRegraError) return err.message;
+  const m = err instanceof Error ? err.message : String(err);
+  // Fallback heurístico: se o servidor retornou a mensagem em texto sem
+  // preservar o code (ex: PostgrestError sem `.code`), detecta nossa
+  // assinatura em português pra evitar o prefixo técnico.
+  if (/Já existe uma entrada|Já existe uma saída final|Não dá pra registrar saída final/i.test(m)) {
+    return m.replace(/^\[ponto:[^\]]+\]\s*/, '');
+  }
+  return 'Falha ao registrar: ' + m;
 }
 
 /* ─── Storage ─── */

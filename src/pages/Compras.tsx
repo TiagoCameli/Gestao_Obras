@@ -429,11 +429,18 @@ export default function Compras() {
     if (!cf) return;
 
     const pedidoRef = pedidos.find((p) => p.id === cotacao.pedidoCompraId);
+    // Mapa pra consultar os campos de destino que vieram do pedido original
+    const itemsPedidoMap = new Map(
+      (pedidoRef?.itens ?? []).map((it) => [it.id, it])
+    );
 
     const itens: ItemOrdemCompra[] = cotacao.itensPedido
       .filter((item) => itemIds.includes(item.id))
       .map((item) => {
         const preco = cf.itensPrecos.find((ip) => ip.itemPedidoId === item.id);
+        // Pega destinos do item — preferência: cotação, fallback pro pedido original
+        const itemOriginal = itemsPedidoMap.get(item.id) ?? item;
+        const destinoDoItem = item.tipoDestino ?? itemOriginal.tipoDestino;
         return {
           id: item.id,
           descricao: item.descricao,
@@ -441,11 +448,27 @@ export default function Compras() {
           unidade: item.unidade,
           precoUnitario: preco?.precoUnitario ?? 0,
           subtotal: item.quantidade * (preco?.precoUnitario ?? 0),
-          obraId: pedidoRef?.obraId ?? '',
-          etapaObraId: '',
+          // Obra/etapa: prioriza obraId do item (override), depois do pedido,
+          // depois vazio. Pra destino obra_etapa precisa de etapa específica.
+          obraId: itemOriginal.obraId || pedidoRef?.obraId || '',
+          etapaObraId: item.etapaObraId ?? itemOriginal.etapaObraId ?? '',
+          tipo: item.tipo ?? itemOriginal.tipo ?? 'material',
+          marca: preco?.marca,
+          // v2.5: destino e vínculos OPCIONAIS herdados do pedido
+          tipoDestino: destinoDoItem,
+          depositoDestinoId: item.depositoDestinoId ?? itemOriginal.depositoDestinoId,
+          equipamentoId: item.equipamentoId ?? itemOriginal.equipamentoId,
+          osId: item.osId ?? itemOriginal.osId,
+          insumoId: item.insumoId ?? itemOriginal.insumoId,
         };
       });
     const totalMat = itens.reduce((sum, i) => sum + i.subtotal, 0);
+
+    // Calcula o destino "consolidado" da OC: se todos os itens herdaram o
+    // mesmo destino, ele vira o destino global; senão, fica undefined e a
+    // OC abre em modo multi-bloco no form.
+    const destinos = new Set(itens.map((i) => i.tipoDestino).filter(Boolean));
+    const destinoGlobal = destinos.size === 1 ? ([...destinos][0] as typeof itens[0]['tipoDestino']) : undefined;
 
     setEditandoOC({
       id: '',
@@ -472,6 +495,7 @@ export default function Compras() {
       empresaFaturamento: '',
       aprovada: false,
       criadoPor: '',
+      tipoDestino: destinoGlobal,
     });
     setOcModalOpen(true);
     setTab('ordens');
@@ -977,6 +1001,7 @@ export default function Compras() {
         <PedidoCompraFormV2
           initial={editandoPedido}
           obras={obras}
+          etapas={etapas}
           insumos={insumos}
           unidades={unidades}
           categorias={categoriasOptions}
