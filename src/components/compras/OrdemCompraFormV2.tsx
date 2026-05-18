@@ -27,7 +27,7 @@ import { createPortal } from 'react-dom';
 import {
   Trash2, Plus, AlertCircle, Calendar, FileText, Truck, Banknote, FileDown,
   CheckCircle2, ShoppingCart, Building2, Warehouse, Briefcase, Wrench, Fuel,
-  PackagePlus, ClipboardPlus, X,
+  PackagePlus, ClipboardPlus, X, Lock,
 } from 'lucide-react';
 import type {
   OrdemCompra,
@@ -255,6 +255,12 @@ export default function OrdemCompraFormV2({
   const { showToast } = useToast();
   void onCreateFornecedor;
   const podeAprovar = temAcao('aprovar_ordem_compra');
+
+  // Flag: OC veio de uma cotação aprovada. Nesse caso, o destino + obra + etapa
+  // + almox/tanque + OS são DECISÕES já tomadas no fluxo de cotação e travam
+  // aqui (regra de negócio do usuário). Permitir alterar abriria buracos de
+  // auditoria — quem aprovou a cotação aprovou aquele destino, não outro.
+  const vemDeCotacao = Boolean(initial?.cotacaoId);
 
   // B4: dirty tracking
   const [dirty, setDirty] = useState(false);
@@ -647,13 +653,25 @@ export default function OrdemCompraFormV2({
         <SectionHeader
           titulo="Destinações"
           subtitulo={
-            blocos.length > 1
-              ? `Esta OC tem ${blocos.length} destinos. Cada bloco vai pra um destino diferente.`
-              : 'Defina pra onde os itens dessa OC vão. Adicione blocos extras pra dividir entre obras/etapas/depósitos diferentes.'
+            vemDeCotacao
+              ? 'Destinos definidos na cotação — não podem ser alterados aqui. Pra mudar, reabra a cotação.'
+              : blocos.length > 1
+                ? `Esta OC tem ${blocos.length} destinos. Cada bloco vai pra um destino diferente.`
+                : 'Defina pra onde os itens dessa OC vão. Adicione blocos extras pra dividir entre obras/etapas/depósitos diferentes.'
           }
-          actionLabel="Adicionar bloco"
-          onAction={adicionarBloco}
+          actionLabel={vemDeCotacao ? undefined : 'Adicionar bloco'}
+          onAction={vemDeCotacao ? undefined : adicionarBloco}
         />
+        {vemDeCotacao && (
+          <div className="mb-4 px-3.5 py-2.5 rounded-lg border border-sky-200 dark:border-sky-500/30 bg-sky-50/70 dark:bg-sky-500/[0.06] text-[12px] text-sky-900 dark:text-sky-100 leading-relaxed flex items-start gap-2">
+            <Lock className="w-4 h-4 mt-[1px] shrink-0" />
+            <span>
+              Esta OC foi gerada a partir de uma cotação aprovada. O destino, obra,
+              etapa, depósito, OS e itens estão <strong>travados</strong> aqui pra
+              preservar a auditoria. Pra alterar, é necessário reabrir a cotação.
+            </span>
+          </div>
+        )}
         <div className="space-y-4">
           {blocos.map((bloco, idx) => (
             <BlocoCard
@@ -680,6 +698,7 @@ export default function OrdemCompraFormV2({
                 setInsumoModalRef({ blocoId: bloco.id, itemId });
               }}
               onAbrirNovaOS={(itemId) => setOsModalRef({ blocoId: bloco.id, itemId })}
+              destinoTravado={vemDeCotacao}
             />
           ))}
         </div>
@@ -694,16 +713,16 @@ export default function OrdemCompraFormV2({
           />
           <div className="grid grid-cols-2 gap-3">
             <Field label="Frete">
-              <Input type="number" step="0.01" min="0" value={custoFrete} onChange={(e) => setCustoFrete(Number(e.target.value))} />
+              <MoneyInput value={custoFrete} onChange={setCustoFrete} />
             </Field>
             <Field label="Outras despesas">
-              <Input type="number" step="0.01" min="0" value={custoOutras} onChange={(e) => setCustoOutras(Number(e.target.value))} />
+              <MoneyInput value={custoOutras} onChange={setCustoOutras} />
             </Field>
             <Field label="Impostos">
-              <Input type="number" step="0.01" min="0" value={custoImpostos} onChange={(e) => setCustoImpostos(Number(e.target.value))} />
+              <MoneyInput value={custoImpostos} onChange={setCustoImpostos} />
             </Field>
             <Field label="Desconto">
-              <Input type="number" step="0.01" min="0" value={custoDesconto} onChange={(e) => setCustoDesconto(Number(e.target.value))} />
+              <MoneyInput value={custoDesconto} onChange={setCustoDesconto} />
             </Field>
           </div>
         </div>
@@ -852,6 +871,9 @@ interface BlocoCardProps {
   onAbrirCadastroPeca: (itemId: string) => void;
   onAbrirCadastroMaterial: (itemId: string, descricao: string) => void;
   onAbrirNovaOS: (itemId: string) => void;
+  /** OC veio de uma cotação aprovada — trava destino, obra, etapa, almox e
+   *  remoção de bloco/itens. Mostra cadeado visual nos campos. */
+  destinoTravado?: boolean;
 }
 
 function BlocoCard({
@@ -859,6 +881,7 @@ function BlocoCard({
   tanquesCombustivel, insumos, osDisponiveis,
   onMudarDestino, onAtualizarCampo, onAdicionarItem, onAtualizarItem,
   onRemoverItem, onRemoverBloco, onAbrirCadastroPeca, onAbrirCadastroMaterial, onAbrirNovaOS,
+  destinoTravado = false,
 }: BlocoCardProps) {
   const regra = bloco.tipoDestino ? REGRAS_DESTINO[bloco.tipoDestino] : null;
   const semDestino = !bloco.tipoDestino;
@@ -954,28 +977,51 @@ function BlocoCard({
         {/* Selector de destino */}
         <div>
           <Label>Destino deste bloco {semDestino && <span className="text-rose-500">*</span>}</Label>
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
-            {DESTINOS.map(({ value, label, Icon: DIcon, sub }) => {
-              const ativo = bloco.tipoDestino === value;
+          {destinoTravado && bloco.tipoDestino ? (
+            // Travado: mostra só um chip estático do destino vindo da cotação,
+            // sem grid de opções pra evitar acidente.
+            (() => {
+              const escolhido = DESTINOS.find((d) => d.value === bloco.tipoDestino);
+              const DIcon = escolhido?.Icon ?? Building2;
               return (
-                <button
-                  key={value}
-                  type="button"
-                  onClick={() => onMudarDestino(value)}
-                  className={
-                    'p-2.5 rounded-xl border-2 text-left transition-all ' +
-                    (ativo
-                      ? 'border-[var(--color-accent)] bg-[var(--color-accent)]/10'
-                      : 'border-[var(--color-border)] bg-[var(--color-surface-1)] hover:bg-[var(--color-surface-2)] hover:border-[var(--color-border-strong)]')
-                  }
-                >
-                  <DIcon className={`w-4 h-4 mb-1.5 ${ativo ? 'text-[var(--color-accent)]' : 'text-[var(--color-fg-muted)]'}`} strokeWidth={2} />
-                  <div className="text-[11.5px] font-semibold text-[var(--color-fg)] leading-tight">{label}</div>
-                  <div className="text-[10px] text-[var(--color-fg-subtle)] mt-0.5 leading-snug">{sub}</div>
-                </button>
+                <div className="inline-flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl border-2 border-[var(--color-accent)]/40 bg-[var(--color-accent)]/[0.08]">
+                  <DIcon className="w-4 h-4 text-[var(--color-accent)]" strokeWidth={2} />
+                  <div className="min-w-0">
+                    <div className="text-[12.5px] font-semibold text-[var(--color-fg)] leading-tight">
+                      {escolhido?.label ?? bloco.tipoDestino}
+                    </div>
+                    <div className="text-[10.5px] text-[var(--color-fg-subtle)] mt-0.5">
+                      Definido na cotação
+                    </div>
+                  </div>
+                  <Lock className="w-3.5 h-3.5 text-[var(--color-fg-subtle)]" />
+                </div>
               );
-            })}
-          </div>
+            })()
+          ) : (
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
+              {DESTINOS.map(({ value, label, Icon: DIcon, sub }) => {
+                const ativo = bloco.tipoDestino === value;
+                return (
+                  <button
+                    key={value}
+                    type="button"
+                    onClick={() => onMudarDestino(value)}
+                    className={
+                      'p-2.5 rounded-xl border-2 text-left transition-all ' +
+                      (ativo
+                        ? 'border-[var(--color-accent)] bg-[var(--color-accent)]/10'
+                        : 'border-[var(--color-border)] bg-[var(--color-surface-1)] hover:bg-[var(--color-surface-2)] hover:border-[var(--color-border-strong)]')
+                    }
+                  >
+                    <DIcon className={`w-4 h-4 mb-1.5 ${ativo ? 'text-[var(--color-accent)]' : 'text-[var(--color-fg-muted)]'}`} strokeWidth={2} />
+                    <div className="text-[11.5px] font-semibold text-[var(--color-fg)] leading-tight">{label}</div>
+                    <div className="text-[10px] text-[var(--color-fg-subtle)] mt-0.5 leading-snug">{sub}</div>
+                  </button>
+                );
+              })}
+            </div>
+          )}
         </div>
 
         {/* Banner manutenção */}
@@ -1006,12 +1052,17 @@ function BlocoCard({
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {regra.exigeObra && (
               <div>
-                <Label>Obra <span className="text-rose-500">*</span></Label>
+                <Label>
+                  Obra <span className="text-rose-500">*</span>
+                  {destinoTravado && <Lock className="inline w-3 h-3 ml-1 text-[var(--color-fg-subtle)]" />}
+                </Label>
                 <SmartSelect
                   value={bloco.obraId}
                   onChange={(e) => onAtualizarCampo({ obraId: e.target.value, etapaObraId: '' })}
                   required
-                  className="w-full h-[42px] rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-1)] px-3 py-2 text-sm text-left focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]/40 focus:border-[var(--color-accent)] flex items-center"
+                  disabled={destinoTravado}
+                  title={destinoTravado ? 'Definido na cotação — não pode ser alterado aqui' : undefined}
+                  className="w-full h-[42px] rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-1)] disabled:bg-[var(--color-surface-2)] disabled:cursor-not-allowed disabled:opacity-90 px-3 py-2 text-sm text-left focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]/40 focus:border-[var(--color-accent)] flex items-center"
                 >
                   <option value="">— selecione —</option>
                   {obras.map((o) => (<option key={o.id} value={o.id}>{o.nome}</option>))}
@@ -1020,13 +1071,17 @@ function BlocoCard({
             )}
             {regra.exigeEtapa && (
               <div>
-                <Label>Etapa <span className="text-rose-500">*</span></Label>
+                <Label>
+                  Etapa <span className="text-rose-500">*</span>
+                  {destinoTravado && <Lock className="inline w-3 h-3 ml-1 text-[var(--color-fg-subtle)]" />}
+                </Label>
                 <SmartSelect
                   value={bloco.etapaObraId}
                   onChange={(e) => onAtualizarCampo({ etapaObraId: e.target.value })}
                   required
-                  disabled={!bloco.obraId}
-                  className="w-full h-[42px] rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-1)] disabled:bg-[var(--color-surface-2)] px-3 py-2 text-sm text-left focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]/40 focus:border-[var(--color-accent)] flex items-center"
+                  disabled={destinoTravado || !bloco.obraId}
+                  title={destinoTravado ? 'Definido na cotação — não pode ser alterado aqui' : undefined}
+                  className="w-full h-[42px] rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-1)] disabled:bg-[var(--color-surface-2)] disabled:cursor-not-allowed disabled:opacity-90 px-3 py-2 text-sm text-left focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]/40 focus:border-[var(--color-accent)] flex items-center"
                 >
                   <option value="">{bloco.obraId ? '— selecione —' : 'Selecione a obra primeiro'}</option>
                   {etapasDaObra.map((e) => (<option key={e.id} value={e.id}>{e.nome}</option>))}
@@ -1052,11 +1107,16 @@ function BlocoCard({
                   : 'Opcional — você (ou quem receber a OC) pode escolher o depósito no recebimento.';
               return (
                 <div>
-                  <Label>{labelDep} <span className="text-[var(--color-fg-subtle)] font-normal">(opcional)</span></Label>
+                  <Label>
+                    {labelDep} <span className="text-[var(--color-fg-subtle)] font-normal">(opcional)</span>
+                    {destinoTravado && <Lock className="inline w-3 h-3 ml-1 text-[var(--color-fg-subtle)]" />}
+                  </Label>
                   <SmartSelect
                     value={bloco.depositoDestinoId}
                     onChange={(e) => onAtualizarCampo({ depositoDestinoId: e.target.value })}
-                    className="w-full h-[42px] rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-1)] px-3 py-2 text-sm text-left focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]/40 focus:border-[var(--color-accent)] flex items-center"
+                    disabled={destinoTravado}
+                    title={destinoTravado ? 'Definido na cotação — não pode ser alterado aqui' : undefined}
+                    className="w-full h-[42px] rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-1)] disabled:bg-[var(--color-surface-2)] disabled:cursor-not-allowed disabled:opacity-90 px-3 py-2 text-sm text-left focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]/40 focus:border-[var(--color-accent)] flex items-center"
                   >
                     <option value="">— deixar pra definir no recebimento —</option>
                     {ehTanque ? (
@@ -1094,12 +1154,17 @@ function BlocoCard({
             })()}
             {regra.exigeEquipamento && (
               <div>
-                <Label>Equipamento <span className="text-rose-500">*</span></Label>
+                <Label>
+                  Equipamento <span className="text-rose-500">*</span>
+                  {destinoTravado && <Lock className="inline w-3 h-3 ml-1 text-[var(--color-fg-subtle)]" />}
+                </Label>
                 <SmartSelect
                   value={bloco.equipamentoId}
                   onChange={(e) => onAtualizarCampo({ equipamentoId: e.target.value })}
                   required
-                  className="w-full h-[42px] rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-1)] px-3 py-2 text-sm text-left focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]/40 focus:border-[var(--color-accent)] flex items-center"
+                  disabled={destinoTravado}
+                  title={destinoTravado ? 'Definido na cotação — não pode ser alterado aqui' : undefined}
+                  className="w-full h-[42px] rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-1)] disabled:bg-[var(--color-surface-2)] disabled:cursor-not-allowed disabled:opacity-90 px-3 py-2 text-sm text-left focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]/40 focus:border-[var(--color-accent)] flex items-center"
                 >
                   <option value="">— selecione —</option>
                   {equipamentos.map((eq) => (
@@ -1191,6 +1256,39 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
     <div>
       <Label>{label}</Label>
       {children}
+    </div>
+  );
+}
+
+/**
+ * Input monetário com prefixo "R$" embutido. Mantém type="number" pra UX
+ * de teclado numérico em mobile e validação nativa, mas mostra o símbolo
+ * visualmente alinhado à esquerda. O conteúdo é alinhado à direita pra
+ * casar com a convenção contábil. Reproduz as classes do `Input` padrão
+ * pra manter consistência visual (mesma altura, foco, etc).
+ */
+function MoneyInput({
+  value, onChange,
+}: { value: number; onChange: (v: number) => void }) {
+  return (
+    <div className="relative">
+      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[12px] font-medium text-[var(--color-fg-subtle)] pointer-events-none select-none z-10">
+        R$
+      </span>
+      <input
+        type="number"
+        step="0.01"
+        min="0"
+        value={value}
+        onChange={(e) => onChange(Number(e.target.value))}
+        className={
+          'w-full h-[42px] rounded-lg pl-10 pr-3 py-2 text-sm text-right ' +
+          'bg-[var(--color-surface-1)] text-[var(--color-fg)] ' +
+          'border border-[var(--color-border)] ' +
+          'transition-[border-color,box-shadow] duration-150 ' +
+          'focus:outline-none focus:border-[var(--color-accent)] focus:ring-2 focus:ring-[var(--color-ring)]'
+        }
+      />
     </div>
   );
 }
@@ -1579,12 +1677,17 @@ function ItemOCRow({
         />
       </td>
       <td className="px-3 py-2 align-top">
-        <input
-          type="number" step="0.01" min="0"
-          value={item.precoUnitario}
-          onChange={(e) => onChange({ precoUnitario: Number(e.target.value) })}
-          className="w-full px-2.5 py-1.5 text-sm text-right rounded-md border border-transparent bg-transparent hover:bg-[var(--color-surface-2)] focus:outline-none focus:bg-[var(--color-surface-1)] focus:border-[var(--color-border-strong)]"
-        />
+        <div className="relative">
+          <span className="absolute left-2 top-1/2 -translate-y-1/2 text-[11px] font-medium text-[var(--color-fg-subtle)] pointer-events-none select-none">
+            R$
+          </span>
+          <input
+            type="number" step="0.01" min="0"
+            value={item.precoUnitario}
+            onChange={(e) => onChange({ precoUnitario: Number(e.target.value) })}
+            className="w-full pl-8 pr-2.5 py-1.5 text-sm text-right rounded-md border border-transparent bg-transparent hover:bg-[var(--color-surface-2)] focus:outline-none focus:bg-[var(--color-surface-1)] focus:border-[var(--color-border-strong)]"
+          />
+        </div>
       </td>
       <td className="px-3 py-2 align-top text-right tabular-nums text-sm text-[var(--color-fg)]">
         {item.subtotal.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}

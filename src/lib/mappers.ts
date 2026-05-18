@@ -44,6 +44,8 @@ import type {
   SaidaCombustivel,
   TransportadoraMovimento,
   TransportadoraSaldo,
+  RecebimentoOC,
+  ItemRecebimentoOC,
 } from '../types';
 
 // ── Obras ──
@@ -1801,5 +1803,57 @@ export function dbToTransportadoraSaldo(row: any): TransportadoraSaldo {
     creditoFreteTotal: Number(row.credito_frete_total ?? 0),
     pagoFreteTotal: Number(row.pago_frete_total ?? 0),
     qtdMovimentos: Number(row.qtd_movimentos ?? 0),
+  };
+}
+
+// ── Recebimentos de OC (v2.7) ─────────────────────────────────────────
+// Itens da remessa ficam no JSONB `itens` da tabela — não tem tabela filha
+// porque cada remessa é "imutável" (você não edita item por item; cria
+// outra remessa pra corrigir).
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function dbToRecebimentoOC(row: any): RecebimentoOC {
+  return {
+    id: row.id,
+    ordemCompraId: row.ordem_compra_id,
+    numeroRemessa: Number(row.numero_remessa),
+    dataRecebimento: row.data_recebimento,
+    notaFiscalEntrega: row.nota_fiscal_entrega ?? '',
+    observacoes: row.observacoes ?? '',
+    itens: ((row.itens ?? []) as ItemRecebimentoOC[]).map((it) => ({
+      id: it.id,
+      itemOrdemCompraId: it.itemOrdemCompraId,
+      quantidadeRecebida: Number(it.quantidadeRecebida),
+      depositoDestinoId: it.depositoDestinoId,
+      lote: it.lote,
+      validade: it.validade,
+      entradaMaterialId: it.entradaMaterialId,
+      entradaCombustivelId: it.entradaCombustivelId,
+      observacoes: it.observacoes,
+    })),
+    recebidoPor: row.recebido_por ?? '',
+    recebidoEm: row.recebido_em ?? '',
+    atualizadoEm: row.atualizado_em ?? undefined,
+    atualizadoPor: row.atualizado_por ?? undefined,
+    deletadoEm: row.deletado_em ?? undefined,
+    deletadoPor: row.deletado_por ?? undefined,
+  };
+}
+
+export function recebimentoOCToDb(r: RecebimentoOC) {
+  return {
+    id: r.id,
+    ordem_compra_id: r.ordemCompraId,
+    numero_remessa: r.numeroRemessa,
+    data_recebimento: r.dataRecebimento,
+    nota_fiscal_entrega: r.notaFiscalEntrega ?? '',
+    observacoes: r.observacoes ?? '',
+    itens: r.itens,
+    recebido_por: r.recebidoPor,
+    recebido_em: r.recebidoEm,
+    atualizado_em: r.atualizadoEm ?? null,
+    atualizado_por: r.atualizadoPor ?? null,
+    deletado_em: r.deletadoEm ?? null,
+    deletado_por: r.deletadoPor ?? null,
   };
 }

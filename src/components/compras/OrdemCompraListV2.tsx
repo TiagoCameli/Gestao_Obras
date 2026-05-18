@@ -8,11 +8,13 @@
 import { useMemo, useState } from 'react';
 import {
   FileEdit, CheckCircle2, Banknote, FileDown, History, Trash2, Inbox,
-  Building2, Warehouse, Briefcase, Wrench, Fuel,
+  Building2, Warehouse, Briefcase, Wrench, Fuel, PackageCheck, RotateCcw,
 } from 'lucide-react';
 import type {
   OrdemCompra, Obra, EtapaObra, Fornecedor, TipoDestinoOC, StatusOrdemCompra, StatusLancamentoFinanceiro,
+  RecebimentoOC,
 } from '../../types';
+import { calcularProgressoOC } from '../../utils/recebimentoOCHelpers';
 import BadgeStatusCompra from './BadgeStatusCompra';
 import HistoricoCompras from './HistoricoCompras';
 import { useAuth } from '../../contexts/AuthContext';
@@ -34,6 +36,12 @@ interface Props {
   onExcluir: (oc: OrdemCompra) => void;
   /** Abre drawer de detalhes (visualização). */
   onVerDetalhes?: (oc: OrdemCompra) => void;
+  /** Abre drawer de recebimento (parcial ou total). */
+  onReceber?: (oc: OrdemCompra) => void;
+  /** Volta OC pra status 'emitida' (limpa aprovação). */
+  onDesaprovar?: (oc: OrdemCompra) => void;
+  /** Recebimentos já registrados — usado pra calcular progresso "X/Y". */
+  recebimentos?: RecebimentoOC[];
   canEdit: boolean;
   canCreate: boolean;
 }
@@ -68,7 +76,7 @@ function fmtMoeda(v: number): string {
 
 export default function OrdemCompraListV2({
   ordens, obras, etapas: _etapas, fornecedores, busca,
-  onEditar, onAprovar, onGerarLancamento, onExcluir, onVerDetalhes, canEdit, canCreate,
+  onEditar, onAprovar, onGerarLancamento, onExcluir, onVerDetalhes, onReceber, onDesaprovar, recebimentos = [], canEdit, canCreate,
 }: Props) {
   void _etapas;
   const { temAcao } = useAuth();
@@ -232,6 +240,7 @@ export default function OrdemCompraListV2({
                 const destinoInfo = oc.tipoDestino ? DESTINO_LABEL[oc.tipoDestino] : null;
                 const DestIcon = destinoInfo?.Icon;
                 const lancFin = oc.lancamentoFinanceiroStatus ?? 'nao_aplicavel';
+                const progresso = calcularProgressoOC(oc, recebimentos);
                 return (
                   <tr
                     key={oc.id}
@@ -270,6 +279,14 @@ export default function OrdemCompraListV2({
                     <td className="px-4 py-3.5">
                       <div className="flex flex-col gap-1 items-start">
                         <BadgeStatusCompra status={oc.status} />
+                        {progresso.iniciado && !progresso.completo && (
+                          <span
+                            className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium border border-sky-300 text-sky-700 bg-sky-50 dark:bg-sky-950/30 dark:text-sky-200 dark:border-sky-800"
+                            title={`${progresso.totalRecebido.toLocaleString('pt-BR')} de ${progresso.totalOC.toLocaleString('pt-BR')} recebido`}
+                          >
+                            📦 {progresso.pct}% recebido
+                          </span>
+                        )}
                         {lancFin === 'pendente' && (
                           <BadgeStatusCompra status="pendente" size="xs" label="Financ. pendente" />
                         )}
@@ -286,6 +303,12 @@ export default function OrdemCompraListV2({
                             <CheckCircle2 className="w-3.5 h-3.5" />
                           </IconButton>
                         )}
+                        {/* Receber OC: só quando aprovada ou parcialmente entregue */}
+                        {onReceber && (oc.status === 'aprovada' || oc.status === 'entregue') && (
+                          <IconButton title="Receber material/peça/combustível" onClick={() => onReceber(oc)} variant="success">
+                            <PackageCheck className="w-3.5 h-3.5" />
+                          </IconButton>
+                        )}
                         {/* Gerar lançamento financeiro: só quando aprovada e pendente */}
                         {oc.aprovada && lancFin === 'pendente' && (
                           <IconButton title="Gerar lançamento financeiro" onClick={() => onGerarLancamento(oc)} variant="warning">
@@ -295,9 +318,19 @@ export default function OrdemCompraListV2({
                         <IconButton title="PDF" onClick={() => handlePdf(oc)}>
                           <FileDown className="w-3.5 h-3.5" />
                         </IconButton>
-                        {canEdit && (
+                        {/* Editar só enquanto a OC está EMITIDA (aguardando aprovação). Depois
+                            de aprovada/recebida precisa primeiro desaprovar pra voltar pra emitida. */}
+                        {canEdit && oc.status === 'emitida' && (
                           <IconButton title="Editar" onClick={() => onEditar(oc)}>
                             <FileEdit className="w-3.5 h-3.5" />
+                          </IconButton>
+                        )}
+                        {/* Desaprovar: volta OC aprovada pra 'emitida' pra permitir edição.
+                            Só aparece quando aprovada e SEM recebimento (a regra de negócio é
+                            implementada no handler — toast de erro se tiver recebimento). */}
+                        {canEdit && onDesaprovar && oc.status === 'aprovada' && !progresso.iniciado && (
+                          <IconButton title="Voltar para Emitida (desaprovar)" onClick={() => onDesaprovar(oc)}>
+                            <RotateCcw className="w-3.5 h-3.5" />
                           </IconButton>
                         )}
                         <IconButton title="Histórico" onClick={() => setHistoricoAberto(oc)}>

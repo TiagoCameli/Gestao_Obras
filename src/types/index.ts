@@ -1029,6 +1029,61 @@ export interface OrdemCompra {
   deletadoPor?: string;
 }
 
+// ── Recebimento de Ordem de Compra (v2.7+) ──────────────────────────
+// Uma OC pode ser recebida em MÚLTIPLAS entregas (parcial → completa).
+// Cada recebimento é uma "remessa" com seus itens, datas e fornecedores
+// específicos. Quando a soma das quantidades recebidas iguala a OC, o
+// status vira 'recebida'. Antes disso, fica 'aprovada' com badge "X de Y".
+//
+// O recebimento também é o momento em que o destino físico ESPECÍFICO
+// (almoxarifado, tanque, depósito) é amarrado — pode vir vazio da OC.
+// Ao confirmar, geram-se EntradaMaterial/EntradaCombustivel automáticas.
+export interface RecebimentoOC {
+  id: string;
+  /** OC origem (FK para ordens_compra). */
+  ordemCompraId: string;
+  /** Número sequencial dentro da OC (1, 2, 3…). Útil pra exibir "Recebimento #2". */
+  numeroRemessa: number;
+  /** Data/hora em que o material foi recebido fisicamente. */
+  dataRecebimento: string;
+  /** Nota fiscal de entrega (opcional na primeira remessa). */
+  notaFiscalEntrega?: string;
+  /** Observação livre sobre a entrega (atrasos, avarias, observações do recebedor). */
+  observacoes?: string;
+  /** Itens recebidos NESTA remessa. */
+  itens: ItemRecebimentoOC[];
+  /** Usuário que registrou o recebimento. */
+  recebidoPor: string;
+  recebidoEm: string;
+  // Auditoria
+  atualizadoEm?: string;
+  atualizadoPor?: string;
+  deletadoEm?: string;
+  deletadoPor?: string;
+}
+
+export interface ItemRecebimentoOC {
+  id: string;
+  /** Item da OC que foi recebido (FK pra ItemOrdemCompra.id). */
+  itemOrdemCompraId: string;
+  /** Quantidade recebida nesta remessa (pode ser menor que a qtd da OC). */
+  quantidadeRecebida: number;
+  /** Destino físico FINAL resolvido aqui (almoxarifado, tanque, depósito).
+   *  Se a OC já tinha depositoDestinoId, esse valor é herdado; caso contrário,
+   *  o recebedor escolhe. Pra serviço em manutenção, fica vazio (não estoca). */
+  depositoDestinoId?: string;
+  /** Lote/série pra rastreabilidade (opcional). */
+  lote?: string;
+  /** Validade do lote (opcional — útil pra graxa, óleo, alguns químicos). */
+  validade?: string;
+  /** EntradaMaterial gerada (FK) — pra estoque material e peças. */
+  entradaMaterialId?: string;
+  /** EntradaCombustivel gerada (FK) — pra tanque. */
+  entradaCombustivelId?: string;
+  /** Observação por item (avaria, divergência de descrição, etc.). */
+  observacoes?: string;
+}
+
 // ── Anexos / Auditoria / Lixeira / Notificações / Portal Fornecedor ──
 
 export type EntidadeCompra = 'pedido' | 'cotacao' | 'oc';

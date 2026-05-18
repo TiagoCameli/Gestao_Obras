@@ -1203,12 +1203,19 @@ function MapaComparativo({
                   const ip = cf.itensPrecos.find((x) => x.itemPedidoId === item.id);
                   return (
                     <td key={cf.id} className="px-3 py-2">
-                      <input
-                        type="number" step="0.01" min="0"
-                        value={ip?.precoUnitario ?? 0}
-                        onChange={(e) => onAtualizarPreco(cf.id, item.id, Number(e.target.value), ip?.marca)}
-                        className="w-full px-2 py-1 text-sm text-right rounded-md border border-[var(--color-border)] bg-[var(--color-surface-1)] focus:outline-none focus:ring-1 focus:ring-[var(--color-accent)]"
-                      />
+                      {/* Wrapper relativo pra ancorar o prefixo "R$" dentro do input.
+                          O padding-left dá espaço pro símbolo não sobrepor o número. */}
+                      <div className="relative">
+                        <span className="absolute left-2 top-1/2 -translate-y-1/2 text-[11px] font-medium text-[var(--color-fg-subtle)] pointer-events-none select-none">
+                          R$
+                        </span>
+                        <input
+                          type="number" step="0.01" min="0"
+                          value={ip?.precoUnitario ?? 0}
+                          onChange={(e) => onAtualizarPreco(cf.id, item.id, Number(e.target.value), ip?.marca)}
+                          className="w-full pl-8 pr-2 py-1 text-sm text-right rounded-md border border-[var(--color-border)] bg-[var(--color-surface-1)] focus:outline-none focus:ring-1 focus:ring-[var(--color-accent)]"
+                        />
+                      </div>
                       <input
                         type="text"
                         placeholder="marca"

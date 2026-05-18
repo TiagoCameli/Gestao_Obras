@@ -403,7 +403,10 @@ function AcoesPedido({
           </IconButton>
         </>
       )}
-      {onEditar && pedido.status !== 'comprado' && (
+      {/* Editar só aparece enquanto o pedido está PENDENTE. Uma vez aprovado
+          (ou seguindo no fluxo), travar é a regra de negócio — pra editar é
+          preciso primeiro clicar em "Voltar para Pendente" (ícone ao lado). */}
+      {onEditar && pedido.status === 'pendente' && (
         <IconButton title="Editar" onClick={onEditar}>
           <FileEdit className="w-3.5 h-3.5" />
         </IconButton>

@@ -42,6 +42,9 @@ import GerarLancamentoFinanceiroModal from '../components/compras/GerarLancament
 import VisaoGeralCompras from '../components/compras/VisaoGeralCompras';
 import LixeiraCompras from '../components/compras/LixeiraCompras';
 import CompraDetalheDrawer from '../components/compras/CompraDetalheDrawer';
+import RecebimentoOCDrawer from '../components/compras/RecebimentoOCDrawer';
+import RecebimentosListV2 from '../components/compras/RecebimentosListV2';
+import { useRecebimentosOC } from '../hooks/useRecebimentosOC';
 import NotificacoesSino from '../components/compras/NotificacoesSino';
 import { criarNotificacaoCompras } from '../hooks/useComprasNotificacoes';
 import ImportOCModal from '../components/compras/ImportOCModal';
@@ -49,7 +52,7 @@ import { proximoNumeroPorAno } from '../utils/comprasNumero';
 import { auditar } from '../utils/comprasAudit';
 import { useUploadAnexoCompras } from '../hooks/useComprasAnexos';
 
-type Tab = 'visao' | 'pedidos' | 'cotacoes' | 'ordens';
+type Tab = 'visao' | 'pedidos' | 'cotacoes' | 'ordens' | 'recebimentos';
 
 export default function Compras() {
   const { temAcao, usuario } = useAuth();
@@ -58,7 +61,7 @@ export default function Compras() {
   const canApprove = temAcao('aprovar_pedido');
 
   const [searchParams, setSearchParams] = useSearchParams();
-  const validTabs: Tab[] = ['visao', 'pedidos', 'cotacoes', 'ordens'];
+  const validTabs: Tab[] = ['visao', 'pedidos', 'cotacoes', 'ordens', 'recebimentos'];
   const tabParam = searchParams.get('tab') as Tab | null;
   const tab: Tab = tabParam && validTabs.includes(tabParam) ? tabParam : 'visao';
   const setTab = useCallback((t: Tab) => setSearchParams({ tab: t }, { replace: true }), [setSearchParams]);
@@ -77,6 +80,7 @@ export default function Compras() {
   const { data: categoriasMaterial = [] } = useCategoriasMaterial();
   const { data: depositosMaterial = [] } = useDepositosMaterialV2();
   const { data: depositosCombustivel = [] } = useDepositos();
+  const { data: recebimentosOC = [] } = useRecebimentosOC();
 
   const categoriasOptions = useMemo(
     () => categoriasMaterial.filter((c) => c.ativo).map((c) => ({ value: c.valor, label: c.nome })),
@@ -112,6 +116,8 @@ export default function Compras() {
   const [detalhePedido, setDetalhePedido] = useState<PedidoCompra | null>(null);
   const [detalheCotacao, setDetalheCotacao] = useState<Cotacao | null>(null);
   const [detalheOC, setDetalheOC] = useState<OrdemCompra | null>(null);
+  // OC sendo recebida (drawer de recebimento parcial/total)
+  const [recebendoOC, setRecebendoOC] = useState<OrdemCompra | null>(null);
   const [pedidoParaCotacao, setPedidoParaCotacao] = useState<PedidoCompra | null>(null);
   const [editandoCotacao, setEditandoCotacao] = useState<Cotacao | null>(null);
   const [deleteCotacaoId, setDeleteCotacaoId] = useState<string | null>(null);
@@ -307,6 +313,29 @@ export default function Compras() {
     showToast({ kind: 'success', message: `Cotação ${cot.numero} voltou para "Em cotação".` });
   }, [atualizarCotacaoMut, usuario, showToast]);
 
+  /** Desaprova uma OC (volta status para 'emitida'). Não permite se já houve
+   *  qualquer recebimento, pra preservar integridade do estoque. */
+  const handleDesaprovarOC = useCallback(async (oc: OrdemCompra) => {
+    const temRecebimento = recebimentosOC.some((r) => r.ordemCompraId === oc.id);
+    if (temRecebimento) {
+      showToast({
+        kind: 'error',
+        message: `OC ${oc.numero} já tem recebimento registrado. Exclua os recebimentos antes de desaprovar.`,
+      });
+      return;
+    }
+    await atualizarOCMut.mutateAsync({
+      ...oc,
+      status: 'emitida',
+      aprovada: false,
+      aprovadaPor: undefined,
+      aprovadaEm: undefined,
+      atualizadoPor: usuario?.nome,
+      atualizadoEm: new Date().toISOString(),
+    });
+    showToast({ kind: 'success', message: `OC ${oc.numero} voltou para "Emitida".` });
+  }, [atualizarOCMut, usuario, showToast, recebimentosOC]);
+
   const handleEnviarCotacao = useCallback((pedido: PedidoCompra) => {
     setPedidoParaCotacao(pedido);
     setCotacaoModalOpen(true);
@@ -464,9 +493,11 @@ export default function Compras() {
       .filter((item) => itemIds.includes(item.id))
       .map((item) => {
         const preco = cf.itensPrecos.find((ip) => ip.itemPedidoId === item.id);
-        // Pega destinos do item — preferência: cotação, fallback pro pedido original
+        // Pega destinos do item — preferência: COTAÇÃO (mais recente, onde o
+        // comprador refinou o destino), fallback pro pedido original, depois
+        // pro header do pedido. Isso garante que se o comprador escolheu na
+        // cotação "obra_etapa" + obra X + etapa Y, a OC herde tudo isso.
         const itemOriginal = itemsPedidoMap.get(item.id) ?? item;
-        const destinoDoItem = item.tipoDestino ?? itemOriginal.tipoDestino;
         return {
           id: item.id,
           descricao: item.descricao,
@@ -474,14 +505,17 @@ export default function Compras() {
           unidade: item.unidade,
           precoUnitario: preco?.precoUnitario ?? 0,
           subtotal: item.quantidade * (preco?.precoUnitario ?? 0),
-          // Obra/etapa: prioriza obraId do item (override), depois do pedido,
-          // depois vazio. Pra destino obra_etapa precisa de etapa específica.
-          obraId: itemOriginal.obraId || pedidoRef?.obraId || '',
-          etapaObraId: item.etapaObraId ?? itemOriginal.etapaObraId ?? '',
+          // OBRA/ETAPA: o item da cotação tem prioridade (foi onde o comprador
+          // ajustou o destino). Pedido em segundo, header em último. Antes
+          // estava invertido — pegava do pedido primeiro e ignorava a cotação,
+          // por isso o form de OC abria com obra vazia mesmo após o usuário
+          // ter escolhido na cotação.
+          obraId: item.obraId || itemOriginal.obraId || pedidoRef?.obraId || '',
+          etapaObraId: item.etapaObraId || itemOriginal.etapaObraId || '',
           tipo: item.tipo ?? itemOriginal.tipo ?? 'material',
           marca: preco?.marca,
-          // v2.5: destino e vínculos OPCIONAIS herdados do pedido
-          tipoDestino: destinoDoItem,
+          // v2.5: destino e vínculos herdados (cotação > pedido)
+          tipoDestino: item.tipoDestino ?? itemOriginal.tipoDestino,
           depositoDestinoId: item.depositoDestinoId ?? itemOriginal.depositoDestinoId,
           equipamentoId: item.equipamentoId ?? itemOriginal.equipamentoId,
           osId: item.osId ?? itemOriginal.osId,
@@ -802,6 +836,7 @@ export default function Compras() {
     { key: 'pedidos', label: 'Pedidos' },
     { key: 'cotacoes', label: 'Cotações' },
     { key: 'ordens', label: 'Ordens de Compra' },
+    { key: 'recebimentos', label: 'Recebimentos' },
   ];
 
   return (
@@ -1014,10 +1049,25 @@ export default function Compras() {
             onGerarLancamento={(oc) => setGerarLancamentoOC(oc)}
             onExcluir={handleExcluirOC}
             onVerDetalhes={(oc) => setDetalheOC(oc)}
+            onReceber={(oc) => setRecebendoOC(oc)}
+            onDesaprovar={handleDesaprovarOC}
+            recebimentos={recebimentosOC}
             canEdit={canEdit}
             canCreate={canCreate}
           />
         </>
+      )}
+
+      {/* ── Recebimentos Tab (lista global de remessas) ── */}
+      {tab === 'recebimentos' && (
+        <RecebimentosListV2
+          recebimentos={recebimentosOC}
+          ordens={ordens}
+          fornecedores={fornecedores}
+          insumos={insumos}
+          depositosMaterial={depositosMaterial}
+          tanquesCombustivel={depositosCombustivel}
+        />
       )}
 
 
@@ -1252,9 +1302,27 @@ export default function Compras() {
         onAprovar={detalheOC?.status === 'emitida' && canApprove
           ? () => { const oc = detalheOC; setDetalheOC(null); handleAprovarOCv2(oc); }
           : undefined}
+        onReceber={detalheOC && (detalheOC.status === 'aprovada' || detalheOC.status === 'entregue')
+          ? () => { const oc = detalheOC; setRecebendoOC(oc); setDetalheOC(null); }
+          : undefined}
+        onReabrir={detalheOC?.status === 'aprovada'
+          ? () => { const oc = detalheOC; setDetalheOC(null); handleDesaprovarOC(oc); }
+          : undefined}
         onGerarLancamento={detalheOC?.status === 'aprovada'
           ? () => { const oc = detalheOC; setGerarLancamentoOC(oc); setDetalheOC(null); }
           : undefined}
+        recebimentosDaOC={detalheOC ? recebimentosOC.filter((r) => r.ordemCompraId === detalheOC.id) : []}
+      />
+
+      {/* Drawer de Recebimento de OC (parcial ou total) */}
+      <RecebimentoOCDrawer
+        open={!!recebendoOC}
+        onClose={() => setRecebendoOC(null)}
+        oc={recebendoOC}
+        depositosMaterial={depositosMaterial}
+        tanquesCombustivel={depositosCombustivel}
+        insumos={insumos}
+        fornecedores={fornecedores}
       />
 
       {/* Modal Importar OCs */}

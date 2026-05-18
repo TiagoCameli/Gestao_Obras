@@ -252,7 +252,9 @@ export default function CotacaoListV2({
                     <td className="px-4 py-3"><BadgeStatusCompra status={c.status} /></td>
                     <td className="px-4 py-3">
                       <div className="flex items-center justify-end gap-1">
-                        {canEdit && (
+                        {/* Editar só enquanto a cotação está EM_COTACAO. Depois precisa
+                            reabrir (ícone ao lado) pra mexer nos itens / mapa comparativo. */}
+                        {canEdit && c.status === 'em_cotacao' && (
                           <IconButton title="Editar / Mapa comparativo" onClick={() => onEditar(c)}>
                             <FileEdit className="w-3.5 h-3.5" />
                           </IconButton>

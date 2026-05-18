@@ -11,11 +11,13 @@ import type {
   Obra,
   OrdemCompra,
   PedidoCompra,
+  RecebimentoOC,
 } from '../../types';
 import Drawer from '../ui/Drawer';
 import Button from '../ui/Button';
 import BadgeStatusCompra from './BadgeStatusCompra';
 import { formatCurrency, formatDate } from '../../utils/formatters';
+import { calcularProgressoOC } from '../../utils/recebimentoOCHelpers';
 
 type DetalheData =
   | { tipo: 'pedido'; pedido: PedidoCompra }
@@ -38,6 +40,10 @@ interface Props {
   onEnviarCotacao?: () => void;
   onGerarOC?: () => void;
   onGerarLancamento?: () => void;
+  /** Abre o drawer de recebimento (apenas pra OC aprovada/parcialmente recebida). */
+  onReceber?: () => void;
+  /** Recebimentos já registrados pra essa OC (usado pra mostrar progresso e timeline). */
+  recebimentosDaOC?: RecebimentoOC[];
 }
 
 export default function CompraDetalheDrawer({
@@ -53,6 +59,8 @@ export default function CompraDetalheDrawer({
   onEnviarCotacao,
   onGerarOC,
   onGerarLancamento,
+  onReceber,
+  recebimentosDaOC = [],
 }: Props) {
   if (!data) {
     return (
@@ -80,7 +88,8 @@ export default function CompraDetalheDrawer({
         width="lg"
         footer={
           <div className="flex flex-wrap gap-2 justify-end">
-            {onEditar && (
+            {/* Editar só pra pendentes — depois de aprovado precisa voltar pra pendente primeiro */}
+            {onEditar && p.status === 'pendente' && (
               <Button type="button" variant="secondary" onClick={onEditar}>
                 Editar
               </Button>
@@ -186,7 +195,9 @@ export default function CompraDetalheDrawer({
         width="lg"
         footer={
           <div className="flex flex-wrap gap-2 justify-end">
-            {onEditar && (
+            {/* Editar/mapa só enquanto a cotação está EM_COTACAO. Depois de cotada
+                ou parcial precisa reabrir primeiro (botão ao lado). */}
+            {onEditar && c.status === 'em_cotacao' && (
               <Button type="button" variant="secondary" onClick={onEditar}>
                 Editar / Mapa comparativo
               </Button>
@@ -296,6 +307,7 @@ export default function CompraDetalheDrawer({
 
   // ─────────── ORDEM DE COMPRA
   const oc = data.oc;
+  const progresso = calcularProgressoOC(oc, recebimentosDaOC);
   return (
     <Drawer
       open={open}
@@ -305,9 +317,17 @@ export default function CompraDetalheDrawer({
       width="lg"
       footer={
         <div className="flex flex-wrap gap-2 justify-end">
-          {onEditar && (
+          {/* Editar OC só enquanto está EMITIDA (aguardando aprovação). Depois de
+              aprovada/recebida/entregue precisa voltar pra emitida primeiro (desaprovar). */}
+          {onEditar && oc.status === 'emitida' && (
             <Button type="button" variant="secondary" onClick={onEditar}>
               Editar
+            </Button>
+          )}
+          {/* Voltar pra emitida: só quando aprovada e SEM recebimento. */}
+          {onReabrir && oc.status === 'aprovada' && !progresso.iniciado && (
+            <Button type="button" variant="secondary" onClick={onReabrir}>
+              ↩ Voltar para Emitida
             </Button>
           )}
           {onAprovar && oc.status === 'emitida' && (
@@ -315,8 +335,13 @@ export default function CompraDetalheDrawer({
               Aprovar OC
             </Button>
           )}
+          {onReceber && (oc.status === 'aprovada' || oc.status === 'entregue') && (
+            <Button type="button" onClick={onReceber}>
+              📦 Receber
+            </Button>
+          )}
           {onGerarLancamento && oc.status === 'aprovada' && (
-            <Button type="button" onClick={onGerarLancamento}>
+            <Button type="button" variant="secondary" onClick={onGerarLancamento}>
               Gerar lançamento financeiro
             </Button>
           )}
@@ -324,6 +349,54 @@ export default function CompraDetalheDrawer({
       }
     >
       <section className="space-y-5">
+        {/* Barra de progresso de recebimento (só aparece se OC aprovada) */}
+        {(oc.status === 'aprovada' || oc.status === 'entregue' || oc.status === 'recebida') && (
+          <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-1)] p-4">
+            <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center gap-2">
+                <span className="text-[11px] uppercase tracking-wide text-[var(--color-fg-muted)] font-semibold">
+                  Recebimento
+                </span>
+                {progresso.completo && (
+                  <span className="text-[10.5px] font-medium px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-200">
+                    ✓ Completo
+                  </span>
+                )}
+                {progresso.iniciado && !progresso.completo && (
+                  <span className="text-[10.5px] font-medium px-1.5 py-0.5 rounded bg-sky-100 text-sky-800 dark:bg-sky-950/40 dark:text-sky-200">
+                    Em andamento
+                  </span>
+                )}
+                {!progresso.iniciado && (
+                  <span className="text-[10.5px] font-medium px-1.5 py-0.5 rounded bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300">
+                    Não iniciado
+                  </span>
+                )}
+              </div>
+              <span className="text-[13px] font-semibold tabular-nums text-[var(--color-fg)]">
+                {progresso.pct}%
+              </span>
+            </div>
+            <div className="h-2 w-full rounded-full bg-[var(--color-surface-2)] overflow-hidden">
+              <div
+                className={
+                  'h-full transition-all duration-300 ' +
+                  (progresso.completo
+                    ? 'bg-emerald-500'
+                    : progresso.iniciado
+                      ? 'bg-sky-500'
+                      : 'bg-slate-300 dark:bg-slate-600')
+                }
+                style={{ width: `${progresso.pct}%` }}
+              />
+            </div>
+            <p className="text-[11px] text-[var(--color-fg-muted)] mt-1.5">
+              {progresso.totalRecebido.toLocaleString('pt-BR')} de{' '}
+              {progresso.totalOC.toLocaleString('pt-BR')} unidades recebidas
+              {recebimentosDaOC.length > 0 && ` · ${recebimentosDaOC.length} ${recebimentosDaOC.length === 1 ? 'remessa' : 'remessas'}`}
+            </p>
+          </div>
+        )}
         <BlocoInfo>
           <Linha label="Status"><BadgeStatusCompra status={oc.status} /></Linha>
           <Linha label="Fornecedor">{fornecedorNome(oc.fornecedorId)}</Linha>
@@ -365,24 +438,86 @@ export default function CompraDetalheDrawer({
               <thead className="text-[10.5px] uppercase tracking-wide text-[var(--color-fg-muted)]">
                 <tr>
                   <th className="text-left py-1.5 font-medium">Descrição</th>
-                  <th className="text-right py-1.5 font-medium w-16">Qtd</th>
-                  <th className="text-left py-1.5 font-medium w-16">Un</th>
+                  <th className="text-right py-1.5 font-medium w-16">Qtd OC</th>
+                  {progresso.iniciado && (
+                    <th className="text-right py-1.5 font-medium w-24">Recebido</th>
+                  )}
+                  <th className="text-left py-1.5 font-medium w-14">Un</th>
                   <th className="text-right py-1.5 font-medium w-24">Preço un</th>
                   <th className="text-right py-1.5 font-medium w-24">Subtotal</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-[var(--color-border)]">
-                {oc.itens.map((it) => (
-                  <tr key={it.id}>
-                    <td className="py-2 text-[var(--color-fg)]">{it.descricao}</td>
-                    <td className="py-2 text-right text-[var(--color-fg)]">{it.quantidade}</td>
-                    <td className="py-2 text-[var(--color-fg-muted)] uppercase text-xs">{it.unidade}</td>
-                    <td className="py-2 text-right text-[var(--color-fg-muted)]">{formatCurrency(it.precoUnitario)}</td>
-                    <td className="py-2 text-right text-[var(--color-fg)] font-medium">{formatCurrency(it.subtotal)}</td>
-                  </tr>
-                ))}
+                {oc.itens.map((it) => {
+                  const recebido = progresso.recebidoPorItem.get(it.id) ?? 0;
+                  const pendente = Math.max(0, it.quantidade - recebido);
+                  const itemCompleto = pendente < 0.0001 && progresso.iniciado;
+                  const itemParcial = recebido > 0 && pendente > 0;
+                  return (
+                    <tr key={it.id} className={itemCompleto ? 'bg-emerald-50/30 dark:bg-emerald-900/10' : ''}>
+                      <td className="py-2 text-[var(--color-fg)]">{it.descricao}</td>
+                      <td className="py-2 text-right text-[var(--color-fg)]">{it.quantidade}</td>
+                      {progresso.iniciado && (
+                        <td className="py-2 text-right text-[11.5px]">
+                          {itemCompleto ? (
+                            <span className="inline-flex items-center gap-0.5 text-emerald-700 dark:text-emerald-400">
+                              ✓ {recebido.toLocaleString('pt-BR')}
+                            </span>
+                          ) : itemParcial ? (
+                            <span className="text-sky-700 dark:text-sky-300">
+                              {recebido.toLocaleString('pt-BR')}
+                              <span className="text-[var(--color-fg-subtle)]"> / pend. {pendente.toLocaleString('pt-BR')}</span>
+                            </span>
+                          ) : (
+                            <span className="text-[var(--color-fg-subtle)]">—</span>
+                          )}
+                        </td>
+                      )}
+                      <td className="py-2 text-[var(--color-fg-muted)] uppercase text-xs">{it.unidade}</td>
+                      <td className="py-2 text-right text-[var(--color-fg-muted)]">{formatCurrency(it.precoUnitario)}</td>
+                      <td className="py-2 text-right text-[var(--color-fg)] font-medium">{formatCurrency(it.subtotal)}</td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
+          </BlocoInfo>
+        )}
+
+        {/* Timeline de remessas */}
+        {recebimentosDaOC.length > 0 && (
+          <BlocoInfo titulo={`Histórico de remessas (${recebimentosDaOC.length})`}>
+            <ol className="relative border-l-2 border-[var(--color-border)] ml-3 space-y-3">
+              {recebimentosDaOC
+                .slice()
+                .sort((a, b) => a.numeroRemessa - b.numeroRemessa)
+                .map((r) => {
+                  const totalRemessa = r.itens.reduce((s, it) => s + it.quantidadeRecebida, 0);
+                  return (
+                    <li key={r.id} className="pl-4 relative">
+                      <span className="absolute -left-[7px] top-1 w-3 h-3 rounded-full bg-sky-500 ring-4 ring-[var(--color-surface-1)]" />
+                      <div className="flex items-center justify-between flex-wrap gap-1.5 mb-0.5">
+                        <span className="font-medium text-[13px] text-[var(--color-fg)]">
+                          Remessa #{r.numeroRemessa}
+                        </span>
+                        <span className="text-[11px] text-[var(--color-fg-muted)]">
+                          {formatDate(r.dataRecebimento)} · por {r.recebidoPor}
+                        </span>
+                      </div>
+                      <div className="text-[11.5px] text-[var(--color-fg-muted)]">
+                        {r.itens.length} {r.itens.length === 1 ? 'item' : 'itens'} ·{' '}
+                        {totalRemessa.toLocaleString('pt-BR')} unidades
+                        {r.notaFiscalEntrega ? ` · NF ${r.notaFiscalEntrega}` : ''}
+                      </div>
+                      {r.observacoes && (
+                        <p className="text-[11.5px] text-[var(--color-fg-subtle)] italic mt-1">
+                          "{r.observacoes}"
+                        </p>
+                      )}
+                    </li>
+                  );
+                })}
+            </ol>
           </BlocoInfo>
         )}
 
