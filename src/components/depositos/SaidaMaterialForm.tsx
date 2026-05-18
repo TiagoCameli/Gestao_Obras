@@ -18,6 +18,7 @@ import type {
 } from '../../types';
 import Button from '../ui/Button';
 import Input from '../ui/Input';
+import SmartSelect from '../ui/SmartSelect';
 import { useToast } from '../ui/Toast';
 import { useAuth } from '../../contexts/AuthContext';
 import { consultarSaldoInsumo } from '../../hooks/useDepositosObras';
@@ -362,10 +363,11 @@ export default function SaidaMaterialForm({
         <div className="space-y-2">
           {alocacoes.map((a) => (
             <div key={a.uid} className="flex items-center gap-2">
-              <select
+              <SmartSelect
                 value={a.etapaId}
                 onChange={(e) => atualizarLinha(a.uid, { etapaId: e.target.value })}
-                className="flex-1 h-9 rounded-md border border-[var(--color-border)] bg-[var(--color-surface-1)] px-2 text-sm focus:outline-none focus:ring-1 focus:ring-[var(--color-accent)]"
+                wrapperClassName="relative flex-1"
+                className="w-full h-9 rounded-md border border-[var(--color-border)] bg-[var(--color-surface-1)] px-2 text-sm text-left focus:outline-none focus:ring-1 focus:ring-[var(--color-accent)] flex items-center"
               >
                 <option value="">— selecione a etapa —</option>
                 {etapasDisponiveis.map((e) => (
@@ -373,7 +375,7 @@ export default function SaidaMaterialForm({
                     {e.nome} · {obraDaEtapa(e.id)}
                   </option>
                 ))}
-              </select>
+              </SmartSelect>
               <Input
                 type="number" step="any" min="0"
                 value={a.quantidade || ''}

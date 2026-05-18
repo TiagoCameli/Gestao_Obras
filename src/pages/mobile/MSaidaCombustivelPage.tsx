@@ -11,6 +11,7 @@ import { useParams, useNavigate, Link } from 'react-router-dom';
 import { ArrowLeft, Droplet, Camera, X, CheckCircle2, AlertTriangle, Gauge } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import Button from '../../components/ui/Button';
+import SmartSelect from '../../components/ui/SmartSelect';
 import { useEquipamentos } from '../../hooks/useEquipamentos';
 import { useMedicaoAtual } from '../../hooks/useMedicoesEquipamento';
 import { useDepositos } from '../../hooks/useDepositos';
@@ -189,12 +190,12 @@ export default function MSaidaCombustivelPage() {
           <label htmlFor="tanqueSel" className="block text-xs font-medium text-[var(--color-fg-muted)] mb-1">
             Tanque de origem <span className="text-[var(--color-danger)]">*</span>
           </label>
-          <select
+          <SmartSelect
             id="tanqueSel"
             value={tanqueId}
             onChange={(e) => setTanqueId(e.target.value)}
             required
-            className="w-full h-12 rounded-xl px-3 text-base bg-[var(--color-surface-1)] text-[var(--color-fg)] border border-[var(--color-border)] focus:outline-none focus:border-[var(--color-accent)] focus:ring-2 focus:ring-[var(--color-ring)]"
+            className="w-full h-12 rounded-xl px-3 text-base text-left bg-[var(--color-surface-1)] text-[var(--color-fg)] border border-[var(--color-border)] focus:outline-none focus:border-[var(--color-accent)] focus:ring-2 focus:ring-[var(--color-ring)] flex items-center"
           >
             <option value="">Selecione…</option>
             {tanquesAtivos.map((t) => (
@@ -203,7 +204,7 @@ export default function MSaidaCombustivelPage() {
                 {t.nivelAtualLitros != null && ` · ${t.nivelAtualLitros.toLocaleString('pt-BR')}L`}
               </option>
             ))}
-          </select>
+          </SmartSelect>
         </div>
 
         <div>

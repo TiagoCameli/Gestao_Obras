@@ -9,13 +9,13 @@
 import { useMemo, useState } from 'react';
 import {
   Search, FileEdit, CheckCircle2, XCircle, Send, ShoppingCart,
-  History, Trash2, Inbox, FileText,
+  History, Trash2, Inbox, FileText, RotateCcw,
 } from 'lucide-react';
 import type { PedidoCompra, Obra, Cotacao, OrdemCompra, StatusPedidoCompra, UrgenciaPedidoCompra, TipoItemCompra } from '../../types';
 import BadgeStatusCompra from './BadgeStatusCompra';
 import HistoricoCompras from './HistoricoCompras';
 import {
-  FiltrosBarra, FilterPill, FilterDateRange, FilterValueRange, FilterMultiCheck,
+  FiltrosBarra, FilterPill, FilterDateRange, FilterMultiCheck,
 } from './FiltrosCompras';
 import { dentroDoPeriodo } from '../../utils/comprasFiltros';
 
@@ -33,6 +33,8 @@ interface Props {
   onEnviarCotacao: (p: PedidoCompra) => void;
   onGerarOC: (p: PedidoCompra) => void;
   onEditar?: (p: PedidoCompra) => void;
+  /** Abre drawer de detalhes (visualização). */
+  onVerDetalhes?: (p: PedidoCompra) => void;
   canApprove: boolean;
   canCreate: boolean;
 }
@@ -73,8 +75,8 @@ function formatarMoeda(v?: number): string {
 
 export default function PedidoCompraListV2({
   pedidos, obras, cotacoes, ordens, busca,
-  onAprovar, onReprovar, onExcluir,
-  onEnviarCotacao, onGerarOC, onEditar,
+  onAprovar, onReprovar, onDesaprovar, onExcluir,
+  onEnviarCotacao, onGerarOC, onEditar, onVerDetalhes,
   canApprove, canCreate,
 }: Props) {
   const [statusFiltro, setStatusFiltro] = useState<'' | StatusPedidoCompra>('');
@@ -84,8 +86,7 @@ export default function PedidoCompraListV2({
   const [solicitantesFiltro, setSolicitantesFiltro] = useState<string[]>([]);
   const [dataDe, setDataDe] = useState('');
   const [dataAte, setDataAte] = useState('');
-  const [valorMin, setValorMin] = useState('');
-  const [valorMax, setValorMax] = useState('');
+  // valor estimado removido do form de pedido — filtros descontinuados
   const [historicoAberto, setHistoricoAberto] = useState<PedidoCompra | null>(null);
 
   const obrasMap = useMemo(() => new Map(obras.map((o) => [o.id, o.nome])), [obras]);
@@ -99,19 +100,17 @@ export default function PedidoCompraListV2({
 
   const limparFiltros = () => {
     setStatusFiltro(''); setObraFiltro(''); setUrgenciaFiltro(''); setTipoFiltro('');
-    setSolicitantesFiltro([]); setDataDe(''); setDataAte(''); setValorMin(''); setValorMax('');
+    setSolicitantesFiltro([]); setDataDe(''); setDataAte('');
   };
 
   const filtrosAtivos =
     (statusFiltro ? 1 : 0) + (obraFiltro ? 1 : 0) + (urgenciaFiltro ? 1 : 0) +
     (tipoFiltro ? 1 : 0) + (solicitantesFiltro.length > 0 ? 1 : 0) +
-    (dataDe || dataAte ? 1 : 0) + (valorMin || valorMax ? 1 : 0);
+    (dataDe || dataAte ? 1 : 0);
 
   // Pedidos visíveis (não deletados) filtrados
   const filtrados = useMemo(() => {
     const q = busca.trim().toLowerCase();
-    const min = valorMin ? Number(valorMin) : undefined;
-    const max = valorMax ? Number(valorMax) : undefined;
     return pedidos
       .filter((p) => !p.deletadoEm)
       .filter((p) => !statusFiltro || p.status === statusFiltro)
@@ -119,13 +118,6 @@ export default function PedidoCompraListV2({
       .filter((p) => !urgenciaFiltro || p.urgencia === urgenciaFiltro)
       .filter((p) => solicitantesFiltro.length === 0 || solicitantesFiltro.includes(p.solicitante))
       .filter((p) => dentroDoPeriodo(p.data, dataDe, dataAte))
-      .filter((p) => {
-        if (min === undefined && max === undefined) return true;
-        const v = p.valorEstimado ?? 0;
-        if (min !== undefined && v < min) return false;
-        if (max !== undefined && v > max) return false;
-        return true;
-      })
       .filter((p) => {
         if (!tipoFiltro) return true;
         return p.itens.some((it) => (it.tipo ?? 'material') === tipoFiltro);
@@ -143,7 +135,7 @@ export default function PedidoCompraListV2({
       })
       .sort((a, b) => (b.data || '').localeCompare(a.data || ''));
   }, [pedidos, busca, statusFiltro, obraFiltro, urgenciaFiltro, tipoFiltro,
-       solicitantesFiltro, dataDe, dataAte, valorMin, valorMax, obrasMap]);
+       solicitantesFiltro, dataDe, dataAte, obrasMap]);
 
   // Conta cotações e OCs por pedido (pra mostrar progresso)
   const ligacoesMap = useMemo(() => {
@@ -208,7 +200,6 @@ export default function PedidoCompraListV2({
           options={solicitantesOptions}
         />
         <FilterDateRange label="Período" de={dataDe} ate={dataAte} onChange={(d, a) => { setDataDe(d); setDataAte(a); }} />
-        <FilterValueRange label="Valor estimado" min={valorMin} max={valorMax} onChange={(mn, mx) => { setValorMin(mn); setValorMax(mx); }} />
       </FiltrosBarra>
 
       {/* Tabela (≥sm) */}
@@ -234,7 +225,15 @@ export default function PedidoCompraListV2({
                 {filtrados.map((p) => {
                   const ligacoes = ligacoesMap.get(p.id);
                   return (
-                    <tr key={p.id} className="hover:bg-[var(--color-surface-2)]/50 transition-colors">
+                    <tr
+                      key={p.id}
+                      className="hover:bg-[var(--color-surface-2)]/50 transition-colors cursor-pointer"
+                      onClick={(e) => {
+                        // Ignora clique se foi em botão de ação (última coluna)
+                        if ((e.target as HTMLElement).closest('button,a,[role="menu"]')) return;
+                        onVerDetalhes?.(p);
+                      }}
+                    >
                       <td className="px-4 py-3 font-mono text-xs text-[var(--color-fg)] whitespace-nowrap">
                         {p.numero}
                         {p.valorEstimado != null && (
@@ -275,6 +274,7 @@ export default function PedidoCompraListV2({
                           canCreate={canCreate}
                           onAprovar={() => onAprovar(p)}
                           onReprovar={() => onReprovar(p)}
+                          onDesaprovar={onDesaprovar ? () => onDesaprovar(p) : undefined}
                           onEditar={onEditar ? () => onEditar(p) : undefined}
                           onExcluir={() => onExcluir(p)}
                           onEnviarCotacao={() => onEnviarCotacao(p)}
@@ -300,6 +300,7 @@ export default function PedidoCompraListV2({
                 canCreate={canCreate}
                 onAprovar={() => onAprovar(p)}
                 onReprovar={() => onReprovar(p)}
+                onDesaprovar={onDesaprovar ? () => onDesaprovar(p) : undefined}
                 onEditar={onEditar ? () => onEditar(p) : undefined}
                 onExcluir={() => onExcluir(p)}
                 onEnviarCotacao={() => onEnviarCotacao(p)}
@@ -356,7 +357,7 @@ function ResumoItens({ pedido }: { pedido: PedidoCompra }) {
 
 function AcoesPedido({
   pedido, canApprove, canCreate,
-  onAprovar, onReprovar, onEditar, onExcluir,
+  onAprovar, onReprovar, onDesaprovar, onEditar, onExcluir,
   onEnviarCotacao, onGerarOC, onHistorico,
 }: {
   pedido: PedidoCompra;
@@ -364,6 +365,7 @@ function AcoesPedido({
   canCreate: boolean;
   onAprovar: () => void;
   onReprovar: () => void;
+  onDesaprovar?: () => void;
   onEditar?: () => void;
   onExcluir: () => void;
   onEnviarCotacao: () => void;
@@ -371,6 +373,7 @@ function AcoesPedido({
   onHistorico: () => void;
 }) {
   const podeAprovar = canApprove && pedido.status === 'pendente';
+  const podeReabrir = canApprove && pedido.status === 'aprovado' && !!onDesaprovar;
   const podeFluxoCompra = canCreate && (pedido.status === 'aprovado' || pedido.status === 'em_cotacao' || pedido.status === 'cotado');
 
   return (
@@ -384,6 +387,11 @@ function AcoesPedido({
             <XCircle className="w-3.5 h-3.5" />
           </IconButton>
         </>
+      )}
+      {podeReabrir && (
+        <IconButton title="Voltar para Pendente" onClick={onDesaprovar!}>
+          <RotateCcw className="w-3.5 h-3.5" />
+        </IconButton>
       )}
       {podeFluxoCompra && (
         <>
@@ -440,7 +448,7 @@ function IconButton({
 
 function PedidoCard({
   pedido, obraNome, canApprove, canCreate,
-  onAprovar, onReprovar, onEditar, onExcluir,
+  onAprovar, onReprovar, onDesaprovar, onEditar, onExcluir,
   onEnviarCotacao, onGerarOC, onHistorico,
 }: {
   pedido: PedidoCompra;
@@ -449,6 +457,7 @@ function PedidoCard({
   canCreate: boolean;
   onAprovar: () => void;
   onReprovar: () => void;
+  onDesaprovar?: () => void;
   onEditar?: () => void;
   onExcluir: () => void;
   onEnviarCotacao: () => void;
@@ -477,6 +486,7 @@ function PedidoCard({
           canCreate={canCreate}
           onAprovar={onAprovar}
           onReprovar={onReprovar}
+          onDesaprovar={onDesaprovar}
           onEditar={onEditar}
           onExcluir={onExcluir}
           onEnviarCotacao={onEnviarCotacao}

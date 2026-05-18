@@ -5,6 +5,7 @@ import type { ContractItem } from "../../types/activity";
 import { generateId } from "../../utils/format";
 import { downloadContractTemplate } from "../../utils/contractTemplate";
 import { useAuth } from "../../../../contexts/AuthContext";
+import SmartSelect from "../../../../components/ui/SmartSelect";
 
 type FieldKey = "type" | "code" | "name" | "unit" | "contractedQty" | "unitPrice" | "total";
 
@@ -467,16 +468,16 @@ export function ImportExcelModal({ obraId, onCancel, onConfirm }: ImportExcelMod
                     Planilha
                   </label>
                   <div style={{ position: "relative" }}>
-                    <select
+                    <SmartSelect
                       value={selectedSheet}
                       onChange={(e) => setSelectedSheet(e.target.value)}
-                      className="input"
+                      className="input text-left flex items-center"
                       style={{ paddingRight: 32, appearance: "none" }}
                     >
                       {sheetNames.map((n) => (
                         <option key={n} value={n}>{n}</option>
                       ))}
-                    </select>
+                    </SmartSelect>
                     <ChevronDown
                       className="h-4 w-4"
                       style={{ position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)", color: "var(--text-muted)", pointerEvents: "none" }}
@@ -802,10 +803,10 @@ function ColumnMapper({
         {field.required && <span style={{ color: "var(--danger)" }}>*</span>}
       </label>
       <div style={{ position: "relative" }}>
-        <select
+        <SmartSelect
           value={value ?? ""}
           onChange={(e) => onChange(e.target.value === "" ? null : parseInt(e.target.value, 10))}
-          className="input"
+          className="input text-left flex items-center"
           style={{ fontSize: 12, paddingRight: 32, appearance: "none" }}
         >
           <option value="">— Não mapear —</option>
@@ -814,7 +815,7 @@ function ColumnMapper({
               {String(h ?? "").trim() || `Coluna ${i + 1}`}
             </option>
           ))}
-        </select>
+        </SmartSelect>
         <ChevronDown
           className="h-3.5 w-3.5"
           style={{ position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)", color: "var(--text-muted)", pointerEvents: "none" }}

@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { ChevronLeft, ChevronRight, Check, X, AlertCircle, MapPin, Briefcase, Pencil } from "lucide-react";
 import Modal from "../../../components/ui/Modal";
 import Button from "../../../components/ui/Button";
+import SmartSelect from "../../../components/ui/SmartSelect";
 import Input from "../../../components/ui/Input";
 import { useAuth } from "../../../contexts/AuthContext";
 import { useObrasApont } from "../hooks/useApontamentoData";
@@ -417,10 +418,10 @@ export default function AprovacaoTab() {
       {/* Filtro */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3 items-end">
         <Field label="Obra">
-          <select
+          <SmartSelect
             value={obraId}
             onChange={(e) => setObraId(e.target.value)}
-            className={inputCls}
+            className={inputCls + ' text-left flex items-center'}
           >
             <option value="">Todas as obras</option>
             {obras.map((o) => (
@@ -428,7 +429,7 @@ export default function AprovacaoTab() {
                 {o.nome}
               </option>
             ))}
-          </select>
+          </SmartSelect>
         </Field>
         <div className="text-xs text-[var(--color-fg-subtle)] md:text-right">
           {funcionarios.length}{" "}

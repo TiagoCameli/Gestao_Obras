@@ -28,6 +28,7 @@ import { useAdicionarTransferenciaMaterial } from '../hooks/useTransferenciasMat
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../components/ui/Toast';
 import Button from '../components/ui/Button';
+import SmartSelect from '../components/ui/SmartSelect';
 import Modal from '../components/ui/Modal';
 import DepositoCard from '../components/depositos/DepositoCard';
 import DepositoMaterialForm from '../components/depositos/DepositoMaterialForm';
@@ -428,22 +429,23 @@ function FilterPill<T extends string>({
 }) {
   const ativo = value !== '';
   return (
-    <label className={
-      'inline-flex items-center gap-1.5 pl-2.5 pr-1 h-8 rounded-md text-xs font-medium border transition-colors cursor-pointer ' +
+    <div className={
+      'inline-flex items-center gap-1.5 pl-2.5 pr-1 h-8 rounded-md text-xs font-medium border transition-colors ' +
       (ativo
         ? 'bg-[var(--color-accent)]/10 text-[var(--color-fg)] border-[var(--color-accent)]/30'
         : 'bg-[var(--color-surface-1)] text-[var(--color-fg-muted)] border-[var(--color-border)] hover:bg-[var(--color-surface-2)]')
     }>
       <Filter className="w-3 h-3 opacity-70" />
       <span>{label}:</span>
-      <select
+      <SmartSelect
         value={value}
         onChange={(e) => onChange(e.target.value as T)}
-        className="bg-transparent border-0 focus:outline-none text-xs font-medium pr-1 max-w-[180px]"
+        wrapperClassName="relative"
+        className="bg-transparent border-0 focus:outline-none text-xs font-medium pr-1 max-w-[180px] h-7 flex items-center cursor-pointer"
       >
         {options.map((o) => (<option key={o.value} value={o.value}>{o.label}</option>))}
-      </select>
-    </label>
+      </SmartSelect>
+    </div>
   );
 }
 

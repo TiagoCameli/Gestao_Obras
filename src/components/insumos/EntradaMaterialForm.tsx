@@ -4,6 +4,7 @@ import { useAdicionarFornecedor } from '../../hooks/useFornecedores';
 import { useAdicionarInsumo } from '../../hooks/useInsumos';
 import Input from '../ui/Input';
 import Select from '../ui/Select';
+import SmartSelect from '../ui/SmartSelect';
 import FilterCombobox from '../ui/FilterCombobox';
 import Button from '../ui/Button';
 import ImportExcelModal, { parseStr, parseNumero, type ParsedRow } from '../ui/ImportExcelModal';
@@ -358,8 +359,8 @@ export default function EntradaMaterialForm({
                       onChange={(e) => setNovoMaterialNome(e.target.value)}
                       autoFocus
                     />
-                    <select
-                      className="border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-emt-verde bg-white"
+                    <SmartSelect
+                      className="border border-gray-300 rounded-lg px-3 py-1.5 text-sm text-left focus:outline-none focus:ring-2 focus:ring-emt-verde bg-white min-w-[140px] flex items-center"
                       value={novoMaterialUnidade}
                       onChange={(e) => setNovoMaterialUnidade(e.target.value)}
                     >
@@ -371,7 +372,7 @@ export default function EntradaMaterialForm({
                             {u.nome}
                           </option>
                         ))}
-                    </select>
+                    </SmartSelect>
                   </div>
                   <div className="flex items-center gap-2">
                     <Button
@@ -619,8 +620,8 @@ export default function EntradaMaterialForm({
                   onChange={(e) => setNovoMaterialNome(e.target.value)}
                   autoFocus
                 />
-                <select
-                  className="border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-emt-verde bg-white"
+                <SmartSelect
+                  className="border border-gray-300 rounded-lg px-3 py-1.5 text-sm text-left focus:outline-none focus:ring-2 focus:ring-emt-verde bg-white min-w-[140px] flex items-center"
                   value={novoMaterialUnidade}
                   onChange={(e) => setNovoMaterialUnidade(e.target.value)}
                 >
@@ -632,7 +633,7 @@ export default function EntradaMaterialForm({
                         {u.nome}
                       </option>
                     ))}
-                </select>
+                </SmartSelect>
                 <Button
                   type="button"
                   className="text-xs px-3 py-1.5"

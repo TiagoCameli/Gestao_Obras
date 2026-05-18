@@ -6,7 +6,7 @@
  */
 import { useEffect, useMemo, useState } from 'react';
 import {
-  FileEdit, MessageCircle, History, Trash2, Inbox, Users, Package,
+  FileEdit, MessageCircle, History, Trash2, Inbox, Users, Package, RotateCcw,
 } from 'lucide-react';
 import type { Cotacao, Fornecedor, PedidoCompra, StatusCotacao } from '../../types';
 import BadgeStatusCompra from './BadgeStatusCompra';
@@ -24,6 +24,10 @@ interface Props {
   onEditar: (c: Cotacao) => void;
   onEnviar: (c: Cotacao) => void;
   onExcluir: (c: Cotacao) => void;
+  /** Volta status para 'em_cotacao' (reabre cotação finalizada). */
+  onReabrir?: (c: Cotacao) => void;
+  /** Abre drawer de detalhes (visualização). */
+  onVerDetalhes?: (c: Cotacao) => void;
   canEdit: boolean;
   canCreate: boolean;
 }
@@ -45,7 +49,7 @@ function formatarData(s: string): string {
 
 export default function CotacaoListV2({
   cotacoes, fornecedores, pedidos, busca,
-  onEditar, onEnviar, onExcluir, canEdit, canCreate,
+  onEditar, onEnviar, onExcluir, onReabrir, onVerDetalhes, canEdit, canCreate,
 }: Props) {
   const [statusFiltro, setStatusFiltro] = useState<'' | StatusCotacao>('');
   const [vinculoFiltro, setVinculoFiltro] = useState<'' | 'com_pedido' | 'avulsa'>('');
@@ -200,7 +204,14 @@ export default function CotacaoListV2({
               {filtradas.map((c) => {
                 const respondidos = c.fornecedores.filter((cf) => cf.respondido).length;
                 return (
-                  <tr key={c.id} className="hover:bg-[var(--color-surface-2)]/50 transition-colors">
+                  <tr
+                    key={c.id}
+                    className="hover:bg-[var(--color-surface-2)]/50 transition-colors cursor-pointer"
+                    onClick={(e) => {
+                      if ((e.target as HTMLElement).closest('button,a,[role="menu"]')) return;
+                      onVerDetalhes?.(c);
+                    }}
+                  >
                     <td className="px-4 py-3 font-mono text-xs whitespace-nowrap">{c.numero}</td>
                     <td className="px-4 py-3 text-[var(--color-fg-muted)] whitespace-nowrap">{formatarData(c.data)}</td>
                     <td className="px-4 py-3">
@@ -244,6 +255,11 @@ export default function CotacaoListV2({
                         {canEdit && (
                           <IconButton title="Editar / Mapa comparativo" onClick={() => onEditar(c)}>
                             <FileEdit className="w-3.5 h-3.5" />
+                          </IconButton>
+                        )}
+                        {canEdit && onReabrir && (c.status === 'cotado' || c.status === 'parcial') && (
+                          <IconButton title="Reabrir cotação (voltar para Em cotação)" onClick={() => onReabrir(c)}>
+                            <RotateCcw className="w-3.5 h-3.5" />
                           </IconButton>
                         )}
                         {c.fornecedores.length > 0 && (

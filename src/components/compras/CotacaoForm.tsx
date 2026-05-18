@@ -4,6 +4,7 @@ import { useAdicionarInsumo } from '../../hooks/useInsumos';
 import Button from '../ui/Button';
 import Input from '../ui/Input';
 import Select from '../ui/Select';
+import SmartSelect from '../ui/SmartSelect';
 
 function InsumoCombobox({ id, insumos, value, onChange }: {
   id: string;
@@ -402,8 +403,8 @@ export default function CotacaoForm({
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">Pedido de Referência</label>
-          <select
-            className="w-full h-[38px] border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emt-verde bg-white"
+          <SmartSelect
+            className="w-full h-[38px] border border-gray-300 rounded-lg px-3 py-2 text-sm text-left focus:outline-none focus:ring-2 focus:ring-emt-verde bg-white"
             value={pedidoId}
             onChange={(e) => setPedidoId(e.target.value)}
           >
@@ -411,7 +412,7 @@ export default function CotacaoForm({
             {pedidosAprovados.map((p) => (
               <option key={p.id} value={p.id}>{p.numero} - {p.solicitante}</option>
             ))}
-          </select>
+          </SmartSelect>
         </div>
         <Input
           label="Prazo para Respostas"

@@ -47,6 +47,10 @@ import type {
 import Button from '../ui/Button';
 import Input from '../ui/Input';
 import FilterCombobox from '../ui/FilterCombobox';
+import SmartSelect from '../ui/SmartSelect';
+import ComboboxInput from '../ui/ComboboxInput';
+import PrazoEntregaInput from '../ui/PrazoEntregaInput';
+import { CONDICOES_PAGAMENTO_BR, FORMAS_PAGAMENTO_BR } from '../../lib/comprasConstants';
 import { useToast } from '../ui/Toast';
 import { useAuth } from '../../contexts/AuthContext';
 import {
@@ -78,6 +82,8 @@ interface Props {
   onCreateFornecedor: (nome: string) => Promise<string>;
   onAprovar?: (oc: OrdemCompra) => Promise<void>;
   onGerarLancamento?: (oc: OrdemCompra) => void;
+  /** Notifica o pai quando o form fica sujo (usuário editou algo). */
+  onDirtyChange?: (dirty: boolean) => void;
 }
 
 const DESTINOS: { value: TipoDestinoOC; label: string; Icon: typeof Building2; sub: string }[] = [
@@ -243,11 +249,19 @@ export default function OrdemCompraFormV2({
   initial, obras, etapas, fornecedores, insumos, equipamentos, depositosMaterial,
   tanquesCombustivel = [], empresas = [],
   proximoNumero, onSubmit, onCancel, onCreateFornecedor, onAprovar, onGerarLancamento,
+  onDirtyChange,
 }: Props) {
   const { temAcao, usuario } = useAuth();
   const { showToast } = useToast();
   void onCreateFornecedor;
   const podeAprovar = temAcao('aprovar_ordem_compra');
+
+  // B4: dirty tracking
+  const [dirty, setDirty] = useState(false);
+  const markDirty = useCallback(() => {
+    if (!dirty) { setDirty(true); onDirtyChange?.(true); }
+  }, [dirty, onDirtyChange]);
+  useEffect(() => () => onDirtyChange?.(false), [onDirtyChange]);
 
   // ── Header da OC ──
   const [numero] = useState(initial?.numero || proximoNumero);
@@ -324,21 +338,24 @@ export default function OrdemCompraFormV2({
 
   // ── Helpers de blocos ──
   const adicionarBloco = useCallback(() => {
+    markDirty();
     setBlocos((prev) => [...prev, novoBloco()]);
-  }, []);
+  }, [markDirty]);
 
   const removerBloco = useCallback((blocoId: string) => {
+    markDirty();
     setBlocos((prev) => {
       if (prev.length <= 1) return prev; // sempre pelo menos 1
       return prev.filter((b) => b.id !== blocoId);
     });
-  }, []);
+  }, [markDirty]);
 
   const atualizarBlocoCampo = useCallback(
     (blocoId: string, patch: Partial<Pick<BlocoOC, 'obraId' | 'etapaObraId' | 'depositoDestinoId' | 'equipamentoId'>>) => {
+      markDirty();
       setBlocos((prev) => prev.map((b) => b.id === blocoId ? { ...b, ...patch } : b));
     },
-    []
+    [markDirty]
   );
 
   /**
@@ -347,6 +364,7 @@ export default function OrdemCompraFormV2({
    * para um NOVO BLOCO sem destino — assim o usuário não perde nada.
    */
   const mudarDestinoDoBloco = useCallback((blocoId: string, novoDestino: TipoDestinoOC) => {
+    markDirty();
     setBlocos((prev) => {
       const idx = prev.findIndex((b) => b.id === blocoId);
       if (idx === -1) return prev;
@@ -396,12 +414,14 @@ export default function OrdemCompraFormV2({
   }, []);
 
   const adicionarItem = useCallback((blocoId: string) => {
+    markDirty();
     setBlocos((prev) => prev.map((b) =>
       b.id === blocoId ? { ...b, itens: [...b.itens, novoItem()] } : b
     ));
-  }, []);
+  }, [markDirty]);
 
   const atualizarItem = useCallback((blocoId: string, itemId: string, patch: Partial<ItemOrdemCompra>) => {
+    markDirty();
     setBlocos((prev) => prev.map((b) => {
       if (b.id !== blocoId) return b;
       return {
@@ -414,13 +434,14 @@ export default function OrdemCompraFormV2({
         }),
       };
     }));
-  }, []);
+  }, [markDirty]);
 
   const removerItem = useCallback((blocoId: string, itemId: string) => {
+    markDirty();
     setBlocos((prev) => prev.map((b) =>
       b.id === blocoId ? { ...b, itens: b.itens.filter((it) => it.id !== itemId) } : b
     ));
-  }, []);
+  }, [markDirty]);
 
   // Limpa campos contextuais quando muda o destino (legacy effect — agora cobrado em mudarDestinoDoBloco).
   // Mantemos um efeito leve só pra etapa quando muda obra.
@@ -585,17 +606,17 @@ export default function OrdemCompraFormV2({
 
         <div className="sm:col-span-2">
           <Label>Fornecedor <span className="text-rose-500">*</span></Label>
-          <select
+          <SmartSelect
             value={fornecedorId}
             onChange={(e) => setFornecedorId(e.target.value)}
             required
-            className="w-full h-[42px] rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-1)] px-3 py-2 text-sm text-[var(--color-fg)] focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]/40 focus:border-[var(--color-accent)]"
+            className="w-full h-[42px] rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-1)] px-3 py-2 text-sm text-left text-[var(--color-fg)] focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]/40 focus:border-[var(--color-accent)] flex items-center"
           >
             <option value="">— selecione —</option>
             {fornecedores.filter((f) => f.ativo !== false).map((f) => (
               <option key={f.id} value={f.id}>{f.nome}</option>
             ))}
-          </select>
+          </SmartSelect>
           {fornecedorAtivo && (
             <p className="text-[11px] text-[var(--color-fg-subtle)] mt-1">
               {fornecedorAtivo.cnpj && `CNPJ: ${fornecedorAtivo.cnpj} · `}
@@ -703,13 +724,23 @@ export default function OrdemCompraFormV2({
       {/* Pagamento + Observações */}
       <section className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <Field label="Condição de pagamento">
-          <Input value={condicaoPagamento} onChange={(e) => setCondicaoPagamento(e.target.value)} placeholder="Ex.: 30/60/90 dias" />
+          <ComboboxInput
+            value={condicaoPagamento}
+            onChange={setCondicaoPagamento}
+            suggestions={CONDICOES_PAGAMENTO_BR}
+            placeholder="Ex.: 30/60/90 dias"
+          />
         </Field>
         <Field label="Forma de pagamento">
-          <Input value={formaPagamento} onChange={(e) => setFormaPagamento(e.target.value)} placeholder="Boleto / PIX / Transferência" />
+          <ComboboxInput
+            value={formaPagamento}
+            onChange={setFormaPagamento}
+            suggestions={FORMAS_PAGAMENTO_BR}
+            placeholder="Boleto / PIX / Transferência"
+          />
         </Field>
         <Field label="Prazo de entrega">
-          <Input value={prazoEntrega} onChange={(e) => setPrazoEntrega(e.target.value)} placeholder="Ex.: 5 dias úteis" />
+          <PrazoEntregaInput value={prazoEntrega} onChange={setPrazoEntrega} />
         </Field>
       </section>
 
@@ -957,36 +988,49 @@ function BlocoCard({
           </div>
         )}
 
+        {/* Banner destino genérico (opcional na OC, define no recebimento) */}
+        {bloco.tipoDestino && bloco.tipoDestino !== 'sede' && bloco.tipoDestino !== 'obra_etapa' && (
+          <div className="px-3.5 py-2.5 rounded-lg border border-sky-200 dark:border-sky-500/30 bg-sky-50/70 dark:bg-sky-500/[0.06] text-[12px] text-sky-900 dark:text-sky-100 leading-relaxed flex items-start gap-2">
+            <AlertCircle className="w-4 h-4 mt-[1px] shrink-0" />
+            <span>
+              <strong className="font-semibold">Dica:</strong> o {bloco.tipoDestino === 'tanque_combustivel' ? 'tanque'
+                : bloco.tipoDestino === 'manutencao_equipamento' ? 'almoxarifado'
+                : 'depósito'} específico é <strong>opcional aqui</strong>.
+              Quem registrar a entrada do material pode escolher na hora do recebimento.
+            </span>
+          </div>
+        )}
+
         {/* Campos contextuais do destino */}
         {regra && (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {regra.exigeObra && (
               <div>
                 <Label>Obra <span className="text-rose-500">*</span></Label>
-                <select
+                <SmartSelect
                   value={bloco.obraId}
                   onChange={(e) => onAtualizarCampo({ obraId: e.target.value, etapaObraId: '' })}
                   required
-                  className="w-full h-[42px] rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-1)] px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]/40 focus:border-[var(--color-accent)]"
+                  className="w-full h-[42px] rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-1)] px-3 py-2 text-sm text-left focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]/40 focus:border-[var(--color-accent)] flex items-center"
                 >
                   <option value="">— selecione —</option>
                   {obras.map((o) => (<option key={o.id} value={o.id}>{o.nome}</option>))}
-                </select>
+                </SmartSelect>
               </div>
             )}
             {regra.exigeEtapa && (
               <div>
                 <Label>Etapa <span className="text-rose-500">*</span></Label>
-                <select
+                <SmartSelect
                   value={bloco.etapaObraId}
                   onChange={(e) => onAtualizarCampo({ etapaObraId: e.target.value })}
                   required
                   disabled={!bloco.obraId}
-                  className="w-full h-[42px] rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-1)] disabled:bg-[var(--color-surface-2)] px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]/40 focus:border-[var(--color-accent)]"
+                  className="w-full h-[42px] rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-1)] disabled:bg-[var(--color-surface-2)] px-3 py-2 text-sm text-left focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]/40 focus:border-[var(--color-accent)] flex items-center"
                 >
                   <option value="">{bloco.obraId ? '— selecione —' : 'Selecione a obra primeiro'}</option>
                   {etapasDaObra.map((e) => (<option key={e.id} value={e.id}>{e.nome}</option>))}
-                </select>
+                </SmartSelect>
               </div>
             )}
             {mostrarSelectDeposito && (() => {
@@ -1002,20 +1046,19 @@ function BlocoCard({
               const hint = ehTanque
                 ? (combustivelObrigatorio
                     ? `Tanque atualmente com ${combustivelObrigatorio.nome} — só ele pode entrar. Esvazie-o para trocar.`
-                    : 'Combustível fica no tanque até ser usado (saídas).')
+                    : 'Opcional — você (ou quem receber a OC) pode escolher o tanque no momento do recebimento.')
                 : ehManutencao
-                  ? 'Peça vai pro almoxarifado e depois é alocada a uma OS específica.'
-                  : 'Materiais vão pra esse depósito até serem alocados.';
+                  ? 'Opcional — você (ou quem receber a OC) pode escolher o almoxarifado no recebimento.'
+                  : 'Opcional — você (ou quem receber a OC) pode escolher o depósito no recebimento.';
               return (
                 <div>
-                  <Label>{labelDep} <span className="text-rose-500">*</span></Label>
-                  <select
+                  <Label>{labelDep} <span className="text-[var(--color-fg-subtle)] font-normal">(opcional)</span></Label>
+                  <SmartSelect
                     value={bloco.depositoDestinoId}
                     onChange={(e) => onAtualizarCampo({ depositoDestinoId: e.target.value })}
-                    required
-                    className="w-full h-[42px] rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-1)] px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]/40 focus:border-[var(--color-accent)]"
+                    className="w-full h-[42px] rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-1)] px-3 py-2 text-sm text-left focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]/40 focus:border-[var(--color-accent)] flex items-center"
                   >
-                    <option value="">— selecione —</option>
+                    <option value="">— deixar pra definir no recebimento —</option>
                     {ehTanque ? (
                       tanquesAtivos.length === 0
                         ? <option disabled>Nenhum tanque cadastrado</option>
@@ -1044,7 +1087,7 @@ function BlocoCard({
                             </option>
                           ))
                     )}
-                  </select>
+                  </SmartSelect>
                   <p className="text-[10.5px] text-[var(--color-fg-subtle)] mt-0.5">{hint}</p>
                 </div>
               );
@@ -1052,17 +1095,17 @@ function BlocoCard({
             {regra.exigeEquipamento && (
               <div>
                 <Label>Equipamento <span className="text-rose-500">*</span></Label>
-                <select
+                <SmartSelect
                   value={bloco.equipamentoId}
                   onChange={(e) => onAtualizarCampo({ equipamentoId: e.target.value })}
                   required
-                  className="w-full h-[42px] rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-1)] px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]/40 focus:border-[var(--color-accent)]"
+                  className="w-full h-[42px] rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-1)] px-3 py-2 text-sm text-left focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]/40 focus:border-[var(--color-accent)] flex items-center"
                 >
                   <option value="">— selecione —</option>
                   {equipamentos.map((eq) => (
                     <option key={eq.id} value={eq.id}>{eq.codigoPatrimonio ? `${eq.codigoPatrimonio} — ` : ''}{eq.modelo || eq.tipo}</option>
                   ))}
-                </select>
+                </SmartSelect>
               </div>
             )}
           </div>
@@ -1357,23 +1400,26 @@ function ItemOCRow({
         {exigeOSServico && (
           <div className="flex items-center gap-2 mt-1 ml-1.5 text-[11px]">
             <span className="text-[var(--color-fg-subtle)] whitespace-nowrap">OS:</span>
-            <select
+            <SmartSelect
               value={item.osId ?? ''}
               onChange={(e) => onChange({ osId: e.target.value || undefined })}
-              className="flex-1 min-w-0 h-7 rounded border border-[var(--color-border)] bg-[var(--color-surface-1)] px-1.5 text-[11px] focus:outline-none focus:border-[var(--color-accent)]"
+              wrapperClassName="relative flex-1 min-w-0"
+              className="w-full h-7 rounded border border-[var(--color-border)] bg-[var(--color-surface-1)] px-1.5 text-[11px] text-left focus:outline-none focus:border-[var(--color-accent)] flex items-center"
             >
               <option value="">— selecione a OS —</option>
               {osDisponiveis.length === 0 && <option disabled>Nenhuma OS aberta</option>}
               {osDisponiveis.map((os) => {
                 const eq = equipamentos.find((e) => e.id === os.equipamentoId);
-                const eqLabel = eq ? (eq.codigoPatrimonio || eq.modelo || eq.tipo) : '?';
+                const codigo = eq?.codigoPatrimonio || '';
+                const nomeEq = eq?.modelo || eq?.tipo || '';
+                const eqLabel = codigo && nomeEq ? `${codigo} ${nomeEq}` : (codigo || nomeEq || 'sem equipamento');
                 return (
                   <option key={os.id} value={os.id}>
                     {os.numero} — {eqLabel}
                   </option>
                 );
               })}
-            </select>
+            </SmartSelect>
             <button
               type="button"
               onClick={onAbrirNovaOS}
@@ -1488,14 +1534,14 @@ function ItemOCRow({
         )}
       </td>
       <td className="px-3 py-2 align-top">
-        <select
+        <SmartSelect
           value={tipo}
           onChange={(e) => {
             const novoTipo = e.target.value as TipoItemCompra;
             onChange({ tipo: novoTipo, insumoId: undefined, osId: undefined });
           }}
           disabled={destino === 'tanque_combustivel'}
-          className="w-full px-2 py-1.5 text-sm rounded-md border border-transparent bg-transparent hover:bg-[var(--color-surface-2)] focus:outline-none focus:bg-[var(--color-surface-1)] focus:border-[var(--color-border-strong)] disabled:opacity-70 disabled:cursor-not-allowed"
+          className="w-full px-2 py-1.5 text-sm text-left rounded-md border border-transparent bg-transparent hover:bg-[var(--color-surface-2)] focus:outline-none focus:bg-[var(--color-surface-1)] focus:border-[var(--color-border-strong)] disabled:opacity-70 disabled:cursor-not-allowed flex items-center"
         >
           <option value="material">
             {destino === 'tanque_combustivel' ? 'Combustível'
@@ -1505,7 +1551,7 @@ function ItemOCRow({
           {(destino === undefined || REGRAS_DESTINO[destino]?.aceitaServico || tipo === 'servico') && (
             <option value="servico">Mão de obra</option>
           )}
-        </select>
+        </SmartSelect>
       </td>
       <td className="px-3 py-2 align-top">
         <input

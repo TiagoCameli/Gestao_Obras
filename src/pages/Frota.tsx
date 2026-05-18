@@ -9,6 +9,7 @@ import { useChangeStatusEquipamento } from '../hooks/useHistoricoStatusEquipamen
 import { useAuth } from '../contexts/AuthContext';
 import Modal from '../components/ui/Modal';
 import Button from '../components/ui/Button';
+import SmartSelect from '../components/ui/SmartSelect';
 import ConfirmDialog from '../components/ui/ConfirmDialog';
 import FrotaStats from '../components/frota/FrotaStats';
 import FrotaGrid from '../components/frota/FrotaGrid';
@@ -331,17 +332,18 @@ export default function Frota() {
               <span className="text-xs font-medium uppercase tracking-wide text-[var(--color-fg-muted)]">
                 Status
               </span>
-              <select
+              <SmartSelect
                 value={filtroStatus}
                 onChange={(e) => setFiltroStatus(e.target.value as FiltroStatus)}
-                className="h-9 px-2.5 text-sm rounded-lg bg-[var(--color-surface-1)] border border-[var(--color-border)] focus:outline-none focus:border-[var(--color-accent)] focus:ring-2 focus:ring-[var(--color-ring)]"
+                wrapperClassName="relative"
+                className="h-9 px-2.5 text-sm rounded-lg bg-[var(--color-surface-1)] border border-[var(--color-border)] focus:outline-none focus:border-[var(--color-accent)] focus:ring-2 focus:ring-[var(--color-ring)] flex items-center min-w-[140px] text-left"
               >
                 <option value="todos">Todos</option>
                 <option value="ativa">{STATUS_LABELS.ativa}</option>
                 <option value="manutencao_preventiva">{STATUS_LABELS.manutencao_preventiva}</option>
                 <option value="manutencao_corretiva">{STATUS_LABELS.manutencao_corretiva}</option>
                 <option value="fora_funcionamento">{STATUS_LABELS.fora_funcionamento}</option>
-              </select>
+              </SmartSelect>
             </div>
             <SegmentedControl
               label="Propriedade"
@@ -356,10 +358,11 @@ export default function Frota() {
               <span className="text-xs font-medium uppercase tracking-wide text-[var(--color-fg-muted)]">
                 Tipo
               </span>
-              <select
+              <SmartSelect
                 value={categoriaFiltro}
                 onChange={(e) => setCategoriaFiltro(e.target.value as TipoEquipamento | '')}
-                className="h-9 px-2.5 text-sm rounded-lg bg-[var(--color-surface-1)] border border-[var(--color-border)] focus:outline-none focus:border-[var(--color-accent)] focus:ring-2 focus:ring-[var(--color-ring)]"
+                wrapperClassName="relative"
+                className="h-9 px-2.5 text-sm rounded-lg bg-[var(--color-surface-1)] border border-[var(--color-border)] focus:outline-none focus:border-[var(--color-accent)] focus:ring-2 focus:ring-[var(--color-ring)] flex items-center min-w-[160px] text-left"
               >
                 <option value="">Todos</option>
                 {Array.from(
@@ -374,16 +377,17 @@ export default function Frota() {
                       {t} ({n})
                     </option>
                   ))}
-              </select>
+              </SmartSelect>
             </div>
             <div className="flex items-center gap-1.5">
               <span className="text-xs font-medium uppercase tracking-wide text-[var(--color-fg-muted)]">
                 Empresa
               </span>
-              <select
+              <SmartSelect
                 value={filtroEmpresa}
                 onChange={(e) => setFiltroEmpresa(e.target.value)}
-                className="h-9 px-2.5 text-sm rounded-lg bg-[var(--color-surface-1)] border border-[var(--color-border)] focus:outline-none focus:border-[var(--color-accent)] focus:ring-2 focus:ring-[var(--color-ring)]"
+                wrapperClassName="relative"
+                className="h-9 px-2.5 text-sm rounded-lg bg-[var(--color-surface-1)] border border-[var(--color-border)] focus:outline-none focus:border-[var(--color-accent)] focus:ring-2 focus:ring-[var(--color-ring)] flex items-center min-w-[160px] text-left"
               >
                 <option value="">Todas</option>
                 {empresas
@@ -394,7 +398,7 @@ export default function Frota() {
                       {e.nome}
                     </option>
                   ))}
-              </select>
+              </SmartSelect>
             </div>
             {filtrosAtivosCount > 0 && (
               <button

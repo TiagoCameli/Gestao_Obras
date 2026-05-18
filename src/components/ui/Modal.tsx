@@ -7,6 +7,12 @@ interface ModalProps {
   title: string;
   children: ReactNode;
   size?: 'default' | 'lg' | 'xl';
+  /**
+   * Callback opcional executado antes de qualquer tentativa de fechar
+   * (X, backdrop, Escape). Se retornar `false`, o fechamento é abortado.
+   * Útil para confirmar antes de descartar alterações.
+   */
+  confirmClose?: () => boolean;
 }
 
 const sizeClasses = {
@@ -15,7 +21,12 @@ const sizeClasses = {
   xl: 'sm:max-w-6xl',
 };
 
-export default function Modal({ open, onClose, title, children, size = 'default' }: ModalProps) {
+export default function Modal({ open, onClose, title, children, size = 'default', confirmClose }: ModalProps) {
+  // Tenta fechar; respeita confirmClose se fornecido
+  const tryClose = () => {
+    if (confirmClose && !confirmClose()) return;
+    onClose();
+  };
   // F6.B — A11y: dialog ganha role="dialog" + aria-modal="true" + aria-labelledby
   // pra screen readers anunciarem corretamente. ESC fecha (faltava). useRef pro
   // título permite linkar com aria-labelledby.
@@ -29,7 +40,8 @@ export default function Modal({ open, onClose, title, children, size = 'default'
     if (open) {
       document.body.style.overflow = 'hidden';
       const onKey = (e: KeyboardEvent) => {
-        if (e.key === 'Escape') onClose();
+        // B1: se algum popup/dropdown interceptou e preventDefault, não fecha o modal.
+        if (e.key === 'Escape' && !e.defaultPrevented) tryClose();
       };
       window.addEventListener('keydown', onKey);
       return () => {
@@ -38,7 +50,8 @@ export default function Modal({ open, onClose, title, children, size = 'default'
       };
     }
     document.body.style.overflow = '';
-  }, [open, onClose]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, onClose, confirmClose]);
 
   if (!open) return null;
 
@@ -47,7 +60,7 @@ export default function Modal({ open, onClose, title, children, size = 'default'
   };
   const handleBackdropClick = (e: MouseEvent<HTMLDivElement>) => {
     if (e.target === e.currentTarget && mouseDownOnBackdrop.current) {
-      onClose();
+      tryClose();
     }
     mouseDownOnBackdrop.current = false;
   };
@@ -91,7 +104,7 @@ export default function Modal({ open, onClose, title, children, size = 'default'
             {title}
           </h2>
           <button
-            onClick={onClose}
+            onClick={tryClose}
             aria-label="Fechar"
             className={
               'w-9 h-9 inline-flex items-center justify-center rounded-lg ' +

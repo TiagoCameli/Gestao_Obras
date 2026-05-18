@@ -15,8 +15,8 @@
  *   │  [Cancelar]    [Salvar pedido]    │
  *   └───────────────────────────────────┘
  */
-import { useCallback, useMemo, useState } from 'react';
-import { Trash2, Plus, AlertCircle, Sparkles, Calendar, FileText } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Trash2, Plus, AlertCircle, Calendar, FileText, User, Lock } from 'lucide-react';
 import type {
   PedidoCompra,
   ItemPedidoCompra,
@@ -31,10 +31,21 @@ import type {
 import Button from '../ui/Button';
 import Input from '../ui/Input';
 import Select from '../ui/Select';
+import SmartSelect from '../ui/SmartSelect';
 import { useAdicionarInsumo } from '../../hooks/useInsumos';
 import { useAuth } from '../../contexts/AuthContext';
 import { useToast } from '../ui/Toast';
-import { validarPedidoCompra, buscarInsumosSimilares } from '../../utils/comprasValidator';
+import { validarPedidoCompra } from '../../utils/comprasValidator';
+import InsumoSelect from './InsumoSelect';
+import {
+  getTipoVisualInsumo,
+  TIPO_VISUAL_LABEL,
+  TIPO_VISUAL_ICON,
+  TIPO_VISUAL_CHIP_CLASS,
+  destinosPermitidos,
+  destinoForcadoPorTipo,
+  ehServico,
+} from '../../utils/insumoTipoVisual';
 import AnexoUploader from './AnexoUploader';
 import { useUploadAnexoCompras } from '../../hooks/useComprasAnexos';
 
@@ -50,6 +61,8 @@ interface Props {
   nomeUsuario?: string;
   onSubmit: (pedido: PedidoCompra, anexosPendentes: File[]) => Promise<void>;
   onCancel: () => void;
+  /** Notifica o pai quando o form fica sujo (usuário editou algo). */
+  onDirtyChange?: (dirty: boolean) => void;
 }
 
 /** Labels curtos pros chips de destino dentro da tabela de itens */
@@ -97,9 +110,17 @@ export default function PedidoCompraFormV2({
   nomeUsuario,
   onSubmit,
   onCancel,
+  onDirtyChange,
 }: Props) {
   const { temAcao, usuario } = useAuth();
   const { showToast } = useToast();
+
+  // B4: dirty tracking
+  const [dirty, setDirty] = useState(false);
+  const markDirty = useCallback(() => {
+    if (!dirty) { setDirty(true); onDirtyChange?.(true); }
+  }, [dirty, onDirtyChange]);
+  useEffect(() => () => onDirtyChange?.(false), [onDirtyChange]);
   const podeCriarInsumo = temAcao('cadastrar_insumo_via_compra');
   const adicionarInsumoMut = useAdicionarInsumo();
   // useUploadAnexoCompras é importado por AnexoUploader internamente; aqui
@@ -109,12 +130,11 @@ export default function PedidoCompraFormV2({
   // ── Estado inicial ─────────────────────────────────────────────────────
   const [numero] = useState(initial?.numero || proximoNumero);
   const [data, setData] = useState(initial?.data || new Date().toISOString().slice(0, 10));
-  const [solicitante, setSolicitante] = useState(initial?.solicitante || nomeUsuario || '');
+  // Solicitante é travado: sempre o usuário logado em pedidos novos,
+  // ou o solicitante original ao editar (preserva histórico).
+  const solicitante = initial?.solicitante || nomeUsuario || '';
   const [obraId, setObraId] = useState(initial?.obraId || '');
   const [urgencia, setUrgencia] = useState<UrgenciaPedidoCompra>(initial?.urgencia || 'normal');
-  const [valorEstimado, setValorEstimado] = useState<string>(
-    initial?.valorEstimado != null ? String(initial.valorEstimado) : ''
-  );
   const [observacoes, setObservacoes] = useState(initial?.observacoes || '');
   const [descricaoLivre, setDescricaoLivre] = useState(initial?.descricaoLivre || '');
   const [itens, setItens] = useState<ItemPedidoCompra[]>(
@@ -131,19 +151,22 @@ export default function PedidoCompraFormV2({
 
   // ── Itens helpers ──────────────────────────────────────────────────────
   const adicionarItem = useCallback(() => {
+    markDirty();
     setItens((prev) => [...prev, novoItemVazio()]);
-  }, []);
+  }, [markDirty]);
 
   const atualizarItem = useCallback(
     (id: string, patch: Partial<ItemPedidoCompra>) => {
+      markDirty();
       setItens((prev) => prev.map((it) => (it.id === id ? { ...it, ...patch } : it)));
     },
-    []
+    [markDirty]
   );
 
   const removerItem = useCallback((id: string) => {
+    markDirty();
     setItens((prev) => prev.filter((it) => it.id !== id));
-  }, []);
+  }, [markDirty]);
 
   // ── Cadastrar insumo ad-hoc ────────────────────────────────────────────
   const cadastrarInsumoNovo = useCallback(
@@ -216,7 +239,7 @@ export default function PedidoCompraFormV2({
           status: initial?.status || 'pendente',
           observacoes: observacoes.trim(),
           descricaoLivre: descricaoLivre.trim(),
-          valorEstimado: valorEstimado ? Number(valorEstimado) : undefined,
+          valorEstimado: initial?.valorEstimado,
           itens: itensLimpos,
           criadoPor: initial?.criadoPor || usuario?.nome || '',
           atualizadoPor: usuario?.nome || '',
@@ -237,7 +260,7 @@ export default function PedidoCompraFormV2({
     },
     [
       itens, descricaoLivre, solicitante, initial, numero, data, obraId, urgencia,
-      observacoes, valorEstimado, usuario, anexosPendentes, onSubmit, showToast,
+      observacoes, usuario, anexosPendentes, onSubmit, showToast,
     ]
   );
 
@@ -268,18 +291,25 @@ export default function PedidoCompraFormV2({
           <Label>Data</Label>
           <div className="relative">
             <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[var(--color-fg-subtle)] pointer-events-none" />
-            <Input type="date" value={data} onChange={(e) => setData(e.target.value)} className="pl-9" required />
+            <Input type="date" value={data} onChange={(e) => { markDirty(); setData(e.target.value); }} className="pl-9" required />
           </div>
         </div>
         <div>
           <Label>Solicitante <span className="text-rose-500">*</span></Label>
-          <Input value={solicitante} onChange={(e) => setSolicitante(e.target.value)} required placeholder="Nome de quem está pedindo" />
+          <div
+            className="flex items-center gap-2 px-3 h-[42px] rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-2)] text-sm text-[var(--color-fg)]"
+            title="Preenchido automaticamente com o usuário logado"
+          >
+            <User className="w-3.5 h-3.5 text-[var(--color-fg-subtle)] shrink-0" />
+            <span className="truncate flex-1">{solicitante || '—'}</span>
+            <Lock className="w-3 h-3 text-[var(--color-fg-subtle)] shrink-0" />
+          </div>
         </div>
         <div className="sm:col-span-2 lg:col-span-1">
           <Label>Obra</Label>
           <Select
             value={obraId}
-            onChange={(e) => setObraId(e.target.value)}
+            onChange={(e) => { markDirty(); setObraId(e.target.value); }}
             options={[{ value: '', label: '— sem obra específica —' }, ...obrasOptions]}
           />
         </div>
@@ -292,7 +322,7 @@ export default function PedidoCompraFormV2({
                 <button
                   key={u.value}
                   type="button"
-                  onClick={() => setUrgencia(u.value)}
+                  onClick={() => { markDirty(); setUrgencia(u.value); }}
                   className={
                     'px-3 h-[40px] rounded-lg border text-xs font-medium transition-all ' +
                     (ativo
@@ -305,17 +335,6 @@ export default function PedidoCompraFormV2({
               );
             })}
           </div>
-        </div>
-        <div>
-          <Label>Valor estimado (opcional)</Label>
-          <Input
-            type="number"
-            step="0.01"
-            min="0"
-            value={valorEstimado}
-            onChange={(e) => setValorEstimado(e.target.value)}
-            placeholder="R$ 0,00"
-          />
         </div>
       </header>
 
@@ -338,8 +357,8 @@ export default function PedidoCompraFormV2({
                   <th className="px-3 py-3 text-left font-semibold">Descrição</th>
                   <th className="px-3 py-3 text-left font-semibold w-28">Tipo</th>
                   <th className="px-3 py-3 text-left font-semibold w-32">Categoria</th>
-                  <th className="px-3 py-3 text-right font-semibold w-24">Qtd</th>
-                  <th className="px-3 py-3 text-left font-semibold w-20">Un</th>
+                  <th className="px-3 py-3 text-right font-semibold w-[110px]">Qtd</th>
+                  <th className="px-3 py-3 text-left font-semibold w-[90px]">Un</th>
                   <th className="px-3 py-3 text-left font-semibold w-44">Destino sugerido</th>
                   <th className="px-3 py-3 w-10"></th>
                 </tr>
@@ -374,7 +393,7 @@ export default function PedidoCompraFormV2({
         />
         <textarea
           value={descricaoLivre}
-          onChange={(e) => setDescricaoLivre(e.target.value)}
+          onChange={(e) => { markDirty(); setDescricaoLivre(e.target.value); }}
           rows={4}
           placeholder="Descreva o que precisa ser comprado…"
           className="w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-1)] px-3.5 py-2.5 text-sm text-[var(--color-fg)] focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]/40 focus:border-[var(--color-accent)] resize-y"
@@ -401,7 +420,7 @@ export default function PedidoCompraFormV2({
         <Label>Observações internas</Label>
         <textarea
           value={observacoes}
-          onChange={(e) => setObservacoes(e.target.value)}
+          onChange={(e) => { markDirty(); setObservacoes(e.target.value); }}
           rows={2}
           placeholder="Notas para Compras (não vai para o fornecedor)…"
           className="w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-1)] px-3.5 py-2.5 text-sm text-[var(--color-fg)] focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]/40 focus:border-[var(--color-accent)] resize-y"
@@ -495,118 +514,116 @@ function ItemPedidoRow({
   onRemove: () => void;
   onCadastrarInsumo: () => Promise<string | null>;
 }) {
-  const [aberto, setAberto] = useState(false);
-
-  // Sugestões de insumos parecidos
-  const sugestoes = useMemo(() => {
-    if (item.descricao.trim().length < 2) return [];
-    return buscarInsumosSimilares(item.descricao, insumos, 5);
-  }, [item.descricao, insumos]);
-
   const insumoSelecionado = insumos.find((i) => i.id === item.insumoId);
-  const ehItemNovo = !item.insumoId && item.descricao.trim().length >= 2 && sugestoes.length === 0;
-  const temDuplicataExata = useMemo(() => {
-    if (!item.descricao.trim() || item.insumoId) return null;
-    const t = item.descricao.trim().toLowerCase();
-    return insumos.find((i) => i.nome.trim().toLowerCase() === t) ?? null;
-  }, [item.descricao, item.insumoId, insumos]);
+  const tipoVisual = getTipoVisualInsumo(insumoSelecionado);
+  const tipoAtual: TipoItemCompra = item.tipo ?? 'material';
+  // Label da categoria vinculada (busca em categorias passadas + fallback pro slug)
+  const categoriaLabel = categorias.find((c) => c.value === item.categoria)?.label
+    ?? (item.categoria ? item.categoria : 'Outros');
+  // Destinos permitidos para o tipo deste item (regras: peça→almox, combustível→tanque, ...)
+  const destinosOk = destinosPermitidos(tipoVisual);
 
   return (
     <tr className="hover:bg-[var(--color-surface-2)]/40 transition-colors">
-      {/* Descrição com autocomplete */}
+      {/* Descrição com InsumoSelect (dropdown filtrável + cadastro rápido) */}
       <td className="px-3 py-2 align-top relative">
-        <input
-          type="text"
-          value={item.descricao}
-          onChange={(e) => {
-            onChange({ descricao: e.target.value, insumoId: undefined });
-            setAberto(true);
+        <InsumoSelect
+          insumos={insumos}
+          insumoId={item.insumoId}
+          descricao={item.descricao}
+          onChange={(patch) => {
+            const novoInsumo = patch.insumoId
+              ? insumos.find((i) => i.id === patch.insumoId)
+              : undefined;
+            const novoTipoVisual = getTipoVisualInsumo(novoInsumo);
+            // Item.tipo no domínio é só 'material' ou 'servico' (material engloba peça/combustível).
+            const novoItemTipo: TipoItemCompra = ehServico(novoTipoVisual) ? 'servico' : 'material';
+            const destinoForcado = destinoForcadoPorTipo(novoTipoVisual);
+            // Se o destino atual já é permitido pra esse tipo, mantém; senão força (ou limpa).
+            const destinosOkNovo = destinosPermitidos(novoTipoVisual);
+            const destinoAtualOk = item.tipoDestino && destinosOkNovo.includes(item.tipoDestino);
+            onChange({
+              insumoId: patch.insumoId,
+              descricao: patch.descricao,
+              tipo: novoItemTipo,
+              unidade: (patch.unidade as ItemPedidoCompra['unidade']) ?? item.unidade,
+              categoria: patch.categoria ?? item.categoria,
+              tipoDestino: destinoForcado ?? (destinoAtualOk ? item.tipoDestino : undefined),
+            });
           }}
-          onFocus={() => setAberto(true)}
-          onBlur={() => setTimeout(() => setAberto(false), 150)}
-          placeholder="Buscar ou digitar novo…"
-          className="w-full px-2.5 py-1.5 text-sm rounded-md border border-transparent bg-transparent hover:bg-[var(--color-surface-2)] focus:outline-none focus:bg-[var(--color-surface-1)] focus:border-[var(--color-border-strong)]"
+          onCreateNew={() => {
+            if (podeCriarInsumo) onCadastrarInsumo();
+          }}
+          compact
         />
-
         {insumoSelecionado && (
           <div className="text-[11px] text-[var(--color-fg-subtle)] mt-0.5 ml-2.5">
             ✓ <span className="text-emerald-600">vinculado</span> a {insumoSelecionado.nome}
           </div>
         )}
+      </td>
 
-        {temDuplicataExata && !insumoSelecionado && (
-          <button
-            type="button"
-            onClick={() => onChange({ insumoId: temDuplicataExata.id, unidade: (temDuplicataExata.unidade as ItemPedidoCompra['unidade']) ?? item.unidade })}
-            className="text-[11px] mt-0.5 ml-2.5 text-amber-700 hover:underline"
+      {/* TIPO — chip automático quando há insumo (Material/Peça/Combustível/Serviço/Outros) */}
+      <td className="px-3 py-2 align-top">
+        {insumoSelecionado ? (
+          <span
+            className={`inline-flex items-center h-7 px-2 rounded-md text-[11.5px] font-medium border ${TIPO_VISUAL_CHIP_CLASS[tipoVisual]}`}
+            title={`Tipo do insumo: ${TIPO_VISUAL_LABEL[tipoVisual]}`}
           >
-            ⚠ Já existe na base — vincular a "{temDuplicataExata.nome}"
-          </button>
-        )}
-
-        {/* Dropdown de sugestões */}
-        {aberto && (sugestoes.length > 0 || (ehItemNovo && podeCriarInsumo)) && (
-          <div className="absolute z-30 left-2 right-2 mt-1 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-1)] shadow-lg max-h-56 overflow-auto">
-            {sugestoes.map((s) => (
-              <button
-                key={s.id}
-                type="button"
-                onMouseDown={() => {
-                  const ins = insumos.find((i) => i.id === s.id);
-                  onChange({
-                    insumoId: s.id,
-                    descricao: s.nome,
-                    unidade: (ins?.unidade as ItemPedidoCompra['unidade']) ?? item.unidade,
-                    categoria: ins?.categoria ?? item.categoria,
-                  });
-                  setAberto(false);
-                }}
-                className="w-full text-left px-3 py-2 text-sm hover:bg-[var(--color-surface-2)] flex items-center justify-between gap-2"
-              >
-                <span className="truncate">{s.nome}</span>
-                <span className="text-[10px] text-[var(--color-fg-subtle)]">
-                  {Math.round(s.similaridade * 100)}% match
-                </span>
-              </button>
-            ))}
-            {ehItemNovo && podeCriarInsumo && (
-              <button
-                type="button"
-                onMouseDown={() => onCadastrarInsumo()}
-                className="w-full text-left px-3 py-2 text-sm border-t border-[var(--color-border)] bg-emerald-50/40 dark:bg-emerald-950/20 hover:bg-emerald-50 dark:hover:bg-emerald-950/40 text-emerald-800 dark:text-emerald-200 flex items-center gap-2"
-              >
-                <Sparkles className="w-3.5 h-3.5" />
-                Cadastrar "{item.descricao.trim()}" como novo insumo
-              </button>
-            )}
+            {TIPO_VISUAL_ICON[tipoVisual]}{TIPO_VISUAL_LABEL[tipoVisual]}
+          </span>
+        ) : (
+          <div className="inline-flex rounded-md border border-[var(--color-border)] overflow-hidden" role="group" aria-label="Tipo do item">
+            <button
+              type="button"
+              onClick={() => onChange({ tipo: 'material' })}
+              className={
+                'px-2 h-7 text-[11.5px] font-medium transition-colors ' +
+                (tipoAtual === 'material'
+                  ? 'bg-[var(--color-accent)]/15 text-[var(--color-accent)]'
+                  : 'bg-transparent text-[var(--color-fg-muted)] hover:bg-[var(--color-surface-2)]')
+              }
+            >
+              Material
+            </button>
+            <button
+              type="button"
+              onClick={() => onChange({ tipo: 'servico', insumoId: undefined })}
+              className={
+                'px-2 h-7 text-[11.5px] font-medium border-l border-[var(--color-border)] transition-colors ' +
+                (tipoAtual === 'servico'
+                  ? 'bg-[var(--color-accent)]/15 text-[var(--color-accent)]'
+                  : 'bg-transparent text-[var(--color-fg-muted)] hover:bg-[var(--color-surface-2)]')
+              }
+            >
+              Serviço
+            </button>
           </div>
         )}
       </td>
 
-      {/* Tipo */}
+      {/* CATEGORIA — chip automático quando há insumo; SmartSelect quando texto livre */}
       <td className="px-3 py-2 align-top">
-        <select
-          value={item.tipo ?? 'material'}
-          onChange={(e) => onChange({ tipo: e.target.value as TipoItemCompra })}
-          className="w-full px-2 py-1.5 text-sm rounded-md border border-transparent bg-transparent hover:bg-[var(--color-surface-2)] focus:outline-none focus:bg-[var(--color-surface-1)] focus:border-[var(--color-border-strong)]"
-        >
-          <option value="material">Material</option>
-          <option value="servico">Serviço</option>
-        </select>
-      </td>
-
-      {/* Categoria */}
-      <td className="px-3 py-2 align-top">
-        <select
-          value={item.categoria}
-          onChange={(e) => onChange({ categoria: e.target.value })}
-          className="w-full px-2 py-1.5 text-sm rounded-md border border-transparent bg-transparent hover:bg-[var(--color-surface-2)] focus:outline-none focus:bg-[var(--color-surface-1)] focus:border-[var(--color-border-strong)]"
-        >
-          <option value="outros">Outros</option>
-          {categorias.map((c) => (
-            <option key={c.value} value={c.value}>{c.label}</option>
-          ))}
-        </select>
+        {insumoSelecionado ? (
+          <span
+            className="inline-flex items-center h-7 px-2 rounded-md text-[11.5px] font-medium bg-[var(--color-surface-2)] text-[var(--color-fg)] border border-[var(--color-border)] capitalize"
+            title="Categoria vinculada ao insumo"
+          >
+            {categoriaLabel}
+          </span>
+        ) : (
+          <SmartSelect
+            value={item.categoria}
+            onChange={(e) => onChange({ categoria: e.target.value })}
+            usePortal
+            className="w-full px-2 py-1.5 text-sm text-left rounded-md border border-transparent bg-transparent hover:bg-[var(--color-surface-2)] focus:outline-none focus:bg-[var(--color-surface-1)] focus:border-[var(--color-border-strong)] flex items-center"
+          >
+            <option value="outros">Outros</option>
+            {categorias.map((c) => (
+              <option key={c.value} value={c.value}>{c.label}</option>
+            ))}
+          </SmartSelect>
+        )}
       </td>
 
       {/* Quantidade */}
@@ -621,22 +638,32 @@ function ItemPedidoRow({
         />
       </td>
 
-      {/* Unidade */}
+      {/* UN — chip automático quando há insumo; SmartSelect quando texto livre */}
       <td className="px-3 py-2 align-top">
-        <select
+        {insumoSelecionado ? (
+          <span
+            className="inline-flex items-center justify-center h-7 px-2 min-w-[40px] rounded-md text-[11.5px] font-medium bg-[var(--color-surface-2)] text-[var(--color-fg)] border border-[var(--color-border)] uppercase"
+            title="Unidade vinculada ao insumo"
+          >
+            {item.unidade || insumoSelecionado.unidade}
+          </span>
+        ) : (
+        <SmartSelect
           value={item.unidade}
           onChange={(e) => onChange({ unidade: e.target.value as ItemPedidoCompra['unidade'] })}
-          className="w-full px-2 py-1.5 text-sm rounded-md border border-transparent bg-transparent hover:bg-[var(--color-surface-2)] focus:outline-none focus:bg-[var(--color-surface-1)] focus:border-[var(--color-border-strong)]"
+          usePortal
+          className="w-full px-2 py-1.5 text-sm text-left rounded-md border border-transparent bg-transparent hover:bg-[var(--color-surface-2)] focus:outline-none focus:bg-[var(--color-surface-1)] focus:border-[var(--color-border-strong)] flex items-center"
         >
           {unidadesOptions.map((u) => (
             <option key={u.value} value={u.value}>{u.label}</option>
           ))}
-        </select>
+        </SmartSelect>
+        )}
       </td>
 
       {/* Destino sugerido (OPCIONAL — pode preencher pra adiantar a OC) */}
       <td className="px-3 py-2 align-top">
-        <select
+        <SmartSelect
           value={item.tipoDestino ?? ''}
           onChange={(e) => {
             const novo = e.target.value as TipoDestinoOC | '';
@@ -644,29 +671,52 @@ function ItemPedidoRow({
             const limpaEtapa = novo !== 'obra_etapa' ? { etapaObraId: undefined } : {};
             onChange({ tipoDestino: novo || undefined, ...limpaEtapa });
           }}
-          className="w-full px-2 py-1.5 text-sm rounded-md border border-transparent bg-transparent hover:bg-[var(--color-surface-2)] focus:outline-none focus:bg-[var(--color-surface-1)] focus:border-[var(--color-border-strong)]"
+          // Peça/Combustível: trava destino (sem dropdown)
+          disabled={tipoVisual === 'peca' || tipoVisual === 'combustivel'}
+          usePortal
+          className="w-full px-2 py-1.5 text-sm text-left rounded-md border border-transparent bg-transparent hover:bg-[var(--color-surface-2)] focus:outline-none focus:bg-[var(--color-surface-1)] focus:border-[var(--color-border-strong)] flex items-center"
         >
           <option value="">— deixar pra OC —</option>
-          <option value="obra_etapa">{DESTINO_PEDIDO_LABEL.obra_etapa}</option>
-          <option value="obra_deposito">{DESTINO_PEDIDO_LABEL.obra_deposito}</option>
-          <option value="deposito_central">{DESTINO_PEDIDO_LABEL.deposito_central}</option>
-          <option value="sede">{DESTINO_PEDIDO_LABEL.sede}</option>
-          <option value="manutencao_equipamento">{DESTINO_PEDIDO_LABEL.manutencao_equipamento}</option>
-          <option value="tanque_combustivel">{DESTINO_PEDIDO_LABEL.tanque_combustivel}</option>
-        </select>
+          {destinosOk.includes('obra_etapa') && (
+            <option value="obra_etapa">{DESTINO_PEDIDO_LABEL.obra_etapa}</option>
+          )}
+          {destinosOk.includes('obra_deposito') && (
+            <option value="obra_deposito">{DESTINO_PEDIDO_LABEL.obra_deposito}</option>
+          )}
+          {destinosOk.includes('deposito_central') && (
+            <option value="deposito_central">{DESTINO_PEDIDO_LABEL.deposito_central}</option>
+          )}
+          {destinosOk.includes('sede') && (
+            <option value="sede">{DESTINO_PEDIDO_LABEL.sede}</option>
+          )}
+          {destinosOk.includes('manutencao_equipamento') && (
+            <option value="manutencao_equipamento">{DESTINO_PEDIDO_LABEL.manutencao_equipamento}</option>
+          )}
+          {destinosOk.includes('tanque_combustivel') && (
+            <option value="tanque_combustivel">{DESTINO_PEDIDO_LABEL.tanque_combustivel}</option>
+          )}
+        </SmartSelect>
+        {(tipoVisual === 'peca' || tipoVisual === 'combustivel') && (
+          <div className="mt-1 text-[10.5px] text-[var(--color-fg-subtle)] ml-1">
+            {tipoVisual === 'peca'
+              ? 'Peça vai sempre pro almoxarifado de peças.'
+              : 'Combustível vai sempre pra um tanque.'}
+          </div>
+        )}
         {/* Quando destino = obra_etapa, mostra a etapa específica */}
         {item.tipoDestino === 'obra_etapa' && (
           obraDoPedidoId ? (
-            <select
+            <SmartSelect
               value={item.etapaObraId ?? ''}
               onChange={(e) => onChange({ etapaObraId: e.target.value || undefined })}
-              className="w-full mt-1 px-2 py-1 text-[11.5px] rounded-md border border-[var(--color-border)] bg-[var(--color-surface-1)] focus:outline-none focus:border-[var(--color-accent)]"
+              usePortal
+              className="w-full mt-1 px-2 py-1 text-[11.5px] text-left rounded-md border border-[var(--color-border)] bg-[var(--color-surface-1)] focus:outline-none focus:border-[var(--color-accent)] flex items-center min-h-[24px]"
             >
               <option value="">— etapa —</option>
               {etapasDaObra.map((e) => (
                 <option key={e.id} value={e.id}>{e.nome}</option>
               ))}
-            </select>
+            </SmartSelect>
           ) : (
             <div className="mt-1 text-[10.5px] text-amber-700 dark:text-amber-300 ml-1">
               Defina a obra do pedido pra escolher a etapa.

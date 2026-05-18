@@ -3,6 +3,7 @@ import type { AcaoPermissao, CargoFuncionario, Funcionario, ModuloPermissao, Per
 import { MODULOS, ACOES, PERFIS_PADRAO, CARGOS } from '../../utils/permissions';
 import { useSalvarPerfilPermissao } from '../../hooks/useFuncionarios';
 import Button from '../ui/Button';
+import SmartSelect from '../ui/SmartSelect';
 
 interface PermissoesMatrixProps {
   funcionario: Funcionario;
@@ -57,8 +58,9 @@ export default function PermissoesMatrix({ funcionario, perfilPermissao, onClose
         </div>
         <div className="flex items-center gap-2">
           <span className="text-sm text-gray-600">Aplicar perfil:</span>
-          <select
-            className="border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-emt-verde"
+          <SmartSelect
+            wrapperClassName="relative"
+            className="border border-gray-300 rounded-lg px-3 py-1.5 text-sm text-left focus:outline-none focus:ring-2 focus:ring-emt-verde flex items-center min-w-[180px] h-[34px]"
             value=""
             onChange={(e) => {
               if (e.target.value) aplicarPerfil(e.target.value as CargoFuncionario);
@@ -66,7 +68,7 @@ export default function PermissoesMatrix({ funcionario, perfilPermissao, onClose
           >
             <option value="">Selecione...</option>
             {CARGOS.map((c) => <option key={c.valor} value={c.valor}>{c.label}</option>)}
-          </select>
+          </SmartSelect>
         </div>
       </div>
 

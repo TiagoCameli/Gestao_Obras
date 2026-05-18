@@ -11,6 +11,7 @@ import { loadContractItems } from "../../utils/storage";
 import { TrocaSoloForm } from "../Form/TrocaSoloForm";
 import { CbuqForm } from "../Form/CbuqForm";
 import FilterCombobox from "../../../../components/ui/FilterCombobox";
+import SmartSelect from "../../../../components/ui/SmartSelect";
 import { serviceColors } from "../../utils/colors";
 import { generateId, todayISO } from "../../utils/format";
 import { useAuth } from "../../../../contexts/AuthContext";
@@ -1116,17 +1117,17 @@ export function ActivityFormModal({
             <label className="block text-xs text-[#9198ad] uppercase tracking-wider mb-1">
               Tipo de Serviço
             </label>
-            <select
+            <SmartSelect
               value={service}
               onChange={(e) => setService(e.target.value as ServiceType)}
-              className="w-full bg-[#0f1117] border border-[#2e3345] rounded-lg px-3 py-2 text-sm text-[#e8eaf0] focus:outline-none focus:border-[#f59e0b] transition-colors"
+              className="w-full bg-[#0f1117] border border-[#2e3345] rounded-lg px-3 py-2 text-sm text-left text-[#e8eaf0] focus:outline-none focus:border-[#f59e0b] transition-colors flex items-center"
             >
               {SERVICE_TYPES.map((s) => (
                 <option key={s} value={s}>
                   {s}
                 </option>
               ))}
-            </select>
+            </SmartSelect>
             <div className="mt-1 flex items-center gap-1.5">
               <div
                 className="w-2.5 h-2.5 rounded-full"

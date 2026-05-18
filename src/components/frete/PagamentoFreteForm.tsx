@@ -3,6 +3,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import type { PagamentoFrete, MetodoPagamentoFrete, Funcionario, Fornecedor } from '../../types';
 import Input from '../ui/Input';
 import Select from '../ui/Select';
+import SmartSelect from '../ui/SmartSelect';
 import Button from '../ui/Button';
 import ImportExcelModal, { parseStr, parseNumero, parseData, type ParsedRow } from '../ui/ImportExcelModal';
 import PagamentoAbatimentoCard from './PagamentoAbatimentoCard';
@@ -479,8 +480,8 @@ export default function PagamentoFreteForm({
                     {idx === 0 && (
                       <label className="block text-xs font-medium text-gray-600 mb-1">Mês Referência</label>
                     )}
-                    <select
-                      className="w-full h-[38px] border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emt-verde bg-white"
+                    <SmartSelect
+                      className="w-full h-[38px] border border-gray-300 rounded-lg px-3 py-2 text-sm text-left focus:outline-none focus:ring-2 focus:ring-emt-verde bg-white flex items-center"
                       value={parcela.mesReferencia}
                       onChange={(e) => {
                         const novas = [...parcelas];
@@ -493,7 +494,7 @@ export default function PagamentoFreteForm({
                       {mesesOptions.map((m) => (
                         <option key={m.value} value={m.value}>{m.label}</option>
                       ))}
-                    </select>
+                    </SmartSelect>
                   </div>
                   <div className="w-36">
                     {idx === 0 && (

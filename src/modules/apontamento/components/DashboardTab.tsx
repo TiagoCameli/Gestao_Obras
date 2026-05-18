@@ -12,6 +12,7 @@ import {
   type Servico,
 } from "../utils/apontamentoServicoApi";
 import { useFuncionarios, useObrasApont, useEquipesApont } from "../hooks/useApontamentoData";
+import SmartSelect from "../../../components/ui/SmartSelect";
 
 function todayIso() {
   return new Date().toISOString().slice(0, 10);
@@ -193,39 +194,39 @@ export default function DashboardTab() {
       {/* Filtros */}
       <div className="flex flex-wrap items-end gap-3">
         <Field label="Período">
-          <select
+          <SmartSelect
             value={range}
             onChange={(e) => setRange(e.target.value as Range)}
-            className={inputCls}
+            className={inputCls + ' text-left flex items-center'}
           >
             {RANGES.map((r) => (
               <option key={r.value} value={r.value}>{r.label}</option>
             ))}
-          </select>
+          </SmartSelect>
         </Field>
         <Field label="Obra">
-          <select
+          <SmartSelect
             value={obraId}
             onChange={(e) => setObraId(e.target.value)}
-            className={inputCls}
+            className={inputCls + ' text-left flex items-center'}
           >
             <option value="">Todas</option>
             {obras.map((o) => (
               <option key={o.id} value={o.id}>{o.nome}</option>
             ))}
-          </select>
+          </SmartSelect>
         </Field>
         <Field label="Equipe">
-          <select
+          <SmartSelect
             value={equipeId}
             onChange={(e) => setEquipeId(e.target.value)}
-            className={inputCls}
+            className={inputCls + ' text-left flex items-center'}
           >
             <option value="">Todas</option>
             {equipes.map((e) => (
               <option key={e.id} value={e.id}>{e.nome}</option>
             ))}
-          </select>
+          </SmartSelect>
         </Field>
         <div className="flex items-center gap-2 ml-auto">
           <span className="text-xs text-[var(--color-fg-subtle)]">

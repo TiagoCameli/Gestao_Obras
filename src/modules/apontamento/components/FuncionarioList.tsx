@@ -3,6 +3,7 @@ import type { Funcionario, StatusFuncionario } from "../types/funcionario";
 import { formatarCpf } from "../types/funcionario";
 import { getFotoUrls } from "../utils/apontamentoApi";
 import { useEquipesApont, useObrasApont } from "../hooks/useApontamentoData";
+import SmartSelect from "../../../components/ui/SmartSelect";
 
 interface Props {
   funcionarios: Funcionario[];
@@ -118,17 +119,17 @@ export default function FuncionarioList({
           />
         </FilterField>
         <FilterField label="Status">
-          <select
+          <SmartSelect
             value={filtroStatus}
             onChange={(e) => setFiltroStatus(e.target.value as StatusFuncionario | "")}
-            className={inputCls}
+            className={inputCls + ' text-left flex items-center'}
           >
             {STATUS_OPTS.map((s) => (
               <option key={s.value || "all"} value={s.value}>
                 {s.label}
               </option>
             ))}
-          </select>
+          </SmartSelect>
         </FilterField>
       </div>
 

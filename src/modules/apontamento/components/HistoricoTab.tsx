@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import ConfirmDialog from "../../../components/ui/ConfirmDialog";
+import SmartSelect from "../../../components/ui/SmartSelect";
 import { SkeletonTableRow } from "../../../components/ui/Skeleton";
 import { useAuth } from "../../../contexts/AuthContext";
 import {
@@ -355,30 +356,30 @@ export default function HistoricoTab() {
           <input type="date" value={dataFim} onChange={(e) => setDataFim(e.target.value)} className={inputCls} />
         </Field>
         <Field label="Obra">
-          <select value={obraId} onChange={(e) => setObraId(e.target.value)} className={inputCls}>
+          <SmartSelect value={obraId} onChange={(e) => setObraId(e.target.value)} className={inputCls + ' text-left flex items-center'}>
             <option value="">Todas</option>
             {obras.map((o) => (
               <option key={o.id} value={o.id}>{o.nome}</option>
             ))}
-          </select>
+          </SmartSelect>
         </Field>
         <Field label="Equipe">
-          <select value={equipeId} onChange={(e) => setEquipeId(e.target.value)} className={inputCls}>
+          <SmartSelect value={equipeId} onChange={(e) => setEquipeId(e.target.value)} className={inputCls + ' text-left flex items-center'}>
             <option value="">Todas</option>
             {equipes.map((e) => (
               <option key={e.id} value={e.id}>{e.nome}</option>
             ))}
-          </select>
+          </SmartSelect>
         </Field>
         <Field label="Funcionário">
-          <select value={funcionarioId} onChange={(e) => setFuncionarioId(e.target.value)} className={inputCls}>
+          <SmartSelect value={funcionarioId} onChange={(e) => setFuncionarioId(e.target.value)} className={inputCls + ' text-left flex items-center'}>
             <option value="">Todos</option>
             {funcionarios
               .filter((f) => !equipeId || f.equipeId === equipeId)
               .map((f) => (
                 <option key={f.id} value={f.id}>{f.nome}</option>
               ))}
-          </select>
+          </SmartSelect>
         </Field>
         <Field label="Buscar">
           <input

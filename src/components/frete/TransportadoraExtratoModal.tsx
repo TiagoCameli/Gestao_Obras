@@ -9,6 +9,7 @@ import { useMemo, useState } from 'react';
 import { FileSpreadsheet, FileText } from 'lucide-react';
 import Modal from '../ui/Modal';
 import Button from '../ui/Button';
+import SmartSelect from '../ui/SmartSelect';
 import TransportadoraExtratoList from './TransportadoraExtratoList';
 import AjusteManualTransportadoraForm from './AjusteManualTransportadoraForm';
 import ExtratoFretesList from './extrato/ExtratoFretesList';
@@ -174,16 +175,17 @@ export default function TransportadoraExtratoModal({
               <div className="flex flex-wrap items-center gap-2 shrink-0">
                 <div className="flex items-center gap-1.5">
                   <span className="text-xs font-semibold uppercase tracking-wide text-[var(--color-fg-muted)]">Mês</span>
-                  <select
+                  <SmartSelect
                     value={filtroMes}
                     onChange={(e) => setFiltroMes(e.target.value)}
-                    className="h-9 px-2.5 text-sm rounded-lg bg-white border border-[var(--color-border)] focus:outline-none focus:border-[var(--color-accent)]"
+                    wrapperClassName="relative"
+                    className="h-9 px-2.5 text-sm rounded-lg bg-white border border-[var(--color-border)] focus:outline-none focus:border-[var(--color-accent)] flex items-center min-w-[120px] text-left"
                   >
                     <option value="">Todos</option>
                     {mesesDisponiveis.map((m) => (
                       <option key={m} value={m}>{m}</option>
                     ))}
-                  </select>
+                  </SmartSelect>
                 </div>
                 <Button onClick={() => setAjusteOpen(true)} className="text-sm">
                   + Novo Ajuste Manual

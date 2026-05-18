@@ -11,6 +11,7 @@ import {
   Warehouse, MapPin, User, ArrowRight,
 } from 'lucide-react';
 import Button from '../ui/Button';
+import SmartSelect from '../ui/SmartSelect';
 import { useSaldoEstoqueTotal } from '../../hooks/useSaldoEstoque';
 import { useInsumos } from '../../hooks/useInsumos';
 import {
@@ -293,25 +294,27 @@ export default function AlmoxarifadoPage() {
             className="w-full h-[36px] rounded-lg pl-9 pr-3 py-1.5 text-sm bg-[var(--color-surface-1)] text-[var(--color-fg)] border border-[var(--color-border)] focus:outline-none focus:border-[var(--color-accent)] focus:ring-2 focus:ring-[var(--color-ring)]"
           />
         </div>
-        <select
+        <SmartSelect
           value={filtroStatus}
           onChange={(e) => setFiltroStatus(e.target.value as StatusEstoque | 'todos' | 'criticos')}
-          className="h-[36px] rounded-lg px-3 py-1.5 text-sm bg-[var(--color-surface-1)] text-[var(--color-fg)] border border-[var(--color-border)]"
+          wrapperClassName="relative"
+          className="h-[36px] rounded-lg px-3 py-1.5 text-sm bg-[var(--color-surface-1)] text-[var(--color-fg)] border border-[var(--color-border)] flex items-center min-w-[140px] text-left"
         >
           {STATUS_OPTS.map((o) => (
             <option key={o.value} value={o.value}>{o.label}</option>
           ))}
-        </select>
-        <select
+        </SmartSelect>
+        <SmartSelect
           value={filtroFabricante}
           onChange={(e) => setFiltroFabricante(e.target.value)}
-          className="h-[36px] rounded-lg px-3 py-1.5 text-sm bg-[var(--color-surface-1)] text-[var(--color-fg)] border border-[var(--color-border)] max-w-[200px]"
+          wrapperClassName="relative"
+          className="h-[36px] rounded-lg px-3 py-1.5 text-sm bg-[var(--color-surface-1)] text-[var(--color-fg)] border border-[var(--color-border)] max-w-[200px] flex items-center min-w-[160px] text-left"
         >
           <option value="">Todos fabricantes</option>
           {fabricantes.map((f) => (
             <option key={f} value={f}>{f}</option>
           ))}
-        </select>
+        </SmartSelect>
       </div>
 
       {/* Lista */}

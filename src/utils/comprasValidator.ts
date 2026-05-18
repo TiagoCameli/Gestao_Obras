@@ -1,16 +1,21 @@
 /**
  * Validações de negócio para Ordens de Compra do módulo Compras v2.
  *
- * Regras de destino × tipo de item:
+ * ⚠ MUDANÇA IMPORTANTE (v2.7): destino genérico na compra + específico no
+ * recebimento. Na cotação/OC, o usuário escolhe APENAS o TIPO de destino
+ * (obra+etapa, almoxarifado, tanque, etc.). O depósito/tanque/almoxarifado
+ * ESPECÍFICO só vira obrigatório no momento do RECEBIMENTO da OC.
  *
- * | Destino                    | Material | Serviço | Campos extras                       |
+ * Regras de destino × tipo de item (na hora de salvar OC):
+ *
+ * | Destino                    | Material | Serviço | Obrigatório na OC                  |
  * | -------------------------- | -------- | ------- | ----------------------------------- |
- * | obra_etapa                 | ✅       | ✅      | obraId + etapaObraId obrigatórios   |
- * | obra_deposito              | ✅       | ❌      | obraId + depositoDestinoId          |
- * | deposito_central           | ✅       | ❌      | depositoDestinoId                   |
+ * | obra_etapa                 | ✅       | ✅      | obraId + etapaObraId                 |
+ * | obra_deposito              | ✅       | ❌      | obraId (depósito → no recebimento)  |
+ * | deposito_central           | ✅       | ❌      | — (depósito → no recebimento)        |
  * | sede                       | ✅       | ✅      | —                                   |
- * | manutencao_equipamento     | ✅*      | ✅      | equipamentoId; material passa pelo  |
- * |                            |          |         | almoxarifado (depositoDestinoId)    |
+ * | manutencao_equipamento     | ✅*      | ✅      | osId p/ serviço (almox → no receb.) |
+ * | tanque_combustivel         | ✅       | ❌      | — (tanque → no recebimento)         |
  */
 
 import type { ItemOrdemCompra, OrdemCompra, TipoDestinoOC } from '../types';
@@ -250,20 +255,13 @@ export function validarOrdemCompra(
       };
     }
 
-    // Material precisa de depósito de entrada quando o destino exige
-    //  - obra_deposito, deposito_central, tanque_combustivel: sempre exige
-    //  - manutencao_equipamento: exige apenas se for peça (material)
-    const exigeDeposito = regra.exigeDeposito
-      || (destino === 'manutencao_equipamento' && tipo === 'material');
-    if (exigeDeposito && !depositoDestinoId) {
-      const label = destino === 'manutencao_equipamento' ? 'almoxarifado'
-        : destino === 'tanque_combustivel' ? 'tanque'
-        : 'depósito';
-      return {
-        ok: false,
-        erro: `Item "${item.descricao}" exige selecionar o ${label}.`,
-      };
-    }
+    // ⚠ v2.7: depósito/almoxarifado/tanque ESPECÍFICO é OPCIONAL na OC.
+    // Esse vínculo passa a ser obrigatório só no momento do RECEBIMENTO.
+    // Permite ao comprador emitir a OC sem saber ainda onde o material vai
+    // ficar (almox A ou B? tanque 1 ou 2?). A escolha cai pra quem recebe.
+    //
+    // O tipo de destino (obra_etapa, tanque_combustivel, etc.) continua
+    // obrigatório — só o "subdestino" físico que ficou flexível.
 
     // Tipo de insumo × destino (combustível só em tanque, etc.)
     if (tipo === 'material' && item.insumoId && insumos) {

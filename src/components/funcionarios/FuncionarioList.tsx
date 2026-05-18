@@ -2,6 +2,7 @@ import { useState, useMemo } from 'react';
 import type { CargoFuncionario, Funcionario } from '../../types';
 import { CARGOS } from '../../utils/permissions';
 import Button from '../ui/Button';
+import SmartSelect from '../ui/SmartSelect';
 
 interface FuncionarioListProps {
   funcionarios: Funcionario[];
@@ -56,23 +57,25 @@ export default function FuncionarioList({ funcionarios, onEdit, onDelete, canEdi
           value={busca}
           onChange={(e) => { setBusca(e.target.value); setPagina(0); }}
         />
-        <select
-          className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emt-verde"
+        <SmartSelect
+          wrapperClassName="relative"
+          className="border border-gray-300 rounded-lg px-3 py-2 text-sm text-left focus:outline-none focus:ring-2 focus:ring-emt-verde flex items-center min-w-[180px] h-[40px]"
           value={filtroCargo}
           onChange={(e) => { setFiltroCargo(e.target.value); setPagina(0); }}
         >
           <option value="">Todos os cargos</option>
           {CARGOS.map((c) => <option key={c.valor} value={c.valor}>{c.label}</option>)}
-        </select>
-        <select
-          className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emt-verde"
+        </SmartSelect>
+        <SmartSelect
+          wrapperClassName="relative"
+          className="border border-gray-300 rounded-lg px-3 py-2 text-sm text-left focus:outline-none focus:ring-2 focus:ring-emt-verde flex items-center min-w-[160px] h-[40px]"
           value={filtroStatus}
           onChange={(e) => { setFiltroStatus(e.target.value); setPagina(0); }}
         >
           <option value="">Todos os status</option>
           <option value="ativo">Ativo</option>
           <option value="inativo">Inativo</option>
-        </select>
+        </SmartSelect>
       </div>
 
       {filtrados.length === 0 ? (

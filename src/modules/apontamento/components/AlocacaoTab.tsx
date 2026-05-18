@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import Button from "../../../components/ui/Button";
 import Input from "../../../components/ui/Input";
 import Select from "../../../components/ui/Select";
+import SmartSelect from "../../../components/ui/SmartSelect";
 import Modal from "../../../components/ui/Modal";
 import ConfirmDialog from "../../../components/ui/ConfirmDialog";
 import {
@@ -139,10 +140,11 @@ function EquipesView() {
             <label className="text-[10px] uppercase tracking-wider text-[var(--color-fg-subtle)] font-semibold">
               Filtrar por obra
             </label>
-            <select
+            <SmartSelect
               value={filtroObraId}
               onChange={(e) => setFiltroObraId(e.target.value)}
-              className="h-10 min-w-[220px] rounded-lg px-3 text-sm bg-[var(--color-surface-1)] text-[var(--color-fg)] border border-[var(--color-border)] focus:outline-none focus:border-[var(--color-accent)] focus:ring-2 focus:ring-[var(--color-ring)]"
+              wrapperClassName="relative min-w-[220px]"
+              className="w-full h-10 rounded-lg px-3 text-sm text-left bg-[var(--color-surface-1)] text-[var(--color-fg)] border border-[var(--color-border)] focus:outline-none focus:border-[var(--color-accent)] focus:ring-2 focus:ring-[var(--color-ring)] flex items-center"
             >
               <option value="">Todas as obras</option>
               {obras.map((o) => (
@@ -150,7 +152,7 @@ function EquipesView() {
                   {o.nome}
                 </option>
               ))}
-            </select>
+            </SmartSelect>
           </div>
           {canCriarEquipe && (
             <Button onClick={() => setModalEq({ open: true, edit: null })}>

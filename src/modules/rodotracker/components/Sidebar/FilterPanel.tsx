@@ -1,6 +1,7 @@
 import { CalendarRange, Layers, Hash, Ruler } from "lucide-react";
 import type { Filters, ServiceType } from "../../types/activity";
 import { SERVICE_TYPES } from "../../types/activity";
+import SmartSelect from "../../../../components/ui/SmartSelect";
 
 interface FilterPanelProps {
   filters: Filters;
@@ -65,10 +66,10 @@ export function FilterPanel({
           <Layers className="h-3 w-3" />
           <span>Tipo de Serviço</span>
         </label>
-        <select
+        <SmartSelect
           value={filters.service}
           onChange={(e) => update("service", e.target.value as ServiceType | "")}
-          className="input"
+          className="input text-left flex items-center"
           style={{ fontSize: 12 }}
         >
           <option value="">Todos</option>
@@ -77,7 +78,7 @@ export function FilterPanel({
               {s}
             </option>
           ))}
-        </select>
+        </SmartSelect>
       </div>
 
       {/* Medição */}
@@ -86,12 +87,12 @@ export function FilterPanel({
           <Hash className="h-3 w-3" />
           <span>Medição</span>
         </label>
-        <select
+        <SmartSelect
           value={filters.medicao ?? ""}
           onChange={(e) =>
             update("medicao", e.target.value ? parseInt(e.target.value, 10) : null)
           }
-          className="input"
+          className="input text-left flex items-center"
           style={{ fontSize: 12 }}
         >
           <option value="">Todas</option>
@@ -100,7 +101,7 @@ export function FilterPanel({
               Medição {m}
             </option>
           ))}
-        </select>
+        </SmartSelect>
       </div>
 
       {/* KM range */}

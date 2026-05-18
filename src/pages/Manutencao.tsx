@@ -13,6 +13,7 @@ import { useAuth } from '../contexts/AuthContext';
 import type { StatusOS, TipoOS, PrioridadeOS } from '../types';
 import { STATUS_OS_LABEL, TIPO_OS_LABEL, PRIORIDADE_OS_LABEL } from '../types';
 import Button from '../components/ui/Button';
+import SmartSelect from '../components/ui/SmartSelect';
 import OSCard from '../components/manutencao/os/OSCard';
 import NovaOSModal from '../components/manutencao/os/NovaOSModal';
 import OSDetalhe from '../components/manutencao/os/OSDetalhe';
@@ -234,37 +235,41 @@ function OrdensServicoPage() {
           placeholder="Buscar por número, defeito ou equipamento…"
           className="flex-1 min-w-[200px] h-[36px] rounded-lg px-3 py-1.5 text-sm bg-[var(--color-surface-1)] text-[var(--color-fg)] border border-[var(--color-border)] focus:outline-none focus:border-[var(--color-accent)] focus:ring-2 focus:ring-[var(--color-ring)]"
         />
-        <select
+        <SmartSelect
           value={filtroStatus}
           onChange={(e) => setParam('status', e.target.value === 'abertas' ? '' : e.target.value)}
-          className="h-[36px] rounded-lg px-3 py-1.5 text-sm bg-[var(--color-surface-1)] text-[var(--color-fg)] border border-[var(--color-border)]"
+          wrapperClassName="relative"
+          className="h-[36px] rounded-lg px-3 py-1.5 text-sm bg-[var(--color-surface-1)] text-[var(--color-fg)] border border-[var(--color-border)] flex items-center min-w-[140px] text-left"
         >
           {STATUS_OPTS.map((o) => (
             <option key={o.value} value={o.value}>{o.label}</option>
           ))}
-        </select>
-        <select
+        </SmartSelect>
+        <SmartSelect
           value={filtroTipo}
           onChange={(e) => setParam('tipo', e.target.value)}
-          className="h-[36px] rounded-lg px-3 py-1.5 text-sm bg-[var(--color-surface-1)] text-[var(--color-fg)] border border-[var(--color-border)]"
+          wrapperClassName="relative"
+          className="h-[36px] rounded-lg px-3 py-1.5 text-sm bg-[var(--color-surface-1)] text-[var(--color-fg)] border border-[var(--color-border)] flex items-center min-w-[140px] text-left"
         >
           {TIPO_OPTS.map((o) => (
             <option key={o.value} value={o.value}>{o.label}</option>
           ))}
-        </select>
-        <select
+        </SmartSelect>
+        <SmartSelect
           value={filtroPrioridade}
           onChange={(e) => setParam('prio', e.target.value)}
-          className="h-[36px] rounded-lg px-3 py-1.5 text-sm bg-[var(--color-surface-1)] text-[var(--color-fg)] border border-[var(--color-border)]"
+          wrapperClassName="relative"
+          className="h-[36px] rounded-lg px-3 py-1.5 text-sm bg-[var(--color-surface-1)] text-[var(--color-fg)] border border-[var(--color-border)] flex items-center min-w-[140px] text-left"
         >
           {PRIORIDADE_OPTS.map((o) => (
             <option key={o.value} value={o.value}>{o.label}</option>
           ))}
-        </select>
-        <select
+        </SmartSelect>
+        <SmartSelect
           value={filtroEquipamento}
           onChange={(e) => setParam('equipamento', e.target.value)}
-          className="h-[36px] rounded-lg px-3 py-1.5 text-sm bg-[var(--color-surface-1)] text-[var(--color-fg)] border border-[var(--color-border)] max-w-[280px]"
+          wrapperClassName="relative"
+          className="h-[36px] rounded-lg px-3 py-1.5 text-sm bg-[var(--color-surface-1)] text-[var(--color-fg)] border border-[var(--color-border)] max-w-[280px] flex items-center min-w-[200px] text-left"
         >
           <option value="">Todos equipamentos</option>
           {equipamentos
@@ -274,7 +279,7 @@ function OrdensServicoPage() {
                 {eq.codigoPatrimonio ? `${eq.codigoPatrimonio} — ${eq.nome}` : eq.nome}
               </option>
             ))}
-        </select>
+        </SmartSelect>
       </div>
 
       {/* Lista */}
@@ -284,11 +289,16 @@ function OrdensServicoPage() {
         <div className="rounded-xl border border-dashed border-[var(--color-border)] bg-[var(--color-surface-1)] p-8 text-center">
           <ClipboardList aria-hidden className="w-8 h-8 text-[var(--color-fg-subtle)] mx-auto mb-2" />
           <p className="text-sm font-medium text-[var(--color-fg)]">Nenhuma OS encontrada</p>
-          <p className="text-xs text-[var(--color-fg-muted)] mt-1">
+          <p className="text-xs text-[var(--color-fg-muted)] mt-1 mb-4">
             {ordens.length === 0
               ? 'Comece criando a primeira ordem de serviço.'
               : 'Ajuste os filtros ou limpe a busca.'}
           </p>
+          {ordens.length === 0 && (
+            <Button onClick={() => setNovaOSOpen(true)} className="mx-auto">
+              <Plus className="w-4 h-4" /> Nova OS
+            </Button>
+          )}
         </div>
       ) : (
         <div className="space-y-2">

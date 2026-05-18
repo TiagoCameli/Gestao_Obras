@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, type FormEvent } from 'react';
 import type { PedidoMaterial, ItemPedidoMaterial, Fornecedor, Insumo } from '../../types';
 import Input from '../ui/Input';
 import Select from '../ui/Select';
+import SmartSelect from '../ui/SmartSelect';
 import Button from '../ui/Button';
 import ImportExcelModal, { parseStr, parseNumero, parseData, type ParsedRow } from '../ui/ImportExcelModal';
 import AnexosUploader from '../combustivel/AnexosUploader';
@@ -256,8 +257,8 @@ export default function PedidoMaterialForm({
                   {index === 0 && (
                     <label className="block text-xs font-medium text-gray-500 mb-1">Material</label>
                   )}
-                  <select
-                    className="w-full h-[38px] border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emt-verde bg-white"
+                  <SmartSelect
+                    className="w-full h-[38px] border border-gray-300 rounded-lg px-3 py-2 text-sm text-left focus:outline-none focus:ring-2 focus:ring-emt-verde bg-white flex items-center"
                     value={item.insumoId}
                     onChange={(e) => updateItem(index, 'insumoId', e.target.value)}
                     required
@@ -268,7 +269,7 @@ export default function PedidoMaterialForm({
                         {ins.nome}
                       </option>
                     ))}
-                  </select>
+                  </SmartSelect>
                 </div>
                 <div>
                   {index === 0 && (

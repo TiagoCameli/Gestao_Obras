@@ -14,6 +14,7 @@ import { useChecklistExecucoes } from '../../hooks/useChecklists';
 import { useEquipamentos } from '../../hooks/useEquipamentos';
 import type { ChecklistNaoConformidade } from '../../hooks/useChecklistNaoConformidades';
 import type { StatusExecucaoChecklist } from '../../types';
+import SmartSelect from '../ui/SmartSelect';
 import ChecklistDetalheModal from './checklists/ChecklistDetalheModal';
 
 type Aba = 'nao_conformidades' | 'execucoes';
@@ -119,20 +120,22 @@ export default function ChecklistsPage() {
         </div>
         {aba === 'execucoes' && (
           <>
-            <select
+            <SmartSelect
               value={filtroStatus}
               onChange={(e) => setFiltroStatus(e.target.value as 'todos' | StatusExecucaoChecklist)}
-              className="h-[36px] rounded-lg px-3 py-1.5 text-sm bg-[var(--color-surface-1)] text-[var(--color-fg)] border border-[var(--color-border)]"
+              wrapperClassName="relative"
+              className="h-[36px] rounded-lg px-3 py-1.5 text-sm bg-[var(--color-surface-1)] text-[var(--color-fg)] border border-[var(--color-border)] flex items-center min-w-[160px] text-left"
             >
               <option value="todos">Todos status</option>
               <option value="concluido">Concluído</option>
               <option value="concluido_com_pendencias">Com pendências</option>
               <option value="bloqueado">Bloqueado</option>
-            </select>
-            <select
+            </SmartSelect>
+            <SmartSelect
               value={filtroEquip}
               onChange={(e) => setFiltroEquip(e.target.value)}
-              className="h-[36px] rounded-lg px-3 py-1.5 text-sm bg-[var(--color-surface-1)] text-[var(--color-fg)] border border-[var(--color-border)] max-w-[280px]"
+              wrapperClassName="relative"
+              className="h-[36px] rounded-lg px-3 py-1.5 text-sm bg-[var(--color-surface-1)] text-[var(--color-fg)] border border-[var(--color-border)] max-w-[280px] flex items-center min-w-[200px] text-left"
             >
               <option value="">Todos equipamentos</option>
               {equipamentos
@@ -142,7 +145,7 @@ export default function ChecklistsPage() {
                     {eq.codigoPatrimonio ? `${eq.codigoPatrimonio} — ${eq.nome}` : eq.nome}
                   </option>
                 ))}
-            </select>
+            </SmartSelect>
           </>
         )}
       </div>

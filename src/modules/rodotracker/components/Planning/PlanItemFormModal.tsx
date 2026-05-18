@@ -5,6 +5,7 @@ import { SERVICE_TYPES, PLAN_STATUS_OPTIONS } from "../../types/activity";
 import { serviceColors } from "../../utils/colors";
 import { generateId, todayISO } from "../../utils/format";
 import { useAuth } from "../../../../contexts/AuthContext";
+import SmartSelect from "../../../../components/ui/SmartSelect";
 
 interface PlanItemFormModalProps {
   obraId: string;
@@ -142,17 +143,17 @@ export function PlanItemFormModal({
             <label className="label-eyebrow" style={{ display: "block", marginBottom: 6 }}>
               Tipo de serviço
             </label>
-            <select
+            <SmartSelect
               value={service}
               onChange={(e) => setService(e.target.value as ServiceType | "")}
-              className="input"
+              className="input text-left flex items-center"
               style={{ fontSize: 13 }}
             >
               <option value="">— Sem vínculo —</option>
               {SERVICE_TYPES.map((s) => (
                 <option key={s} value={s}>{s}</option>
               ))}
-            </select>
+            </SmartSelect>
             {service && (
               <div className="mt-1.5 flex items-center gap-1.5">
                 <div

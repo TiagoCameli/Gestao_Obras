@@ -9,6 +9,7 @@ import { useSaidasCombustivel } from '../../hooks/useSaidasCombustivel';
 import { useFornecedores } from '../../hooks/useFornecedores';
 import { formatCurrency } from '../../utils/formatters';
 import Card from '../ui/Card';
+import SmartSelect from '../ui/SmartSelect';
 import FreteAnalyticsOverview from './FreteAnalyticsOverview';
 import MaterialAnalyticsOverview from './MaterialAnalyticsOverview';
 import type { CrossFilters } from './crossFilterTypes';
@@ -924,16 +925,17 @@ export default function FreteDashboard({
       <div className="flex flex-wrap items-end gap-3 card-premium p-4">
         <div>
           <label className="block text-[11px] font-medium text-[var(--color-fg-muted)] mb-1 uppercase tracking-wider">Obra</label>
-          <select
+          <SmartSelect
             value={obraIdFiltro}
             onChange={(e) => setObraIdFiltro(e.target.value)}
-            className="rounded-md px-3 text-sm h-[34px] bg-[var(--color-surface-1)] text-[var(--color-fg)] border border-[var(--color-border)] focus:outline-none focus:border-[var(--color-accent)] focus:ring-2 focus:ring-[var(--color-ring)]"
+            wrapperClassName="relative"
+            className="rounded-md px-3 text-sm h-[34px] bg-[var(--color-surface-1)] text-[var(--color-fg)] border border-[var(--color-border)] focus:outline-none focus:border-[var(--color-accent)] focus:ring-2 focus:ring-[var(--color-ring)] flex items-center min-w-[180px] text-left"
           >
             <option value="">Todas as obras</option>
             {obras.map((o) => (
               <option key={o.id} value={o.id}>{o.nome}</option>
             ))}
-          </select>
+          </SmartSelect>
         </div>
         <div>
           <label className="block text-[11px] font-medium text-[var(--color-fg-muted)] mb-1 uppercase tracking-wider">Data Início</label>
@@ -969,18 +971,19 @@ export default function FreteDashboard({
           <label className="block text-[11px] font-medium text-[var(--color-fg-muted)] mb-1 uppercase tracking-wider">
             Comparar com
           </label>
-          <select
+          <SmartSelect
             value={compararCom}
             onChange={(e) => setCompararCom(e.target.value as CompararCom)}
             disabled={!dataInicio || !dataFim}
             title={!dataInicio || !dataFim ? 'Defina Data Início e Data Fim para comparar períodos' : ''}
-            className="rounded-md px-3 text-sm h-[34px] bg-[var(--color-surface-1)] text-[var(--color-fg)] border border-[var(--color-border)] focus:outline-none focus:border-[var(--color-accent)] focus:ring-2 focus:ring-[var(--color-ring)] disabled:opacity-50 disabled:cursor-not-allowed"
+            wrapperClassName="relative"
+            className="rounded-md px-3 text-sm h-[34px] bg-[var(--color-surface-1)] text-[var(--color-fg)] border border-[var(--color-border)] focus:outline-none focus:border-[var(--color-accent)] focus:ring-2 focus:ring-[var(--color-ring)] disabled:opacity-50 disabled:cursor-not-allowed flex items-center min-w-[180px] text-left"
           >
             <option value="none">— sem comparação —</option>
             <option value="periodo_anterior">Período anterior</option>
             <option value="ano_anterior">Mesmo período ano anterior</option>
             <option value="custom">Período customizado…</option>
-          </select>
+          </SmartSelect>
         </div>
 
         {compararCom === 'custom' && (

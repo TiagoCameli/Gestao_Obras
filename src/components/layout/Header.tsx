@@ -65,7 +65,7 @@ export default function Header() {
                 key={link.to}
                 to={link.to}
                 className={
-                  'px-3 py-1.5 rounded-md text-sm font-medium transition-colors ' +
+                  'px-3 py-1.5 rounded-md text-sm font-medium transition-colors whitespace-nowrap ' +
                   (active
                     ? 'bg-[var(--color-surface-2)] text-[var(--color-fg)]'
                     : 'text-[var(--color-fg-muted)] hover:text-[var(--color-fg)] hover:bg-[var(--color-surface-2)]')

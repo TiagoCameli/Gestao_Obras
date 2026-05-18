@@ -4,6 +4,7 @@ import Button from '../../components/ui/Button';
 import Drawer from '../../components/ui/Drawer';
 import ConfirmDialog from '../../components/ui/ConfirmDialog';
 import ImportExcelModal from '../../components/ui/ImportExcelModal';
+import SmartSelect from '../../components/ui/SmartSelect';
 import { useAuth } from '../../contexts/AuthContext';
 import FieldRenderer from './FieldRenderer';
 import { gerarId } from './utils';
@@ -256,11 +257,12 @@ export default function EntityCadastroPage<T extends { id: string }>({
           />
         </div>
         {filterDefs.map((f, idx) => (
-          <select
+          <SmartSelect
             key={f.key}
             value={filterValues[f.key] ?? ''}
             onChange={(e) => setFilterValues((prev) => ({ ...prev, [f.key]: e.target.value }))}
-            className="h-11 rounded-lg px-3 text-sm bg-[var(--color-surface-1)] border border-[var(--color-border)] focus:outline-none focus:border-[var(--color-accent)] focus:ring-2 focus:ring-[var(--color-ring)] min-w-[160px]"
+            wrapperClassName="relative min-w-[160px]"
+            className="w-full h-11 rounded-lg px-3 text-sm text-left bg-[var(--color-surface-1)] border border-[var(--color-border)] focus:outline-none focus:border-[var(--color-accent)] focus:ring-2 focus:ring-[var(--color-ring)] flex items-center"
             aria-label={f.label}
           >
             <option value="">{f.allLabel ?? `Todos: ${f.label}`}</option>
@@ -269,7 +271,7 @@ export default function EntityCadastroPage<T extends { id: string }>({
                 {opt.label}
               </option>
             ))}
-          </select>
+          </SmartSelect>
         ))}
       </div>
 

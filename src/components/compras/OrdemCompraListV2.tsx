@@ -32,6 +32,8 @@ interface Props {
   onAprovar: (oc: OrdemCompra) => void;
   onGerarLancamento: (oc: OrdemCompra) => void;
   onExcluir: (oc: OrdemCompra) => void;
+  /** Abre drawer de detalhes (visualização). */
+  onVerDetalhes?: (oc: OrdemCompra) => void;
   canEdit: boolean;
   canCreate: boolean;
 }
@@ -66,7 +68,7 @@ function fmtMoeda(v: number): string {
 
 export default function OrdemCompraListV2({
   ordens, obras, etapas: _etapas, fornecedores, busca,
-  onEditar, onAprovar, onGerarLancamento, onExcluir, canEdit, canCreate,
+  onEditar, onAprovar, onGerarLancamento, onExcluir, onVerDetalhes, canEdit, canCreate,
 }: Props) {
   void _etapas;
   const { temAcao } = useAuth();
@@ -231,7 +233,14 @@ export default function OrdemCompraListV2({
                 const DestIcon = destinoInfo?.Icon;
                 const lancFin = oc.lancamentoFinanceiroStatus ?? 'nao_aplicavel';
                 return (
-                  <tr key={oc.id} className="hover:bg-[var(--color-surface-2)]/40 transition-colors group">
+                  <tr
+                    key={oc.id}
+                    className="hover:bg-[var(--color-surface-2)]/40 transition-colors group cursor-pointer"
+                    onClick={(e) => {
+                      if ((e.target as HTMLElement).closest('button,a,[role="menu"]')) return;
+                      onVerDetalhes?.(oc);
+                    }}
+                  >
                     <td className="px-4 py-3.5 font-mono text-[12px] whitespace-nowrap text-[var(--color-fg)]">{oc.numero}</td>
                     <td className="px-4 py-3.5 text-[12.5px] text-[var(--color-fg-muted)] whitespace-nowrap">{formatarData(oc.dataCriacao)}</td>
                     <td className="px-4 py-3.5">

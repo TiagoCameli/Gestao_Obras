@@ -14,6 +14,7 @@
  */
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { ChevronDown, X, Filter } from 'lucide-react';
+import SmartSelect from '../ui/SmartSelect';
 
 // ─────────────── Wrapper / Header ──────────────────────────────────────
 
@@ -60,21 +61,22 @@ export function FilterPill<T extends string>({
 }) {
   const ativo = ativoQuando(value);
   return (
-    <label className={
-      'inline-flex items-center gap-1.5 pl-2.5 pr-1 h-8 rounded-md text-xs font-medium border transition-colors cursor-pointer ' +
+    <div className={
+      'inline-flex items-center gap-1.5 pl-2.5 pr-1 h-8 rounded-md text-xs font-medium border transition-colors ' +
       (ativo
         ? 'bg-[var(--color-accent)]/10 text-[var(--color-fg)] border-[var(--color-accent)]/30'
         : 'bg-[var(--color-surface-1)] text-[var(--color-fg-muted)] border-[var(--color-border)] hover:bg-[var(--color-surface-2)]')
     }>
       <span>{label}:</span>
-      <select
+      <SmartSelect
         value={value}
         onChange={(e) => onChange(e.target.value as T)}
-        className="bg-transparent border-0 focus:outline-none text-xs font-medium pr-1 max-w-[200px]"
+        wrapperClassName="relative"
+        className="bg-transparent border-0 focus:outline-none text-xs font-medium pr-1 max-w-[200px] h-7 flex items-center cursor-pointer"
       >
         {options.map((o) => (<option key={o.value} value={o.value}>{o.label}</option>))}
-      </select>
-    </label>
+      </SmartSelect>
+    </div>
   );
 }
 

@@ -7,6 +7,7 @@ import type { Obra, TipoObra } from "../../types/activity";
 import { TIPO_OBRA_OPTIONS, TIPOS_COM_KM } from "../../types/activity";
 import { generateId } from "../../utils/format";
 import { useAuth } from "../../../../contexts/AuthContext";
+import SmartSelect from "../../../../components/ui/SmartSelect";
 
 // Custom marker icons
 const startIcon = L.divIcon({
@@ -255,15 +256,15 @@ export function ObraFormModal({ editObra, onSave, onClose }: ObraFormModalProps)
             <label className="block text-[11px] text-[#94a3b8] uppercase tracking-wider font-semibold mb-1">
               Tipo de Obra
             </label>
-            <select
+            <SmartSelect
               value={tipoObra}
               onChange={(e) => setTipoObra(e.target.value as TipoObra)}
-              className="w-full bg-[#0c0e14] border border-white/[0.08] rounded-[10px] px-3 py-2.5 text-sm text-[#f1f5f9] focus:outline-none focus:border-[#f59e0b] transition-colors"
+              className="w-full bg-[#0c0e14] border border-white/[0.08] rounded-[10px] px-3 py-2.5 text-sm text-left text-[#f1f5f9] focus:outline-none focus:border-[#f59e0b] transition-colors flex items-center"
             >
               {TIPO_OBRA_OPTIONS.map((t) => (
                 <option key={t} value={t}>{t}</option>
               ))}
-            </select>
+            </SmartSelect>
           </div>
 
           {/* KM Inicial / Final (condicional) */}

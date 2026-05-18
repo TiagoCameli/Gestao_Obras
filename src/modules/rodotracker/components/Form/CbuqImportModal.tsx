@@ -5,6 +5,7 @@ import type { CbuqCarga } from "../../types/activity";
 import { generateId } from "../../utils/format";
 import { downloadCbuqTemplate } from "../../utils/cbuqTemplate";
 import { useAuth } from "../../../../contexts/AuthContext";
+import SmartSelect from "../../../../components/ui/SmartSelect";
 
 type FieldKey = "data" | "placa" | "hora" | "peso";
 
@@ -317,13 +318,13 @@ export function CbuqImportModal({ onImport, onClose }: CbuqImportModalProps) {
                       {f.label}
                       {f.required && <span style={{ color: "#ef4444" }}> *</span>}
                     </label>
-                    <select
+                    <SmartSelect
                       value={mapping[f.key] ?? ""}
                       onChange={(e) => {
                         const v = e.target.value === "" ? null : parseInt(e.target.value, 10);
                         setMapping((prev) => ({ ...prev, [f.key]: v }));
                       }}
-                      className="input"
+                      className="input text-left flex items-center"
                       style={{ fontSize: 11, padding: "5px 8px", width: "100%" }}
                     >
                       <option value="">— não mapear —</option>
@@ -332,7 +333,7 @@ export function CbuqImportModal({ onImport, onClose }: CbuqImportModalProps) {
                           {h || `(coluna ${i + 1})`}
                         </option>
                       ))}
-                    </select>
+                    </SmartSelect>
                   </div>
                 ))}
               </div>

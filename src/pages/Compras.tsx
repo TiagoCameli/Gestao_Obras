@@ -41,6 +41,7 @@ import OrdemCompraListV2 from '../components/compras/OrdemCompraListV2';
 import GerarLancamentoFinanceiroModal from '../components/compras/GerarLancamentoFinanceiroModal';
 import VisaoGeralCompras from '../components/compras/VisaoGeralCompras';
 import LixeiraCompras from '../components/compras/LixeiraCompras';
+import CompraDetalheDrawer from '../components/compras/CompraDetalheDrawer';
 import NotificacoesSino from '../components/compras/NotificacoesSino';
 import { criarNotificacaoCompras } from '../hooks/useComprasNotificacoes';
 import ImportOCModal from '../components/compras/ImportOCModal';
@@ -103,6 +104,14 @@ export default function Compras() {
   const [deletePedidoId, setDeletePedidoId] = useState<string | null>(null);
 
   const [cotacaoModalOpen, setCotacaoModalOpen] = useState(false);
+  const [cotacaoFormDirty, setCotacaoFormDirty] = useState(false);
+  const [pedidoFormDirty, setPedidoFormDirty] = useState(false);
+  const [ocFormDirty, setOcFormDirty] = useState(false);
+
+  // Drawer de detalhes (visualização) — abre ao clicar em qualquer linha das listas
+  const [detalhePedido, setDetalhePedido] = useState<PedidoCompra | null>(null);
+  const [detalheCotacao, setDetalheCotacao] = useState<Cotacao | null>(null);
+  const [detalheOC, setDetalheOC] = useState<OrdemCompra | null>(null);
   const [pedidoParaCotacao, setPedidoParaCotacao] = useState<PedidoCompra | null>(null);
   const [editandoCotacao, setEditandoCotacao] = useState<Cotacao | null>(null);
   const [deleteCotacaoId, setDeleteCotacaoId] = useState<string | null>(null);
@@ -144,9 +153,6 @@ export default function Compras() {
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [tab]);
-
-  // Mantém referência em uso (será usada quando a aba "Recebimento" for criada)
-  void depositosMaterial;
 
   const pedidosAprovados = useMemo(
     () => pedidos.filter((p) => (p.status === 'aprovado' || p.status === 'em_cotacao' || p.status === 'cotado') && !p.deletadoEm),
@@ -278,8 +284,28 @@ export default function Compras() {
   }, [rejeitarPedido, atualizarPedidoMut, usuario, showToast]);
 
   const handleDesaprovar = useCallback(async (pedido: PedidoCompra) => {
-    await atualizarPedidoMut.mutateAsync({ ...pedido, status: 'pendente' });
-  }, [atualizarPedidoMut]);
+    // Limpa marcas de aprovação ao voltar para pendente — auditoria mais limpa
+    await atualizarPedidoMut.mutateAsync({
+      ...pedido,
+      status: 'pendente',
+      aprovadoPor: undefined,
+      aprovadoEm: undefined,
+      atualizadoPor: usuario?.nome,
+      atualizadoEm: new Date().toISOString(),
+    });
+    showToast({ kind: 'success', message: `Pedido ${pedido.numero} voltou para "Pendente".` });
+  }, [atualizarPedidoMut, usuario, showToast]);
+
+  /** Reabre uma cotação (volta status para 'em_cotacao'). */
+  const handleReabrirCotacao = useCallback(async (cot: Cotacao) => {
+    await atualizarCotacaoMut.mutateAsync({
+      ...cot,
+      status: 'em_cotacao',
+      atualizadoPor: usuario?.nome,
+      atualizadoEm: new Date().toISOString(),
+    });
+    showToast({ kind: 'success', message: `Cotação ${cot.numero} voltou para "Em cotação".` });
+  }, [atualizarCotacaoMut, usuario, showToast]);
 
   const handleEnviarCotacao = useCallback((pedido: PedidoCompra) => {
     setPedidoParaCotacao(pedido);
@@ -918,6 +944,7 @@ export default function Compras() {
             onEnviarCotacao={handleEnviarCotacao}
             onGerarOC={handleGerarOCDireto}
             onEditar={(p) => { setEditandoPedido(p); setPedidoModalOpen(true); }}
+            onVerDetalhes={(p) => setDetalhePedido(p)}
             canApprove={canApprove}
             canCreate={canCreate}
           />
@@ -952,6 +979,8 @@ export default function Compras() {
             }}
             onEnviar={(cot) => setEnviarCotacao(cot)}
             onExcluir={(cot) => setDeleteCotacaoId(cot.id)}
+            onReabrir={handleReabrirCotacao}
+            onVerDetalhes={(cot) => setDetalheCotacao(cot)}
             canEdit={canEdit}
             canCreate={canCreate}
           />
@@ -984,6 +1013,7 @@ export default function Compras() {
             onAprovar={handleAprovarOCv2}
             onGerarLancamento={(oc) => setGerarLancamentoOC(oc)}
             onExcluir={handleExcluirOC}
+            onVerDetalhes={(oc) => setDetalheOC(oc)}
             canEdit={canEdit}
             canCreate={canCreate}
           />
@@ -994,7 +1024,13 @@ export default function Compras() {
       {/* Modal Pedido (V2 premium — empilhado com itens + descrição + anexos) */}
       <Modal
         open={pedidoModalOpen}
-        onClose={() => { setPedidoModalOpen(false); setEditandoPedido(null); }}
+        onClose={() => { setPedidoModalOpen(false); setEditandoPedido(null); setPedidoFormDirty(false); }}
+        confirmClose={() => {
+          if (pedidoFormDirty) {
+            return window.confirm('Você tem alterações não salvas. Sair mesmo assim?');
+          }
+          return true;
+        }}
         title={editandoPedido ? `Editar pedido ${editandoPedido.numero}` : 'Novo pedido de compra'}
         size="xl"
       >
@@ -1006,7 +1042,13 @@ export default function Compras() {
           unidades={unidades}
           categorias={categoriasOptions}
           onSubmit={handlePedidoSubmit}
-          onCancel={() => { setPedidoModalOpen(false); setEditandoPedido(null); }}
+          onCancel={() => {
+            if (pedidoFormDirty && !window.confirm('Você tem alterações não salvas. Sair mesmo assim?')) return;
+            setPedidoModalOpen(false);
+            setEditandoPedido(null);
+            setPedidoFormDirty(false);
+          }}
+          onDirtyChange={setPedidoFormDirty}
           proximoNumero={proxPedido}
           nomeUsuario={usuario?.nome}
         />
@@ -1023,7 +1065,13 @@ export default function Compras() {
       {/* Modal Cotação (V2 premium — com mapa comparativo embutido) */}
       <Modal
         open={cotacaoModalOpen}
-        onClose={() => { setCotacaoModalOpen(false); setPedidoParaCotacao(null); setEditandoCotacao(null); }}
+        onClose={() => { setCotacaoModalOpen(false); setPedidoParaCotacao(null); setEditandoCotacao(null); setCotacaoFormDirty(false); }}
+        confirmClose={() => {
+          if (cotacaoFormDirty) {
+            return window.confirm('Você tem alterações não salvas. Sair mesmo assim?');
+          }
+          return true;
+        }}
         title={editandoCotacao ? `Editar cotação ${editandoCotacao.numero}` : 'Nova cotação'}
         size="xl"
       >
@@ -1034,8 +1082,20 @@ export default function Compras() {
           insumos={insumos}
           unidades={unidades}
           categorias={categoriasOptions}
+          obras={obras}
+          etapas={etapas}
+          equipamentos={equipamentos}
+          depositosMaterial={depositosMaterial}
+          tanquesCombustivel={depositosCombustivel}
           onSubmit={handleCotacaoSubmit}
-          onCancel={() => { setCotacaoModalOpen(false); setPedidoParaCotacao(null); setEditandoCotacao(null); }}
+          onCancel={() => {
+            if (cotacaoFormDirty && !window.confirm('Você tem alterações não salvas. Sair mesmo assim?')) return;
+            setCotacaoModalOpen(false);
+            setPedidoParaCotacao(null);
+            setEditandoCotacao(null);
+            setCotacaoFormDirty(false);
+          }}
+          onDirtyChange={setCotacaoFormDirty}
           proximoNumero={proxCotacao}
           pedidoPreSelecionado={pedidoParaCotacao}
           onGerarOC={(cot, fornecedorId, itemIds) => {
@@ -1067,7 +1127,13 @@ export default function Compras() {
       {/* Modal OC (V2 — destinos múltiplos + workflow de aprovação) */}
       <Modal
         open={ocModalOpen}
-        onClose={() => { setOcModalOpen(false); setEditandoOC(null); }}
+        onClose={() => { setOcModalOpen(false); setEditandoOC(null); setOcFormDirty(false); }}
+        confirmClose={() => {
+          if (ocFormDirty) {
+            return window.confirm('Você tem alterações não salvas. Sair mesmo assim?');
+          }
+          return true;
+        }}
         title={editandoOC?.id ? `Editar OC ${editandoOC.numero}` : 'Nova Ordem de Compra'}
         size="xl"
       >
@@ -1085,7 +1151,13 @@ export default function Compras() {
           tanquesCombustivel={depositosCombustivel}
           proximoNumero={proxOC}
           onSubmit={handleOCSubmit}
-          onCancel={() => { setOcModalOpen(false); setEditandoOC(null); }}
+          onCancel={() => {
+            if (ocFormDirty && !window.confirm('Você tem alterações não salvas. Sair mesmo assim?')) return;
+            setOcModalOpen(false);
+            setEditandoOC(null);
+            setOcFormDirty(false);
+          }}
+          onDirtyChange={setOcFormDirty}
           onAprovar={handleAprovarOCv2}
           onGerarLancamento={(oc) => setGerarLancamentoOC(oc)}
           onCreateFornecedor={async (nome) => {
@@ -1108,6 +1180,81 @@ export default function Compras() {
         fornecedor={gerarLancamentoOC ? fornecedores.find((f) => f.id === gerarLancamentoOC.fornecedorId) : undefined}
         onClose={() => setGerarLancamentoOC(null)}
         onConfirm={handleConfirmarLancamento}
+      />
+
+      {/* Drawer de detalhes — Pedido */}
+      <CompraDetalheDrawer
+        open={!!detalhePedido}
+        onClose={() => setDetalhePedido(null)}
+        data={detalhePedido ? { tipo: 'pedido', pedido: detalhePedido } : null}
+        obras={obras}
+        fornecedores={fornecedores}
+        onEditar={() => {
+          if (!detalhePedido) return;
+          setEditandoPedido(detalhePedido);
+          setPedidoModalOpen(true);
+          setDetalhePedido(null);
+        }}
+        onAprovar={detalhePedido?.status === 'pendente' && canApprove
+          ? () => { const p = detalhePedido; setDetalhePedido(null); handleAprovar(p); }
+          : undefined}
+        onReprovar={detalhePedido?.status === 'pendente' && canApprove
+          ? () => { const p = detalhePedido; setDetalhePedido(null); handleAbrirReprovar(p); }
+          : undefined}
+        onReabrir={detalhePedido?.status === 'aprovado' && canApprove
+          ? () => { const p = detalhePedido; setDetalhePedido(null); handleDesaprovar(p); }
+          : undefined}
+        onEnviarCotacao={detalhePedido?.status === 'aprovado'
+          ? () => { const p = detalhePedido; setDetalhePedido(null); handleEnviarCotacao(p); }
+          : undefined}
+        onGerarOC={detalhePedido?.status === 'aprovado'
+          ? () => { const p = detalhePedido; setDetalhePedido(null); handleGerarOCDireto(p); }
+          : undefined}
+      />
+
+      {/* Drawer de detalhes — Cotação */}
+      <CompraDetalheDrawer
+        open={!!detalheCotacao}
+        onClose={() => setDetalheCotacao(null)}
+        data={detalheCotacao ? { tipo: 'cotacao', cotacao: detalheCotacao } : null}
+        obras={obras}
+        fornecedores={fornecedores}
+        onEditar={() => {
+          if (!detalheCotacao) return;
+          setEditandoCotacao(detalheCotacao);
+          setPedidoParaCotacao(null);
+          setCotacaoModalOpen(true);
+          setDetalheCotacao(null);
+        }}
+        onEnviarCotacao={() => {
+          if (!detalheCotacao) return;
+          setEnviarCotacao(detalheCotacao);
+          setDetalheCotacao(null);
+        }}
+        onReabrir={detalheCotacao && (detalheCotacao.status === 'cotado' || detalheCotacao.status === 'parcial') && canEdit
+          ? () => { const c = detalheCotacao; setDetalheCotacao(null); handleReabrirCotacao(c); }
+          : undefined}
+      />
+
+      {/* Drawer de detalhes — Ordem de Compra */}
+      <CompraDetalheDrawer
+        open={!!detalheOC}
+        onClose={() => setDetalheOC(null)}
+        data={detalheOC ? { tipo: 'oc', oc: detalheOC } : null}
+        obras={obras}
+        fornecedores={fornecedores}
+        onEditar={() => {
+          if (!detalheOC) return;
+          setEditandoOC(detalheOC);
+          setOcModalOpen(true);
+          setDetalheOC(null);
+        }}
+        onAprovar={detalheOC?.status === 'emitida' && canApprove
+          ? () => { const oc = detalheOC; setDetalheOC(null); handleAprovarOCv2(oc); }
+          : undefined}
+        onGerarLancamento={detalheOC?.status === 'aprovada'
+          ? () => { const oc = detalheOC; setGerarLancamentoOC(oc); setDetalheOC(null); }
+          : undefined}
       />
 
       {/* Modal Importar OCs */}

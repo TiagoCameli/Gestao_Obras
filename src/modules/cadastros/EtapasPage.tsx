@@ -11,6 +11,7 @@ import ImportExcelModal, {
 } from '../../components/ui/ImportExcelModal';
 import Input from '../../components/ui/Input';
 import Select from '../../components/ui/Select';
+import SmartSelect from '../../components/ui/SmartSelect';
 import { useObras } from '../../hooks/useObras';
 import {
   useContractItemsByObra,
@@ -346,10 +347,10 @@ export default function EtapasPage() {
             <label className="block text-xs font-medium text-[var(--color-fg-muted)] mb-1.5 tracking-wide">
               Obra
             </label>
-            <select
+            <SmartSelect
               value={obraId}
               onChange={(e) => setObraId(e.target.value)}
-              className="w-full h-[42px] rounded-lg px-3 py-2 text-sm bg-[var(--color-surface-1)] text-[var(--color-fg)] border border-[var(--color-border)] focus:outline-none focus:border-[var(--color-accent)] focus:ring-2 focus:ring-[var(--color-ring)]"
+              className="w-full h-[42px] rounded-lg px-3 py-2 text-sm text-left bg-[var(--color-surface-1)] text-[var(--color-fg)] border border-[var(--color-border)] focus:outline-none focus:border-[var(--color-accent)] focus:ring-2 focus:ring-[var(--color-ring)] flex items-center"
             >
               <option value="">Selecione uma obra...</option>
               {obras.map((o) => (
@@ -357,7 +358,7 @@ export default function EtapasPage() {
                   {o.nome}
                 </option>
               ))}
-            </select>
+            </SmartSelect>
           </div>
           <Stat label="Itens" value={stats.count.toString()} />
           <Stat label="Contratado" value={formatCurrency(stats.totalContratado)} />
@@ -392,17 +393,18 @@ export default function EtapasPage() {
             disabled={!obraId}
           />
         </div>
-        <select
+        <SmartSelect
           value={typeFilter}
           onChange={(e) => setTypeFilter(e.target.value as '' | ItemType)}
-          className="h-11 rounded-lg px-3 text-sm bg-[var(--color-surface-1)] border border-[var(--color-border)] focus:outline-none focus:border-[var(--color-accent)] focus:ring-2 focus:ring-[var(--color-ring)] sm:w-44"
+          wrapperClassName="relative sm:w-44"
+          className="w-full h-11 rounded-lg px-3 text-sm text-left bg-[var(--color-surface-1)] border border-[var(--color-border)] focus:outline-none focus:border-[var(--color-accent)] focus:ring-2 focus:ring-[var(--color-ring)] flex items-center"
           disabled={!obraId}
         >
           <option value="">Todos os tipos</option>
           {TYPE_OPTIONS.map((t) => (
             <option key={t.value} value={t.value}>{t.label}</option>
           ))}
-        </select>
+        </SmartSelect>
       </div>
 
       {/* Table */}

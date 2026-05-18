@@ -20,6 +20,7 @@ import { useEquipamentos } from '../../hooks/useEquipamentos';
 // Hook novo Fase 3 — fonte canônica de saídas pós-Fase 2.
 import { useSaidasCombustivel } from '../../hooks/useSaidasCombustivel';
 import { formatCurrency } from '../../utils/formatters';
+import SmartSelect from '../ui/SmartSelect';
 
 const card = 'bg-white dark:bg-slate-800 rounded-xl shadow-md px-6 py-5';
 const sectionTitle = 'text-base font-bold text-gray-700 dark:text-slate-300 uppercase tracking-wide mb-4';
@@ -673,17 +674,17 @@ function ConsumoPorEquipamento({
       <div className="flex flex-wrap items-end gap-4 mb-5">
         <div>
           <label className="block text-sm font-medium text-gray-500 dark:text-slate-400 mb-1">Obra</label>
-          <select className={selectCls} value={filtroObraId} onChange={(e) => { setFiltroObraId(e.target.value); setFiltroEtapaId(''); }}>
+          <SmartSelect className={selectCls + ' text-left flex items-center min-w-[160px]'} value={filtroObraId} onChange={(e) => { setFiltroObraId(e.target.value); setFiltroEtapaId(''); }}>
             <option value="">Todas</option>
             {obras.map((o) => <option key={o.id} value={o.id}>{o.nome}</option>)}
-          </select>
+          </SmartSelect>
         </div>
         <div>
           <label className="block text-sm font-medium text-gray-500 dark:text-slate-400 mb-1">Etapa</label>
-          <select className={selectCls} value={filtroEtapaId} onChange={(e) => setFiltroEtapaId(e.target.value)} disabled={!filtroObraId}>
+          <SmartSelect className={selectCls + ' text-left flex items-center min-w-[160px]'} value={filtroEtapaId} onChange={(e) => setFiltroEtapaId(e.target.value)} disabled={!filtroObraId}>
             <option value="">Todas</option>
             {etapasDisponiveis.map((et) => <option key={et.id} value={et.id}>{et.nome}</option>)}
-          </select>
+          </SmartSelect>
         </div>
         <div>
           <label className="block text-sm font-medium text-gray-500 dark:text-slate-400 mb-1">De</label>

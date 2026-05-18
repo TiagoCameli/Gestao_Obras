@@ -17,6 +17,7 @@ import { useEquipamentos } from '../../hooks/useEquipamentos';
 import { useMedicaoAtual } from '../../hooks/useMedicoesEquipamento';
 import { useAuth } from '../../contexts/AuthContext';
 import { useToast } from '../ui/Toast';
+import SmartSelect from '../ui/SmartSelect';
 import type { ProximaPreventiva, CategoriaAtividade } from '../../types';
 import { CATEGORIA_ATIVIDADE_LABEL } from '../../types';
 
@@ -156,29 +157,32 @@ export default function AgendaPreventivasPage() {
           placeholder="Buscar por atividade ou equipamento…"
           className="flex-1 min-w-[200px] h-[36px] rounded-lg px-3 py-1.5 text-sm bg-[var(--color-surface-1)] text-[var(--color-fg)] border border-[var(--color-border)] focus:outline-none focus:border-[var(--color-accent)] focus:ring-2 focus:ring-[var(--color-ring)]"
         />
-        <select
+        <SmartSelect
           value={filtroStatus}
           onChange={(e) => setParam('status', e.target.value === 'todas' ? '' : e.target.value)}
-          className="h-[36px] rounded-lg px-3 py-1.5 text-sm bg-[var(--color-surface-1)] text-[var(--color-fg)] border border-[var(--color-border)]"
+          wrapperClassName="relative"
+          className="h-[36px] rounded-lg px-3 py-1.5 text-sm bg-[var(--color-surface-1)] text-[var(--color-fg)] border border-[var(--color-border)] flex items-center min-w-[140px] text-left"
         >
           {STATUS_OPTS.map((o) => (
             <option key={o.value} value={o.value}>{o.label}</option>
           ))}
-        </select>
-        <select
+        </SmartSelect>
+        <SmartSelect
           value={filtroCategoria}
           onChange={(e) => setParam('categoria', e.target.value)}
-          className="h-[36px] rounded-lg px-3 py-1.5 text-sm bg-[var(--color-surface-1)] text-[var(--color-fg)] border border-[var(--color-border)]"
+          wrapperClassName="relative"
+          className="h-[36px] rounded-lg px-3 py-1.5 text-sm bg-[var(--color-surface-1)] text-[var(--color-fg)] border border-[var(--color-border)] flex items-center min-w-[140px] text-left"
         >
           <option value="">Todas categorias</option>
           {(Object.keys(CATEGORIA_ATIVIDADE_LABEL) as CategoriaAtividade[]).map((k) => (
             <option key={k} value={k}>{CATEGORIA_ATIVIDADE_LABEL[k]}</option>
           ))}
-        </select>
-        <select
+        </SmartSelect>
+        <SmartSelect
           value={filtroEquipamento}
           onChange={(e) => setParam('equipamento', e.target.value)}
-          className="h-[36px] rounded-lg px-3 py-1.5 text-sm bg-[var(--color-surface-1)] text-[var(--color-fg)] border border-[var(--color-border)] max-w-[280px]"
+          wrapperClassName="relative"
+          className="h-[36px] rounded-lg px-3 py-1.5 text-sm bg-[var(--color-surface-1)] text-[var(--color-fg)] border border-[var(--color-border)] max-w-[280px] flex items-center min-w-[200px] text-left"
         >
           <option value="">Todos equipamentos</option>
           {equipamentos
@@ -188,7 +192,7 @@ export default function AgendaPreventivasPage() {
                 {eq.codigoPatrimonio ? `${eq.codigoPatrimonio} — ${eq.nome}` : eq.nome}
               </option>
             ))}
-        </select>
+        </SmartSelect>
       </div>
 
       {/* Lista */}

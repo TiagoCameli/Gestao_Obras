@@ -7,6 +7,9 @@ import Card from '../ui/Card';
 import Button from '../ui/Button';
 import Modal from '../ui/Modal';
 import Input from '../ui/Input';
+import ComboboxInput from '../ui/ComboboxInput';
+import PrazoEntregaInput from '../ui/PrazoEntregaInput';
+import { CONDICOES_PAGAMENTO_BR } from '../../lib/comprasConstants';
 
 const STATUS_BADGE: Record<string, string> = {
   em_cotacao: 'bg-yellow-100 text-yellow-800',
@@ -537,20 +540,28 @@ export default function CotacaoList({
               );
             })}
             <div className="grid grid-cols-2 gap-4">
-              <Input
-                label="Condição de Pagamento"
-                id="cond-pag"
-                value={precos[0]?.condicao ?? ''}
-                onChange={(e) => setPrecos((prev) => prev.map((p) => ({ ...p, condicao: e.target.value })))}
-                placeholder="Ex: 30/60/90 dias"
-              />
-              <Input
-                label="Prazo de Entrega"
-                id="prazo-ent"
-                value={precos[0]?.prazo ?? ''}
-                onChange={(e) => setPrecos((prev) => prev.map((p) => ({ ...p, prazo: e.target.value })))}
-                placeholder="Ex: 5 dias úteis"
-              />
+              <div>
+                <label htmlFor="cond-pag" className="block text-xs font-medium text-[var(--color-fg-muted)] mb-1.5 tracking-wide">
+                  Condição de Pagamento
+                </label>
+                <ComboboxInput
+                  id="cond-pag"
+                  value={precos[0]?.condicao ?? ''}
+                  onChange={(v) => setPrecos((prev) => prev.map((p) => ({ ...p, condicao: v })))}
+                  suggestions={CONDICOES_PAGAMENTO_BR}
+                  placeholder="Ex: 30/60/90 dias"
+                />
+              </div>
+              <div>
+                <label htmlFor="prazo-ent" className="block text-xs font-medium text-[var(--color-fg-muted)] mb-1.5 tracking-wide">
+                  Prazo de Entrega
+                </label>
+                <PrazoEntregaInput
+                  id="prazo-ent"
+                  value={precos[0]?.prazo ?? ''}
+                  onChange={(v) => setPrecos((prev) => prev.map((p) => ({ ...p, prazo: v })))}
+                />
+              </div>
             </div>
             <div className="text-right font-semibold text-lg text-gray-800">
               Total: {formatCurrency(

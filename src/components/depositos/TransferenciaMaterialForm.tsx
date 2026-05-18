@@ -16,6 +16,7 @@ import type {
 } from '../../types';
 import Button from '../ui/Button';
 import Input from '../ui/Input';
+import SmartSelect from '../ui/SmartSelect';
 import { useToast } from '../ui/Toast';
 import { useAuth } from '../../contexts/AuthContext';
 import { consultarSaldoInsumo } from '../../hooks/useDepositosObras';
@@ -155,11 +156,11 @@ export default function TransferenciaMaterialForm({
             ⚠ Sem outros depósitos ativos. Crie outro depósito primeiro.
           </div>
         ) : (
-          <select
+          <SmartSelect
             value={destinoId}
             onChange={(e) => setDestinoId(e.target.value)}
             required
-            className="w-full h-[42px] rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-1)] px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]/40 focus:border-[var(--color-accent)]"
+            className="w-full h-[42px] rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-1)] px-3 py-2 text-sm text-left focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]/40 focus:border-[var(--color-accent)] flex items-center"
           >
             <option value="">— selecione —</option>
             {destinosDisponiveis.map((d) => (
@@ -168,7 +169,7 @@ export default function TransferenciaMaterialForm({
                 {d.obrasIds && d.obrasIds.length === 0 ? ' (central)' : ''}
               </option>
             ))}
-          </select>
+          </SmartSelect>
         )}
       </div>
 

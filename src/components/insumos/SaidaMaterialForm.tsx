@@ -4,6 +4,7 @@ import { useEntradasMaterial } from '../../hooks/useEntradasMaterial';
 import { calcularEstoqueMaterial, calcularEstoqueMaterialNaData, calcularTodoEstoqueMaterial } from '../../hooks/useEstoque';
 import Input from '../ui/Input';
 import Select from '../ui/Select';
+import SmartSelect from '../ui/SmartSelect';
 import FilterCombobox from '../ui/FilterCombobox';
 import Button from '../ui/Button';
 import ImportExcelModal, { parseStr, parseNumero, type ParsedRow } from '../ui/ImportExcelModal';
@@ -382,8 +383,8 @@ export default function SaidaMaterialForm({
           {alocacoes.map((aloc, index) => (
             <div key={index} className="flex items-center gap-3">
               <div className="flex-1">
-                <select
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emt-verde bg-white"
+                <SmartSelect
+                  className="w-full h-[40px] border border-gray-300 rounded-lg px-3 py-2 text-sm text-left focus:outline-none focus:ring-2 focus:ring-emt-verde bg-white flex items-center"
                   value={aloc.etapaId}
                   onChange={(e) =>
                     updateAlocacao(index, 'etapaId', e.target.value)
@@ -401,7 +402,7 @@ export default function SaidaMaterialForm({
                       {et.nome}
                     </option>
                   ))}
-                </select>
+                </SmartSelect>
               </div>
               <div className="w-24">
                 <input
