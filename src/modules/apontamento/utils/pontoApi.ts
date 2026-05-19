@@ -117,7 +117,7 @@ export function mensagemErroBatida(err: unknown): string {
   // Fallback heurístico: se o servidor retornou a mensagem em texto sem
   // preservar o code (ex: PostgrestError sem `.code`), detecta nossa
   // assinatura em português pra evitar o prefixo técnico.
-  if (/Já existe uma entrada|Já existe uma saída final|Não dá pra registrar saída final/i.test(m)) {
+  if (/Já existe uma entrada|Já existe uma saída final|Não dá pra registrar saída final|Hora da saída final/i.test(m)) {
     return m.replace(/^\[ponto:[^\]]+\]\s*/, '');
   }
   return 'Falha ao registrar: ' + m;
