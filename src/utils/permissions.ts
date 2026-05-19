@@ -347,6 +347,19 @@ export const ACOES_PLATAFORMA: AcaoPlataforma[] = [
   { chave: 'cadastrar_insumo_via_compra', label: 'Cadastrar novo insumo a partir de Compras', grupo: 'Compras' },
 
   // ============================================================
+  // Financeiro (v1 — Contas a pagar)
+  // ============================================================
+  { chave: 'ver_financeiro', label: 'Acessar módulo Financeiro', grupo: 'Financeiro' },
+  { chave: 'criar_lancamento_financeiro', label: 'Criar lançamento financeiro (OC ou avulso)', grupo: 'Financeiro' },
+  { chave: 'editar_lancamento_financeiro', label: 'Editar lançamento financeiro', grupo: 'Financeiro' },
+  { chave: 'excluir_lancamento_financeiro', label: 'Excluir lançamento financeiro', grupo: 'Financeiro' },
+  { chave: 'registrar_pagamento_financeiro', label: 'Registrar pagamento de parcela', grupo: 'Financeiro' },
+  { chave: 'estornar_pagamento_financeiro', label: 'Estornar pagamento (apagar pagamento e reabrir parcela)', grupo: 'Financeiro' },
+  { chave: 'fechar_lancamento_financeiro', label: 'Fechar lançamento financeiro (trava edição)', grupo: 'Financeiro' },
+  { chave: 'reabrir_lancamento_financeiro', label: 'Reabrir lançamento financeiro fechado (destrava edição)', grupo: 'Financeiro' },
+  { chave: 'gerenciar_categorias_financeiro', label: 'Gerenciar plano de contas (categorias financeiras)', grupo: 'Financeiro' },
+
+  // ============================================================
   // Frota
   // ============================================================
   { chave: 'ver_frota', label: 'Visualizar frota', grupo: 'Frota' },
@@ -726,6 +739,16 @@ export const DEPENDENCIAS_ACOES: Record<string, string[]> = {
   excluir_permanente_compras: ['ver_compras', 'restaurar_lixeira_compras'],
   ver_auditoria_compras: ['ver_compras'],
   cadastrar_insumo_via_compra: ['ver_compras'],
+
+  // Financeiro
+  criar_lancamento_financeiro: ['ver_financeiro'],
+  editar_lancamento_financeiro: ['ver_financeiro', 'criar_lancamento_financeiro'],
+  excluir_lancamento_financeiro: ['ver_financeiro', 'editar_lancamento_financeiro'],
+  registrar_pagamento_financeiro: ['ver_financeiro'],
+  estornar_pagamento_financeiro: ['ver_financeiro', 'registrar_pagamento_financeiro'],
+  fechar_lancamento_financeiro: ['ver_financeiro'],
+  reabrir_lancamento_financeiro: ['ver_financeiro', 'fechar_lancamento_financeiro'],
+  gerenciar_categorias_financeiro: ['ver_financeiro'],
 
   // Frota
   criar_veiculo: ['ver_frota'],

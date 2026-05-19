@@ -41,13 +41,14 @@ export const TIPO_VISUAL_LABEL: Record<TipoVisual, string> = {
   outros: 'Outros',
 };
 
-/** Pequeno ícone emoji opcional usado no chip. */
+/** Pequeno ícone emoji usado no chip. Mantém consistência visual entre os
+ *  5 tipos — todos têm símbolo, nada fica "pelado" só com texto. */
 export const TIPO_VISUAL_ICON: Record<TipoVisual, string> = {
-  material: '',
+  material: '📦 ',
   peca: '🔧 ',
   combustivel: '⛽ ',
   servico: '🛠 ',
-  outros: '',
+  outros: '📋 ',
 };
 
 /**

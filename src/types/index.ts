@@ -1084,6 +1084,136 @@ export interface ItemRecebimentoOC {
   observacoes?: string;
 }
 
+// ── Financeiro (v1 — Contas a Pagar) ────────────────────────────────
+// Lançamento financeiro = compromisso financeiro (a pagar/a receber) com
+// origem em uma OC aprovada OU lançamento avulso. Não tem ITENS — só tem
+// VALORES por DESTINO (rateio). É a ponte contábil entre Compras e o
+// custo real das obras / equipamentos / sede.
+
+export type OrigemLancamento = 'oc' | 'avulso' | 'folha' | 'frete';
+
+export type StatusLancamento =
+  | 'em_aberto'      // ainda não pago (nenhuma parcela quitada)
+  | 'pago_parcial'   // algumas parcelas pagas, outras não
+  | 'pago'           // todas as parcelas pagas
+  | 'cancelado';
+
+export type StatusParcelaLancamento = 'em_aberto' | 'pago' | 'cancelado';
+
+export type FormaPagamentoLancamento =
+  | 'pix' | 'boleto' | 'transferencia' | 'dinheiro' | 'cartao_credito'
+  | 'cartao_debito' | 'cheque' | 'deposito' | 'outros';
+
+/** Plano de contas simples: lista plana, com tipo despesa/receita. */
+export interface CategoriaFinanceira {
+  id: string;
+  nome: string;
+  tipo: 'despesa' | 'receita';
+  ordem: number;
+  ativo: boolean;
+  criadoPor?: string;
+  criadoEm?: string;
+  atualizadoEm?: string;
+  atualizadoPor?: string;
+  deletadoEm?: string;
+  deletadoPor?: string;
+}
+
+/** Tipo de destino do rateio. Mesma taxonomia que `TipoDestinoOC` pra que
+ *  o rateio puxado da OC seja uma cópia 1:1 dos blocos. */
+export type TipoDestinoRateio = TipoDestinoOC;
+
+/** Linha do rateio: pra ONDE vai uma fatia do valor do lançamento. */
+export interface RateioLancamento {
+  id: string;
+  lancamentoId: string;
+  tipoDestino: TipoDestinoRateio;
+  /** Campos contextuais por tipo. Só preenche o que se aplica ao tipoDestino. */
+  obraId?: string;
+  etapaObraId?: string;
+  ordemServicoId?: string;
+  equipamentoId?: string;
+  depositoMaterialId?: string;
+  /** Tanque de combustível (entidade `Deposito`). */
+  depositoId?: string;
+  /** Valor sempre em R$ (absoluto). Se input foi por %, o app converte
+   *  e guarda também `percentual`. */
+  valor: number;
+  /** % do total — nullable, só preenchido quando input foi por percentual. */
+  percentual?: number;
+  observacoes?: string;
+}
+
+/** Parcela do lançamento: cronograma de pagamento. 1 parcela = 1 pagamento
+ *  (regra de negócio v1). Status segue ciclo em_aberto → pago. */
+export interface ParcelaLancamento {
+  id: string;
+  lancamentoId: string;
+  numero: number;
+  dataVencimento: string;
+  valor: number;
+  /** Preenchido quando a parcela é paga. */
+  dataPagamento?: string;
+  valorPago?: number;
+  status: StatusParcelaLancamento;
+}
+
+/** Registro de pagamento de uma parcela. Hard-delete = estorno (parcela
+ *  volta pra em_aberto). */
+export interface PagamentoLancamento {
+  id: string;
+  parcelaId: string;
+  dataPagamento: string;
+  valor: number;
+  formaPagamento?: FormaPagamentoLancamento | string;
+  /** URL pública do comprovante (Supabase Storage). */
+  comprovanteUrl?: string;
+  observacoes?: string;
+  criadoPor?: string;
+  criadoEm?: string;
+}
+
+export interface LancamentoFinanceiro {
+  id: string;
+  numero: string;
+  origem: OrigemLancamento;
+  /** Vinculação com a OC (quando origem = 'oc'). */
+  ordemCompraId?: string;
+  dataEmissao: string;
+  /** Vencimento da 1ª parcela (resumo pra ordenação/filtros). */
+  dataVencimento: string;
+  fornecedorId?: string;
+  /** Nome do favorecido quando não existe fornecedor cadastrado. */
+  favorecidoNome?: string;
+  empresaPagadoraId?: string;
+  categoriaId?: string;
+  descricao: string;
+  valorTotal: number;
+  formaPagamento?: FormaPagamentoLancamento | string;
+  observacoes?: string;
+  /** URLs públicas dos anexos (NF, boleto, etc.) no Supabase Storage. */
+  anexosUrls?: string[];
+  status: StatusLancamento;
+  /** Quando `true`, edição (descrição, valor, parcelas, rateio, fornecedor)
+   *  fica travada. Pagamentos ainda podem ser registrados/estornados —
+   *  fechar não interfere no fluxo financeiro. Pra desfazer use "Reabrir". */
+  fechado?: boolean;
+  fechadoEm?: string;
+  fechadoPor?: string;
+  reabertoEm?: string;
+  reabertoPor?: string;
+  /** Filhos carregados via join (preenchidos no hook de leitura). */
+  parcelas: ParcelaLancamento[];
+  rateios: RateioLancamento[];
+  /** Auditoria padrão Compras v2. */
+  criadoPor?: string;
+  criadoEm?: string;
+  atualizadoEm?: string;
+  atualizadoPor?: string;
+  deletadoEm?: string;
+  deletadoPor?: string;
+}
+
 // ── Anexos / Auditoria / Lixeira / Notificações / Portal Fornecedor ──
 
 export type EntidadeCompra = 'pedido' | 'cotacao' | 'oc';

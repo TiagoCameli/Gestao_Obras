@@ -39,14 +39,19 @@ export default function InsumoQuickModal({
   open, onClose, nomeInicial = '', categorias, tipoInsumo = 'material', onCriado,
 }: Props) {
   const ehCombustivel = tipoInsumo === 'combustivel' || tipoInsumo === 'combustível';
+  const ehServico = tipoInsumo === 'servico' || tipoInsumo === 'mao de obra' || tipoInsumo === 'mao-de-obra';
   const { usuario } = useAuth();
   const adicionar = useAdicionarInsumo();
   const { data: unidades = [] } = useUnidades();
 
   const [nome, setNome] = useState(nomeInicial);
-  const [unidade, setUnidade] = useState(ehCombustivel ? 'L' : 'un');
+  const [unidade, setUnidade] = useState(
+    ehCombustivel ? 'L' : ehServico ? 'serv' : 'un',
+  );
   const [categoria, setCategoria] = useState<CategoriaMaterialCompra>(
-    ehCombustivel ? 'combustivel' : (categorias[0]?.value ?? 'outros')
+    ehCombustivel ? 'combustivel'
+      : ehServico ? 'servico'
+      : (categorias[0]?.value ?? 'outros'),
   );
   const [submitting, setSubmitting] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
@@ -88,26 +93,44 @@ export default function InsumoQuickModal({
     }
   }
 
-  const unidadeOptions = [
-    { value: 'un', label: 'un — unidade' },
-    { value: 'kg', label: 'kg — quilograma' },
-    { value: 'L', label: 'L — litro' },
-    { value: 'm', label: 'm — metro' },
-    { value: 'm²', label: 'm² — metro quadrado' },
-    { value: 'm³', label: 'm³ — metro cúbico' },
-    { value: 'pç', label: 'pç — peça' },
-    { value: 'cx', label: 'cx — caixa' },
-    { value: 'sc', label: 'sc — saco' },
-    ...unidades
-      .map((u) => ({ value: u.sigla, label: `${u.sigla} — ${u.nome}` }))
-      .filter((u) => !['un', 'kg', 'L', 'm', 'm²', 'm³', 'pç', 'cx', 'sc'].includes(u.value)),
-  ];
+  const unidadeOptions = ehServico
+    ? [
+        { value: 'serv', label: 'serv — serviço (unidade)' },
+        { value: 'h', label: 'h — hora' },
+        { value: 'dia', label: 'dia — diária' },
+        { value: 'TKM', label: 'TKM — tonelada × km (frete)' },
+        { value: 'km', label: 'km — quilômetro' },
+        { value: 'm', label: 'm — metro' },
+        { value: 'm²', label: 'm² — metro quadrado' },
+        { value: 'm³', label: 'm³ — metro cúbico' },
+        ...unidades
+          .map((u) => ({ value: u.sigla, label: `${u.sigla} — ${u.nome}` }))
+          .filter((u) => !['serv', 'h', 'dia', 'TKM', 'km', 'm', 'm²', 'm³'].includes(u.value)),
+      ]
+    : [
+        { value: 'un', label: 'un — unidade' },
+        { value: 'kg', label: 'kg — quilograma' },
+        { value: 'L', label: 'L — litro' },
+        { value: 'm', label: 'm — metro' },
+        { value: 'm²', label: 'm² — metro quadrado' },
+        { value: 'm³', label: 'm³ — metro cúbico' },
+        { value: 'pç', label: 'pç — peça' },
+        { value: 'cx', label: 'cx — caixa' },
+        { value: 'sc', label: 'sc — saco' },
+        ...unidades
+          .map((u) => ({ value: u.sigla, label: `${u.sigla} — ${u.nome}` }))
+          .filter((u) => !['un', 'kg', 'L', 'm', 'm²', 'm³', 'pç', 'cx', 'sc'].includes(u.value)),
+      ];
 
   return (
     <Modal
       open={open}
       onClose={onClose}
-      title={ehCombustivel ? 'Cadastro rápido de combustível' : 'Cadastro rápido de material'}
+      title={
+        ehCombustivel ? 'Cadastro rápido de combustível'
+          : ehServico ? 'Cadastro rápido de serviço (mão de obra)'
+          : 'Cadastro rápido de material'
+      }
       size="default"
     >
       <form onSubmit={handleSubmit} className="space-y-4">
@@ -119,14 +142,27 @@ export default function InsumoQuickModal({
             Este insumo será criado como <strong>combustível</strong> e ficará disponível apenas em OCs para tanque.
           </div>
         )}
+        {ehServico && (
+          <div className="rounded-md border border-violet-200 bg-violet-50 dark:bg-violet-950/30 px-3 py-2 text-[11px] text-violet-800 dark:text-violet-200">
+            Este insumo será criado como <strong>serviço/mão de obra</strong>. Vai aparecer em OCs que aceitam serviço (manutenção, sede, obra/etapa).
+          </div>
+        )}
 
         <Input
-          label={ehCombustivel ? 'Nome do combustível' : 'Nome do material'}
+          label={
+            ehCombustivel ? 'Nome do combustível'
+              : ehServico ? 'Nome do serviço'
+              : 'Nome do material'
+          }
           required
           autoFocus
           value={nome}
           onChange={(e) => setNome(e.target.value)}
-          placeholder={ehCombustivel ? 'Ex.: Diesel S10' : 'Ex.: Cimento CP-II 50kg'}
+          placeholder={
+            ehCombustivel ? 'Ex.: Diesel S10'
+              : ehServico ? 'Ex.: Mão de obra mecânico · Frete CBUQ TKM'
+              : 'Ex.: Cimento CP-II 50kg'
+          }
         />
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -161,7 +197,13 @@ export default function InsumoQuickModal({
             Cancelar
           </Button>
           <Button type="submit" disabled={!podeSalvar || submitting}>
-            {submitting ? 'Salvando…' : 'Cadastrar material'}
+            {submitting
+              ? 'Salvando…'
+              : ehCombustivel
+                ? 'Cadastrar combustível'
+                : ehServico
+                  ? 'Cadastrar serviço'
+                  : 'Cadastrar material'}
           </Button>
         </div>
       </form>

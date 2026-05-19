@@ -15,6 +15,7 @@ import EtapasPage from './modules/cadastros/EtapasPage';
 import UnificacaoPage from './modules/cadastros/UnificacaoPage';
 import Frete from './pages/Frete';
 import Compras from './pages/Compras';
+import Financeiro from './pages/Financeiro';
 import Depositos from './pages/Depositos';
 import Funcionarios from './pages/Funcionarios';
 import Frota from './pages/Frota';
@@ -104,6 +105,7 @@ export default function App() {
               <Route path="/cadastros/unificacao" element={<ProtectedRoute modulo="cadastros"><UnificacaoPage /></ProtectedRoute>} />
               <Route path="/cadastros/:slug" element={<ProtectedRoute modulo="cadastros"><EntityCadastroRoute /></ProtectedRoute>} />
               <Route path="/compras" element={<ProtectedRoute modulo="compras"><Compras /></ProtectedRoute>} />
+              <Route path="/financeiro" element={<ProtectedRoute modulo="financeiro"><Financeiro /></ProtectedRoute>} />
               <Route path="/depositos" element={<ProtectedRoute modulo="depositos"><Depositos /></ProtectedRoute>} />
               <Route path="/frete" element={<ProtectedRoute modulo="frete"><Frete /></ProtectedRoute>} />
               <Route path="/frota" element={<ProtectedRoute modulo="frota"><Frota /></ProtectedRoute>} />

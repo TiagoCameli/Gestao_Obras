@@ -38,7 +38,7 @@ import CotacaoListV2 from '../components/compras/CotacaoListV2';
 import EnviarCotacaoFornecedorModal from '../components/compras/EnviarCotacaoFornecedorModal';
 import OrdemCompraFormV2 from '../components/compras/OrdemCompraFormV2';
 import OrdemCompraListV2 from '../components/compras/OrdemCompraListV2';
-import GerarLancamentoFinanceiroModal from '../components/compras/GerarLancamentoFinanceiroModal';
+import GerarLancamentoOCModal from '../components/financeiro/GerarLancamentoOCModal';
 import VisaoGeralCompras from '../components/compras/VisaoGeralCompras';
 import LixeiraCompras from '../components/compras/LixeiraCompras';
 import CompraDetalheDrawer from '../components/compras/CompraDetalheDrawer';
@@ -688,25 +688,11 @@ export default function Compras() {
     setEditandoOC(null);
   }, [atualizarOCMut, atualizarOSMut, usuario, showToast]);
 
-  // Gerar lançamento financeiro — placeholder até módulo Financeiro existir
-  const handleConfirmarLancamento = useCallback(async (oc: OrdemCompra, observacao: string) => {
-    const nomeUsuario = usuario?.nome || '';
-    const agora = new Date().toISOString();
-    const lancamentoId = `LF-${new Date().getFullYear()}-${oc.numero}`;
-    await atualizarOCMut.mutateAsync({
-      ...oc,
-      lancamentoFinanceiroStatus: 'lancada',
-      lancadoFinanceiroEm: agora,
-      lancadoFinanceiroPor: nomeUsuario,
-      lancamentoFinanceiroId: lancamentoId,
-    });
-    await auditar({
-      entidade: 'oc', entidadeId: oc.id, acao: 'financial_posted',
-      usuarioNome: nomeUsuario,
-      observacao: observacao || `Lançamento gerado: ${lancamentoId}`,
-    });
-    showToast({ kind: 'success', message: `Lançamento ${lancamentoId} gerado.` });
-  }, [atualizarOCMut, usuario, showToast]);
+  // Geração de lançamento financeiro migrou pro módulo Financeiro v1.
+  // O fluxo agora é: GerarLancamentoOCModal abre o LancamentoFinanceiroForm
+  // em modo 'oc' (pré-preenchido + travado), e o hook
+  // useAdicionarLancamentoFinanceiro grava + atualiza
+  // lancamento_financeiro_status='lancada' na OC.
 
   const handleExcluirOC = useCallback(async (oc: OrdemCompra) => {
     if (oc.entradaGerada || oc.lancamentoFinanceiroStatus === 'lancada') {
@@ -1223,13 +1209,11 @@ export default function Compras() {
         />
       </Modal>
 
-      {/* Modal de geração de lançamento financeiro (placeholder até módulo Financeiro existir) */}
-      <GerarLancamentoFinanceiroModal
+      {/* Modal de geração de lançamento financeiro (módulo Financeiro v1) */}
+      <GerarLancamentoOCModal
         open={!!gerarLancamentoOC}
         oc={gerarLancamentoOC}
-        fornecedor={gerarLancamentoOC ? fornecedores.find((f) => f.id === gerarLancamentoOC.fornecedorId) : undefined}
         onClose={() => setGerarLancamentoOC(null)}
-        onConfirm={handleConfirmarLancamento}
       />
 
       {/* Drawer de detalhes — Pedido */}

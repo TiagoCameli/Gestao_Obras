@@ -46,6 +46,15 @@ import type {
   TransportadoraSaldo,
   RecebimentoOC,
   ItemRecebimentoOC,
+  CategoriaFinanceira,
+  LancamentoFinanceiro,
+  ParcelaLancamento,
+  RateioLancamento,
+  PagamentoLancamento,
+  StatusLancamento,
+  OrigemLancamento,
+  TipoDestinoRateio,
+  StatusParcelaLancamento,
 } from '../types';
 
 // ── Obras ──
@@ -1855,5 +1864,199 @@ export function recebimentoOCToDb(r: RecebimentoOC) {
     atualizado_por: r.atualizadoPor ?? null,
     deletado_em: r.deletadoEm ?? null,
     deletado_por: r.deletadoPor ?? null,
+  };
+}
+
+// ── Financeiro (v1) ──────────────────────────────────────────────────
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function dbToCategoriaFinanceira(row: any): CategoriaFinanceira {
+  return {
+    id: row.id,
+    nome: row.nome,
+    tipo: row.tipo ?? 'despesa',
+    ordem: Number(row.ordem ?? 0),
+    ativo: Boolean(row.ativo),
+    criadoPor: row.criado_por ?? '',
+    criadoEm: row.criado_em ?? '',
+    atualizadoEm: row.atualizado_em ?? undefined,
+    atualizadoPor: row.atualizado_por ?? undefined,
+    deletadoEm: row.deletado_em ?? undefined,
+    deletadoPor: row.deletado_por ?? undefined,
+  };
+}
+
+export function categoriaFinanceiraToDb(c: CategoriaFinanceira) {
+  return {
+    id: c.id,
+    nome: c.nome,
+    tipo: c.tipo,
+    ordem: c.ordem,
+    ativo: c.ativo,
+    criado_por: c.criadoPor ?? '',
+    criado_em: c.criadoEm ?? '',
+    atualizado_em: c.atualizadoEm ?? null,
+    atualizado_por: c.atualizadoPor ?? null,
+    deletado_em: c.deletadoEm ?? null,
+    deletado_por: c.deletadoPor ?? null,
+  };
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function dbToParcelaLancamento(row: any): ParcelaLancamento {
+  return {
+    id: row.id,
+    lancamentoId: row.lancamento_id,
+    numero: Number(row.numero),
+    dataVencimento: row.data_vencimento,
+    valor: Number(row.valor),
+    dataPagamento: row.data_pagamento ?? undefined,
+    valorPago: row.valor_pago != null ? Number(row.valor_pago) : undefined,
+    status: (row.status ?? 'em_aberto') as StatusParcelaLancamento,
+  };
+}
+
+export function parcelaLancamentoToDb(p: ParcelaLancamento) {
+  return {
+    id: p.id,
+    lancamento_id: p.lancamentoId,
+    numero: p.numero,
+    data_vencimento: p.dataVencimento,
+    valor: p.valor,
+    data_pagamento: p.dataPagamento ?? null,
+    valor_pago: p.valorPago ?? null,
+    status: p.status,
+  };
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function dbToRateioLancamento(row: any): RateioLancamento {
+  return {
+    id: row.id,
+    lancamentoId: row.lancamento_id,
+    tipoDestino: row.tipo_destino as TipoDestinoRateio,
+    obraId: row.obra_id ?? undefined,
+    etapaObraId: row.etapa_obra_id ?? undefined,
+    ordemServicoId: row.ordem_servico_id ?? undefined,
+    equipamentoId: row.equipamento_id ?? undefined,
+    depositoMaterialId: row.deposito_material_id ?? undefined,
+    depositoId: row.deposito_id ?? undefined,
+    valor: Number(row.valor),
+    percentual: row.percentual != null ? Number(row.percentual) : undefined,
+    observacoes: row.observacoes ?? '',
+  };
+}
+
+export function rateioLancamentoToDb(r: RateioLancamento) {
+  return {
+    id: r.id,
+    lancamento_id: r.lancamentoId,
+    tipo_destino: r.tipoDestino,
+    obra_id: r.obraId ?? null,
+    etapa_obra_id: r.etapaObraId ?? null,
+    ordem_servico_id: r.ordemServicoId ?? null,
+    equipamento_id: r.equipamentoId ?? null,
+    deposito_material_id: r.depositoMaterialId ?? null,
+    deposito_id: r.depositoId ?? null,
+    valor: r.valor,
+    percentual: r.percentual ?? null,
+    observacoes: r.observacoes ?? '',
+  };
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function dbToPagamentoLancamento(row: any): PagamentoLancamento {
+  return {
+    id: row.id,
+    parcelaId: row.parcela_id,
+    dataPagamento: row.data_pagamento,
+    valor: Number(row.valor),
+    formaPagamento: row.forma_pagamento ?? '',
+    comprovanteUrl: row.comprovante_url ?? undefined,
+    observacoes: row.observacoes ?? '',
+    criadoPor: row.criado_por ?? '',
+    criadoEm: row.criado_em ?? '',
+  };
+}
+
+export function pagamentoLancamentoToDb(p: PagamentoLancamento) {
+  return {
+    id: p.id,
+    parcela_id: p.parcelaId,
+    data_pagamento: p.dataPagamento,
+    valor: p.valor,
+    forma_pagamento: p.formaPagamento ?? '',
+    comprovante_url: p.comprovanteUrl ?? null,
+    observacoes: p.observacoes ?? '',
+    criado_por: p.criadoPor ?? '',
+    criado_em: p.criadoEm ?? '',
+  };
+}
+
+/** Header do lançamento (sem parcelas/rateios — esses vêm em queries separadas). */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function dbToLancamentoFinanceiro(row: any): LancamentoFinanceiro {
+  return {
+    id: row.id,
+    numero: row.numero,
+    origem: (row.origem ?? 'avulso') as OrigemLancamento,
+    ordemCompraId: row.ordem_compra_id ?? undefined,
+    dataEmissao: row.data_emissao,
+    dataVencimento: row.data_vencimento,
+    fornecedorId: row.fornecedor_id ?? undefined,
+    favorecidoNome: row.favorecido_nome ?? '',
+    empresaPagadoraId: row.empresa_pagadora_id ?? undefined,
+    categoriaId: row.categoria_id ?? undefined,
+    descricao: row.descricao ?? '',
+    valorTotal: Number(row.valor_total ?? 0),
+    formaPagamento: row.forma_pagamento ?? '',
+    observacoes: row.observacoes ?? '',
+    anexosUrls: (row.anexos_urls ?? []) as string[],
+    status: (row.status ?? 'em_aberto') as StatusLancamento,
+    fechado: Boolean(row.fechado),
+    fechadoEm: row.fechado_em ?? undefined,
+    fechadoPor: row.fechado_por ?? undefined,
+    reabertoEm: row.reaberto_em ?? undefined,
+    reabertoPor: row.reaberto_por ?? undefined,
+    parcelas: [], // preenchido pelo hook que faz o join
+    rateios: [],  // idem
+    criadoPor: row.criado_por ?? '',
+    criadoEm: row.criado_em ?? '',
+    atualizadoEm: row.atualizado_em ?? undefined,
+    atualizadoPor: row.atualizado_por ?? undefined,
+    deletadoEm: row.deletado_em ?? undefined,
+    deletadoPor: row.deletado_por ?? undefined,
+  };
+}
+
+export function lancamentoFinanceiroToDb(l: LancamentoFinanceiro) {
+  return {
+    id: l.id,
+    numero: l.numero,
+    origem: l.origem,
+    ordem_compra_id: l.ordemCompraId ?? null,
+    data_emissao: l.dataEmissao,
+    data_vencimento: l.dataVencimento,
+    fornecedor_id: l.fornecedorId ?? null,
+    favorecido_nome: l.favorecidoNome ?? '',
+    empresa_pagadora_id: l.empresaPagadoraId ?? null,
+    categoria_id: l.categoriaId ?? null,
+    descricao: l.descricao,
+    valor_total: l.valorTotal,
+    forma_pagamento: l.formaPagamento ?? '',
+    observacoes: l.observacoes ?? '',
+    anexos_urls: l.anexosUrls ?? [],
+    status: l.status,
+    fechado: l.fechado ?? false,
+    fechado_em: l.fechadoEm ?? null,
+    fechado_por: l.fechadoPor ?? null,
+    reaberto_em: l.reabertoEm ?? null,
+    reaberto_por: l.reabertoPor ?? null,
+    criado_por: l.criadoPor ?? '',
+    criado_em: l.criadoEm ?? '',
+    atualizado_em: l.atualizadoEm ?? null,
+    atualizado_por: l.atualizadoPor ?? null,
+    deletado_em: l.deletadoEm ?? null,
+    deletado_por: l.deletadoPor ?? null,
   };
 }

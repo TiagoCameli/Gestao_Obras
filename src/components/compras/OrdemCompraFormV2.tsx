@@ -65,6 +65,12 @@ import PecaFormModal from '../manutencao/almoxarifado/PecaFormModal';
 import NovaOSModal from '../manutencao/os/NovaOSModal';
 import InsumoQuickModal from './InsumoQuickModal';
 import { useCategoriasMaterial } from '../../hooks/useCategoriasMaterial';
+import {
+  getTipoVisualInsumo,
+  TIPO_VISUAL_LABEL,
+  TIPO_VISUAL_CHIP_CLASS,
+  TIPO_VISUAL_ICON,
+} from '../../utils/insumoTipoVisual';
 
 interface Props {
   initial: OrdemCompra | null;
@@ -299,7 +305,10 @@ export default function OrdemCompraFormV2({
   // ── Modais de cadastro rápido ──
   // O id guarda { blocoId, itemId } pra vincular de volta corretamente
   const [pecaModalRef, setPecaModalRef] = useState<{ blocoId: string; itemId: string } | null>(null);
-  const [insumoModalRef, setInsumoModalRef] = useState<{ blocoId: string; itemId: string } | null>(null);
+  // O `kind` controla qual modal abrir: cadastro de material/combustível
+  // ou serviço/mão de obra. Modal usa o mesmo `InsumoQuickModal` com
+  // `tipoInsumo` diferente.
+  const [insumoModalRef, setInsumoModalRef] = useState<{ blocoId: string; itemId: string; kind: 'material' | 'servico' } | null>(null);
   const [insumoModalNomeInicial, setInsumoModalNomeInicial] = useState('');
   const [osModalRef, setOsModalRef] = useState<{ blocoId: string; itemId: string } | null>(null);
 
@@ -695,7 +704,11 @@ export default function OrdemCompraFormV2({
               onAbrirCadastroPeca={(itemId) => setPecaModalRef({ blocoId: bloco.id, itemId })}
               onAbrirCadastroMaterial={(itemId, descricao) => {
                 setInsumoModalNomeInicial(descricao);
-                setInsumoModalRef({ blocoId: bloco.id, itemId });
+                setInsumoModalRef({ blocoId: bloco.id, itemId, kind: 'material' });
+              }}
+              onAbrirCadastroServico={(itemId, descricao) => {
+                setInsumoModalNomeInicial(descricao);
+                setInsumoModalRef({ blocoId: bloco.id, itemId, kind: 'servico' });
               }}
               onAbrirNovaOS={(itemId) => setOsModalRef({ blocoId: bloco.id, itemId })}
               destinoTravado={vemDeCotacao}
@@ -821,17 +834,24 @@ export default function OrdemCompraFormV2({
         categorias={categoriasOptions}
         tipoInsumo={
           insumoModalRef
-            ? (blocos.find((b) => b.id === insumoModalRef.blocoId)?.tipoDestino === 'tanque_combustivel'
-                ? 'combustivel'
-                : 'material')
+            ? (insumoModalRef.kind === 'servico'
+                ? 'servico'
+                : blocos.find((b) => b.id === insumoModalRef.blocoId)?.tipoDestino === 'tanque_combustivel'
+                  ? 'combustivel'
+                  : 'material')
             : 'material'
         }
         onCriado={(novoInsumo) => {
           if (!insumoModalRef) return;
+          // Se foi cadastro de serviço, também ajusta `tipo` do item pra
+          // 'servico' (mão de obra) — destrava OS, banner correto, etc.
+          const ehServicoNovo = insumoModalRef.kind === 'servico';
           atualizarItem(insumoModalRef.blocoId, insumoModalRef.itemId, {
             descricao: novoInsumo.nome,
             unidade: novoInsumo.unidade,
             insumoId: novoInsumo.id,
+            tipo: ehServicoNovo ? 'servico' : 'material',
+            osId: ehServicoNovo ? undefined : undefined,
           });
         }}
       />
@@ -870,6 +890,7 @@ interface BlocoCardProps {
   onRemoverBloco: () => void;
   onAbrirCadastroPeca: (itemId: string) => void;
   onAbrirCadastroMaterial: (itemId: string, descricao: string) => void;
+  onAbrirCadastroServico: (itemId: string, descricao: string) => void;
   onAbrirNovaOS: (itemId: string) => void;
   /** OC veio de uma cotação aprovada — trava destino, obra, etapa, almox e
    *  remoção de bloco/itens. Mostra cadeado visual nos campos. */
@@ -880,7 +901,7 @@ function BlocoCard({
   bloco, idx, totalBlocos, obras, etapas, equipamentos, depositosMaterial,
   tanquesCombustivel, insumos, osDisponiveis,
   onMudarDestino, onAtualizarCampo, onAdicionarItem, onAtualizarItem,
-  onRemoverItem, onRemoverBloco, onAbrirCadastroPeca, onAbrirCadastroMaterial, onAbrirNovaOS,
+  onRemoverItem, onRemoverBloco, onAbrirCadastroPeca, onAbrirCadastroMaterial, onAbrirCadastroServico, onAbrirNovaOS,
   destinoTravado = false,
 }: BlocoCardProps) {
   const regra = bloco.tipoDestino ? REGRAS_DESTINO[bloco.tipoDestino] : null;
@@ -1228,6 +1249,7 @@ function BlocoCard({
                       onRemove={() => onRemoverItem(item.id)}
                       onAbrirCadastroPeca={() => onAbrirCadastroPeca(item.id)}
                       onAbrirCadastroMaterial={() => onAbrirCadastroMaterial(item.id, item.descricao)}
+                      onAbrirCadastroServico={() => onAbrirCadastroServico(item.id, item.descricao)}
                       onAbrirNovaOS={() => onAbrirNovaOS(item.id)}
                     />
                   ))}
@@ -1333,7 +1355,7 @@ function ResumoLinha({ label, valor, bold }: { label: string; valor: number; bol
 function ItemOCRow({
   item, insumos, destino, osDisponiveis, equipamentos,
   combustivelObrigatorioId, combustivelObrigatorioNome,
-  onChange, onRemove, onAbrirCadastroPeca, onAbrirCadastroMaterial, onAbrirNovaOS,
+  onChange, onRemove, onAbrirCadastroPeca, onAbrirCadastroMaterial, onAbrirCadastroServico, onAbrirNovaOS,
 }: {
   item: ItemOrdemCompra;
   insumos: Insumo[];
@@ -1346,6 +1368,7 @@ function ItemOCRow({
   onRemove: () => void;
   onAbrirCadastroPeca: () => void;
   onAbrirCadastroMaterial: () => void;
+  onAbrirCadastroServico: () => void;
   onAbrirNovaOS: () => void;
 }) {
   const [aberto, setAberto] = useState(false);
@@ -1372,28 +1395,40 @@ function ItemOCRow({
     };
   }, [aberto]);
 
+  // ⚠ v2.8: o usuário NÃO escolhe o tipo manualmente. Ele busca um insumo
+  // e o `tipo` é DERIVADO via getTipoVisualInsumo. Por isso o filtro inclui
+  // peças E serviços quando o destino aceita ambos (manutenção).
   const insumosFiltrados = useMemo(() => {
-    if (tipo !== 'material') return insumos;
+    const ativos = insumos.filter((i) => i.ativo !== false);
     if (ehManutencao) {
-      return insumos.filter((i) => i.usadoEmManutencao && i.ativo !== false);
+      // Manutenção aceita peças (usadoEmManutencao=true) E serviços
+      // (insumos de mão de obra cadastrados em Insumos).
+      return ativos.filter((i) => {
+        const tv = getTipoVisualInsumo(i);
+        return tv === 'peca' || tv === 'servico';
+      });
     }
-    if (!destino) return insumos.filter((i) => i.ativo !== false);
-    if (destino === 'tanque_combustivel' && combustivelObrigatorioId) {
-      return insumos.filter((i) => i.id === combustivelObrigatorioId);
+    if (!destino) return ativos;
+    if (destino === 'tanque_combustivel') {
+      if (combustivelObrigatorioId) return ativos.filter((i) => i.id === combustivelObrigatorioId);
+      return ativos.filter((i) => getTipoVisualInsumo(i) === 'combustivel');
     }
-    return insumos.filter((i) =>
-      i.ativo !== false
-      && insumoCabeNoDestino(i.tipo, destino)
-      && !i.usadoEmManutencao
-    );
-  }, [insumos, ehManutencao, tipo, destino, combustivelObrigatorioId]);
+    // Demais destinos: aceita material + serviço/outros, mas exclui peças
+    // (que só vão pra manutenção) e combustível (que só vai pra tanque).
+    return ativos.filter((i) => {
+      const tv = getTipoVisualInsumo(i);
+      if (tv === 'peca' || tv === 'combustivel') return false;
+      // Pra obra_deposito / deposito_central: só material/outros (sem serviço)
+      const regra = destino ? REGRAS_DESTINO[destino] : undefined;
+      if (regra && !regra.aceitaServico && tv === 'servico') return false;
+      return insumoCabeNoDestino(i.tipo, destino);
+    });
+  }, [insumos, ehManutencao, destino, combustivelObrigatorioId]);
 
+  // Sugestões agora ignoram o `tipo` — quem dita é o insumo escolhido.
   const sugestoes = useMemo(() => {
     const termoRaw = item.descricao.trim();
-    if (termoRaw.length === 0) {
-      if (tipo === 'material') return insumosFiltrados.slice(0, 15);
-      return [];
-    }
+    if (termoRaw.length === 0) return insumosFiltrados.slice(0, 15);
     const termo = termoRaw.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
     const norm = (s: string) =>
       (s ?? '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
@@ -1404,7 +1439,7 @@ function ItemOCRow({
         || norm(i.fabricante ?? '').includes(termo)
       )
       .slice(0, 15);
-  }, [item.descricao, insumosFiltrados, tipo]);
+  }, [item.descricao, insumosFiltrados]);
 
   const incompatibilidade = destino ? validarItemNoDestino(item, destino) : { ok: true };
 
@@ -1440,8 +1475,9 @@ function ItemOCRow({
           onFocus={() => setAberto(true)}
           onBlur={() => setTimeout(() => setAberto(false), 200)}
           placeholder={
-            exigeInsumoPeca ? 'Buscar peça cadastrada no almoxarifado…'
-              : exigeInsumoMaterial ? 'Buscar material cadastrado…'
+            ehManutencao ? 'Buscar peça ou serviço cadastrado…'
+              : destino === 'tanque_combustivel' ? 'Buscar combustível cadastrado…'
+              : destino ? 'Buscar material ou serviço cadastrado…'
               : 'Buscar ou digitar…'
           }
           className="w-full px-2.5 py-1.5 text-sm rounded-md border border-transparent bg-transparent hover:bg-[var(--color-surface-2)] focus:outline-none focus:bg-[var(--color-surface-1)] focus:border-[var(--color-border-strong)]"
@@ -1451,20 +1487,33 @@ function ItemOCRow({
           <div className="flex items-center gap-1.5 mt-0.5 ml-1.5 text-[11px]">
             {item.insumoId ? (
               <span className="inline-flex items-center gap-1 text-emerald-700 dark:text-emerald-300">
-                ✓ vinculado ao almoxarifado
+                ✓ vinculado ao catálogo
               </span>
             ) : (
               <span className="inline-flex items-center gap-1 text-amber-700 dark:text-amber-300">
-                ⚠ peça precisa estar cadastrada no almoxarifado
+                ⚠ escolha uma peça ou serviço cadastrado
               </span>
             )}
-            <button
-              type="button"
-              onClick={onAbrirCadastroPeca}
-              className="ml-auto inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium bg-[var(--color-accent)]/10 text-[var(--color-accent)] hover:bg-[var(--color-accent)]/20 transition-colors"
-            >
-              <PackagePlus className="w-3 h-3" /> Cadastrar peça
-            </button>
+            {/* Dois atalhos sempre visíveis em manutenção (mesmo antes do
+                usuário ter trocado tipo pra serviço). Quem não tem nada
+                cadastrado ainda precisa criar AQUI — não é descoberto só
+                via dropdown de busca. */}
+            <div className="ml-auto inline-flex items-center gap-1">
+              <button
+                type="button"
+                onClick={onAbrirCadastroPeca}
+                className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium bg-amber-100 text-amber-800 hover:bg-amber-200 dark:bg-amber-950/40 dark:text-amber-200 dark:hover:bg-amber-900/50 transition-colors"
+              >
+                <PackagePlus className="w-3 h-3" /> Cadastrar peça
+              </button>
+              <button
+                type="button"
+                onClick={onAbrirCadastroServico}
+                className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium bg-violet-100 text-violet-800 hover:bg-violet-200 dark:bg-violet-950/40 dark:text-violet-200 dark:hover:bg-violet-900/50 transition-colors"
+              >
+                <PackagePlus className="w-3 h-3" /> Cadastrar serviço
+              </button>
+            </div>
           </div>
         )}
 
@@ -1493,6 +1542,28 @@ function ItemOCRow({
             >
               <PackagePlus className="w-3 h-3" /> Cadastrar {destino === 'tanque_combustivel' ? 'combustível' : 'material'}
             </button>
+          </div>
+        )}
+        {/* Banner pra serviço de manutenção que ainda não foi vinculado a um
+            insumo cadastrado: oferece o botão "Cadastrar serviço" pra criar
+            um novo Insumo do tipo serviço/mão de obra inline. */}
+        {exigeOSServico && !item.insumoId && (
+          <div className="flex items-center gap-1.5 mt-0.5 ml-1.5 text-[11px]">
+            <span className="inline-flex items-center gap-1 text-amber-700 dark:text-amber-300">
+              ⚠ serviço precisa estar cadastrado em insumos
+            </span>
+            <button
+              type="button"
+              onClick={onAbrirCadastroServico}
+              className="ml-auto inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium bg-violet-100 text-violet-800 hover:bg-violet-200 dark:bg-violet-950/40 dark:text-violet-200 dark:hover:bg-violet-900/50 transition-colors"
+            >
+              <PackagePlus className="w-3 h-3" /> Cadastrar serviço
+            </button>
+          </div>
+        )}
+        {exigeOSServico && item.insumoId && (
+          <div className="text-[11px] text-emerald-700 dark:text-emerald-300 mt-0.5 ml-1.5">
+            ✓ serviço vinculado ao catálogo de insumos
           </div>
         )}
         {exigeOSServico && (
@@ -1562,41 +1633,59 @@ function ItemOCRow({
                     : `Materiais cadastrados · ${insumosFiltrados.length} no total`}
               </div>
             )}
-            {sugestoes.map((ins) => (
-              <button
-                key={ins.id}
-                type="button"
-                onClick={() => {
-                  onChange({
-                    descricao: ins.nome,
-                    unidade: ins.unidade ?? item.unidade,
-                    insumoId: ins.id,
-                  });
-                  setAberto(false);
-                  inputRef.current?.blur();
-                }}
-                className="w-full text-left px-3 py-2 text-sm hover:bg-[var(--color-surface-2)] border-b border-[var(--color-border)]/50 last:border-b-0"
-              >
-                <div className="flex items-baseline justify-between gap-2">
-                  <span className="font-medium text-[var(--color-fg)] truncate">{ins.nome}</span>
-                  {ins.unidade && (
-                    <span className="shrink-0 inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-mono font-semibold bg-[var(--color-accent)]/10 text-[var(--color-accent)]">
-                      {ins.unidade}
+            {sugestoes.map((ins) => {
+              const tv = getTipoVisualInsumo(ins);
+              // Deriva o tipo do item a partir do tipo visual do insumo:
+              //  - 'servico' → item.tipo = 'servico' (mão de obra)
+              //  - qualquer outro (material/peca/combustivel/outros) → 'material'
+              const tipoDerivado: TipoItemCompra = tv === 'servico' ? 'servico' : 'material';
+              return (
+                <button
+                  key={ins.id}
+                  type="button"
+                  onClick={() => {
+                    onChange({
+                      descricao: ins.nome,
+                      unidade: ins.unidade ?? item.unidade,
+                      insumoId: ins.id,
+                      tipo: tipoDerivado,
+                      // Limpa osId quando o tipo muda — re-seleciona se ainda for serviço
+                      osId: tipoDerivado === 'servico' && tipo === 'servico' ? item.osId : undefined,
+                    });
+                    setAberto(false);
+                    inputRef.current?.blur();
+                  }}
+                  className="w-full text-left px-3 py-2 text-sm hover:bg-[var(--color-surface-2)] border-b border-[var(--color-border)]/50 last:border-b-0"
+                >
+                  <div className="flex items-baseline justify-between gap-2">
+                    <span className="font-medium text-[var(--color-fg)] truncate">{ins.nome}</span>
+                    <span className="shrink-0 inline-flex items-center gap-1">
+                      <span className={
+                        'inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium border ' +
+                        TIPO_VISUAL_CHIP_CLASS[tv]
+                      }>
+                        {TIPO_VISUAL_ICON[tv]}{TIPO_VISUAL_LABEL[tv]}
+                      </span>
+                      {ins.unidade && (
+                        <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-mono font-semibold bg-[var(--color-accent)]/10 text-[var(--color-accent)]">
+                          {ins.unidade}
+                        </span>
+                      )}
                     </span>
-                  )}
-                </div>
-                {(ins.codigoSku || ins.fabricante) && (
-                  <div className="text-[10px] text-[var(--color-fg-subtle)] mt-0.5">
-                    {ins.fabricante && <span>{ins.fabricante}</span>}
-                    {ins.codigoSku && <span>{ins.fabricante ? ' · ' : ''}SKU: {ins.codigoSku}</span>}
                   </div>
-                )}
-              </button>
-            ))}
+                  {(ins.codigoSku || ins.fabricante) && (
+                    <div className="text-[10px] text-[var(--color-fg-subtle)] mt-0.5">
+                      {ins.fabricante && <span>{ins.fabricante}</span>}
+                      {ins.codigoSku && <span>{ins.fabricante ? ' · ' : ''}SKU: {ins.codigoSku}</span>}
+                    </div>
+                  )}
+                </button>
+              );
+            })}
           </div>,
           document.body
         )}
-        {aberto && posicaoDropdown && exigeQualquerInsumo && sugestoes.length === 0 && createPortal(
+        {aberto && posicaoDropdown && (exigeQualquerInsumo || exigeOSServico) && sugestoes.length === 0 && createPortal(
           <div
             style={{
               position: 'fixed',
@@ -1610,46 +1699,79 @@ function ItemOCRow({
           >
             {insumosFiltrados.length === 0
               ? (exigeInsumoPeca
-                  ? <>Nenhuma peça cadastrada no almoxarifado ainda.</>
-                  : <>Nenhum material cadastrado ainda.</>)
+                  ? <>Nenhuma peça ou serviço cadastrado pra manutenção ainda.</>
+                  : exigeOSServico
+                    ? <>Nenhum serviço/mão de obra cadastrado ainda.</>
+                    : <>Nenhum material cadastrado ainda.</>)
               : (exigeInsumoPeca
-                  ? <>Nenhuma peça encontrada com &quot;{item.descricao}&quot;.</>
-                  : <>Nenhum material encontrado com &quot;{item.descricao}&quot;.</>)
+                  ? <>Nenhuma peça ou serviço encontrado com &quot;{item.descricao}&quot;.</>
+                  : exigeOSServico
+                    ? <>Nenhum serviço encontrado com &quot;{item.descricao}&quot;.</>
+                    : <>Nenhum material encontrado com &quot;{item.descricao}&quot;.</>)
             }
-            <button
-              type="button"
-              onClick={() => {
-                setAberto(false);
-                if (exigeInsumoPeca) onAbrirCadastroPeca();
-                else onAbrirCadastroMaterial();
-              }}
-              className="ml-2 underline font-medium hover:text-amber-900"
-            >
-              {exigeInsumoPeca ? 'Cadastrar nova peça' : 'Cadastrar novo material'}
-            </button>
+            <div className="mt-1.5 flex flex-wrap gap-2">
+              {/* Em manutenção (qualquer tipo) oferece atalho pra cadastrar
+                  PEÇA OU SERVIÇO. Em outros destinos, só material. */}
+              {ehManutencao ? (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => { setAberto(false); onAbrirCadastroPeca(); }}
+                    className="underline font-medium hover:text-amber-900"
+                  >
+                    + Cadastrar peça
+                  </button>
+                  <span className="text-amber-600">·</span>
+                  <button
+                    type="button"
+                    onClick={() => { setAberto(false); onAbrirCadastroServico(); }}
+                    className="underline font-medium hover:text-amber-900"
+                  >
+                    + Cadastrar serviço
+                  </button>
+                </>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => { setAberto(false); onAbrirCadastroMaterial(); }}
+                  className="underline font-medium hover:text-amber-900"
+                >
+                  Cadastrar novo material
+                </button>
+              )}
+            </div>
           </div>,
           document.body
         )}
       </td>
       <td className="px-3 py-2 align-top">
-        <SmartSelect
-          value={tipo}
-          onChange={(e) => {
-            const novoTipo = e.target.value as TipoItemCompra;
-            onChange({ tipo: novoTipo, insumoId: undefined, osId: undefined });
-          }}
-          disabled={destino === 'tanque_combustivel'}
-          className="w-full px-2 py-1.5 text-sm text-left rounded-md border border-transparent bg-transparent hover:bg-[var(--color-surface-2)] focus:outline-none focus:bg-[var(--color-surface-1)] focus:border-[var(--color-border-strong)] disabled:opacity-70 disabled:cursor-not-allowed flex items-center"
-        >
-          <option value="material">
-            {destino === 'tanque_combustivel' ? 'Combustível'
-              : ehManutencao ? 'Peça'
-              : 'Material'}
-          </option>
-          {(destino === undefined || REGRAS_DESTINO[destino]?.aceitaServico || tipo === 'servico') && (
-            <option value="servico">Mão de obra</option>
-          )}
-        </SmartSelect>
+        {(() => {
+          // Quando há insumo vinculado, o tipo é DERIVADO do tipo visual do
+          // insumo (Peça / Mão de obra / Material / Combustível / Outros).
+          // Mostramos um chip estático — usuário não escolhe manualmente.
+          const insumoVinculado = item.insumoId ? insumos.find((i) => i.id === item.insumoId) : undefined;
+          if (insumoVinculado) {
+            const tv = getTipoVisualInsumo(insumoVinculado);
+            return (
+              <span
+                className={
+                  'inline-flex items-center px-2 py-1 rounded-md text-[12px] font-medium border ' +
+                  TIPO_VISUAL_CHIP_CLASS[tv]
+                }
+                title="Tipo derivado do insumo escolhido"
+              >
+                {TIPO_VISUAL_ICON[tv]}{TIPO_VISUAL_LABEL[tv]}
+              </span>
+            );
+          }
+          // Sem insumo vinculado: mostra placeholder estático. O tipo será
+          // definido automaticamente quando o usuário escolher um insumo.
+          return (
+            <span className="text-[11.5px] italic text-[var(--color-fg-subtle)]">
+              escolha o item
+            </span>
+          );
+        })()}
       </td>
       <td className="px-3 py-2 align-top">
         <input
