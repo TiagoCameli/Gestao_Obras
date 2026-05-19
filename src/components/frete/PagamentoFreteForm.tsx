@@ -1,13 +1,10 @@
 import { useCallback, useMemo, useState, useEffect, useRef, type FormEvent } from 'react';
-import { useQueryClient } from '@tanstack/react-query';
 import type { PagamentoFrete, MetodoPagamentoFrete, Funcionario, Fornecedor } from '../../types';
 import Input from '../ui/Input';
 import Select from '../ui/Select';
 import SmartSelect from '../ui/SmartSelect';
 import Button from '../ui/Button';
 import ImportExcelModal, { parseStr, parseNumero, parseData, type ParsedRow } from '../ui/ImportExcelModal';
-import PagamentoAbatimentoCard from './PagamentoAbatimentoCard';
-import { supabase } from '../../lib/supabase';
 import AnexosUploader from '../combustivel/AnexosUploader';
 import { useAuth } from '../../contexts/AuthContext';
 
@@ -152,21 +149,11 @@ export default function PagamentoFreteForm({
   // Abatimento de débitos de combustível (Fase 4 / Item 4 / D8).
   // Card só aparece se transportadora selecionada tem débitos pendentes.
   // Lookup do transportadora_id por nome (compat: form recebe text livre).
-  const transportadoraId = useMemo(() => {
-    if (!transportadora) return null;
-    const f = fornecedores.find(
-      (f) => f.ehTransportadora && f.nome.trim().toLowerCase() === transportadora.trim().toLowerCase()
-    );
-    return f?.id ?? null;
-  }, [transportadora, fornecedores]);
-  const [movimentosAbatidos, setMovimentosAbatidos] = useState<string[]>([]);
-  const [valorAbatido, setValorAbatido] = useState(0);
-  const handleAbatimentoChange = useCallback((valor: number, ids: string[]) => {
-    setValorAbatido(valor);
-    setMovimentosAbatidos(ids);
-  }, []);
-
-  const qc = useQueryClient();
+  // Abatimento direto de débitos de combustível foi REMOVIDO (2026-05-19).
+  // O controle de saldo agora é feito SEMPRE via conta corrente
+  // (transportadora_movimentos), sem precisar marcar débitos no pagamento.
+  // Caso o usuário precise voltar, o componente PagamentoAbatimentoCard
+  // continua no repo — basta reimportar e re-renderizar aqui.
 
   // Import Excel
   const [importModalOpen, setImportModalOpen] = useState(false);
@@ -297,28 +284,9 @@ export default function PagamentoFreteForm({
         arquivoUrls,
       });
 
-      // Marca os débitos de combustível como abatidos por este pagamento.
-      // Após o UPDATE, invalida queryKeys pra UI refletir imediato:
-      //  - ['transportadora_movimentos'] pra extrato e card de abatimento
-      //  - ['transportadora_saldos'] pra cards da Conta Corrente
-      // Edição não suporta abatimento — não roda esse bloco.
-      if (!initial && movimentosAbatidos.length > 0) {
-        try {
-          const { error } = await supabase
-            .from('transportadora_movimentos')
-            .update({ abatido_em_pagamento_id: pagamentoId })
-            .in('id', movimentosAbatidos);
-          if (error) {
-            console.error('Erro ao marcar débitos abatidos:', error);
-          } else {
-            qc.invalidateQueries({ queryKey: ['transportadora_movimentos'] });
-            qc.invalidateQueries({ queryKey: ['transportadora_saldos'] });
-            qc.invalidateQueries({ queryKey: ['saldo_devedor_combustivel'] });
-          }
-        } catch (e) {
-          console.error('Falha no UPDATE abatido_em_pagamento_id:', e);
-        }
-      }
+      // Abatimento direto de débitos foi removido — saldo da transportadora
+      // é apurado via view `transportadora_saldos` a partir dos movimentos
+      // (créditos de frete - débitos de combustível). Nenhum UPDATE extra.
     }
   }
 
@@ -342,13 +310,9 @@ export default function PagamentoFreteForm({
   const parcelasValidas = dividir && !initial
     ? parcelas.length >= 2 && parcelas.every((p) => p.mesReferencia && p.valor && parseFloat(p.valor) > 0)
     : true;
-  // Bloqueia submit quando abatimento excede valor bruto (pagamento líquido
-  // negativo não faz sentido). Aviso visual fica no PagamentoAbatimentoCard.
-  const valorBrutoNum = parseFloat(valor) || 0;
-  const abatimentoValido = valorAbatido <= valorBrutoNum;
   const isValid = dividir && !initial
     ? data && transportadora && responsavel && pagoPor && parcelasValidas
-    : data && transportadora && mesReferencia && valor && responsavel && pagoPor && abatimentoValido;
+    : data && transportadora && mesReferencia && valor && responsavel && pagoPor;
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
@@ -447,16 +411,8 @@ export default function PagamentoFreteForm({
         </div>
       </div>
 
-      {/* Card de abatimento de débitos de combustível (Fase 4 / D8).
-          Só aparece quando: transportadora resolvida pra ID + saldo devedor > 0
-          + não está em modo dividir + não está editando. */}
-      {!initial && !dividir && transportadoraId && (
-        <PagamentoAbatimentoCard
-          transportadoraId={transportadoraId}
-          valorBrutoPagamento={parseFloat(valor) || 0}
-          onChange={handleAbatimentoChange}
-        />
-      )}
+      {/* Abatimento direto de débitos de combustível foi removido — saldo
+          é apurado pela conta corrente (módulo Conta Corrente). */}
 
       {/* Toggle dividir entre meses — só para novo pagamento */}
       {!initial && onSubmitBatch && (
