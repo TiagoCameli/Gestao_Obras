@@ -12,10 +12,13 @@
 import { useMemo, useState } from 'react';
 import {
   Trash2, Wallet, Calendar, Search, AlertCircle, Pencil, Lock, Unlock,
+  Paperclip, Building2, Tag, CreditCard, Layers, MapPin,
 } from 'lucide-react';
 import type {
   LancamentoFinanceiro,
   StatusLancamento,
+  FormaPagamentoLancamento,
+  TipoDestinoRateio,
   Fornecedor,
   CategoriaFinanceira,
   Empresa,
@@ -52,6 +55,34 @@ const STATUS_LABEL: Record<StatusLancamento, { label: string; cls: string }> = {
   cancelado:    { label: 'Cancelado',    cls: 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300' },
 };
 
+const ORIGEM_LABEL: Record<string, { label: string; cls: string }> = {
+  oc:     { label: 'OC',     cls: 'bg-violet-100 text-violet-800 dark:bg-violet-950/40 dark:text-violet-200' },
+  avulso: { label: 'Avulso', cls: 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300' },
+  folha:  { label: 'Folha',  cls: 'bg-blue-100 text-blue-800 dark:bg-blue-950/40 dark:text-blue-200' },
+  frete:  { label: 'Frete',  cls: 'bg-orange-100 text-orange-800 dark:bg-orange-950/40 dark:text-orange-200' },
+};
+
+const FORMA_PAGTO_LABEL: Record<string, string> = {
+  pix: 'PIX',
+  boleto: 'Boleto',
+  transferencia: 'Transf.',
+  dinheiro: 'Dinheiro',
+  cartao_credito: 'Cartão Cr.',
+  cartao_debito: 'Cartão Db.',
+  cheque: 'Cheque',
+  deposito: 'Depósito',
+  outros: 'Outros',
+};
+
+const TIPO_DESTINO_SHORT: Record<TipoDestinoRateio, string> = {
+  obra_etapa: 'Obra',
+  obra_deposito: 'Obra',
+  deposito_central: 'Almox.',
+  sede: 'Sede',
+  manutencao_equipamento: 'Manut.',
+  tanque_combustivel: 'Comb.',
+};
+
 function fmtMoeda(v: number): string {
   return v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 }
@@ -65,6 +96,19 @@ function diasAteVencimento(dataIso: string): number {
   hoje.setHours(0, 0, 0, 0);
   const venc = new Date(dataIso + 'T00:00');
   return Math.floor((venc.getTime() - hoje.getTime()) / (1000 * 60 * 60 * 24));
+}
+
+/** Resume os destinos do rateio em chips: "2 Obras · Manut. · Sede". */
+function resumirDestinos(rateios: { tipoDestino: TipoDestinoRateio }[]): string[] {
+  if (rateios.length === 0) return [];
+  const counts: Partial<Record<string, number>> = {};
+  for (const r of rateios) {
+    const key = TIPO_DESTINO_SHORT[r.tipoDestino] ?? r.tipoDestino;
+    counts[key] = (counts[key] ?? 0) + 1;
+  }
+  return Object.entries(counts).map(([key, count]) =>
+    (count ?? 1) > 1 ? `${count} ${key}` : key,
+  );
 }
 
 export default function LancamentosList({
@@ -241,15 +285,23 @@ export default function LancamentosList({
         </div>
       ) : (
         <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-1)] overflow-hidden">
-          <table className="w-full text-sm">
+          <table className="w-full text-sm table-fixed">
+            <colgroup>
+              <col className="w-[9%]" />
+              <col className="w-[42%]" />
+              <col className="w-[14%]" />
+              <col className="w-[16%]" />
+              <col className="w-[12%]" />
+              <col className="w-[7%]" />
+            </colgroup>
             <thead className="bg-[var(--color-surface-2)] text-[10.5px] uppercase tracking-[0.06em] text-[var(--color-fg-muted)] border-b border-[var(--color-border)]">
               <tr>
-                <th className="px-3 py-2.5 text-left font-semibold w-[120px]">Nº</th>
+                <th className="px-3 py-2.5 text-left font-semibold">Nº</th>
                 <th className="px-3 py-2.5 text-left font-semibold">Descrição / Fornecedor</th>
-                <th className="px-3 py-2.5 text-left font-semibold w-[110px]">Vencimento</th>
-                <th className="px-3 py-2.5 text-left font-semibold w-[120px]">Status</th>
-                <th className="px-3 py-2.5 text-right font-semibold w-[140px]">Valor / Pago</th>
-                <th className="px-3 py-2.5 w-[140px]"></th>
+                <th className="px-3 py-2.5 text-left font-semibold">Vencimento</th>
+                <th className="px-3 py-2.5 text-left font-semibold">Status</th>
+                <th className="px-3 py-2.5 text-right font-semibold">Valor / Pago</th>
+                <th className="px-3 py-2.5"></th>
               </tr>
             </thead>
             <tbody className="divide-y divide-[var(--color-border)]">
@@ -258,8 +310,33 @@ export default function LancamentosList({
                 const cat = l.categoriaId ? categoriasMap.get(l.categoriaId) : undefined;
                 const empresa = l.empresaPagadoraId ? empresasMap.get(l.empresaPagadoraId) : undefined;
                 const pago = l.parcelas.reduce((s, p) => s + (p.valorPago ?? 0), 0);
-                const venc = diasAteVencimento(l.dataVencimento);
+                const emAberto = l.valorTotal - pago;
+                const pctPago = l.valorTotal > 0 ? Math.round((pago / l.valorTotal) * 100) : 0;
+
+                // ── Parcelas: contagem + próxima em aberto ────────────
+                const totalParcelas = l.parcelas.length;
+                const parcelasPagas = l.parcelas.filter((p) => p.status === 'pago').length;
+                const proximaEmAberto = [...l.parcelas]
+                  .filter((p) => p.status === 'em_aberto')
+                  .sort((a, b) => (a.dataVencimento || '').localeCompare(b.dataVencimento || ''))[0];
+                const dataReferencia = proximaEmAberto?.dataVencimento ?? l.dataVencimento;
+                const venc = diasAteVencimento(dataReferencia);
                 const vencido = l.status !== 'pago' && l.status !== 'cancelado' && venc < 0;
+
+                // ── Origem ─────────────────────────────────────────────
+                const origem = ORIGEM_LABEL[l.origem] ?? ORIGEM_LABEL.avulso;
+
+                // ── Forma de pagamento label ──────────────────────────
+                const formaPagto = l.formaPagamento
+                  ? FORMA_PAGTO_LABEL[l.formaPagamento as FormaPagamentoLancamento] ?? l.formaPagamento
+                  : null;
+
+                // ── Destinos do rateio ─────────────────────────────────
+                const destinos = resumirDestinos(l.rateios);
+
+                // ── Anexos count ──────────────────────────────────────
+                const anexosCount = l.anexosUrls?.length ?? 0;
+
                 return (
                   <tr
                     key={l.id}
@@ -273,51 +350,149 @@ export default function LancamentosList({
                       (vencido ? 'bg-rose-50/30 dark:bg-rose-950/10 ' : '')
                     }
                   >
-                      <td className="px-3 py-2.5 font-mono text-[12.5px] text-[var(--color-fg)]">
-                        {l.numero}
-                        {l.origem === 'oc' && <span className="ml-1 text-[10px] text-[var(--color-fg-subtle)]">(OC)</span>}
+                      {/* ── Nº ──────────────────────────────────────── */}
+                      <td className="px-3 py-2.5 align-top">
+                        <div className="font-mono text-[12.5px] text-[var(--color-fg)] leading-tight">{l.numero}</div>
+                        <span className={'inline-block mt-1 px-1.5 py-0.5 rounded text-[9.5px] font-semibold uppercase tracking-wide ' + origem.cls}>
+                          {origem.label}
+                        </span>
                       </td>
-                      <td className="px-3 py-2.5">
-                        <div className="text-[13px] text-[var(--color-fg)] truncate max-w-[420px]">{l.descricao || '—'}</div>
-                        <div className="text-[11px] text-[var(--color-fg-muted)]">
-                          {fornecedor?.nome ?? l.favorecidoNome ?? '—'}
-                          {empresa && ` · ${empresa.nome}`}
-                          {cat && ` · ${cat.nome}`}
+
+                      {/* ── Descrição / Fornecedor / Chips ──────────── */}
+                      <td className="px-3 py-2.5 align-top min-w-0">
+                        <div className="text-[13px] text-[var(--color-fg)] truncate font-medium" title={l.descricao || undefined}>
+                          {l.descricao || '—'}
                         </div>
-                      </td>
-                      <td className="px-3 py-2.5 text-[12.5px]">
-                        <div className="text-[var(--color-fg-muted)]">{fmtData(l.dataVencimento)}</div>
-                        {vencido && (
-                          <div className="text-[10.5px] text-rose-600 dark:text-rose-400">
-                            {Math.abs(venc)} dia{Math.abs(venc) === 1 ? '' : 's'} vencido
-                          </div>
-                        )}
-                        {!vencido && venc >= 0 && venc <= 7 && l.status !== 'pago' && (
-                          <div className="text-[10.5px] text-amber-600 dark:text-amber-400">
-                            Vence em {venc} dia{venc === 1 ? '' : 's'}
-                          </div>
-                        )}
-                      </td>
-                      <td className="px-3 py-2.5">
-                        <div className="flex flex-col gap-0.5 items-start">
-                          <span className={'inline-block px-2 py-0.5 rounded text-[10.5px] font-medium ' + STATUS_LABEL[l.status].cls}>
-                            {STATUS_LABEL[l.status].label}
+                        <div className="mt-0.5 text-[11px] text-[var(--color-fg-muted)] flex items-center gap-1.5 flex-wrap">
+                          <span className="inline-flex items-center gap-1">
+                            <Building2 className="w-3 h-3 opacity-70" />
+                            {fornecedor?.nome ?? l.favorecidoNome ?? '—'}
                           </span>
-                          {l.fechado && (
-                            <span
-                              className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium bg-slate-200 text-slate-700 dark:bg-slate-800 dark:text-slate-300"
-                              title={`Fechado em ${l.fechadoEm ? new Date(l.fechadoEm).toLocaleString('pt-BR') : ''}${l.fechadoPor ? ' por ' + l.fechadoPor : ''}`}
-                            >
-                              <Lock className="w-2.5 h-2.5" /> Fechado
+                          {empresa && (
+                            <span className="inline-flex items-center gap-1">
+                              <span className="opacity-50">·</span>
+                              {empresa.nome}
                             </span>
                           )}
                         </div>
+                        {/* Chips compactos: categoria · forma pagto · destinos · anexos */}
+                        {(cat || formaPagto || destinos.length > 0 || anexosCount > 0) && (
+                          <div className="mt-1.5 flex items-center gap-1 flex-wrap">
+                            {cat && (
+                              <span
+                                className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-medium bg-indigo-50 text-indigo-700 dark:bg-indigo-500/15 dark:text-indigo-200"
+                                title={`Categoria: ${cat.nome}`}
+                              >
+                                <Tag className="w-2.5 h-2.5" />
+                                {cat.nome}
+                              </span>
+                            )}
+                            {formaPagto && (
+                              <span
+                                className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-medium bg-slate-100 text-slate-700 dark:bg-slate-700/60 dark:text-slate-200"
+                                title="Forma de pagamento"
+                              >
+                                <CreditCard className="w-2.5 h-2.5" />
+                                {formaPagto}
+                              </span>
+                            )}
+                            {destinos.map((d, i) => (
+                              <span
+                                key={i}
+                                className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-medium bg-emerald-50 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-200"
+                                title="Destino do rateio"
+                              >
+                                <MapPin className="w-2.5 h-2.5" />
+                                {d}
+                              </span>
+                            ))}
+                            {anexosCount > 0 && (
+                              <span
+                                className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-medium bg-amber-50 text-amber-700 dark:bg-amber-500/15 dark:text-amber-200"
+                                title={`${anexosCount} anexo${anexosCount > 1 ? 's' : ''}`}
+                              >
+                                <Paperclip className="w-2.5 h-2.5" />
+                                {anexosCount}
+                              </span>
+                            )}
+                          </div>
+                        )}
                       </td>
-                      <td className="px-3 py-2.5 text-right tabular-nums text-[12.5px]">
+
+                      {/* ── Vencimento ──────────────────────────────── */}
+                      <td className="px-3 py-2.5 align-top text-[12.5px]">
+                        <div className="text-[var(--color-fg)] font-medium">{fmtData(dataReferencia)}</div>
+                        {totalParcelas > 1 && proximaEmAberto && (
+                          <div className="text-[10.5px] text-[var(--color-fg-muted)] flex items-center gap-1 mt-0.5">
+                            <Layers className="w-2.5 h-2.5" />
+                            Parc. {proximaEmAberto.numero} de {totalParcelas}
+                          </div>
+                        )}
+                        {vencido && (
+                          <div className="text-[10.5px] font-medium text-rose-600 dark:text-rose-400 mt-0.5">
+                            {Math.abs(venc)} dia{Math.abs(venc) === 1 ? '' : 's'} vencido
+                          </div>
+                        )}
+                        {!vencido && venc >= 0 && venc <= 7 && l.status !== 'pago' && l.status !== 'cancelado' && (
+                          <div className="text-[10.5px] font-medium text-amber-600 dark:text-amber-400 mt-0.5">
+                            {venc === 0 ? 'Vence hoje' : `Vence em ${venc} dia${venc === 1 ? '' : 's'}`}
+                          </div>
+                        )}
+                        {!vencido && venc > 7 && l.status !== 'pago' && l.status !== 'cancelado' && (
+                          <div className="text-[10.5px] text-[var(--color-fg-subtle)] mt-0.5">
+                            em {venc} dias
+                          </div>
+                        )}
+                      </td>
+
+                      {/* ── Status + Progresso parcelas ─────────────── */}
+                      <td className="px-3 py-2.5 align-top">
+                        <div className="flex flex-col gap-1 items-start">
+                          <div className="flex items-center gap-1">
+                            <span className={'inline-block px-2 py-0.5 rounded text-[10.5px] font-medium ' + STATUS_LABEL[l.status].cls}>
+                              {STATUS_LABEL[l.status].label}
+                            </span>
+                            {l.fechado && (
+                              <span
+                                className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-medium bg-slate-200 text-slate-700 dark:bg-slate-800 dark:text-slate-300"
+                                title={`Fechado em ${l.fechadoEm ? new Date(l.fechadoEm).toLocaleString('pt-BR') : ''}${l.fechadoPor ? ' por ' + l.fechadoPor : ''}`}
+                              >
+                                <Lock className="w-2.5 h-2.5" /> Fechado
+                              </span>
+                            )}
+                          </div>
+                          {totalParcelas > 0 && (
+                            <div className="w-full max-w-[110px]">
+                              <div className="text-[10px] text-[var(--color-fg-muted)] flex justify-between mb-0.5">
+                                <span>{parcelasPagas}/{totalParcelas} pagas</span>
+                                {pctPago > 0 && pctPago < 100 && <span className="tabular-nums">{pctPago}%</span>}
+                              </div>
+                              <div className="h-1 rounded-full bg-[var(--color-surface-2)] overflow-hidden">
+                                <div
+                                  className={'h-full rounded-full transition-all ' + (
+                                    pctPago >= 100 ? 'bg-emerald-500' :
+                                    pctPago > 0 ? 'bg-sky-500' :
+                                    'bg-transparent'
+                                  )}
+                                  style={{ width: `${pctPago}%` }}
+                                />
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </td>
+
+                      {/* ── Valor / Pago ─────────────────────────────── */}
+                      <td className="px-3 py-2.5 align-top text-right tabular-nums text-[12.5px]">
                         <div className="font-semibold text-[var(--color-fg)]">{fmtMoeda(l.valorTotal)}</div>
                         {pago > 0 && (
-                          <div className="text-[10.5px] text-emerald-700 dark:text-emerald-400">
+                          <div className="text-[10.5px] text-emerald-700 dark:text-emerald-400 mt-0.5">
                             Pago: {fmtMoeda(pago)}
+                          </div>
+                        )}
+                        {emAberto > 0.01 && l.status !== 'cancelado' && (
+                          <div className="text-[10.5px] text-amber-700 dark:text-amber-400">
+                            {pago > 0 ? 'Saldo: ' : ''}{fmtMoeda(emAberto)}
                           </div>
                         )}
                       </td>
