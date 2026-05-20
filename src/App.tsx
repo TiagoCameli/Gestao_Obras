@@ -8,7 +8,6 @@ import FullscreenLayout from './components/layout/FullscreenLayout';
 import ProtectedRoute from './components/auth/ProtectedRoute';
 import Dashboard from './pages/Dashboard';
 import ObrasPage from './pages/ObrasPage';
-import Obras from './pages/Obras';
 import CadastrosHub from './modules/cadastros/CadastrosHub';
 import EntityCadastroRoute from './modules/cadastros/EntityCadastroRoute';
 import EtapasPage from './modules/cadastros/EtapasPage';
@@ -99,7 +98,6 @@ export default function App() {
               <Route path="/" element={<HomeRedirect />} />
               <Route path="/obras" element={<ProtectedRoute modulo="obras"><ObrasPage /></ProtectedRoute>} />
               <Route path="/cadastros" element={<ProtectedRoute modulo="cadastros"><CadastrosHub /></ProtectedRoute>} />
-              <Route path="/cadastros/legado" element={<ProtectedRoute modulo="cadastros"><Obras /></ProtectedRoute>} />
               <Route path="/cadastros/etapas" element={<ProtectedRoute modulo="cadastros"><EtapasPage /></ProtectedRoute>} />
               <Route path="/cadastros/usuarios" element={<ProtectedRoute modulo="funcionarios"><Funcionarios /></ProtectedRoute>} />
               <Route path="/cadastros/unificacao" element={<ProtectedRoute modulo="cadastros"><UnificacaoPage /></ProtectedRoute>} />
