@@ -1,12 +1,14 @@
 // FF.6 — Drawer read-only de detalhes do Frete.
 // Tabs Detalhes / Histórico, KPIs, slot dedicado "Foto da Chegada",
 // resolução de IDs (obra, insumo) e anexos.
-// Fase A (2026-05): upload inline da foto chegada sem entrar em Editar.
+// Fase A (2026-05): upload inline de até 8 fotos da chegada sem entrar
+// em Editar. A 1ª foto = foto principal de chegada (fotoChegadaUrl),
+// as demais = extras (fotoUrls). Remover a 1ª promove a 2ª automaticamente.
 
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import {
   Pencil, Trash2, Truck, MapPin, Calendar, Package, Weight, Route, Wallet,
-  FileText, Paperclip, History, User, PackageCheck, ArrowRight, RotateCcw,
+  FileText, Paperclip, History, User, PackageCheck, ArrowRight,
 } from 'lucide-react';
 import type { Frete, Obra, Insumo } from '../../types';
 import Drawer from '../ui/Drawer';
@@ -70,39 +72,40 @@ export default function FreteDetalhesDrawer({
   const obrasMap = useMemo(() => new Map(obras.map((o) => [o.id, o.nome])), [obras]);
   const insumosMap = useMemo(() => new Map(insumos.map((i) => [i.id, i.nome])), [insumos]);
   const [tab, setTab] = useState<'detalhes' | 'historico'>('detalhes');
-  const [forcarUpload, setForcarUpload] = useState(false);
   const atualizarMutation = useAtualizarFrete();
   const { showToast } = useToast();
 
-  // Reset Substituir mode quando o drawer é re-aberto com outro frete.
-  useEffect(() => { setForcarUpload(false); }, [frete?.id]);
+  // Estado de fotos: combina principal (fotoChegadaUrl) + extras (fotoUrls).
+  // 1ª da lista = principal. Derivado direto do frete (sem state local —
+  // React Query é a fonte da verdade).
+  const fotosAtuais = useMemo<string[]>(() => {
+    if (!frete) return [];
+    const all: string[] = [];
+    if (frete.fotoChegadaUrl) all.push(frete.fotoChegadaUrl);
+    if (frete.fotoUrls) all.push(...frete.fotoUrls);
+    return all;
+  }, [frete]);
 
   const handleFotoChange = (novas: string[]) => {
     if (!frete) return;
-    const novaUrl = novas[novas.length - 1] ?? null; // último é o mais recente
-    // Guard: cancelar/remover no uploader não deve apagar a foto do DB.
-    // Pra remover de verdade, usar a tela de Editar.
-    if (novaUrl === null) {
-      setForcarUpload(false);
-      return;
-    }
+    const novaUrl = novas[0] ?? null;
+    const extras = novas.slice(1);
     const hoje = new Date().toISOString().slice(0, 10);
     const payload = calcularUpdateFotoChegada({
       novaUrl,
       dataChegadaAtual: frete.dataChegada,
       hoje,
     });
-    // useAtualizarFrete exige Frete completo — spread do frete existente + payload
+    // useAtualizarFrete exige Frete completo — spread + override de fotos
     atualizarMutation.mutate(
-      { ...frete, ...payload },
+      { ...frete, ...payload, fotoUrls: extras },
       {
         onSuccess: () => {
-          showToast({ kind: 'success', message: 'Foto da chegada registrada.' });
-          setForcarUpload(false);
+          showToast({ kind: 'success', message: 'Fotos atualizadas.' });
         },
         onError: (err: unknown) => {
           const msg = err instanceof Error ? err.message : String(err);
-          showToast({ kind: 'error', message: `Falha ao salvar foto: ${msg}` });
+          showToast({ kind: 'error', message: `Falha ao salvar fotos: ${msg}` });
         },
       },
     );
@@ -191,57 +194,56 @@ export default function FreteDetalhesDrawer({
 
       {tab === 'detalhes' && (
         <div className="space-y-5">
-          {/* FF.6 + Fase A — Bloco destacado: Foto da Chegada da Carga.
-              Estado vazio mostra AnexosUploader inline (quando canEdit).
-              Estado com foto mostra thumb + botão Substituir. */}
+          {/* FF.6 + Fase A — Bloco destacado: Fotos da Chegada da Carga.
+              AnexosUploader inline (até 8 fotos). A 1ª é a foto principal
+              (vai pra fotoChegadaUrl), o resto vai pra fotoUrls. Remover a
+              1ª promove a 2ª automaticamente. */}
           <div className="rounded-xl border-2 border-[var(--color-accent)]/30 bg-[var(--color-accent)]/5 p-4">
             <div className="flex items-center gap-2 mb-3">
               <PackageCheck className="w-5 h-5 text-[var(--color-accent)]" />
               <div className="flex-1">
-                <h3 className="text-sm font-semibold text-[var(--color-fg)]">Foto da Chegada da Carga</h3>
+                <h3 className="text-sm font-semibold text-[var(--color-fg)]">Fotos da Chegada da Carga</h3>
                 <p className="text-xs text-[var(--color-fg-muted)]">
-                  {frete.fotoChegadaUrl && !forcarUpload
-                    ? `Registrada${frete.dataChegada ? ` em ${fmtData(frete.dataChegada)}` : ''}.`
-                    : 'Pendente — carga ainda não foi confirmada na chegada.'}
+                  {fotosAtuais.length === 0
+                    ? 'Pendente — carga ainda não foi confirmada na chegada.'
+                    : `${fotosAtuais.length} foto(s)${frete.dataChegada ? ` · registrada em ${fmtData(frete.dataChegada)}` : ''}. A 1ª é a principal.`}
                 </p>
               </div>
-              {frete.fotoChegadaUrl && !forcarUpload && canEdit && (
-                <button
-                  type="button"
-                  onClick={() => setForcarUpload(true)}
-                  disabled={atualizarMutation.isPending}
-                  className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-medium border border-[var(--color-border)] hover:border-[var(--color-accent)] hover:text-[var(--color-accent)] transition-colors disabled:opacity-50"
-                  title="Substituir foto"
-                >
-                  <RotateCcw className="w-3 h-3" />
-                  Substituir
-                </button>
-              )}
             </div>
 
-            {frete.fotoChegadaUrl && !forcarUpload ? (
-              <a
-                href={frete.fotoChegadaUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="block aspect-video rounded-lg overflow-hidden border border-[var(--color-border)] hover:border-[var(--color-accent)] transition-colors"
-              >
-                <img src={frete.fotoChegadaUrl} alt="Foto da chegada da carga" className="w-full h-full object-cover" loading="lazy" />
-              </a>
-            ) : canEdit ? (
+            {canEdit ? (
               <AnexosUploader
-                fotoUrls={[]}
+                fotoUrls={fotosAtuais}
                 arquivoUrls={[]}
                 onChangeFotos={handleFotoChange}
                 onChangeArquivos={() => {}}
                 pastaId={`frete-chegada/${frete.id}`}
                 hideArquivos
               />
+            ) : fotosAtuais.length > 0 ? (
+              <div className="grid grid-cols-3 gap-2">
+                {fotosAtuais.map((url, i) => (
+                  <a
+                    key={url}
+                    href={url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="relative block aspect-square rounded-lg overflow-hidden border border-[var(--color-border)] hover:border-[var(--color-accent)] transition-colors"
+                  >
+                    <img src={url} alt={`Foto da chegada ${i + 1}`} className="w-full h-full object-cover" loading="lazy" />
+                    {i === 0 && (
+                      <span className="absolute top-1 left-1 px-1.5 py-0.5 text-[9px] uppercase tracking-wide bg-[var(--color-accent)] text-[var(--color-fg-on-accent)] rounded-full font-bold">
+                        Principal
+                      </span>
+                    )}
+                  </a>
+                ))}
+              </div>
             ) : (
               <div className="aspect-video rounded-lg border-2 border-dashed border-[var(--color-border)] flex flex-col items-center justify-center text-center px-4">
                 <Truck className="w-8 h-8 text-[var(--color-fg-muted)] mb-2" />
                 <p className="text-sm text-[var(--color-fg-muted)]">Sem foto de chegada registrada.</p>
-                <p className="text-xs text-[var(--color-fg-muted)] mt-1">Você não tem permissão para anexar foto.</p>
+                <p className="text-xs text-[var(--color-fg-muted)] mt-1">Você não tem permissão para anexar.</p>
               </div>
             )}
           </div>
