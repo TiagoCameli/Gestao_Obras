@@ -1,16 +1,21 @@
 // FF.6 — Drawer read-only de detalhes do Frete.
 // Tabs Detalhes / Histórico, KPIs, slot dedicado "Foto da Chegada",
 // resolução de IDs (obra, insumo) e anexos.
+// Fase A (2026-05): upload inline da foto chegada sem entrar em Editar.
 
 import { useMemo, useState } from 'react';
 import {
   Pencil, Trash2, Truck, MapPin, Calendar, Package, Weight, Route, Wallet,
-  FileText, Paperclip, History, User, PackageCheck, ArrowRight,
+  FileText, Paperclip, History, User, PackageCheck, ArrowRight, RotateCcw,
 } from 'lucide-react';
 import type { Frete, Obra, Insumo } from '../../types';
 import Drawer from '../ui/Drawer';
 import Button from '../ui/Button';
 import HistoricoTimeline from '../combustivel/HistoricoTimeline';
+import AnexosUploader from '../combustivel/AnexosUploader';
+import { useAtualizarFrete } from '../../hooks/useFretes';
+import { useToast } from '../ui/Toast';
+import { calcularUpdateFotoChegada } from '../../utils/freteFotoChegada';
 
 interface Props {
   frete: Frete | null;
@@ -65,6 +70,34 @@ export default function FreteDetalhesDrawer({
   const obrasMap = useMemo(() => new Map(obras.map((o) => [o.id, o.nome])), [obras]);
   const insumosMap = useMemo(() => new Map(insumos.map((i) => [i.id, i.nome])), [insumos]);
   const [tab, setTab] = useState<'detalhes' | 'historico'>('detalhes');
+  const [forcarUpload, setForcarUpload] = useState(false);
+  const atualizarMutation = useAtualizarFrete();
+  const { showToast } = useToast();
+
+  const handleFotoChange = (novas: string[]) => {
+    if (!frete) return;
+    const novaUrl = novas[novas.length - 1] ?? null; // último é o mais recente
+    const hoje = new Date().toISOString().slice(0, 10);
+    const payload = calcularUpdateFotoChegada({
+      novaUrl,
+      dataChegadaAtual: frete.dataChegada,
+      hoje,
+    });
+    // useAtualizarFrete exige Frete completo — spread do frete existente + payload
+    atualizarMutation.mutate(
+      { ...frete, ...payload },
+      {
+        onSuccess: () => {
+          showToast({ kind: 'success', message: 'Foto da chegada registrada.' });
+          setForcarUpload(false);
+        },
+        onError: (err: unknown) => {
+          const msg = err instanceof Error ? err.message : String(err);
+          showToast({ kind: 'error', message: `Falha ao salvar foto: ${msg}` });
+        },
+      },
+    );
+  };
 
   if (!frete) {
     return (
@@ -149,20 +182,35 @@ export default function FreteDetalhesDrawer({
 
       {tab === 'detalhes' && (
         <div className="space-y-5">
-          {/* FF.6 — Bloco destacado: Foto da Chegada da Carga. Identifica
-              visualmente que o frete foi entregue. Cor amber alinhada
-              com escopo do módulo. */}
+          {/* FF.6 + Fase A — Bloco destacado: Foto da Chegada da Carga.
+              Estado vazio mostra AnexosUploader inline (quando canEdit).
+              Estado com foto mostra thumb + botão Substituir. */}
           <div className="rounded-xl border-2 border-[var(--color-accent)]/30 bg-[var(--color-accent)]/5 p-4">
             <div className="flex items-center gap-2 mb-3">
               <PackageCheck className="w-5 h-5 text-[var(--color-accent)]" />
-              <div>
+              <div className="flex-1">
                 <h3 className="text-sm font-semibold text-[var(--color-fg)]">Foto da Chegada da Carga</h3>
                 <p className="text-xs text-[var(--color-fg-muted)]">
-                  {frete.fotoChegadaUrl ? `Registrada${frete.dataChegada ? ` em ${fmtData(frete.dataChegada)}` : ''}.` : 'Pendente — carga ainda não foi confirmada na chegada.'}
+                  {frete.fotoChegadaUrl && !forcarUpload
+                    ? `Registrada${frete.dataChegada ? ` em ${fmtData(frete.dataChegada)}` : ''}.`
+                    : 'Pendente — carga ainda não foi confirmada na chegada.'}
                 </p>
               </div>
+              {frete.fotoChegadaUrl && !forcarUpload && canEdit && (
+                <button
+                  type="button"
+                  onClick={() => setForcarUpload(true)}
+                  disabled={atualizarMutation.isPending}
+                  className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-medium border border-[var(--color-border)] hover:border-[var(--color-accent)] hover:text-[var(--color-accent)] transition-colors disabled:opacity-50"
+                  title="Substituir foto"
+                >
+                  <RotateCcw className="w-3 h-3" />
+                  Substituir
+                </button>
+              )}
             </div>
-            {frete.fotoChegadaUrl ? (
+
+            {frete.fotoChegadaUrl && !forcarUpload ? (
               <a
                 href={frete.fotoChegadaUrl}
                 target="_blank"
@@ -171,11 +219,20 @@ export default function FreteDetalhesDrawer({
               >
                 <img src={frete.fotoChegadaUrl} alt="Foto da chegada da carga" className="w-full h-full object-cover" loading="lazy" />
               </a>
+            ) : canEdit ? (
+              <AnexosUploader
+                fotoUrls={[]}
+                arquivoUrls={[]}
+                onChangeFotos={handleFotoChange}
+                onChangeArquivos={() => {}}
+                pastaId={`frete-chegada/${frete.id}`}
+                hideArquivos
+              />
             ) : (
               <div className="aspect-video rounded-lg border-2 border-dashed border-[var(--color-border)] flex flex-col items-center justify-center text-center px-4">
                 <Truck className="w-8 h-8 text-[var(--color-fg-muted)] mb-2" />
                 <p className="text-sm text-[var(--color-fg-muted)]">Sem foto de chegada registrada.</p>
-                <p className="text-xs text-[var(--color-fg-muted)] mt-1">Use "Editar" para anexar a foto da carga ao chegar no destino.</p>
+                <p className="text-xs text-[var(--color-fg-muted)] mt-1">Você não tem permissão para anexar foto.</p>
               </div>
             )}
           </div>
