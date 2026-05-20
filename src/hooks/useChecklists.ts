@@ -125,10 +125,10 @@ async function uploadFoto(execucaoId: string, perguntaId: string, blob: Blob): P
     .from('checklist-fotos')
     .upload(path, blob, { contentType: blob.type, upsert: false });
   if (error) throw error;
-  // URL pública assinada (válida 1 ano)
+  // URL assinada de 1 hora (re-mint on demand pelo consumer)
   const { data: signed, error: signErr } = await supabase.storage
     .from('checklist-fotos')
-    .createSignedUrl(path, 60 * 60 * 24 * 365);
+    .createSignedUrl(path, 60 * 60);
   if (signErr) throw signErr;
   return signed.signedUrl;
 }

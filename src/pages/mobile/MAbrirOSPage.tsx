@@ -119,7 +119,7 @@ export default function MAbrirOSPage() {
               if (upErr) return null;
               const { data: signed } = await supabase.storage
                 .from('apontamento-fotos')
-                .createSignedUrl(path, 60 * 60 * 24 * 365);
+                .createSignedUrl(path, 60 * 60);
               return signed?.signedUrl ?? null;
             })
           );

@@ -3,7 +3,7 @@ import { Camera, ImagePlus, Trash2, AlertCircle, Loader2, MapPin } from 'lucide-
 import { supabase } from '../../lib/supabase';
 
 const BUCKET = 'abastecimento-fotos';
-const SIGNED_URL_TTL_SECS = 60 * 60 * 24 * 365; // 1 ano
+const SIGNED_URL_TTL_SECS = 60 * 60; // 1 hora (re-mint on demand)
 const MIME_VALIDOS = ['image/jpeg', 'image/png', 'image/webp', 'image/heic'];
 const TAMANHO_MAX_BYTES = 10 * 1024 * 1024;
 const QTD_MAX = 8;

@@ -176,7 +176,7 @@ export function useOfflineSync(): UseOfflineSyncResult {
           if (!upErr) {
             const { data: signed } = await supabase.storage
               .from('apontamento-fotos')
-              .createSignedUrl(path, 60 * 60 * 24 * 365);
+              .createSignedUrl(path, 60 * 60);
             if (signed?.signedUrl) fotoUrls.push(signed.signedUrl);
           }
         }

@@ -16,7 +16,7 @@ import { Camera, ImagePlus, Trash2, AlertCircle, Loader2, MapPin, FileText, Pape
 import { supabase } from '../../lib/supabase';
 
 const BUCKET = 'abastecimento-fotos';
-const SIGNED_URL_TTL_SECS = 60 * 60 * 24 * 365; // 1 ano
+const SIGNED_URL_TTL_SECS = 60 * 60; // 1 hora (re-mint on demand)
 
 // Imagens — categoria "Fotos"
 const MIME_FOTOS = ['image/jpeg', 'image/png', 'image/webp', 'image/heic'];

@@ -104,7 +104,7 @@ export default function MSaidaCombustivelPage() {
         if (!upErr) {
           const { data: signed } = await supabase.storage
             .from('abastecimento-fotos')
-            .createSignedUrl(path, 60 * 60 * 24 * 365);
+            .createSignedUrl(path, 60 * 60);
           fotoUrl = signed?.signedUrl ?? null;
         }
       }

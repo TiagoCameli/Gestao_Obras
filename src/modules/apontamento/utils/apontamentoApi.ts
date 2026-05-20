@@ -413,6 +413,9 @@ function dataUrlToBlob(dataUrl: string): Blob {
   return new Blob([ua], { type: mime });
 }
 
+const FOTO_MAX_BYTES = 10 * 1024 * 1024; // 10 MB
+const FOTO_MIME_PERMITIDOS = ["image/jpeg", "image/png", "image/webp"];
+
 export async function uploadFoto(
   funcionarioId: string,
   kind: "perfil" | "referencia" | "rosto",
@@ -421,6 +424,12 @@ export async function uploadFoto(
 ): Promise<string> {
   const path = `${funcionarioId}/${kind}-${index}-${Date.now()}.jpg`;
   const blob = dataUrlToBlob(dataUrl);
+  if (!FOTO_MIME_PERMITIDOS.includes(blob.type)) {
+    throw new Error(`uploadFoto:${kind}: tipo de imagem não permitido (${blob.type || "desconhecido"})`);
+  }
+  if (blob.size > FOTO_MAX_BYTES) {
+    throw new Error(`uploadFoto:${kind}: imagem maior que ${FOTO_MAX_BYTES / 1024 / 1024} MB`);
+  }
   const { error } = await supabase.storage
     .from(FOTO_BUCKET)
     .upload(path, blob, { upsert: true, contentType: blob.type });
@@ -454,10 +463,27 @@ export async function deleteFotos(paths: string[]): Promise<void> {
  * pasta `documentos/<funcionarioId>/...`. Mantém os metadados (nome, MIME,
  * tamanho) na coluna `documentos` (jsonb) do banco. */
 
+const DOC_MAX_BYTES = 20 * 1024 * 1024; // 20 MB
+const DOC_MIME_PERMITIDOS = [
+  "image/jpeg", "image/png", "image/webp", "image/heic", "image/heif",
+  "application/pdf",
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  "application/vnd.ms-excel",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  "application/msword",
+  "text/csv", "text/plain",
+];
+
 export async function uploadDocumento(
   funcionarioId: string,
   file: File
 ): Promise<string> {
+  if (file.size > DOC_MAX_BYTES) {
+    throw new Error(`uploadDocumento: arquivo maior que ${DOC_MAX_BYTES / 1024 / 1024} MB`);
+  }
+  if (file.type && !DOC_MIME_PERMITIDOS.includes(file.type)) {
+    throw new Error(`uploadDocumento: tipo "${file.type}" não permitido. Aceitos: imagens, PDF, Word, Excel, CSV, TXT`);
+  }
   // Sanitiza o nome para o path: remove acentos e caracteres especiais.
   const safeName = file.name
     .normalize("NFD")
