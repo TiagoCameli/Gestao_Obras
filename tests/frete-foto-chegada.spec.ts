@@ -30,10 +30,8 @@ test.describe('Foto da chegada inline no drawer', () => {
     // Espera a lista renderizar
     await expect(page.getByRole('table').first()).toBeVisible({ timeout: 15_000 })
 
-    // Clica no row do frete de teste (procura por data-frete-id se houver
-    // ou pelo conteúdo da NF). Como a tabela atual ainda usa .map, vamos
-    // pela 1a row visível.
-    await page.locator('tbody tr').first().click()
+    // Clica no row do frete de teste usando data-frete-id — determinístico
+    await page.locator(`tr[data-frete-id="${freteId}"]`).click()
 
     // Drawer abre — bloco "Foto da Chegada" aparece
     const drawer = page.getByRole('dialog').or(page.locator('[role="dialog"]'))
@@ -60,7 +58,7 @@ test.describe('Foto da chegada inline no drawer', () => {
   test('clicar Substituir volta pro uploader', async ({ page }) => {
     await login(page)
     await page.goto('/frete?tab=fretes')
-    await page.locator('tbody tr').first().click()
+    await page.locator(`tr[data-frete-id="${freteId}"]`).click()
 
     const drawer = page.getByRole('dialog').or(page.locator('[role="dialog"]'))
     const substituir = drawer.getByRole('button', { name: /Substituir/i })
