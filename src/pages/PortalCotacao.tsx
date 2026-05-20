@@ -14,51 +14,19 @@
  */
 import { useEffect, useRef, useState } from 'react';
 import { useParams } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
 import { CheckCircle2, AlertTriangle, Clock, FileText, Eraser, Send } from 'lucide-react';
-import { supabase } from '../lib/supabase';
 import {
-  useCotacaoLinkPorToken,
+  useCotacaoPublica,
   useEnviarRespostaCotacao,
 } from '../hooks/useCotacaoLinksPublicos';
-import { dbToCotacao } from '../lib/mappers';
-import type { Cotacao, CotacaoRespostaItem, Fornecedor } from '../types';
+import type { CotacaoRespostaItem } from '../types';
 
 export default function PortalCotacao() {
   const { token = '' } = useParams<{ token: string }>();
-  const { data: link, isLoading: loadingLink } = useCotacaoLinkPorToken(token);
-
-  // Quando o link existir, carrega cotação + fornecedor
-  const { data: cotacao } = useQuery<Cotacao | null>({
-    queryKey: ['cotacao_publica', link?.cotacaoId],
-    queryFn: async () => {
-      if (!link?.cotacaoId) return null;
-      const { data, error } = await supabase
-        .from('cotacoes')
-        .select('*')
-        .eq('id', link.cotacaoId)
-        .maybeSingle();
-      if (error) throw error;
-      return data ? dbToCotacao(data) : null;
-    },
-    enabled: !!link?.cotacaoId,
-  });
-
-  const { data: fornecedor } = useQuery<Fornecedor | null>({
-    queryKey: ['fornecedor_publico', link?.fornecedorId],
-    queryFn: async () => {
-      if (!link?.fornecedorId) return null;
-      const { data, error } = await supabase
-        .from('fornecedores')
-        .select('*')
-        .eq('id', link.fornecedorId)
-        .maybeSingle();
-      if (error) throw error;
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      return data ? ({ id: data.id, nome: data.nome } as any) : null;
-    },
-    enabled: !!link?.fornecedorId,
-  });
+  const { data: portal, isLoading: loadingLink } = useCotacaoPublica(token);
+  const link = portal?.link ?? null;
+  const cotacao = portal?.cotacao ?? null;
+  const fornecedor = portal?.fornecedor ?? null;
 
   const enviarMut = useEnviarRespostaCotacao();
   // Estado de respostas armazenado por itemId (evita useEffect+setState para
@@ -83,29 +51,20 @@ export default function PortalCotacao() {
     });
   };
 
-  // Checagem de expiração pré-render (sem useMemo — Date.now é impuro).
-  // Reavalia a cada render do componente, o que é aceitável aqui (link é estável).
-  const agora = useNow(60_000); // re-renderiza a cada 1 min
-  const expirado = link ? new Date(link.expiresAt).getTime() < agora : false;
-
   // ── Estados de tela ────────────────────────────────────────────────────
+  // O RPC `get_cotacao_publica` valida expiração/respondido server-side
+  // e retorna reason. Não checamos client-side — submit também re-valida.
   if (loadingLink) {
     return <PortalShell><div className="text-center text-slate-500 py-16">Carregando cotação…</div></PortalShell>;
   }
-  if (!link) {
+  if (portal?.reason === 'expired') {
+    return <PortalErrorState icon={Clock} titulo="Cotação expirada" mensagem={`Esta cotação venceu${link?.expiresAt ? ' em ' + new Date(link.expiresAt).toLocaleString('pt-BR') : ''}. Entre em contato com o comprador para renovar.`} />;
+  }
+  if (portal?.reason === 'respondido' || enviado) {
+    return <PortalSuccessState />;
+  }
+  if (!link || !cotacao) {
     return <PortalErrorState icon={AlertTriangle} titulo="Link inválido" mensagem="Esse link de cotação não existe ou foi removido." />;
-  }
-  if (expirado) {
-    return <PortalErrorState icon={Clock} titulo="Cotação expirada" mensagem={`Esta cotação venceu em ${new Date(link.expiresAt).toLocaleString('pt-BR')}. Entre em contato com o comprador para renovar.`} />;
-  }
-  if (link.respondido || enviado) {
-    return (
-      <PortalSuccessState />
-    );
-  }
-
-  if (!cotacao) {
-    return <PortalShell><div className="text-center text-slate-500 py-16">Carregando dados…</div></PortalShell>;
   }
 
   const total = cotacao.itensPedido.reduce((sum, item) => {
@@ -115,14 +74,14 @@ export default function PortalCotacao() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!link) return;
+    if (!token) return;
     const itensResposta: CotacaoRespostaItem[] = cotacao.itensPedido.map((it) => {
       const r = lerResposta(it.id);
       return { itemPedidoId: it.id, precoUnitario: r.precoUnitario, marca: r.marca };
     });
     try {
       await enviarMut.mutateAsync({
-        link, itensResposta, condicaoPagamento, prazoEntrega, observacoes, assinaturaBase64,
+        token, itensResposta, condicaoPagamento, prazoEntrega, observacoes, assinaturaBase64,
       });
       setEnviado(true);
     } catch (err) {
@@ -285,15 +244,6 @@ export default function PortalCotacao() {
   );
 }
 
-// Hook auxiliar: devolve Date.now() de tempos em tempos (sem chamar impuro inline)
-function useNow(intervaloMs: number = 60_000): number {
-  const [now, setNow] = useState(() => Date.now());
-  useEffect(() => {
-    const id = setInterval(() => setNow(Date.now()), intervaloMs);
-    return () => clearInterval(id);
-  }, [intervaloMs]);
-  return now;
-}
 
 // ─── Layout / componentes auxiliares ─────────────────────────────────────
 

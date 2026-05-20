@@ -3,15 +3,19 @@
  *
  * - useCotacaoLinksPublicos(cotacaoId): lista os links de uma cotação
  * - useCriarCotacaoLinkPublico: cria um novo link com token único + expiração
- * - useCotacaoLinkPorToken(token): leitura usada no portal público
+ * - useCotacaoPublica(token): leitura do portal (via RPC get_cotacao_publica)
  * - useCotacaoRespostas(cotacaoId): respostas recebidas
- * - useEnviarRespostaCotacao: usado pelo portal pra gravar resposta
+ * - useEnviarRespostaCotacao: usado pelo portal pra gravar resposta (via RPC responder_cotacao)
+ *
+ * O portal público usa RPCs SECURITY DEFINER em vez de acesso direto às
+ * tabelas — auditoria Bloco 1.4. Token é validado server-side.
  */
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '../lib/supabase';
 import { gerarTokenCotacao } from '../utils/comprasToken';
 import type {
-  CanalEnvioCotacao, CotacaoLinkPublico, CotacaoRespostaFornecedor, CotacaoRespostaItem,
+  CanalEnvioCotacao, Cotacao, CotacaoLinkPublico, CotacaoRespostaFornecedor, CotacaoRespostaItem,
+  ItemPedidoCompra,
 } from '../types';
 
 function genId() {
@@ -108,20 +112,70 @@ export function useCriarCotacaoLinkPublico() {
 }
 
 /**
- * Leitura pública do link a partir do token (usado no portal).
+ * Resultado do portal público — vem do RPC get_cotacao_publica.
+ * Quando ok=false, `reason` indica o motivo (not_found, expired, respondido, etc.)
+ * e os campos data são null.
  */
-export function useCotacaoLinkPorToken(token: string) {
-  return useQuery<CotacaoLinkPublico | null>({
-    queryKey: ['cotacao_link_token', token],
+export type PortalReason = 'invalid_token' | 'not_found' | 'expired' | 'respondido' | 'cotacao_missing';
+
+export interface PortalCotacaoResult {
+  ok: boolean;
+  reason: PortalReason | null;
+  link: CotacaoLinkPublico | null;
+  cotacao: Pick<Cotacao, 'id' | 'numero' | 'descricao' | 'descricaoLivre' | 'itensPedido'> | null;
+  fornecedor: { id: string; nome: string } | null;
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function parsePortalLink(raw: any): CotacaoLinkPublico {
+  return {
+    id: raw.id,
+    cotacaoId: raw.cotacaoId,
+    fornecedorId: raw.fornecedorId,
+    token: '',
+    expiresAt: raw.expiresAt,
+    respondido: !!raw.respondido,
+    respondidoEm: raw.respondidoEm ?? undefined,
+    criadoPor: '',
+    criadoEm: '',
+  };
+}
+
+/**
+ * Leitura pública do portal — chama RPC `get_cotacao_publica` que valida
+ * token + retorna link + cotação + fornecedor numa transação só.
+ */
+export function useCotacaoPublica(token: string) {
+  return useQuery<PortalCotacaoResult>({
+    queryKey: ['cotacao_publica', token],
     queryFn: async () => {
-      if (!token) return null;
-      const { data, error } = await supabase
-        .from('cotacao_links_publicos')
-        .select('*')
-        .eq('token', token)
-        .maybeSingle();
+      if (!token) {
+        return { ok: false, reason: 'invalid_token', link: null, cotacao: null, fornecedor: null };
+      }
+      const { data, error } = await supabase.rpc('get_cotacao_publica', { p_token: token });
       if (error) throw error;
-      return data ? dbToLink(data) : null;
+      if (!data || !data.ok) {
+        return {
+          ok: false,
+          reason: (data?.reason ?? 'not_found') as PortalReason,
+          link: data?.link ? parsePortalLink(data.link) : null,
+          cotacao: null,
+          fornecedor: null,
+        };
+      }
+      return {
+        ok: true,
+        reason: null,
+        link: parsePortalLink(data.link),
+        cotacao: {
+          id: data.cotacao.id,
+          numero: data.cotacao.numero,
+          descricao: data.cotacao.descricao ?? '',
+          descricaoLivre: data.cotacao.descricaoLivre ?? undefined,
+          itensPedido: (data.cotacao.itensPedido ?? []) as ItemPedidoCompra[],
+        },
+        fornecedor: data.fornecedor ?? null,
+      };
     },
     enabled: !!token,
     staleTime: 30_000,
@@ -146,7 +200,7 @@ export function useCotacaoRespostas(cotacaoId: string) {
 }
 
 interface EnviarRespostaParams {
-  link: CotacaoLinkPublico;
+  token: string;
   itensResposta: CotacaoRespostaItem[];
   condicaoPagamento: string;
   prazoEntrega: string;
@@ -155,41 +209,34 @@ interface EnviarRespostaParams {
 }
 
 /**
- * Usado pelo PORTAL público (sem login) — grava resposta e marca link como respondido.
- * Por simplicidade não tentamos descobrir IP do client (RLS aberta cobre o INSERT).
+ * Usado pelo PORTAL público (sem login) — chama RPC responder_cotacao que valida
+ * token + insere resposta + marca link como respondido atomicamente. Token é
+ * re-derivado server-side; client não pode forjar link_id ou cotacao_id.
  */
 export function useEnviarRespostaCotacao() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (p: EnviarRespostaParams) => {
-      // 1) Insere resposta
-      const id = genId();
-      const { error: e1 } = await supabase.from('cotacao_respostas_fornecedor').insert({
-        id,
-        link_publico_id: p.link.id,
-        cotacao_id: p.link.cotacaoId,
-        fornecedor_id: p.link.fornecedorId,
-        itens_resposta: p.itensResposta,
-        condicao_pagamento: p.condicaoPagamento,
-        prazo_entrega: p.prazoEntrega,
-        observacoes: p.observacoes,
-        assinatura_base64: p.assinaturaBase64 ?? null,
+      const { data, error } = await supabase.rpc('responder_cotacao', {
+        p_token: p.token,
+        p_payload: {
+          itensResposta: p.itensResposta,
+          condicaoPagamento: p.condicaoPagamento,
+          prazoEntrega: p.prazoEntrega,
+          observacoes: p.observacoes,
+          assinaturaBase64: p.assinaturaBase64 ?? null,
+        },
       });
-      if (e1) throw e1;
-
-      // 2) Marca link como respondido
-      const { error: e2 } = await supabase
-        .from('cotacao_links_publicos')
-        .update({ respondido: true, respondido_em: new Date().toISOString() })
-        .eq('id', p.link.id);
-      if (e2) throw e2;
-
-      return id;
+      if (error) throw error;
+      if (!data?.ok) {
+        throw new Error(`Falha ao enviar resposta (${data?.reason ?? 'erro_desconhecido'})`);
+      }
+      return data.resposta_id as string;
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['cotacao_respostas'] });
       qc.invalidateQueries({ queryKey: ['cotacao_links_publicos'] });
-      qc.invalidateQueries({ queryKey: ['cotacao_link_token'] });
+      qc.invalidateQueries({ queryKey: ['cotacao_publica'] });
     },
   });
 }
