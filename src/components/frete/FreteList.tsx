@@ -263,6 +263,7 @@ export default function FreteList({
                 return (
                 <tr
                   key={frete.id}
+                  data-frete-id={frete.id}
                   className={`hover:bg-[var(--color-accent-soft)] transition-colors ${rowClickable ? 'cursor-pointer' : ''}`}
                   onClick={rowClickable ? (ev) => {
                     // Ignora cliques no input editável da DataChegada para não roubar foco/abrir drawer.
