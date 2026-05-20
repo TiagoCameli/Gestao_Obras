@@ -31,6 +31,25 @@ function hojeIso() {
  * Se não houver pausa, usa direto entrada → saida_final.
  * Se faltar saida_final, usa "agora" como referência (apenas para o dia de hoje).
  */
+/** Tolerância pra comparação Apropriado × Ponto.
+ *  0.05h = 3 minutos. Evita falsos "excedido" quando os valores batem em
+ *  2 casas decimais mas têm drift de ponto-flutuante. */
+const TOLERANCIA_HORAS = 0.05;
+
+function calcStatusApont(
+  horasPonto: number,
+  horasApr: number,
+): { status: "ok" | "pendente" | "excedido"; pendente: number } {
+  // Arredonda pra 2 casas antes de comparar pra zerar drift de FP
+  const ponto = Math.round(horasPonto * 100) / 100;
+  const apr = Math.round(horasApr * 100) / 100;
+  const pendente = +(ponto - apr).toFixed(2);
+  let status: "ok" | "pendente" | "excedido" = "ok";
+  if (apr > ponto + TOLERANCIA_HORAS) status = "excedido";
+  else if (pendente > TOLERANCIA_HORAS) status = "pendente";
+  return { status, pendente };
+}
+
 function calcHorasPonto(rs: RegistroPonto[]): number {
   const ok = rs.filter((r) => r.statusAprovacao !== "rejeitado");
   const get = (t: RegistroPonto["tipoBatida"]) =>
@@ -319,9 +338,7 @@ export default function ApontamentoServicoTab() {
             {funcsComPonto.map((f) => {
               const horasPonto = horasPorFunc[f.id] ?? 0;
               const horasApr = apropriadasPorFunc[f.id] ?? 0;
-              const pendente = +(horasPonto - horasApr).toFixed(2);
-              const status: "ok" | "pendente" | "excedido" =
-                horasApr > horasPonto + 0.001 ? "excedido" : pendente > 0.05 ? "pendente" : "ok";
+              const { status, pendente } = calcStatusApont(horasPonto, horasApr);
               const pct = horasPonto > 0 ? Math.min(100, (horasApr / horasPonto) * 100) : 0;
               const barCor =
                 status === "ok"
@@ -422,13 +439,7 @@ export default function ApontamentoServicoTab() {
                 {funcsComPonto.map((f) => {
                   const horasPonto = horasPorFunc[f.id] ?? 0;
                   const horasApr = apropriadasPorFunc[f.id] ?? 0;
-                  const pendente = +(horasPonto - horasApr).toFixed(2);
-                  const status: "ok" | "pendente" | "excedido" =
-                    horasApr > horasPonto + 0.001
-                      ? "excedido"
-                      : pendente > 0.05
-                      ? "pendente"
-                      : "ok";
+                  const { status, pendente } = calcStatusApont(horasPonto, horasApr);
                   return (
                     <tr
                       key={f.id}
