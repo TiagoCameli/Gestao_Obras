@@ -211,13 +211,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUsuario(null);
   }, [usuario]);
 
-  const temPermissao = useCallback((_modulo: ModuloPermissao, _acao: AcaoPermissao): boolean => {
-    return true;
-  }, []);
+  const temPermissao = useCallback((modulo: ModuloPermissao, acao: AcaoPermissao): boolean => {
+    if (!usuario) return false;
+    const acoesDoModulo = usuario.permissoes?.[modulo];
+    if (!acoesDoModulo || acoesDoModulo.length === 0) return false;
+    return acoesDoModulo.includes(acao);
+  }, [usuario]);
 
-  const temAlgumaPermissao = useCallback((_modulo: ModuloPermissao): boolean => {
-    return true;
-  }, []);
+  const temAlgumaPermissao = useCallback((modulo: ModuloPermissao): boolean => {
+    if (!usuario) return false;
+    const acoesDoModulo = usuario.permissoes?.[modulo];
+    return !!acoesDoModulo && acoesDoModulo.length > 0;
+  }, [usuario]);
 
   const temAcao = useCallback((chave: string): boolean => {
     if (!usuario) return false;
