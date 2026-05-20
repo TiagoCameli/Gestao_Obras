@@ -49,3 +49,4 @@ manutencao-app/
 .superpowers/
 .claude/settings.local.json
 .claude/skills/
+.agents/skills/
