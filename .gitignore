@@ -44,3 +44,8 @@ manutencao-app/
 /blob-report/
 /playwright/.cache/
 /playwright/.auth/
+
+# Claude Code — estado local e clones externos (não commitar)
+.superpowers/
+.claude/settings.local.json
+.claude/skills/
