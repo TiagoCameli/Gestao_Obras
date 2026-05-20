@@ -23,6 +23,7 @@ describe('calcularUpdateFotoChegada', () => {
     expect(out).toEqual({
       fotoChegadaUrl: 'https://x.supabase.co/storage/v1/object/sign/a/b.jpg',
     })
+    expect(out).not.toHaveProperty('dataChegada')
   })
 
   it('remove fotoChegadaUrl quando novaUrl é null sem mexer em dataChegada', () => {
@@ -41,5 +42,18 @@ describe('calcularUpdateFotoChegada', () => {
       hoje: '2026-05-20',
     })
     expect(out).toEqual({ fotoChegadaUrl: null })
+  })
+
+  it('respeita dataChegadaAtual=null (Supabase) sem reescrever', () => {
+    const out = calcularUpdateFotoChegada({
+      novaUrl: 'https://x.supabase.co/storage/v1/object/sign/a/b.jpg',
+      dataChegadaAtual: null,
+      hoje: '2026-05-20',
+    })
+    // null é falsy, então auto-fill deve disparar (mesma lógica de undefined)
+    expect(out).toEqual({
+      fotoChegadaUrl: 'https://x.supabase.co/storage/v1/object/sign/a/b.jpg',
+      dataChegada: '2026-05-20',
+    })
   })
 })

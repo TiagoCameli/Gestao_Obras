@@ -7,7 +7,7 @@
  */
 export interface CalcularUpdateInput {
   novaUrl: string | null
-  dataChegadaAtual: string | undefined
+  dataChegadaAtual: string | null | undefined
   /** Data de hoje em formato YYYY-MM-DD (injetada pra testabilidade). */
   hoje: string
 }
