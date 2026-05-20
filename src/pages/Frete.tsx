@@ -140,7 +140,14 @@ export default function Frete() {
   const [deleteId, setDeleteId] = useState<string | null>(null);
 
   // FF.6 — Drawers de detalhes read-only (Frete / Pagamento / Pedido).
-  const [freteDetalhes, setFreteDetalhes] = useState<FreteType | null>(null);
+  // Fase A: armazena ID e deriva o objeto da lista (useMemo) pra refletir
+  // mutations imediatamente. Sem isso, snapshot ficava stale após o
+  // upload de foto-chegada inline atualizar o banco.
+  const [freteDetalhesId, setFreteDetalhesId] = useState<string | null>(null);
+  const freteDetalhes = useMemo(
+    () => (freteDetalhesId ? fretes.find((f) => f.id === freteDetalhesId) ?? null : null),
+    [freteDetalhesId, fretes],
+  );
   const [pagamentoDetalhes, setPagamentoDetalhes] = useState<PagamentoFrete | null>(null);
   const [pedidoDetalhes, setPedidoDetalhes] = useState<PedidoMaterial | null>(null);
 
@@ -507,7 +514,7 @@ export default function Frete() {
             onUpdateDataChegada={canEdit ? async (frete, dataChegada) => {
               await atualizarMutation.mutateAsync({ ...frete, dataChegada });
             } : undefined}
-            onSelect={setFreteDetalhes}
+            onSelect={(f) => setFreteDetalhesId(f.id)}
             canEdit={canEdit}
             canDelete={canDelete}
           />
@@ -961,7 +968,7 @@ export default function Frete() {
       <FreteDetalhesDrawer
         frete={freteDetalhes}
         open={freteDetalhes !== null}
-        onClose={() => setFreteDetalhes(null)}
+        onClose={() => setFreteDetalhesId(null)}
         obras={obras}
         insumos={insumosAtivos}
         onEdit={(f) => pedirSenha(() => { setEditando(f); setModalOpen(true); })}
