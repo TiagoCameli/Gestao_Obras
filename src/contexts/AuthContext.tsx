@@ -129,35 +129,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const login = useCallback(async (email: string, senha: string, lembrarMe: boolean) => {
-    // Check login attempts (from DB)
-    const { data: tracker } = await supabase
-      .from('login_attempts')
-      .select('*')
-      .eq('email', email.toLowerCase())
-      .single();
+    const emailLower = email.toLowerCase();
 
-    if (tracker?.bloqueado_ate && Date.now() < tracker.bloqueado_ate) {
-      return { ok: false, erro: 'bloqueado', bloqueadoAte: tracker.bloqueado_ate };
+    // Check lockout via RPC (login_attempts não é mais acessível direto)
+    const { data: lockData } = await supabase.rpc('is_login_locked', { p_email: emailLower });
+    if (lockData?.locked) {
+      return { ok: false, erro: 'bloqueado', bloqueadoAte: lockData.bloqueado_ate };
     }
 
     // Attempt Supabase Auth sign-in
     const { error: authError } = await supabase.auth.signInWithPassword({ email, password: senha });
 
     if (authError) {
-      // Register failed attempt
-      const tentativas = (tracker?.tentativas ?? 0) + 1;
-      const bloqueadoAte = tentativas >= 5 ? Date.now() + 5 * 60 * 1000 : 0;
-      await supabase.from('login_attempts').upsert({
-        email: email.toLowerCase(),
-        tentativas,
-        ultima_tentativa: Date.now(),
-        bloqueado_ate: bloqueadoAte,
-      }, { onConflict: 'email' });
-
-      if (bloqueadoAte) {
-        return { ok: false, erro: 'bloqueado', bloqueadoAte };
+      // Register failed attempt via RPC (anon-callable, SECURITY DEFINER)
+      const { data: attempt } = await supabase.rpc('register_failed_login', { p_email: emailLower });
+      if (attempt?.bloqueado_ate && attempt.bloqueado_ate > 0) {
+        return { ok: false, erro: 'bloqueado', bloqueadoAte: attempt.bloqueado_ate };
       }
-      return { ok: false, erro: `Credenciais inválidas. ${5 - tentativas} tentativa(s) restante(s).` };
+      const restantes = attempt?.restantes ?? 4;
+      return { ok: false, erro: `Credenciais inválidas. ${restantes} tentativa(s) restante(s).` };
     }
 
     // Get the user from the session
@@ -177,8 +167,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return { ok: false, erro: 'Funcionário inativo. Contate o administrador.' };
     }
 
-    // Clear login attempts
-    await supabase.from('login_attempts').delete().eq('email', email.toLowerCase());
+    // Clear login attempts via RPC (authenticated)
+    await supabase.rpc('clear_login_attempts', { p_email: emailLower });
 
     // Build session
     const sessao = await buildSessao(user.id, lembrarMe);
