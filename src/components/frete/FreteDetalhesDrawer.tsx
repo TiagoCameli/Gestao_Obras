@@ -3,7 +3,7 @@
 // resolução de IDs (obra, insumo) e anexos.
 // Fase A (2026-05): upload inline da foto chegada sem entrar em Editar.
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   Pencil, Trash2, Truck, MapPin, Calendar, Package, Weight, Route, Wallet,
   FileText, Paperclip, History, User, PackageCheck, ArrowRight, RotateCcw,
@@ -74,9 +74,18 @@ export default function FreteDetalhesDrawer({
   const atualizarMutation = useAtualizarFrete();
   const { showToast } = useToast();
 
+  // Reset Substituir mode quando o drawer é re-aberto com outro frete.
+  useEffect(() => { setForcarUpload(false); }, [frete?.id]);
+
   const handleFotoChange = (novas: string[]) => {
     if (!frete) return;
     const novaUrl = novas[novas.length - 1] ?? null; // último é o mais recente
+    // Guard: cancelar/remover no uploader não deve apagar a foto do DB.
+    // Pra remover de verdade, usar a tela de Editar.
+    if (novaUrl === null) {
+      setForcarUpload(false);
+      return;
+    }
     const hoje = new Date().toISOString().slice(0, 10);
     const payload = calcularUpdateFotoChegada({
       novaUrl,
