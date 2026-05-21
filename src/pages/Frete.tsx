@@ -21,7 +21,7 @@ import Modal from '../components/ui/Modal';
 import ConfirmDialog from '../components/ui/ConfirmDialog';
 import PasswordDialog from '../components/ui/PasswordDialog';
 import FreteForm from '../components/frete/FreteForm';
-import FreteList from '../components/frete/FreteList';
+import FreteListV2 from '../components/frete/FreteListV2';
 import FreteDetalhesDrawer from '../components/frete/FreteDetalhesDrawer';
 import PagamentoFreteForm from '../components/frete/PagamentoFreteForm';
 import PagamentoFreteList from '../components/frete/PagamentoFreteList';
@@ -541,20 +541,18 @@ export default function Frete() {
             )}
           </div>
 
-          <FreteList
+          <FreteListV2
             fretes={fretes}
             obras={obras}
             insumos={insumosAtivos}
+            pagamentosFrete={pagamentosFrete}
             filtros={filtros}
+            filtroSemChegada={presetAtivo === 'sem_chegada'}
             onEdit={(frete) => pedirSenha(() => { setEditando(frete); setModalOpen(true); })}
             onDelete={(id) => pedirSenha(() => setDeleteId(id))}
-            onUpdateDataChegada={canEdit ? async (frete, dataChegada) => {
-              await atualizarMutation.mutateAsync({ ...frete, dataChegada });
-            } : undefined}
             onSelect={(f) => setFreteDetalhesId(f.id)}
             canEdit={canEdit}
             canDelete={canDelete}
-            filtroSemChegada={presetAtivo === 'sem_chegada'}
           />
         </>
       </TabsContent>
