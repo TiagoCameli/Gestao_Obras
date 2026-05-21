@@ -1,10 +1,11 @@
-import type { Frete, Insumo, PagamentoFrete } from '../../types';
+import type { Frete, Insumo } from '../../types';
 import FreteFotoChegadaBlock from './FreteFotoChegadaBlock';
+import { useAtualizarFrete } from '../../hooks/useFretes';
+import { useToast } from '../ui/Toast';
 
 interface Props {
   frete: Frete;
   insumos: Insumo[];
-  pagamentosFrete: PagamentoFrete[];
   canEdit: boolean;
 }
 
@@ -18,14 +19,26 @@ function fmtData(iso: string): string {
   return iso;
 }
 
-export default function FreteRowExpanded({ frete, insumos: _insumos, pagamentosFrete, canEdit }: Props) {
+export default function FreteRowExpanded({ frete, insumos: _insumos, canEdit }: Props) {
   const tkmCalc = frete.kmRodados * frete.pesoToneladas;
-  // Heurística: existe algum pagamento da mesma transportadora que cobre o
-  // período deste frete? Sem FK direta frete→pagamento no modelo atual.
-  const pagto = pagamentosFrete.find(
-    (p) => p.transportadora === frete.transportadora && p.data >= frete.data,
-  );
-  const statusPagto = pagto ? 'Pago' : 'Pendente';
+  const valorMaterialUnit = frete.valorMaterial && frete.pesoToneladas > 0
+    ? frete.valorMaterial / frete.pesoToneladas
+    : 0;
+  const atualizarMutation = useAtualizarFrete();
+  const { showToast } = useToast();
+
+  const handleDataChegadaChange = (novaData: string) => {
+    atualizarMutation.mutate(
+      { ...frete, dataChegada: novaData },
+      {
+        onSuccess: () => showToast({ kind: 'success', message: 'Data de chegada atualizada.' }),
+        onError: (err: unknown) => {
+          const msg = err instanceof Error ? err.message : String(err);
+          showToast({ kind: 'error', message: `Falha ao salvar: ${msg}` });
+        },
+      },
+    );
+  };
 
   return (
     <div className="bg-[var(--color-surface-1)] border-t border-[var(--color-border)] p-4">
@@ -41,21 +54,31 @@ export default function FreteRowExpanded({ frete, insumos: _insumos, pagamentosF
           <Field label="Placa" value={frete.placaCarreta || '—'} />
           <Field label="NF" value={frete.notaFiscal || '—'} />
           {frete.notaFiscal2 && <Field label="NF 2" value={frete.notaFiscal2} />}
-          <Field label="Data chegada" value={fmtData(frete.dataChegada || '')} />
+          <Field
+            label="Data chegada"
+            value={canEdit ? (
+              <input
+                type="date"
+                value={frete.dataChegada || ''}
+                onChange={(e) => handleDataChegadaChange(e.target.value)}
+                disabled={atualizarMutation.isPending}
+                className="bg-[var(--color-surface-1)] border border-[var(--color-border)] rounded px-2 py-0.5 text-xs text-[var(--color-fg)] focus:outline-none focus:border-[var(--color-accent)] disabled:opacity-50"
+              />
+            ) : (
+              fmtData(frete.dataChegada || '')
+            )}
+          />
         </div>
 
         {/* Coluna 3: Financeiro */}
         <div className="space-y-2 text-xs">
+          <Field label="KM rodados" value={`${(frete.kmRodados ?? 0).toLocaleString('pt-BR')} km`} />
           <Field label="R$ / TKM" value={`${fmtBRL(frete.valorTkm)} (TKM=${tkmCalc.toLocaleString('pt-BR')})`} />
           <Field label="Valor frete" value={fmtBRL(frete.valorTotal)} />
-          <Field label="Valor material" value={fmtBRL(frete.valorMaterial || 0)} />
-          <Field label="Pagamento" value={
-            <span className={`inline-block px-1.5 py-0.5 rounded-full text-[10px] font-bold ${
-              statusPagto === 'Pago'
-                ? 'bg-[color:color-mix(in_srgb,#10b981_22%,transparent)] text-emerald-700 dark:text-emerald-300'
-                : 'bg-[color:color-mix(in_srgb,#f59e0b_22%,transparent)] text-amber-700 dark:text-amber-300'
-            }`}>{statusPagto}</span>
-          } />
+          <Field label="Valor material (total)" value={fmtBRL(frete.valorMaterial || 0)} />
+          {valorMaterialUnit > 0 && (
+            <Field label="Valor material (R$/t)" value={fmtBRL(valorMaterialUnit) + '/t'} />
+          )}
         </div>
       </div>
     </div>

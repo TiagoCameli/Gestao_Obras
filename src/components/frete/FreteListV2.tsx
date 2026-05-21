@@ -8,7 +8,7 @@ import {
   ArrowUpDown, ArrowUp, ArrowDown, ChevronRight, ChevronDown,
   MoreVertical, Pencil, Trash2,
 } from 'lucide-react';
-import type { Frete, Obra, Insumo, PagamentoFrete } from '../../types';
+import type { Frete, Obra, Insumo } from '../../types';
 import FreteRowExpanded from './FreteRowExpanded';
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
@@ -18,7 +18,6 @@ interface Props {
   fretes: Frete[];
   obras: Obra[];
   insumos: Insumo[];
-  pagamentosFrete: PagamentoFrete[];
   filtros: { obraId: string; transportadora: string; motorista: string; insumoId: string; origem: string; destino: string; dataInicio: string; dataFim: string; notaFiscal: string };
   filtroSemChegada?: boolean;
   onEdit: (frete: Frete) => void;
@@ -48,7 +47,7 @@ function getInitialPageSize(): number {
 }
 
 export default function FreteListV2({
-  fretes, obras: _obras, insumos, pagamentosFrete, filtros, filtroSemChegada = false,
+  fretes, obras: _obras, insumos, filtros, filtroSemChegada = false,
   onEdit, onDelete, onSelect, canEdit = true, canDelete = true,
 }: Props) {
   const insumosMap = useMemo(() => new Map(insumos.map((i) => [i.id, i.nome])), [insumos]);
@@ -265,7 +264,6 @@ export default function FreteListV2({
                       <FreteRowExpanded
                         frete={row.original}
                         insumos={insumos}
-                        pagamentosFrete={pagamentosFrete}
                         canEdit={!!canEdit}
                       />
                     </td>

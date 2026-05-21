@@ -545,7 +545,6 @@ export default function Frete() {
             fretes={fretes}
             obras={obras}
             insumos={insumosAtivos}
-            pagamentosFrete={pagamentosFrete}
             filtros={filtros}
             filtroSemChegada={presetAtivo === 'sem_chegada'}
             onEdit={(frete) => pedirSenha(() => { setEditando(frete); setModalOpen(true); })}

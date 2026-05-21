@@ -17,6 +17,8 @@ import {
 import Button from '../ui/Button';
 import HistoricoTimeline from '../combustivel/HistoricoTimeline';
 import FreteFotoChegadaBlock from './FreteFotoChegadaBlock';
+import { useAtualizarFrete } from '../../hooks/useFretes';
+import { useToast } from '../ui/Toast';
 
 interface Props {
   frete: Frete | null;
@@ -71,11 +73,30 @@ export default function FreteDetalhesDrawer({
   const obrasMap = useMemo(() => new Map(obras.map((o) => [o.id, o.nome])), [obras]);
   const insumosMap = useMemo(() => new Map(insumos.map((i) => [i.id, i.nome])), [insumos]);
   const [tab, setTab] = useState<'detalhes' | 'historico'>('detalhes');
+  const atualizarMutation = useAtualizarFrete();
+  const { showToast } = useToast();
+
+  const handleDataChegadaChange = (novaData: string) => {
+    if (!frete) return;
+    atualizarMutation.mutate(
+      { ...frete, dataChegada: novaData },
+      {
+        onSuccess: () => showToast({ kind: 'success', message: 'Data de chegada atualizada.' }),
+        onError: (err: unknown) => {
+          const msg = err instanceof Error ? err.message : String(err);
+          showToast({ kind: 'error', message: `Falha ao salvar: ${msg}` });
+        },
+      },
+    );
+  };
 
   if (!frete) {
     return (
       <Sheet open={open} onOpenChange={(o) => { if (!o) onClose(); }}>
-        <SheetContent side="right" className="w-full sm:max-w-[700px]">
+        <SheetContent
+          side="right"
+          className="w-full data-[side=right]:sm:max-w-[900px] bg-[var(--color-surface-1)] text-[var(--color-fg)] border-l border-[var(--color-border)]"
+        >
           <SheetHeader>
             <SheetTitle>Frete</SheetTitle>
             <SheetDescription>Detalhes</SheetDescription>
@@ -119,7 +140,10 @@ export default function FreteDetalhesDrawer({
 
   return (
     <Sheet open={open} onOpenChange={(o) => { if (!o) onClose(); }}>
-      <SheetContent side="right" className="w-full sm:max-w-[700px] overflow-y-auto">
+      <SheetContent
+        side="right"
+        className="w-full data-[side=right]:sm:max-w-[900px] bg-[var(--color-surface-1)] text-[var(--color-fg)] border-l border-[var(--color-border)] overflow-y-auto"
+      >
         <SheetHeader>
           <SheetTitle>{frete.notaFiscal ? `Frete NF ${frete.notaFiscal}` : 'Frete'}</SheetTitle>
           <SheetDescription>
@@ -222,12 +246,33 @@ export default function FreteDetalhesDrawer({
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-4">
             <Field icon={Calendar} label="Data de saída" value={fmtData(frete.data)} />
-            <Field icon={Calendar} label="Data de chegada" value={fmtData(frete.dataChegada)} />
+            <Field
+              icon={Calendar}
+              label="Data de chegada"
+              value={canEdit ? (
+                <input
+                  type="date"
+                  value={frete.dataChegada || ''}
+                  onChange={(e) => handleDataChegadaChange(e.target.value)}
+                  disabled={atualizarMutation.isPending}
+                  className="bg-[var(--color-surface-2)] border border-[var(--color-border)] rounded px-2 py-1 text-sm text-[var(--color-fg)] focus:outline-none focus:border-[var(--color-accent)] disabled:opacity-50"
+                />
+              ) : (
+                fmtData(frete.dataChegada)
+              )}
+            />
             <Field icon={Truck} label="Transportadora" value={frete.transportadora} />
             <Field icon={User} label="Motorista" value={frete.motorista} />
             <Field icon={Truck} label="Placa da carreta" value={frete.placaCarreta} />
             <Field icon={Package} label="Material" value={materialLabel} />
             <Field icon={Wallet} label="R$ / TKM" value={`${fmtBRL(frete.valorTkm)} (TKM=${tkmCalc.toLocaleString('pt-BR')})`} />
+            {frete.valorMaterial && frete.pesoToneladas > 0 && (
+              <Field
+                icon={Package}
+                label="Valor material (R$/t)"
+                value={`${fmtBRL(frete.valorMaterial / frete.pesoToneladas)}/t`}
+              />
+            )}
             <Field icon={MapPin} label="Obra" value={obraLabel} />
             {frete.notaFiscal && <Field icon={FileText} label="Nota fiscal" value={frete.notaFiscal} />}
             {frete.notaFiscal2 && <Field icon={FileText} label="Nota fiscal 2" value={frete.notaFiscal2} />}
