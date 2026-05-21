@@ -9,6 +9,8 @@ import {
   MoreVertical, Pencil, Trash2,
 } from 'lucide-react';
 import type { Frete, Obra, Insumo } from '../../types';
+import { useAtualizarFrete } from '../../hooks/useFretes';
+import { useToast } from '../ui/Toast';
 import FreteRowExpanded from './FreteRowExpanded';
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
@@ -51,6 +53,21 @@ export default function FreteListV2({
   onEdit, onDelete, onSelect, canEdit = true, canDelete = true,
 }: Props) {
   const insumosMap = useMemo(() => new Map(insumos.map((i) => [i.id, i.nome])), [insumos]);
+  const atualizarMutation = useAtualizarFrete();
+  const { showToast } = useToast();
+
+  const handleDataChegadaChange = useCallback((frete: Frete, novaData: string) => {
+    atualizarMutation.mutate(
+      { ...frete, dataChegada: novaData },
+      {
+        onSuccess: () => showToast({ kind: 'success', message: 'Data de chegada atualizada.' }),
+        onError: (err: unknown) => {
+          const msg = err instanceof Error ? err.message : String(err);
+          showToast({ kind: 'error', message: `Falha ao salvar: ${msg}` });
+        },
+      },
+    );
+  }, [atualizarMutation, showToast]);
 
   // Filtros client-side (mesma lógica do FreteList v1)
   const filtrados = useMemo(() => {
@@ -94,23 +111,37 @@ export default function FreteListV2({
       size: 32,
     },
     ch.accessor('data', {
-      header: 'Data',
+      header: 'Saída',
       cell: ({ row }) => {
         const { dia } = fmtData(row.original.data);
-        const chegada = row.original.dataChegada ? fmtData(row.original.dataChegada).dia : null;
-        return (
-          <div className="flex flex-col">
-            <span className="font-medium">{dia}</span>
-            {chegada ? (
-              <span className="text-[10px] text-[var(--color-fg-muted)] uppercase tracking-wide">chegou {chegada}</span>
-            ) : (
-              <span className="text-[10px] text-[var(--color-fg-subtle)] italic">sem chegada</span>
-            )}
-          </div>
-        );
+        return <span className="font-medium">{dia}</span>;
       },
       sortingFn: 'alphanumeric',
     }) as ColumnDef<Frete>,
+    {
+      id: 'dataChegada',
+      header: 'Chegada',
+      accessorFn: (f) => f.dataChegada || '',
+      sortingFn: 'alphanumeric',
+      cell: ({ row }) => {
+        const f = row.original;
+        if (!canEdit) {
+          return f.dataChegada
+            ? <span className="font-medium">{fmtData(f.dataChegada).dia}</span>
+            : <span className="text-[10px] text-[var(--color-fg-subtle)] italic">sem chegada</span>;
+        }
+        return (
+          <input
+            type="date"
+            value={f.dataChegada || ''}
+            onClick={(e) => e.stopPropagation()}
+            onChange={(e) => handleDataChegadaChange(f, e.target.value)}
+            className="bg-[var(--color-surface-1)] border border-[var(--color-border)] rounded px-2 py-1 text-xs text-[var(--color-fg)] focus:outline-none focus:border-[var(--color-accent)] tabular-nums"
+            title="Editar data de chegada"
+          />
+        );
+      },
+    },
     {
       id: 'origemDestino',
       header: 'Origem → Destino',
@@ -190,7 +221,7 @@ export default function FreteListV2({
       ),
       size: 32,
     },
-  ], [ch, insumosMap, canEdit, canDelete, onEdit, onDelete]);
+  ], [ch, insumosMap, canEdit, canDelete, onEdit, onDelete, handleDataChegadaChange]);
 
   const [sorting, setSorting] = useState<SortingState>([{ id: 'data', desc: true }]);
   const [expanded, setExpanded] = useState<ExpandedState>({});
