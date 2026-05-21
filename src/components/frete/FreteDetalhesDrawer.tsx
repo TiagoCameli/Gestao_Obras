@@ -8,16 +8,17 @@
 import { useMemo, useState } from 'react';
 import {
   Pencil, Trash2, Truck, MapPin, Calendar, Package, Weight, Route, Wallet,
-  FileText, Paperclip, History, User, PackageCheck, ArrowRight,
+  FileText, Paperclip, History, User, ArrowRight,
 } from 'lucide-react';
 import type { Frete, Obra, Insumo } from '../../types';
-import Drawer from '../ui/Drawer';
+import {
+  Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription, SheetFooter,
+} from '../shadcn/sheet';
 import Button from '../ui/Button';
 import HistoricoTimeline from '../combustivel/HistoricoTimeline';
-import AnexosUploader from '../combustivel/AnexosUploader';
+import FreteFotoChegadaBlock from './FreteFotoChegadaBlock';
 import { useAtualizarFrete } from '../../hooks/useFretes';
 import { useToast } from '../ui/Toast';
-import { calcularUpdateFotoChegada } from '../../utils/freteFotoChegada';
 
 interface Props {
   frete: Frete | null;
@@ -75,37 +76,15 @@ export default function FreteDetalhesDrawer({
   const atualizarMutation = useAtualizarFrete();
   const { showToast } = useToast();
 
-  // Estado de fotos: combina principal (fotoChegadaUrl) + extras (fotoUrls).
-  // 1ª da lista = principal. Derivado direto do frete (sem state local —
-  // React Query é a fonte da verdade).
-  const fotosAtuais = useMemo<string[]>(() => {
-    if (!frete) return [];
-    const all: string[] = [];
-    if (frete.fotoChegadaUrl) all.push(frete.fotoChegadaUrl);
-    if (frete.fotoUrls) all.push(...frete.fotoUrls);
-    return all;
-  }, [frete]);
-
-  const handleFotoChange = (novas: string[]) => {
+  const handleDataChegadaChange = (novaData: string) => {
     if (!frete) return;
-    const novaUrl = novas[0] ?? null;
-    const extras = novas.slice(1);
-    const hoje = new Date().toISOString().slice(0, 10);
-    const payload = calcularUpdateFotoChegada({
-      novaUrl,
-      dataChegadaAtual: frete.dataChegada,
-      hoje,
-    });
-    // useAtualizarFrete exige Frete completo — spread + override de fotos
     atualizarMutation.mutate(
-      { ...frete, ...payload, fotoUrls: extras },
+      { ...frete, dataChegada: novaData },
       {
-        onSuccess: () => {
-          showToast({ kind: 'success', message: 'Fotos atualizadas.' });
-        },
+        onSuccess: () => showToast({ kind: 'success', message: 'Data de chegada atualizada.' }),
         onError: (err: unknown) => {
           const msg = err instanceof Error ? err.message : String(err);
-          showToast({ kind: 'error', message: `Falha ao salvar fotos: ${msg}` });
+          showToast({ kind: 'error', message: `Falha ao salvar: ${msg}` });
         },
       },
     );
@@ -113,9 +92,18 @@ export default function FreteDetalhesDrawer({
 
   if (!frete) {
     return (
-      <Drawer open={open} onClose={onClose} title="Frete" subtitle="Detalhes" width="lg">
-        <div className="text-sm text-[var(--color-fg-muted)] italic">Frete não disponível.</div>
-      </Drawer>
+      <Sheet open={open} onOpenChange={(o) => { if (!o) onClose(); }}>
+        <SheetContent
+          side="right"
+          className="w-full data-[side=right]:sm:max-w-[900px] bg-[var(--color-surface-1)] text-[var(--color-fg)] border-l border-[var(--color-border)]"
+        >
+          <SheetHeader>
+            <SheetTitle>Frete</SheetTitle>
+            <SheetDescription>Detalhes</SheetDescription>
+          </SheetHeader>
+          <div className="text-sm text-[var(--color-fg-muted)] italic mt-4">Frete não disponível.</div>
+        </SheetContent>
+      </Sheet>
     );
   }
 
@@ -151,102 +139,55 @@ export default function FreteDetalhesDrawer({
   );
 
   return (
-    <Drawer
-      open={open}
-      onClose={onClose}
-      title={frete.notaFiscal ? `Frete NF ${frete.notaFiscal}` : 'Frete'}
-      subtitle={`${fmtData(frete.data)} · ${frete.transportadora || 'sem transportadora'}`}
-      width="lg"
-      footer={footer}
-    >
-      <div className="flex gap-1 mb-4 border-b border-[var(--color-border)]">
-        <button
-          type="button"
-          onClick={() => setTab('detalhes')}
-          className={`px-3 py-2 text-sm font-medium transition-colors border-b-2 -mb-px ${
-            tab === 'detalhes'
-              ? 'text-[var(--color-fg)] border-[var(--color-accent)]'
-              : 'text-[var(--color-fg-muted)] border-transparent hover:text-[var(--color-fg)]'
-          }`}
-        >
-          Detalhes
-        </button>
-        <button
-          type="button"
-          onClick={() => setTab('historico')}
-          className={`inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium transition-colors border-b-2 -mb-px ${
-            tab === 'historico'
-              ? 'text-[var(--color-fg)] border-[var(--color-accent)]'
-              : 'text-[var(--color-fg-muted)] border-transparent hover:text-[var(--color-fg)]'
-          }`}
-        >
-          <History className="w-3.5 h-3.5" />
-          Histórico
-        </button>
-      </div>
+    <Sheet open={open} onOpenChange={(o) => { if (!o) onClose(); }}>
+      <SheetContent
+        side="right"
+        className="w-full data-[side=right]:sm:max-w-[900px] bg-[var(--color-surface-1)] text-[var(--color-fg)] border-l border-[var(--color-border)] overflow-y-auto"
+      >
+        <SheetHeader>
+          <SheetTitle>{frete.notaFiscal ? `Frete NF ${frete.notaFiscal}` : 'Frete'}</SheetTitle>
+          <SheetDescription>
+            {`${fmtData(frete.data)} · ${frete.transportadora || 'sem transportadora'}`}
+          </SheetDescription>
+        </SheetHeader>
 
-      {tab === 'historico' && (
-        <HistoricoTimeline
-          alvoId={frete.id}
-          resolvers={{ obras: obrasMap, combustiveis: insumosMap }}
-        />
-      )}
-
-      {tab === 'detalhes' && (
-        <div className="space-y-5">
-          {/* FF.6 + Fase A — Bloco destacado: Fotos da Chegada da Carga.
-              AnexosUploader inline (até 8 fotos). A 1ª é a foto principal
-              (vai pra fotoChegadaUrl), o resto vai pra fotoUrls. Remover a
-              1ª promove a 2ª automaticamente. */}
-          <div className="rounded-xl border-2 border-[var(--color-accent)]/30 bg-[var(--color-accent)]/5 p-4">
-            <div className="flex items-center gap-2 mb-3">
-              <PackageCheck className="w-5 h-5 text-[var(--color-accent)]" />
-              <div className="flex-1">
-                <h3 className="text-sm font-semibold text-[var(--color-fg)]">Fotos da Chegada da Carga</h3>
-                <p className="text-xs text-[var(--color-fg-muted)]">
-                  {fotosAtuais.length === 0
-                    ? 'Pendente — carga ainda não foi confirmada na chegada.'
-                    : `${fotosAtuais.length} foto(s)${frete.dataChegada ? ` · registrada em ${fmtData(frete.dataChegada)}` : ''}. A 1ª é a principal.`}
-                </p>
-              </div>
-            </div>
-
-            {canEdit ? (
-              <AnexosUploader
-                fotoUrls={fotosAtuais}
-                arquivoUrls={[]}
-                onChangeFotos={handleFotoChange}
-                onChangeArquivos={() => {}}
-                pastaId={`frete-chegada/${frete.id}`}
-                hideArquivos
-              />
-            ) : fotosAtuais.length > 0 ? (
-              <div className="grid grid-cols-3 gap-2">
-                {fotosAtuais.map((url, i) => (
-                  <a
-                    key={url}
-                    href={url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="relative block aspect-square rounded-lg overflow-hidden border border-[var(--color-border)] hover:border-[var(--color-accent)] transition-colors"
-                  >
-                    <img src={url} alt={`Foto da chegada ${i + 1}`} className="w-full h-full object-cover" loading="lazy" />
-                    {i === 0 && (
-                      <span className="absolute top-1 left-1 px-1.5 py-0.5 text-[9px] uppercase tracking-wide bg-[var(--color-accent)] text-[var(--color-fg-on-accent)] rounded-full font-bold">
-                        Principal
-                      </span>
-                    )}
-                  </a>
-                ))}
-              </div>
-            ) : (
-              <div className="aspect-video rounded-lg border-2 border-dashed border-[var(--color-border)] flex flex-col items-center justify-center text-center px-4">
-                <Truck className="w-8 h-8 text-[var(--color-fg-muted)] mb-2" />
-                <p className="text-sm text-[var(--color-fg-muted)]">Sem foto de chegada registrada.</p>
-                <p className="text-xs text-[var(--color-fg-muted)] mt-1">Você não tem permissão para anexar.</p>
-              </div>
-            )}
+        <div className="mt-4">
+          <div className="flex gap-1 mb-4 border-b border-[var(--color-border)]">
+            <button
+              type="button"
+              onClick={() => setTab('detalhes')}
+              className={`px-3 py-2 text-sm font-medium transition-colors border-b-2 -mb-px ${
+                tab === 'detalhes'
+                  ? 'text-[var(--color-fg)] border-[var(--color-accent)]'
+                  : 'text-[var(--color-fg-muted)] border-transparent hover:text-[var(--color-fg)]'
+              }`}
+            >
+              Detalhes
+            </button>
+            <button
+              type="button"
+              onClick={() => setTab('historico')}
+              className={`inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium transition-colors border-b-2 -mb-px ${
+                tab === 'historico'
+                  ? 'text-[var(--color-fg)] border-[var(--color-accent)]'
+                  : 'text-[var(--color-fg-muted)] border-transparent hover:text-[var(--color-fg)]'
+              }`}
+            >
+              <History className="w-3.5 h-3.5" />
+              Histórico
+            </button>
           </div>
+
+          {tab === 'historico' && (
+            <HistoricoTimeline
+              alvoId={frete.id}
+              resolvers={{ obras: obrasMap, combustiveis: insumosMap }}
+            />
+          )}
+
+          {tab === 'detalhes' && (
+            <div className="space-y-5">
+          <FreteFotoChegadaBlock frete={frete} canEdit={canEdit} variant="card" />
 
           {/* KPIs */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
@@ -305,12 +246,33 @@ export default function FreteDetalhesDrawer({
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-4">
             <Field icon={Calendar} label="Data de saída" value={fmtData(frete.data)} />
-            <Field icon={Calendar} label="Data de chegada" value={fmtData(frete.dataChegada)} />
+            <Field
+              icon={Calendar}
+              label="Data de chegada"
+              value={canEdit ? (
+                <input
+                  type="date"
+                  value={frete.dataChegada || ''}
+                  onChange={(e) => handleDataChegadaChange(e.target.value)}
+                  disabled={atualizarMutation.isPending}
+                  className="bg-[var(--color-surface-2)] border border-[var(--color-border)] rounded px-2 py-1 text-sm text-[var(--color-fg)] focus:outline-none focus:border-[var(--color-accent)] disabled:opacity-50"
+                />
+              ) : (
+                fmtData(frete.dataChegada)
+              )}
+            />
             <Field icon={Truck} label="Transportadora" value={frete.transportadora} />
             <Field icon={User} label="Motorista" value={frete.motorista} />
             <Field icon={Truck} label="Placa da carreta" value={frete.placaCarreta} />
             <Field icon={Package} label="Material" value={materialLabel} />
             <Field icon={Wallet} label="R$ / TKM" value={`${fmtBRL(frete.valorTkm)} (TKM=${tkmCalc.toLocaleString('pt-BR')})`} />
+            {frete.valorMaterial && frete.pesoToneladas > 0 && (
+              <Field
+                icon={Package}
+                label="Valor material (R$/t)"
+                value={`${fmtBRL(frete.valorMaterial / frete.pesoToneladas)}/t`}
+              />
+            )}
             <Field icon={MapPin} label="Obra" value={obraLabel} />
             {frete.notaFiscal && <Field icon={FileText} label="Nota fiscal" value={frete.notaFiscal} />}
             {frete.notaFiscal2 && <Field icon={FileText} label="Nota fiscal 2" value={frete.notaFiscal2} />}
@@ -397,8 +359,14 @@ export default function FreteDetalhesDrawer({
               </ul>
             </div>
           )}
+            </div>
+          )}
         </div>
-      )}
-    </Drawer>
+
+        <SheetFooter className="mt-6">
+          {footer}
+        </SheetFooter>
+      </SheetContent>
+    </Sheet>
   );
 }
