@@ -8,15 +8,18 @@
 
 import { useState, useMemo, useEffect, type FormEvent } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { ArrowLeft, Droplet, Camera, X, CheckCircle2, AlertTriangle, Gauge } from 'lucide-react';
+import { ArrowLeft, Droplet, CheckCircle2, AlertTriangle, Gauge } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import Button from '../../components/ui/Button';
 import SmartSelect from '../../components/ui/SmartSelect';
 import { useEquipamentos } from '../../hooks/useEquipamentos';
 import { useMedicaoAtual } from '../../hooks/useMedicoesEquipamento';
 import { useDepositos } from '../../hooks/useDepositos';
+import { useObras } from '../../hooks/useObras';
+import { useEtapas } from '../../hooks/useEtapas';
 import { useAuth } from '../../contexts/AuthContext';
 import { useToast } from '../../components/ui/Toast';
+import AnexosUploader from '../../components/combustivel/AnexosUploader';
 
 function gerarId(prefix: string) {
   return prefix + '-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
@@ -37,20 +40,33 @@ export default function MSaidaCombustivelPage() {
   const equipamento = equipamentos.find((e) => e.id === equipamentoId);
   const { data: medicaoAtual } = useMedicaoAtual(equipamentoId ?? null);
   const { data: depositos = [] } = useDepositos();
+  const { data: obras = [] } = useObras();
+  const { data: etapas = [] } = useEtapas();
 
   const tanquesAtivos = useMemo(
     () => depositos.filter((d) => d.ativo).sort((a, b) => a.nome.localeCompare(b.nome)),
     [depositos]
   );
+  const obrasOrdenadas = useMemo(
+    () => [...obras].sort((a, b) => a.nome.localeCompare(b.nome)),
+    [obras]
+  );
 
   const [tanqueId, setTanqueId] = useState('');
+  const [obraId, setObraId] = useState('');
+  const [etapaId, setEtapaId] = useState('');
   const [litros, setLitros] = useState('');
   const [medicaoLeitura, setMedicaoLeitura] = useState('');
   const [observacoes, setObservacoes] = useState('');
-  const [fotoFile, setFotoFile] = useState<File | null>(null);
-  const [fotoPreview, setFotoPreview] = useState<string | null>(null);
+  const [fotoUrls, setFotoUrls] = useState<string[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
+
+  // Etapas da obra selecionada
+  const etapasDaObra = useMemo(
+    () => etapas.filter((e) => e.obraId === obraId).sort((a, b) => a.nome.localeCompare(b.nome)),
+    [etapas, obraId]
+  );
 
   // Pre-seleciona tanque se só houver 1 ativo
   useEffect(() => {
@@ -58,6 +74,11 @@ export default function MSaidaCombustivelPage() {
       setTanqueId(tanquesAtivos[0].id);
     }
   }, [tanqueId, tanquesAtivos]);
+
+  // Quando troca de obra, limpa etapa (pode ser de outra obra)
+  useEffect(() => {
+    setEtapaId('');
+  }, [obraId]);
 
   if (!equipamento) {
     return (
@@ -72,18 +93,7 @@ export default function MSaidaCombustivelPage() {
 
   const tanqueSelecionado = tanquesAtivos.find((t) => t.id === tanqueId);
   const litrosNum = numOrZero(litros);
-  const podeSalvar = !!tanqueId && litrosNum > 0;
-
-  function setFoto(file: File | null) {
-    if (fotoPreview) URL.revokeObjectURL(fotoPreview);
-    if (!file) {
-      setFotoFile(null);
-      setFotoPreview(null);
-      return;
-    }
-    setFotoFile(file);
-    setFotoPreview(URL.createObjectURL(file));
-  }
+  const podeSalvar = !!tanqueId && !!obraId && !!etapaId && litrosNum > 0;
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
@@ -92,22 +102,6 @@ export default function MSaidaCombustivelPage() {
     setSubmitting(true);
     try {
       const saidaId = gerarId('saida');
-
-      // Upload da foto se houver
-      let fotoUrl: string | null = null;
-      if (fotoFile) {
-        const ext = (fotoFile.type.split('/')[1] || 'jpg').replace('jpeg', 'jpg');
-        const path = `saida/${saidaId}.${ext}`;
-        const { error: upErr } = await supabase.storage
-          .from('abastecimento-fotos')
-          .upload(path, fotoFile, { contentType: fotoFile.type });
-        if (!upErr) {
-          const { data: signed } = await supabase.storage
-            .from('abastecimento-fotos')
-            .createSignedUrl(path, 60 * 60);
-          fotoUrl = signed?.signedUrl ?? null;
-        }
-      }
 
       // Preço médio do tanque (snapshot) — usado pra calcular valor_total
       // Se o tanque tem nivelAtualLitros > 0 e algum preco médio salvo, usa.
@@ -128,8 +122,8 @@ export default function MSaidaCombustivelPage() {
         equipamento_id: equipamentoId,
         transportadora_id: null,
         placa: null,
-        obra_id: null,
-        etapa_id: null,
+        obra_id: obraId,
+        etapa_id: etapaId,
         alocacoes: [],
         tipo_combustivel: 'diesel',  // default; tanque pode ter outro mas operador raramente vai precisar mudar
         litros: litrosNum,
@@ -139,7 +133,7 @@ export default function MSaidaCombustivelPage() {
         valor_total: valorTotal,
         observacoes: observacoes.trim() || `Saída via mobile · ${usuario?.nome ?? ''}`,
         pago: false,
-        foto_urls: fotoUrl ? [fotoUrl] : [],
+        foto_urls: fotoUrls,
         arquivo_urls: [],
         motorista: usuario?.nome ?? '',
         medicao_no_abastecimento: medicaoNum,
@@ -148,8 +142,6 @@ export default function MSaidaCombustivelPage() {
         updated_by: usuario?.nome ?? '',
       });
       if (error) throw error;
-
-      if (fotoPreview) URL.revokeObjectURL(fotoPreview);
 
       showToast({
         kind: 'success',
@@ -208,6 +200,45 @@ export default function MSaidaCombustivelPage() {
         </div>
 
         <div>
+          <label htmlFor="obraSel" className="block text-xs font-medium text-[var(--color-fg-muted)] mb-1">
+            Obra <span className="text-[var(--color-danger)]">*</span>
+          </label>
+          <SmartSelect
+            id="obraSel"
+            value={obraId}
+            onChange={(e) => setObraId(e.target.value)}
+            required
+            className="w-full h-12 rounded-xl px-3 text-base text-left bg-[var(--color-surface-1)] text-[var(--color-fg)] border border-[var(--color-border)] focus:outline-none focus:border-[var(--color-accent)] focus:ring-2 focus:ring-[var(--color-ring)] flex items-center"
+          >
+            <option value="">Selecione…</option>
+            {obrasOrdenadas.map((o) => (
+              <option key={o.id} value={o.id}>{o.nome}</option>
+            ))}
+          </SmartSelect>
+        </div>
+
+        <div>
+          <label htmlFor="etapaSel" className="block text-xs font-medium text-[var(--color-fg-muted)] mb-1">
+            Etapa <span className="text-[var(--color-danger)]">*</span>
+          </label>
+          <SmartSelect
+            id="etapaSel"
+            value={etapaId}
+            onChange={(e) => setEtapaId(e.target.value)}
+            required
+            disabled={!obraId}
+            className="w-full h-12 rounded-xl px-3 text-base text-left bg-[var(--color-surface-1)] text-[var(--color-fg)] border border-[var(--color-border)] focus:outline-none focus:border-[var(--color-accent)] focus:ring-2 focus:ring-[var(--color-ring)] flex items-center disabled:opacity-50"
+          >
+            <option value="">
+              {!obraId ? 'Selecione a obra primeiro' : etapasDaObra.length === 0 ? 'Sem etapas cadastradas' : 'Selecione…'}
+            </option>
+            {etapasDaObra.map((et) => (
+              <option key={et.id} value={et.id}>{et.nome}</option>
+            ))}
+          </SmartSelect>
+        </div>
+
+        <div>
           <label htmlFor="litros" className="block text-xs font-medium text-[var(--color-fg-muted)] mb-1">
             Litros abastecidos <span className="text-[var(--color-danger)]">*</span>
           </label>
@@ -251,37 +282,16 @@ export default function MSaidaCombustivelPage() {
 
         <div>
           <label className="block text-xs font-medium text-[var(--color-fg-muted)] mb-1">
-            Foto (bomba, hodômetro) — opcional
+            Fotos (bomba, hodômetro, equipamento) — até 8, opcional
           </label>
-          {fotoPreview ? (
-            <div className="relative">
-              <img
-                src={fotoPreview}
-                alt="Foto"
-                className="w-full max-h-64 object-contain rounded-lg border border-[var(--color-border)] bg-black/30"
-              />
-              <button
-                type="button"
-                onClick={() => setFoto(null)}
-                className="absolute top-1 right-1 bg-black/60 text-white rounded-full p-1"
-                aria-label="Remover foto"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-          ) : (
-            <label className="flex items-center justify-center gap-2 h-12 rounded-xl border-2 border-dashed border-[var(--color-border)] bg-[var(--color-surface-1)] text-sm font-medium text-[var(--color-fg)] cursor-pointer">
-              <Camera className="w-5 h-5" />
-              Tirar foto
-              <input
-                type="file"
-                accept="image/*"
-                capture="environment"
-                className="sr-only"
-                onChange={(e) => setFoto(e.target.files?.[0] ?? null)}
-              />
-            </label>
-          )}
+          <AnexosUploader
+            fotoUrls={fotoUrls}
+            arquivoUrls={[]}
+            onChangeFotos={setFotoUrls}
+            onChangeArquivos={() => {}}
+            pastaId={`saida/${equipamentoId}`}
+            hideArquivos
+          />
         </div>
 
         <div>
