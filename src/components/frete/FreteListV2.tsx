@@ -125,12 +125,16 @@ export default function FreteListV2({
     ch.accessor('transportadora', {
       header: 'Transportadora',
       cell: ({ row }) => {
-        const sub = [row.original.motorista, row.original.placaCarreta].filter(Boolean).join(' · ');
+        const motorista = row.original.motorista?.trim();
+        const placa = row.original.placaCarreta?.trim();
         return (
-          <div className="flex flex-col">
-            <span className="font-medium truncate max-w-[180px]">{row.original.transportadora || '—'}</span>
-            {sub && (
-              <span className="text-xs text-[var(--color-fg-muted)] truncate max-w-[180px]">{sub}</span>
+          <div className="flex flex-col leading-tight">
+            <span className="font-medium">{row.original.transportadora || '—'}</span>
+            {motorista && (
+              <span className="text-xs text-[var(--color-fg-muted)]">{motorista}</span>
+            )}
+            {placa && (
+              <span className="text-[10px] text-[var(--color-fg-subtle)] uppercase tracking-wide tabular-nums">{placa}</span>
             )}
           </div>
         );
