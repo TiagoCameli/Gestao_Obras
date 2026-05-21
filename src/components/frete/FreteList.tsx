@@ -108,6 +108,8 @@ interface FreteListProps {
   onSelect?: (f: Frete) => void;
   canEdit?: boolean;
   canDelete?: boolean;
+  /** Quando true, filtra apenas fretes sem dataChegada registrada. */
+  filtroSemChegada?: boolean;
 }
 
 export default function FreteList({
@@ -121,6 +123,7 @@ export default function FreteList({
   onSelect,
   canEdit = true,
   canDelete = true,
+  filtroSemChegada = false,
 }: FreteListProps) {
   const [pagina, setPagina] = useState(0);
   // 500/página por padrão (smoke test recomendou). Em telas pequenas a primeira
@@ -163,6 +166,7 @@ export default function FreteList({
         const q = filtros.notaFiscal.toLowerCase();
         if (!f.notaFiscal?.toLowerCase().includes(q)) return false;
       }
+      if (filtroSemChegada && f.dataChegada) return false;
       return true;
     });
 
@@ -203,7 +207,7 @@ export default function FreteList({
       }
       return sortDir === 'asc' ? cmp : -cmp;
     });
-  }, [fretes, filtros, sortKey, sortDir, insumosMap]);
+  }, [fretes, filtros, sortKey, sortDir, insumosMap, filtroSemChegada]);
 
   // Reset page when filters/sort change — padrão "adjusting state in response
   // to change" do React 19 (https://react.dev/reference/react/useState#storing-information-from-previous-renders).

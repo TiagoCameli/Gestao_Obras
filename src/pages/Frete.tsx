@@ -37,6 +37,8 @@ import { exportarFretesPDF, exportarFretesExcel } from '../utils/freteExport';
 import ImportAtualizacaoFretesModal from '../components/frete/ImportAtualizacaoFretesModal';
 import { exportarPedidosMaterialExcel, exportarPedidosMaterialPDF } from '../utils/pedidosMaterialExport';
 import FilterBar from '../components/frete/FilterBar';
+import FretePresets, { type PresetKey } from '../components/frete/FretePresets';
+import { presetEstaSemana, presetMesPassado } from '../utils/dateRangePresets';
 import { Truck, Sparkles, BarChart3, Wallet, Wallet2, PackageSearch, Trash2 } from 'lucide-react';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '../components/shadcn/tabs';
 
@@ -167,6 +169,34 @@ export default function Frete() {
     dataFim: '',
     notaFiscal: '',
   });
+
+  const [presetAtivo, setPresetAtivo] = useState<PresetKey | null>(null);
+
+  const aplicarPreset = useCallback((key: PresetKey | null, valor?: string) => {
+    setPresetAtivo(key);
+    if (key === null) {
+      setFiltros((f) => ({ ...f, dataInicio: '', dataFim: '', transportadora: '' }));
+      return;
+    }
+    if (key === 'sem_chegada') {
+      setFiltros((f) => ({ ...f, dataInicio: '', dataFim: '' }));
+      return;
+    }
+    if (key === 'esta_semana') {
+      const r = presetEstaSemana();
+      setFiltros((f) => ({ ...f, dataInicio: r.dataInicio ?? '', dataFim: r.dataFim ?? '' }));
+      return;
+    }
+    if (key === 'mes_passado') {
+      const r = presetMesPassado();
+      setFiltros((f) => ({ ...f, dataInicio: r.dataInicio ?? '', dataFim: r.dataFim ?? '' }));
+      return;
+    }
+    if (key === 'top_transportadora' && valor) {
+      setFiltros((f) => ({ ...f, transportadora: valor }));
+      return;
+    }
+  }, []);
 
   // Extract unique motoristas from fretes
   const motoristas = useMemo(() => {
@@ -456,6 +486,13 @@ export default function Frete() {
       {/* ── Fretes Tab ── */}
       <TabsContent value="fretes">
         <>
+          <FretePresets
+            fretes={fretes}
+            filtros={filtros}
+            onApplyPreset={aplicarPreset}
+            presetAtivo={presetAtivo}
+            transportadoraTop={presetAtivo === 'top_transportadora' ? filtros.transportadora : undefined}
+          />
           <FilterBar
             search={{
               value: filtros.notaFiscal,
@@ -516,6 +553,7 @@ export default function Frete() {
             onSelect={(f) => setFreteDetalhesId(f.id)}
             canEdit={canEdit}
             canDelete={canDelete}
+            filtroSemChegada={presetAtivo === 'sem_chegada'}
           />
         </>
       </TabsContent>
