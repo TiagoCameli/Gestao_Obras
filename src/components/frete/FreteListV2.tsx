@@ -1,4 +1,4 @@
-import { Fragment, useCallback, useMemo, useState } from 'react';
+import { Fragment, useCallback, useEffect, useMemo, useState } from 'react';
 import {
   useReactTable, getCoreRowModel, getSortedRowModel, getPaginationRowModel,
   getExpandedRowModel, createColumnHelper, flexRender,
@@ -172,20 +172,36 @@ export default function FreteListV2({
   const [sorting, setSorting] = useState<SortingState>([{ id: 'data', desc: true }]);
   const [expanded, setExpanded] = useState<ExpandedState>({});
   const [pageSize, setPageSize] = useState<number>(getInitialPageSize);
+  const [pageIndex, setPageIndex] = useState<number>(0);
 
   const persistPageSize = useCallback((n: number) => {
     setPageSize(n);
+    setPageIndex(0);
     if (typeof window !== 'undefined') {
       window.localStorage.setItem(PAGE_SIZE_KEY, String(n));
     }
   }, []);
 
+  // Clamp pageIndex when filtros reduce the list
+  useEffect(() => {
+    const totalPages = Math.max(1, Math.ceil(filtrados.length / pageSize));
+    if (pageIndex >= totalPages) {
+      setPageIndex(0);
+    }
+  }, [filtrados.length, pageSize, pageIndex]);
+
   const table = useReactTable({
     data: filtrados,
     columns,
-    state: { sorting, expanded, pagination: { pageIndex: 0, pageSize } },
+    state: { sorting, expanded, pagination: { pageIndex, pageSize } },
     onSortingChange: setSorting,
     onExpandedChange: setExpanded,
+    onPaginationChange: (updater) => {
+      const next = typeof updater === 'function'
+        ? updater({ pageIndex, pageSize })
+        : updater;
+      setPageIndex(next.pageIndex);
+    },
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
     getExpandedRowModel: getExpandedRowModel(),
@@ -248,7 +264,6 @@ export default function FreteListV2({
                     <td colSpan={row.getVisibleCells().length} className="p-0">
                       <FreteRowExpanded
                         frete={row.original}
-                        obras={_obras}
                         insumos={insumos}
                         pagamentosFrete={pagamentosFrete}
                         canEdit={!!canEdit}

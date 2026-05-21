@@ -1,9 +1,8 @@
-import type { Frete, Obra, Insumo, PagamentoFrete } from '../../types';
+import type { Frete, Insumo, PagamentoFrete } from '../../types';
 import FreteFotoChegadaBlock from './FreteFotoChegadaBlock';
 
 interface Props {
   frete: Frete;
-  obras: Obra[];
   insumos: Insumo[];
   pagamentosFrete: PagamentoFrete[];
   canEdit: boolean;
@@ -19,7 +18,7 @@ function fmtData(iso: string): string {
   return iso;
 }
 
-export default function FreteRowExpanded({ frete, obras: _obras, insumos: _insumos, pagamentosFrete, canEdit }: Props) {
+export default function FreteRowExpanded({ frete, insumos: _insumos, pagamentosFrete, canEdit }: Props) {
   const tkmCalc = frete.kmRodados * frete.pesoToneladas;
   // Heurística: existe algum pagamento da mesma transportadora que cobre o
   // período deste frete? Sem FK direta frete→pagamento no modelo atual.
