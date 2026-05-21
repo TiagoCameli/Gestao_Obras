@@ -3,7 +3,7 @@
 
 import { useState, useMemo } from 'react';
 import { Link } from 'react-router-dom';
-import { Search, ClipboardCheck, ChevronRight, Wrench } from 'lucide-react';
+import { Search, ClipboardCheck, ChevronRight, Wrench, QrCode } from 'lucide-react';
 import { useEquipamentos } from '../../hooks/useEquipamentos';
 import { getCategoriaFrota } from '../../lib/frotaConstants';
 
@@ -35,6 +35,14 @@ export default function MEquipamentosPage() {
           Toque no equipamento para fazer o checklist diário, apontar horímetro/km ou abrir OS.
         </p>
       </div>
+
+      <Link
+        to="/m/scan"
+        className="flex items-center justify-center gap-2 w-full h-12 rounded-xl bg-[var(--color-accent)] text-[var(--color-fg-on-accent)] font-semibold text-base shadow-sm hover:opacity-90 active:scale-[0.98] transition-all"
+      >
+        <QrCode className="w-5 h-5" />
+        Escanear QR do equipamento
+      </Link>
 
       <div className="relative">
         <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-[var(--color-fg-subtle)]" />

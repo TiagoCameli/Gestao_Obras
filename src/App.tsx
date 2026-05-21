@@ -1,3 +1,4 @@
+import { lazy, Suspense } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
@@ -34,6 +35,8 @@ import MAbrirOSPage from './pages/mobile/MAbrirOSPage';
 import MEquipamentoHubPage from './pages/mobile/MEquipamentoHubPage';
 import MEquipamentoInfoPage from './pages/mobile/MEquipamentoInfoPage';
 import MSaidaCombustivelPage from './pages/mobile/MSaidaCombustivelPage';
+
+const MScanPage = lazy(() => import('./pages/mobile/MScanPage'));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -148,6 +151,14 @@ export default function App() {
               }
             >
               <Route path="/m" element={<MEquipamentosPage />} />
+              <Route
+                path="/m/scan"
+                element={
+                  <Suspense fallback={<div className="p-8 text-center text-[var(--color-fg-muted)]">Carregando scanner…</div>}>
+                    <MScanPage />
+                  </Suspense>
+                }
+              />
               <Route path="/m/eq/:equipamentoId" element={<MEquipamentoHubPage />} />
               <Route path="/m/eq/:equipamentoId/info" element={<MEquipamentoInfoPage />} />
               <Route path="/m/checklist/:equipamentoId" element={<MChecklistPage />} />
