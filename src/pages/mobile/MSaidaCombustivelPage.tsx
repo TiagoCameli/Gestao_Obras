@@ -82,6 +82,19 @@ export default function MSaidaCombustivelPage() {
     [etapas, obraId]
   );
 
+  // Tanque selecionado e preço médio (antes do early return, Rules of Hooks)
+  const tanqueSelecionado = useMemo(
+    () => tanquesAtivos.find((t) => t.id === tanqueId),
+    [tanquesAtivos, tanqueId],
+  );
+
+  const precoMedioTanque = useMemo(() => {
+    if (!tanqueId) return 0;
+    return calcularPrecoMedioTanque(tanqueId, entradasCombustivel, transferencias);
+  }, [tanqueId, entradasCombustivel, transferencias]);
+
+  const combustivelDoTanque = tanqueSelecionado?.combustivelAtualId ?? '';
+
   // Pre-seleciona tanque se só houver 1 ativo
   useEffect(() => {
     if (!tanqueId && tanquesAtivos.length === 1) {
@@ -104,18 +117,6 @@ export default function MSaidaCombustivelPage() {
       </div>
     );
   }
-
-  const tanqueSelecionado = useMemo(
-    () => tanquesAtivos.find((t) => t.id === tanqueId),
-    [tanquesAtivos, tanqueId],
-  );
-
-  const precoMedioTanque = useMemo(() => {
-    if (!tanqueId) return 0;
-    return calcularPrecoMedioTanque(tanqueId, entradasCombustivel, transferencias);
-  }, [tanqueId, entradasCombustivel, transferencias]);
-
-  const combustivelDoTanque = tanqueSelecionado?.combustivelAtualId ?? '';
 
   const litrosNum = numOrZero(litros);
   const podeSalvar = !!tanqueId && !!obraId && !!etapaId && litrosNum > 0;
