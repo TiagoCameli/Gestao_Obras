@@ -38,6 +38,7 @@ import ImportAtualizacaoFretesModal from '../components/frete/ImportAtualizacaoF
 import { exportarPedidosMaterialExcel, exportarPedidosMaterialPDF } from '../utils/pedidosMaterialExport';
 import FilterBar from '../components/frete/FilterBar';
 import { Truck, Sparkles, BarChart3, Wallet, Wallet2, PackageSearch, Trash2 } from 'lucide-react';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '../components/shadcn/tabs';
 
 type Tab = 'dashboard' | 'fretes' | 'pagamentos' | 'conta_corrente' | 'pedidos' | 'lixeira';
 
@@ -340,16 +341,6 @@ export default function Frete() {
     );
   }
 
-  const allTabs: { key: Tab; label: string; icon: React.ReactNode; perm: string }[] = [
-    { key: 'dashboard',      label: 'Dashboard',      icon: <BarChart3 className="h-3.5 w-3.5" />,     perm: 'aba_frete_dashboard' },
-    { key: 'fretes',         label: 'Fretes',         icon: <Truck className="h-3.5 w-3.5" />,         perm: 'aba_frete_fretes' },
-    { key: 'pagamentos',     label: 'Pagamentos',     icon: <Wallet className="h-3.5 w-3.5" />,        perm: 'aba_frete_pagamentos' },
-    { key: 'conta_corrente', label: 'Conta Corrente', icon: <Wallet2 className="h-3.5 w-3.5" />,       perm: 'aba_frete_conta_corrente' },
-    { key: 'pedidos',        label: 'Pedidos',        icon: <PackageSearch className="h-3.5 w-3.5" />, perm: 'aba_frete_pedidos' },
-    { key: 'lixeira',        label: 'Lixeira',        icon: <Trash2 className="h-3.5 w-3.5" />,        perm: 'aba_frete_lixeira' },
-  ];
-  const tabs = allTabs.filter((t) => temAcao(t.perm));
-
   return (
     <div
       className="frete-premium ambient-bg -mx-3 sm:-mx-6 -my-6 sm:-my-8 px-3 sm:px-6 py-6 sm:py-8 min-h-[calc(100dvh-64px)]"
@@ -409,41 +400,49 @@ export default function Frete() {
         )}
       </div>
 
-      {/* ── Premium tab bar com underline accent ─────────────────────── */}
-      <div className="border-b border-[var(--color-border)] mb-6">
-        <div className="flex gap-1 overflow-x-auto -mb-px">
-          {tabs.map((t) => {
-            const active = tab === t.key;
-            return (
-              <button
-                key={t.key}
-                onClick={() => setTab(t.key)}
-                className={`relative inline-flex items-center gap-1.5 px-4 py-3 text-sm font-medium whitespace-nowrap transition-colors ${
-                  active
-                    ? 'text-[var(--color-fg)]'
-                    : 'text-[var(--color-fg-muted)] hover:text-[var(--color-fg)]'
-                }`}
-              >
-                <span className={active ? 'text-[var(--color-accent)]' : ''}>{t.icon}</span>
-                {t.label}
-                {active && (
-                  <span
-                    aria-hidden
-                    className="absolute left-2 right-2 bottom-0 h-0.5 rounded-full"
-                    style={{
-                      background: 'linear-gradient(90deg, transparent, var(--color-accent) 30%, var(--color-accent) 70%, transparent)',
-                      boxShadow: '0 0 12px var(--color-accent-amber-glow)',
-                    }}
-                  />
-                )}
-              </button>
-            );
-          })}
-        </div>
-      </div>
+      {/* ── Tabs shadcn ─────────────────────────────────────────────── */}
+      <Tabs value={tab} onValueChange={(v) => setTab(v as Tab)} className="w-full">
+        <TabsList className="mb-6">
+          {allowedTabs.includes('dashboard') && (
+            <TabsTrigger value="dashboard" className="gap-1.5">
+              <BarChart3 className="w-3.5 h-3.5" />
+              Dashboard
+            </TabsTrigger>
+          )}
+          {allowedTabs.includes('fretes') && (
+            <TabsTrigger value="fretes" className="gap-1.5">
+              <Truck className="w-3.5 h-3.5" />
+              Fretes
+            </TabsTrigger>
+          )}
+          {allowedTabs.includes('pagamentos') && (
+            <TabsTrigger value="pagamentos" className="gap-1.5">
+              <Wallet className="w-3.5 h-3.5" />
+              Pagamentos
+            </TabsTrigger>
+          )}
+          {allowedTabs.includes('conta_corrente') && (
+            <TabsTrigger value="conta_corrente" className="gap-1.5">
+              <Wallet2 className="w-3.5 h-3.5" />
+              Conta Corrente
+            </TabsTrigger>
+          )}
+          {allowedTabs.includes('pedidos') && (
+            <TabsTrigger value="pedidos" className="gap-1.5">
+              <PackageSearch className="w-3.5 h-3.5" />
+              Pedidos
+            </TabsTrigger>
+          )}
+          {allowedTabs.includes('lixeira') && (
+            <TabsTrigger value="lixeira" className="gap-1.5">
+              <Trash2 className="w-3.5 h-3.5" />
+              Lixeira
+            </TabsTrigger>
+          )}
+        </TabsList>
 
       {/* ── Dashboard Tab ── */}
-      {tab === 'dashboard' && (
+      <TabsContent value="dashboard">
         <FreteDashboard
           fretes={fretes}
           pagamentos={pagamentosFrete}
@@ -452,10 +451,10 @@ export default function Frete() {
           fornecedores={fornecedores}
           onVerContaCorrente={() => setTab('conta_corrente')}
         />
-      )}
+      </TabsContent>
 
       {/* ── Fretes Tab ── */}
-      {tab === 'fretes' && (
+      <TabsContent value="fretes">
         <>
           <FilterBar
             search={{
@@ -519,10 +518,10 @@ export default function Frete() {
             canDelete={canDelete}
           />
         </>
-      )}
+      </TabsContent>
 
       {/* ── Pagamentos Tab ── */}
-      {tab === 'pagamentos' && (
+      <TabsContent value="pagamentos">
         <>
           <FilterBar
             fields={[
@@ -562,92 +561,94 @@ export default function Frete() {
             canDelete={canDelete}
           />
         </>
-      )}
+      </TabsContent>
 
       {/* ── Conta Corrente das Transportadoras ── */}
-      {tab === 'conta_corrente' && (() => {
-        // Filtra a ETAM Construtora da listagem (decisão do usuário em 2026-05-11
-        // — não é transportadora 3rd party, é a própria empresa). Dados continuam
-        // no banco; para reativar, remova este .filter abaixo.
-        const saldosVisiveis = saldosTransportadoras.filter(
-          (s) => s.nome.trim().toLowerCase() !== 'etam construtora'
-        );
-        const totalDevedor = saldosVisiveis.reduce((s, x) => s + x.debitoCombustivelTotal, 0);
-        return (
-          <>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
-              {saldosVisiveis.map((s) => {
-                const cor = s.saldo > 0 ? 'text-green-700' : s.saldo < 0 ? 'text-red-700' : 'text-gray-500';
-                return (
-                  <div
-                    key={s.transportadoraId}
-                    className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface-1)] p-5 hover:shadow-md transition-shadow"
-                  >
-                    <div className="flex items-start justify-between gap-2 mb-3">
-                      <div>
-                        <div className="font-semibold text-[var(--color-fg)] flex items-center gap-1.5">
-                          {s.nome}
-                          {/* Estrela "Dona de tanque externo" removida a pedido — confundia mais do que ajudava.
-                              A informação fica no Drawer de detalhes da transportadora se precisar. */}
-                        </div>
-                        <div className="text-xs text-[var(--color-fg-muted)] mt-0.5">
-                          {s.qtdMovimentos} movimento{s.qtdMovimentos !== 1 ? 's' : ''}
-                        </div>
-                      </div>
-                    </div>
-                    <div className={`text-2xl font-bold ${cor}`}>
-                      {s.saldo.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
-                    </div>
-                    <div className="mt-3 grid grid-cols-3 gap-1 text-[11px]">
-                      <div>
-                        <div className="text-[var(--color-fg-muted)] uppercase tracking-wide">Créditos</div>
-                        <div className="font-mono text-green-700">
-                          {s.creditoFreteTotal.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 })}
+      <TabsContent value="conta_corrente">
+        {(() => {
+          // Filtra a ETAM Construtora da listagem (decisão do usuário em 2026-05-11
+          // — não é transportadora 3rd party, é a própria empresa). Dados continuam
+          // no banco; para reativar, remova este .filter abaixo.
+          const saldosVisiveis = saldosTransportadoras.filter(
+            (s) => s.nome.trim().toLowerCase() !== 'etam construtora'
+          );
+          const totalDevedor = saldosVisiveis.reduce((s, x) => s + x.debitoCombustivelTotal, 0);
+          return (
+            <>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
+                {saldosVisiveis.map((s) => {
+                  const cor = s.saldo > 0 ? 'text-green-700' : s.saldo < 0 ? 'text-red-700' : 'text-gray-500';
+                  return (
+                    <div
+                      key={s.transportadoraId}
+                      className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface-1)] p-5 hover:shadow-md transition-shadow"
+                    >
+                      <div className="flex items-start justify-between gap-2 mb-3">
+                        <div>
+                          <div className="font-semibold text-[var(--color-fg)] flex items-center gap-1.5">
+                            {s.nome}
+                            {/* Estrela "Dona de tanque externo" removida a pedido — confundia mais do que ajudava.
+                                A informação fica no Drawer de detalhes da transportadora se precisar. */}
+                          </div>
+                          <div className="text-xs text-[var(--color-fg-muted)] mt-0.5">
+                            {s.qtdMovimentos} movimento{s.qtdMovimentos !== 1 ? 's' : ''}
+                          </div>
                         </div>
                       </div>
-                      <div>
-                        <div className="text-[var(--color-fg-muted)] uppercase tracking-wide">Pagos</div>
-                        <div className="font-mono text-red-700">
-                          {s.pagoFreteTotal.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 })}
+                      <div className={`text-2xl font-bold ${cor}`}>
+                        {s.saldo.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                      </div>
+                      <div className="mt-3 grid grid-cols-3 gap-1 text-[11px]">
+                        <div>
+                          <div className="text-[var(--color-fg-muted)] uppercase tracking-wide">Créditos</div>
+                          <div className="font-mono text-green-700">
+                            {s.creditoFreteTotal.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 })}
+                          </div>
+                        </div>
+                        <div>
+                          <div className="text-[var(--color-fg-muted)] uppercase tracking-wide">Pagos</div>
+                          <div className="font-mono text-red-700">
+                            {s.pagoFreteTotal.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 })}
+                          </div>
+                        </div>
+                        <div>
+                          <div className="text-[var(--color-fg-muted)] uppercase tracking-wide">Comb.</div>
+                          <div className="font-mono text-red-700">
+                            {s.debitoCombustivelTotal.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 })}
+                          </div>
                         </div>
                       </div>
-                      <div>
-                        <div className="text-[var(--color-fg-muted)] uppercase tracking-wide">Comb.</div>
-                        <div className="font-mono text-red-700">
-                          {s.debitoCombustivelTotal.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 })}
-                        </div>
+                      <div className="mt-4">
+                        <Button
+                          variant="secondary"
+                          className="w-full text-sm"
+                          onClick={() => setExtratoTranspId(s.transportadoraId)}
+                        >
+                          Ver extrato
+                        </Button>
                       </div>
                     </div>
-                    <div className="mt-4">
-                      <Button
-                        variant="secondary"
-                        className="w-full text-sm"
-                        onClick={() => setExtratoTranspId(s.transportadoraId)}
-                      >
-                        Ver extrato
-                      </Button>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-            <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-1)] p-4">
-              <div className="text-xs text-[var(--color-fg-muted)] uppercase tracking-wide mb-1">
-                Saldo devedor de combustível total
+                  );
+                })}
               </div>
-              <div className="text-xl font-bold text-red-700">
-                {totalDevedor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+              <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-1)] p-4">
+                <div className="text-xs text-[var(--color-fg-muted)] uppercase tracking-wide mb-1">
+                  Saldo devedor de combustível total
+                </div>
+                <div className="text-xl font-bold text-red-700">
+                  {totalDevedor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                </div>
+                <div className="text-xs text-[var(--color-fg-muted)] mt-1">
+                  Soma dos débitos de combustível em aberto (todas as transportadoras).
+                </div>
               </div>
-              <div className="text-xs text-[var(--color-fg-muted)] mt-1">
-                Soma dos débitos de combustível em aberto (todas as transportadoras).
-              </div>
-            </div>
-          </>
-        );
-      })()}
+            </>
+          );
+        })()}
+      </TabsContent>
 
       {/* ── Pedidos Tab ── */}
-      {tab === 'pedidos' && (
+      <TabsContent value="pedidos">
         <>
           <FilterBar
             fields={[
@@ -704,17 +705,21 @@ export default function Frete() {
             canDelete={canDelete}
           />
         </>
-      )}
+      </TabsContent>
 
       {/* FF.7 — Aba Lixeira admin-only (validação extra de cargo aqui pra
           evitar render se o tab veio via URL manualmente). */}
-      {tab === 'lixeira' && usuario?.cargo === 'Administrador' && (
-        <LixeiraFreteTab
-          obras={obras}
-          fornecedores={fornecedores}
-          insumos={insumosAtivos}
-        />
-      )}
+      <TabsContent value="lixeira">
+        {usuario?.cargo === 'Administrador' && (
+          <LixeiraFreteTab
+            obras={obras}
+            fornecedores={fornecedores}
+            insumos={insumosAtivos}
+          />
+        )}
+      </TabsContent>
+
+      </Tabs>
 
       {/* Modal Frete Form */}
       <Modal
