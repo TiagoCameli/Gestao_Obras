@@ -11,7 +11,9 @@ import {
   FileText, Paperclip, History, User, ArrowRight,
 } from 'lucide-react';
 import type { Frete, Obra, Insumo } from '../../types';
-import Drawer from '../ui/Drawer';
+import {
+  Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription, SheetFooter,
+} from '../shadcn/sheet';
 import Button from '../ui/Button';
 import HistoricoTimeline from '../combustivel/HistoricoTimeline';
 import FreteFotoChegadaBlock from './FreteFotoChegadaBlock';
@@ -72,9 +74,15 @@ export default function FreteDetalhesDrawer({
 
   if (!frete) {
     return (
-      <Drawer open={open} onClose={onClose} title="Frete" subtitle="Detalhes" width="lg">
-        <div className="text-sm text-[var(--color-fg-muted)] italic">Frete não disponível.</div>
-      </Drawer>
+      <Sheet open={open} onOpenChange={(o) => { if (!o) onClose(); }}>
+        <SheetContent side="right" className="w-full sm:max-w-[700px]">
+          <SheetHeader>
+            <SheetTitle>Frete</SheetTitle>
+            <SheetDescription>Detalhes</SheetDescription>
+          </SheetHeader>
+          <div className="text-sm text-[var(--color-fg-muted)] italic mt-4">Frete não disponível.</div>
+        </SheetContent>
+      </Sheet>
     );
   }
 
@@ -110,49 +118,51 @@ export default function FreteDetalhesDrawer({
   );
 
   return (
-    <Drawer
-      open={open}
-      onClose={onClose}
-      title={frete.notaFiscal ? `Frete NF ${frete.notaFiscal}` : 'Frete'}
-      subtitle={`${fmtData(frete.data)} · ${frete.transportadora || 'sem transportadora'}`}
-      width="lg"
-      footer={footer}
-    >
-      <div className="flex gap-1 mb-4 border-b border-[var(--color-border)]">
-        <button
-          type="button"
-          onClick={() => setTab('detalhes')}
-          className={`px-3 py-2 text-sm font-medium transition-colors border-b-2 -mb-px ${
-            tab === 'detalhes'
-              ? 'text-[var(--color-fg)] border-[var(--color-accent)]'
-              : 'text-[var(--color-fg-muted)] border-transparent hover:text-[var(--color-fg)]'
-          }`}
-        >
-          Detalhes
-        </button>
-        <button
-          type="button"
-          onClick={() => setTab('historico')}
-          className={`inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium transition-colors border-b-2 -mb-px ${
-            tab === 'historico'
-              ? 'text-[var(--color-fg)] border-[var(--color-accent)]'
-              : 'text-[var(--color-fg-muted)] border-transparent hover:text-[var(--color-fg)]'
-          }`}
-        >
-          <History className="w-3.5 h-3.5" />
-          Histórico
-        </button>
-      </div>
+    <Sheet open={open} onOpenChange={(o) => { if (!o) onClose(); }}>
+      <SheetContent side="right" className="w-full sm:max-w-[700px] overflow-y-auto">
+        <SheetHeader>
+          <SheetTitle>{frete.notaFiscal ? `Frete NF ${frete.notaFiscal}` : 'Frete'}</SheetTitle>
+          <SheetDescription>
+            {`${fmtData(frete.data)} · ${frete.transportadora || 'sem transportadora'}`}
+          </SheetDescription>
+        </SheetHeader>
 
-      {tab === 'historico' && (
-        <HistoricoTimeline
-          alvoId={frete.id}
-          resolvers={{ obras: obrasMap, combustiveis: insumosMap }}
-        />
-      )}
+        <div className="mt-4">
+          <div className="flex gap-1 mb-4 border-b border-[var(--color-border)]">
+            <button
+              type="button"
+              onClick={() => setTab('detalhes')}
+              className={`px-3 py-2 text-sm font-medium transition-colors border-b-2 -mb-px ${
+                tab === 'detalhes'
+                  ? 'text-[var(--color-fg)] border-[var(--color-accent)]'
+                  : 'text-[var(--color-fg-muted)] border-transparent hover:text-[var(--color-fg)]'
+              }`}
+            >
+              Detalhes
+            </button>
+            <button
+              type="button"
+              onClick={() => setTab('historico')}
+              className={`inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium transition-colors border-b-2 -mb-px ${
+                tab === 'historico'
+                  ? 'text-[var(--color-fg)] border-[var(--color-accent)]'
+                  : 'text-[var(--color-fg-muted)] border-transparent hover:text-[var(--color-fg)]'
+              }`}
+            >
+              <History className="w-3.5 h-3.5" />
+              Histórico
+            </button>
+          </div>
 
-      {tab === 'detalhes' && (
-        <div className="space-y-5">
+          {tab === 'historico' && (
+            <HistoricoTimeline
+              alvoId={frete.id}
+              resolvers={{ obras: obrasMap, combustiveis: insumosMap }}
+            />
+          )}
+
+          {tab === 'detalhes' && (
+            <div className="space-y-5">
           <FreteFotoChegadaBlock frete={frete} canEdit={canEdit} variant="card" />
 
           {/* KPIs */}
@@ -304,8 +314,14 @@ export default function FreteDetalhesDrawer({
               </ul>
             </div>
           )}
+            </div>
+          )}
         </div>
-      )}
-    </Drawer>
+
+        <SheetFooter className="mt-6">
+          {footer}
+        </SheetFooter>
+      </SheetContent>
+    </Sheet>
   );
 }
