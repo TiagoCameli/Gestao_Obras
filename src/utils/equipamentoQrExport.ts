@@ -12,14 +12,14 @@ import QRCode from 'qrcode';
 import type { Equipamento } from '../types';
 import { PDF_RGB, makeFilename } from './exportTemplate';
 
-/** URL pública que o QR codifica. Em produção, aponta pro domínio real. */
+/** URL pública que o QR codifica. SEMPRE aponta pro domínio público fixo —
+ * QR é impresso fisicamente e fica permanente, não pode codificar localhost
+ * (dev) nem URL de preview Vercel. Override possível via VITE_QR_BASE_URL
+ * pra ambientes alternativos (staging, etc). */
 function buildScanUrl(equipamentoId: string): string {
-  // Em prod, window.location.origin = https://emtconstrutora.com
-  const origin =
-    typeof window !== 'undefined' && window.location.origin
-      ? window.location.origin
-      : 'https://emtconstrutora.com';
-  return `${origin}/m/eq/${encodeURIComponent(equipamentoId)}`;
+  const envBase = (import.meta as unknown as { env?: Record<string, string> }).env?.VITE_QR_BASE_URL;
+  const base = (envBase || 'https://emtconstrutora.com').replace(/\/$/, '');
+  return `${base}/m/eq/${encodeURIComponent(equipamentoId)}`;
 }
 
 /** Gera Data URL do QR (PNG 512x512) — usado por jsPDF.addImage. */

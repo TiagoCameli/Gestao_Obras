@@ -23,12 +23,14 @@ export function gerarTokenCotacao(tamanho: number = 32): string {
 
 /**
  * Monta a URL pública do portal de resposta para um token.
- * O host base é detectado em runtime (window.location.origin) e cai num default
- * em SSR/build. Pode ser sobrescrito por VITE_PORTAL_URL.
+ *
+ * SEMPRE usa o domínio público fixo emtconstrutora.com — o link é enviado
+ * pro fornecedor por WhatsApp/email e fica em mensagens permanentes; não
+ * pode codificar localhost (dev) nem URL de preview Vercel.
+ * Override possível via VITE_PORTAL_URL pra staging/ambientes alternativos.
  */
 export function urlPortalCotacao(token: string): string {
-  const fromEnv = (import.meta as unknown as { env?: Record<string, string> }).env?.VITE_PORTAL_URL;
-  const base = fromEnv
-    || (typeof window !== 'undefined' ? window.location.origin : 'https://gestao-obras-rho.vercel.app');
-  return `${base.replace(/\/$/, '')}/cotacao/r/${token}`;
+  const envBase = (import.meta as unknown as { env?: Record<string, string> }).env?.VITE_PORTAL_URL;
+  const base = (envBase || 'https://emtconstrutora.com').replace(/\/$/, '');
+  return `${base}/cotacao/r/${token}`;
 }
