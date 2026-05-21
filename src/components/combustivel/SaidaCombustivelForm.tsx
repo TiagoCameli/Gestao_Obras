@@ -38,6 +38,8 @@ import AnexosUploader from './AnexosUploader';
 import { useAdicionarInsumo } from '../../hooks/useInsumos';
 import { useMedicaoAtual } from '../../hooks/useMedicoesEquipamento';
 import { useAuth } from '../../contexts/AuthContext';
+import { useTransferenciasCombustivel } from '../../hooks/useTransferenciasCombustivel';
+import { calcularPrecoMedioTanque } from '../../utils/precoMedioTanque';
 
 const TIPO_MEDICAO_LABEL: Record<TipoMedicao, string> = {
   horimetro: 'Horímetro',
@@ -163,6 +165,7 @@ export default function SaidaCombustivelForm({
   const [novoCombustivelAberto, setNovoCombustivelAberto] = useState(false);
   const [novoCombustivelNome, setNovoCombustivelNome] = useState('');
   const adicionarInsumoMut = useAdicionarInsumo();
+  const { data: transferencias = [] } = useTransferenciasCombustivel();
 
   useEffect(() => {
     setListaCombustiveis(combustiveis);
@@ -244,14 +247,13 @@ export default function SaidaCombustivelForm({
     : 0;
 
   // Preço médio do tanque (só faz sentido pra origem=tanque).
+  // Usa helper compartilhado que inclui entradas + transferências recebidas
+  // (fix Bug C2: inline anterior ignorava transferências — tanque abastecido
+  // só por transferência tinha precoMedio=0 e bloqueava saídas).
   const precoMedioTanque = useMemo(() => {
     if (origem !== 'tanque' || !tanqueId) return 0;
-    const ents = entradasCombustivel.filter((e) => e.depositoId === tanqueId);
-    if (ents.length === 0) return 0;
-    const totalValor = ents.reduce((s, e) => s + e.valorTotal, 0);
-    const totalLitros = ents.reduce((s, e) => s + e.quantidadeLitros, 0);
-    return totalLitros > 0 ? totalValor / totalLitros : 0;
-  }, [origem, tanqueId, entradasCombustivel]);
+    return calcularPrecoMedioTanque(tanqueId, entradasCombustivel, transferencias);
+  }, [origem, tanqueId, entradasCombustivel, transferencias]);
 
   // Combustível disponível no tanque:
   //   - Tanque externo (Transterra): hardcode Diesel S10 (nunca recebe entradas).
