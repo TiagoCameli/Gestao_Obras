@@ -3,13 +3,20 @@
 // Operador escaneia o QR, escolhe "Saída de combustível", seleciona o
 // tanque/depósito de onde está saindo o combustível, informa litros,
 // medição do horímetro/odômetro (opcional) e foto da bomba (opcional).
-// Online: insert direto em saidas_combustivel. Offline: TODO em PR
-// posterior se houver demanda.
+// Online: insert via useAdicionarSaidaCombustivel (invalida 5 query keys).
+// Offline: TODO em PR posterior se houver demanda.
+//
+// HF.5 — Fix bugs S1-S6 da auditoria:
+//   S1: tipo_consumidor='equipamento_proprio' (era 'equipamento', violava CHECK)
+//   S2: preco_unitario e valor_total calculados via precoMedioTanque (era 0)
+//   S3: tipo_combustivel = combustivelAtualId do depósito (era 'diesel' hardcoded)
+//   S4: preco_medio_tanque_snapshot persistido (era null)
+//   S5: usa hook (invalida cache React Query — era insert direto)
+//   S6: alocacoes=[{etapaId, percentual:100}] quando etapa preenchida (era [])
 
 import { useState, useMemo, useEffect, type FormEvent } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { ArrowLeft, Droplet, CheckCircle2, AlertTriangle, Gauge } from 'lucide-react';
-import { supabase } from '../../lib/supabase';
 import Button from '../../components/ui/Button';
 import SmartSelect from '../../components/ui/SmartSelect';
 import { useEquipamentos } from '../../hooks/useEquipamentos';
@@ -20,6 +27,10 @@ import { useEtapas } from '../../hooks/useEtapas';
 import { useAuth } from '../../contexts/AuthContext';
 import { useToast } from '../../components/ui/Toast';
 import AnexosUploader from '../../components/combustivel/AnexosUploader';
+import { useAdicionarSaidaCombustivel } from '../../hooks/useSaidasCombustivel';
+import { useEntradasCombustivel } from '../../hooks/useEntradasCombustivel';
+import { useTransferenciasCombustivel } from '../../hooks/useTransferenciasCombustivel';
+import { calcularPrecoMedioTanque } from '../../utils/precoMedioTanque';
 
 function gerarId(prefix: string) {
   return prefix + '-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
@@ -42,6 +53,9 @@ export default function MSaidaCombustivelPage() {
   const { data: depositos = [] } = useDepositos();
   const { data: obras = [] } = useObras();
   const { data: etapas = [] } = useEtapas();
+  const { data: entradasCombustivel = [] } = useEntradasCombustivel();
+  const { data: transferencias = [] } = useTransferenciasCombustivel();
+  const adicionarSaidaMutation = useAdicionarSaidaCombustivel();
 
   const tanquesAtivos = useMemo(
     () => depositos.filter((d) => d.ativo).sort((a, b) => a.nome.localeCompare(b.nome)),
@@ -91,7 +105,18 @@ export default function MSaidaCombustivelPage() {
     );
   }
 
-  const tanqueSelecionado = tanquesAtivos.find((t) => t.id === tanqueId);
+  const tanqueSelecionado = useMemo(
+    () => tanquesAtivos.find((t) => t.id === tanqueId),
+    [tanquesAtivos, tanqueId],
+  );
+
+  const precoMedioTanque = useMemo(() => {
+    if (!tanqueId) return 0;
+    return calcularPrecoMedioTanque(tanqueId, entradasCombustivel, transferencias);
+  }, [tanqueId, entradasCombustivel, transferencias]);
+
+  const combustivelDoTanque = tanqueSelecionado?.combustivelAtualId ?? '';
+
   const litrosNum = numOrZero(litros);
   const podeSalvar = !!tanqueId && !!obraId && !!etapaId && litrosNum > 0;
 
@@ -102,46 +127,44 @@ export default function MSaidaCombustivelPage() {
     setSubmitting(true);
     try {
       const saidaId = gerarId('saida');
-
-      // Preço médio do tanque (snapshot) — usado pra calcular valor_total
-      // Se o tanque tem nivelAtualLitros > 0 e algum preco médio salvo, usa.
-      // Caso contrário, deixa 0 (operador pode revisar depois pelo desktop).
-      // Como nao temos o preco médio direto no Deposito interface, usamos 0.
-      const precoUnitario = 0;
-      const taxaLitro = 0;
-      const valorTotal = litrosNum * precoUnitario;
       const medicaoNum = medicaoLeitura.trim() ? numOrZero(medicaoLeitura) : null;
       const agora = new Date().toISOString();
+      const valorTotal = litrosNum * precoMedioTanque;
 
-      const { error } = await supabase.from('saidas_combustivel').insert({
+      await adicionarSaidaMutation.mutateAsync({
         id: saidaId,
         data: agora,
         origem: 'tanque',
-        tipo_consumidor: 'equipamento',
-        tanque_id: tanqueId,
-        equipamento_id: equipamentoId,
-        transportadora_id: null,
+        tipoConsumidor: 'equipamento_proprio',   // S1: fix enum
+        tanqueId,
+        equipamentoId,
+        transportadoraId: null,
         placa: null,
-        obra_id: obraId,
-        etapa_id: etapaId,
-        alocacoes: [],
-        tipo_combustivel: 'diesel',  // default; tanque pode ter outro mas operador raramente vai precisar mudar
+        obraId,
+        etapaId,
+        alocacoes: etapaId ? [{ etapaId, percentual: 100 }] : null,  // S6: fix alocacoes
+        tipoCombustivel: combustivelDoTanque,    // S3: UUID do insumo do tanque
         litros: litrosNum,
-        preco_medio_tanque_snapshot: null,
-        taxa_litro: taxaLitro,
-        preco_unitario: precoUnitario,
-        valor_total: valorTotal,
+        precoMedioTanqueSnapshot: precoMedioTanque,  // S4: snapshot persistido
+        taxaLitro: 0,
+        precoUnitario: precoMedioTanque,         // S2: preco calculado
+        precoCombustivel: null,
+        precoCombustivelAreacre: null,
+        valorTotal,                              // S2: valor calculado
         observacoes: observacoes.trim() || `Saída via mobile · ${usuario?.nome ?? ''}`,
         pago: false,
-        foto_urls: fotoUrls,
-        arquivo_urls: [],
+        pagoEm: null,
+        movimentoId: null,
+        fotoUrls: fotoUrls,
+        arquivoUrls: [],
         motorista: usuario?.nome ?? '',
-        medicao_no_abastecimento: medicaoNum,
-        tipo_medicao_snapshot: equipamento.tipoMedicao,
-        created_by: usuario?.nome ?? '',
-        updated_by: usuario?.nome ?? '',
+        medicaoNoAbastecimento: medicaoNum,
+        tipoMedicaoSnapshot: equipamento.tipoMedicao ?? null,
+        createdAt: agora,
+        updatedAt: agora,
+        createdBy: usuario?.nome ?? null,
+        updatedBy: null,
       });
-      if (error) throw error;
 
       showToast({
         kind: 'success',
