@@ -33,7 +33,7 @@ function fmtBRL(n: number): string {
 function fmtData(iso: string): { dia: string; hora?: string } {
   if (!iso) return { dia: '—' };
   const m = iso.match(/^(\d{4})-(\d{2})-(\d{2})/);
-  if (m) return { dia: `${m[3]}/${m[2]}` };
+  if (m) return { dia: `${m[3]}/${m[2]}/${m[1]}` };
   return { dia: iso };
 }
 

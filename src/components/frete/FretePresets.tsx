@@ -3,9 +3,9 @@ import { Popover, PopoverContent, PopoverTrigger } from '../shadcn/popover';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '../shadcn/command';
 import { CalendarRange, CalendarOff, ChevronDown, Truck, XCircle } from 'lucide-react';
 import type { Frete, FiltrosFrete } from '../../types';
-import { presetEstaSemana, presetMesPassado } from '../../utils/dateRangePresets';
+import { presetEstaSemana, presetEsteMes, presetMesPassado } from '../../utils/dateRangePresets';
 
-export type PresetKey = 'sem_chegada' | 'esta_semana' | 'mes_passado' | 'top_transportadora';
+export type PresetKey = 'sem_chegada' | 'esta_semana' | 'este_mes' | 'mes_passado' | 'top_transportadora';
 
 interface Props {
   fretes: Frete[];
@@ -28,6 +28,10 @@ function presetAtivoCheck(filtros: FiltrosFrete, key: PresetKey, hoje: Date = ne
   }
   if (key === 'esta_semana') {
     const r = presetEstaSemana(hoje);
+    return filtros.dataInicio === r.dataInicio && filtros.dataFim === r.dataFim;
+  }
+  if (key === 'este_mes') {
+    const r = presetEsteMes(hoje);
     return filtros.dataInicio === r.dataInicio && filtros.dataFim === r.dataFim;
   }
   if (key === 'mes_passado') {
@@ -56,6 +60,7 @@ export default function FretePresets({ fretes, filtros, onApplyPreset, presetAti
 
   const semChegadaAtivo = presetAtivo === 'sem_chegada';
   const estaSemanaAtivo = presetAtivo === 'esta_semana' || (presetAtivo === null && presetAtivoCheck(filtros, 'esta_semana'));
+  const esteMesAtivo = presetAtivo === 'este_mes' || (presetAtivo === null && presetAtivoCheck(filtros, 'este_mes'));
   const mesPassadoAtivo = presetAtivo === 'mes_passado' || (presetAtivo === null && presetAtivoCheck(filtros, 'mes_passado'));
   const topAtivo = presetAtivo === 'top_transportadora' && !!transportadoraTop;
 
@@ -74,6 +79,12 @@ export default function FretePresets({ fretes, filtros, onApplyPreset, presetAti
         onClick={() => onApplyPreset(estaSemanaAtivo ? null : 'esta_semana')}
         icon={<CalendarRange className="w-3 h-3" />}
         label="Esta semana"
+      />
+      <PresetChip
+        active={esteMesAtivo}
+        onClick={() => onApplyPreset(esteMesAtivo ? null : 'este_mes')}
+        icon={<CalendarRange className="w-3 h-3" />}
+        label="Este mês"
       />
       <PresetChip
         active={mesPassadoAtivo}

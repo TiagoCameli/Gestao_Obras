@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { presetEstaSemana, presetMesPassado, presetSemChegada } from './dateRangePresets'
+import { presetEstaSemana, presetEsteMes, presetMesPassado, presetSemChegada } from './dateRangePresets'
 
 describe('presetEstaSemana', () => {
   it('retorna [segunda, hoje] dado uma quarta-feira', () => {
@@ -20,6 +20,26 @@ describe('presetEstaSemana', () => {
     const result = presetEstaSemana(new Date('2026-05-18T08:00:00'))
     expect(result.dataInicio).toBe('2026-05-18')
     expect(result.dataFim).toBe('2026-05-18')
+  })
+})
+
+describe('presetEsteMes', () => {
+  it('retorna [dia 1 do mês, hoje] no meio do mês', () => {
+    const result = presetEsteMes(new Date('2026-05-21T12:00:00'))
+    expect(result.dataInicio).toBe('2026-05-01')
+    expect(result.dataFim).toBe('2026-05-21')
+  })
+
+  it('retorna [dia 1, dia 1] quando hoje é dia 1', () => {
+    const result = presetEsteMes(new Date('2026-05-01T08:00:00'))
+    expect(result.dataInicio).toBe('2026-05-01')
+    expect(result.dataFim).toBe('2026-05-01')
+  })
+
+  it('janeiro: dia 1 jan até hoje', () => {
+    const result = presetEsteMes(new Date('2026-01-15T12:00:00'))
+    expect(result.dataInicio).toBe('2026-01-01')
+    expect(result.dataFim).toBe('2026-01-15')
   })
 })
 

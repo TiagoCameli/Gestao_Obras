@@ -38,7 +38,7 @@ import ImportAtualizacaoFretesModal from '../components/frete/ImportAtualizacaoF
 import { exportarPedidosMaterialExcel, exportarPedidosMaterialPDF } from '../utils/pedidosMaterialExport';
 import FilterBar from '../components/frete/FilterBar';
 import FretePresets, { type PresetKey } from '../components/frete/FretePresets';
-import { presetEstaSemana, presetMesPassado } from '../utils/dateRangePresets';
+import { presetEstaSemana, presetEsteMes, presetMesPassado } from '../utils/dateRangePresets';
 import { Truck, Sparkles, BarChart3, Wallet, Wallet2, PackageSearch, Trash2 } from 'lucide-react';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '../components/shadcn/tabs';
 
@@ -184,6 +184,11 @@ export default function Frete() {
     }
     if (key === 'esta_semana') {
       const r = presetEstaSemana();
+      setFiltros((f) => ({ ...f, dataInicio: r.dataInicio ?? '', dataFim: r.dataFim ?? '' }));
+      return;
+    }
+    if (key === 'este_mes') {
+      const r = presetEsteMes();
       setFiltros((f) => ({ ...f, dataInicio: r.dataInicio ?? '', dataFim: r.dataFim ?? '' }));
       return;
     }

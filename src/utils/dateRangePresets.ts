@@ -31,6 +31,17 @@ export function presetEstaSemana(hoje: Date = new Date()): DateRange {
 }
 
 /**
+ * "Este mês" — primeiro dia do mês atual até hoje.
+ */
+export function presetEsteMes(hoje: Date = new Date()): DateRange {
+  const primeiroDoMes = new Date(hoje.getFullYear(), hoje.getMonth(), 1)
+  return {
+    dataInicio: toISODate(primeiroDoMes),
+    dataFim: toISODate(hoje),
+  }
+}
+
+/**
  * "Mês passado" — primeiro dia até último dia do mês anterior.
  */
 export function presetMesPassado(hoje: Date = new Date()): DateRange {
