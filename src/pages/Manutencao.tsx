@@ -6,7 +6,7 @@
 
 import { useMemo, useState } from 'react';
 import { useSearchParams, Navigate, useLocation, useParams, useNavigate, Link } from 'react-router-dom';
-import { Plus, ClipboardList, AlertTriangle, Clock, Wrench, BarChart3, ClipboardCheck, CalendarClock, Package, HardHat } from 'lucide-react';
+import { Plus, ClipboardList, AlertTriangle, Clock, Wrench, BarChart3, ClipboardCheck, CalendarClock, Package, HardHat, ScanLine } from 'lucide-react';
 import { useOrdensServico } from '../hooks/useOrdensServico';
 import { useEquipamentos } from '../hooks/useEquipamentos';
 import { useAuth } from '../contexts/AuthContext';
@@ -190,12 +190,22 @@ function OrdensServicoPage() {
             Manutenção preventiva, corretiva, preditiva e melhorias da frota.
           </p>
         </div>
-        {canCreate && (
-          <Button onClick={() => setNovaOSOpen(true)}>
-            <Plus aria-hidden className="w-4 h-4" />
-            Nova OS
-          </Button>
-        )}
+        <div className="flex items-center gap-2 flex-wrap">
+          <Link
+            to="/m/scan"
+            className="inline-flex items-center gap-1.5 px-3 h-9 rounded-md text-sm font-medium bg-[var(--color-accent)] text-[var(--color-fg-on-accent)] hover:opacity-90 transition-opacity"
+            title="Abrir scanner de QR (requer câmera)"
+          >
+            <ScanLine aria-hidden className="w-4 h-4" />
+            Escanear QR
+          </Link>
+          {canCreate && (
+            <Button onClick={() => setNovaOSOpen(true)}>
+              <Plus aria-hidden className="w-4 h-4" />
+              Nova OS
+            </Button>
+          )}
+        </div>
       </div>
 
       {/* KPIs */}

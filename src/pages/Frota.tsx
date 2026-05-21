@@ -18,7 +18,8 @@ import FrotaDetalhe from '../components/frota/FrotaDetalhe';
 import EquipamentoFormFrota from '../components/frota/EquipamentoFormFrota';
 import { exportarFrotaPDF, exportarFrotaExcel } from '../utils/frotaExport';
 import { exportarEtiquetasEmLotePdf } from '../utils/equipamentoQrExport';
-import { Plus, Search, X, LayoutGrid, List as ListIcon, FileText, Sheet, SlidersHorizontal, QrCode } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { Plus, Search, X, LayoutGrid, List as ListIcon, FileText, Sheet, SlidersHorizontal, QrCode, ScanLine } from 'lucide-react';
 
 type ModoVisualizacao = 'grid' | 'lista';
 type FiltroStatus = 'todos' | StatusEquipamento;
@@ -227,6 +228,14 @@ export default function Frota() {
               <QrCode aria-hidden className="w-4 h-4" />
               Etiquetas QR
             </Button>
+            <Link
+              to="/m/scan"
+              className="inline-flex items-center gap-1.5 px-3 h-9 rounded-md text-sm font-medium bg-[var(--color-accent)] text-[var(--color-fg-on-accent)] hover:opacity-90 transition-opacity"
+              title="Abrir scanner de QR (requer câmera)"
+            >
+              <ScanLine aria-hidden className="w-4 h-4" />
+              Escanear QR
+            </Link>
           </div>
         </div>
       </header>
