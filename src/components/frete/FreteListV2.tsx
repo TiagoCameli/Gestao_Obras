@@ -95,9 +95,19 @@ export default function FreteListV2({
     },
     ch.accessor('data', {
       header: 'Data',
-      cell: (info) => {
-        const { dia } = fmtData(info.getValue());
-        return <span className="font-medium">{dia}</span>;
+      cell: ({ row }) => {
+        const { dia } = fmtData(row.original.data);
+        const chegada = row.original.dataChegada ? fmtData(row.original.dataChegada).dia : null;
+        return (
+          <div className="flex flex-col">
+            <span className="font-medium">{dia}</span>
+            {chegada ? (
+              <span className="text-[10px] text-[var(--color-fg-muted)] uppercase tracking-wide">chegou {chegada}</span>
+            ) : (
+              <span className="text-[10px] text-[var(--color-fg-subtle)] italic">sem chegada</span>
+            )}
+          </div>
+        );
       },
       sortingFn: 'alphanumeric',
     }) as ColumnDef<Frete>,
@@ -114,7 +124,17 @@ export default function FreteListV2({
     },
     ch.accessor('transportadora', {
       header: 'Transportadora',
-      cell: (info) => <span className="truncate max-w-[150px]">{info.getValue() || '—'}</span>,
+      cell: ({ row }) => {
+        const sub = [row.original.motorista, row.original.placaCarreta].filter(Boolean).join(' · ');
+        return (
+          <div className="flex flex-col">
+            <span className="font-medium truncate max-w-[180px]">{row.original.transportadora || '—'}</span>
+            {sub && (
+              <span className="text-xs text-[var(--color-fg-muted)] truncate max-w-[180px]">{sub}</span>
+            )}
+          </div>
+        );
+      },
     }) as ColumnDef<Frete>,
     {
       id: 'material',

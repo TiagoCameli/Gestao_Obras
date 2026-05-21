@@ -432,7 +432,7 @@ export default function Frete() {
 
       {/* ── Tabs shadcn ─────────────────────────────────────────────── */}
       <Tabs value={tab} onValueChange={(v) => setTab(v as Tab)} className="w-full">
-        <TabsList className="mb-6">
+        <TabsList variant="line" className="mb-6 w-full justify-start border-b border-[var(--color-border)] rounded-none px-0 h-auto [&_[data-slot=tabs-trigger]]:data-active:after:bg-[var(--color-accent)] [&_[data-slot=tabs-trigger]]:data-active:text-[var(--color-fg)] [&_[data-slot=tabs-trigger]]:data-active:font-semibold">
           {allowedTabs.includes('dashboard') && (
             <TabsTrigger value="dashboard" className="gap-1.5">
               <BarChart3 className="w-3.5 h-3.5" />
