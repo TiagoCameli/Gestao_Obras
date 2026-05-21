@@ -509,9 +509,10 @@ export default function Frete() {
               { key: 'origem', label: 'Pedreira', value: filtros.origem, onChange: (v) => setFiltros((f) => ({ ...f, origem: v })), options: origens.map((o) => ({ value: o, label: o })), placeholder: 'Todas as pedreiras', collapsed: true },
               { key: 'destino', label: 'Local de Entrega', value: filtros.destino, onChange: (v) => setFiltros((f) => ({ ...f, destino: v })), options: destinos.map((d) => ({ value: d, label: d })), placeholder: 'Todos os locais', collapsed: true },
             ]}
-            onClearAll={() =>
-              setFiltros({ obraId: '', transportadora: '', motorista: '', insumoId: '', origem: '', destino: '', dataInicio: '', dataFim: '', notaFiscal: '' })
-            }
+            onClearAll={() => {
+              setFiltros({ obraId: '', transportadora: '', motorista: '', insumoId: '', origem: '', destino: '', dataInicio: '', dataFim: '', notaFiscal: '' });
+              setPresetAtivo(null);
+            }}
           />
 
           <div className="flex gap-2 mb-4">
