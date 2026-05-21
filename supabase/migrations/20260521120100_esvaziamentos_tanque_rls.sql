@@ -8,6 +8,10 @@
 
 ALTER TABLE public.esvaziamentos_tanque ENABLE ROW LEVEL SECURITY;
 
+-- Drop policy legacy "Authenticated full access" criada automaticamente pelo
+-- Supabase Dashboard. Ela tem cmd=ALL e bypassa as policies granulares.
+DROP POLICY IF EXISTS "Authenticated full access" ON public.esvaziamentos_tanque;
+
 -- Drop existing policies (idempotente)
 DROP POLICY IF EXISTS esvaziamentos_tanque_select ON public.esvaziamentos_tanque;
 DROP POLICY IF EXISTS esvaziamentos_tanque_insert ON public.esvaziamentos_tanque;
