@@ -30,6 +30,7 @@ import RegistrarPagamentoModal from './RegistrarPagamentoModal';
 import { useEstornarPagamentoFinanceiro } from '../../hooks/usePagamentosFinanceiros';
 import { useAtualizarAnexosLancamento } from '../../hooks/useLancamentosFinanceiros';
 import { supabase } from '../../lib/supabase';
+import { useAnexosFinanceiroUrls } from '../../hooks/useFinanceiroAnexos';
 import { dbToPagamentoLancamento } from '../../lib/mappers';
 import { useToast } from '../ui/Toast';
 
@@ -91,6 +92,7 @@ export default function LancamentoDetalheDrawer({
   const atualizarAnexosMut = useAtualizarAnexosLancamento();
   const [pagarParcela, setPagarParcela] = useState<ParcelaLancamento | null>(null);
   const [uploadingAnexo, setUploadingAnexo] = useState(false);
+  const signedAnexosUrls = useAnexosFinanceiroUrls(lancamento?.anexosUrls);
 
   if (!lancamento) {
     return (
@@ -145,8 +147,7 @@ export default function LancamentoDetalheDrawer({
         .from('financeiro-anexos')
         .upload(path, file, { contentType: file.type, upsert: false });
       if (error) throw error;
-      const { data } = supabase.storage.from('financeiro-anexos').getPublicUrl(path);
-      const novosAnexos = [...(l.anexosUrls ?? []), data.publicUrl];
+      const novosAnexos = [...(l.anexosUrls ?? []), path];
       await atualizarAnexosMut.mutateAsync({ id: l.id, anexosUrls: novosAnexos });
       showToast({ kind: 'success', message: `Anexo "${file.name}" adicionado.` });
     } catch (err) {
@@ -456,10 +457,11 @@ export default function LancamentoDetalheDrawer({
                 </p>
               ) : (
                 <ul className="space-y-2">
-                  {l.anexosUrls.map((url, i) => {
-                    const nome = decodeURIComponent(url.split('/').pop() ?? '')
+                  {l.anexosUrls.map((pathOrUrl, i) => {
+                    const nome = decodeURIComponent(pathOrUrl.split('/').pop() ?? '')
                       .replace(/^\d+_\w+\./, '*.');
-                    const ehImg = ehImagem(url);
+                    const url = signedAnexosUrls[pathOrUrl] ?? (pathOrUrl.startsWith('http') ? pathOrUrl : '#');
+                    const ehImg = ehImagem(pathOrUrl);
                     return (
                       <li
                         key={i}
@@ -510,7 +512,7 @@ export default function LancamentoDetalheDrawer({
                         {/* Remover */}
                         <button
                           type="button"
-                          onClick={() => handleRemoveAnexo(url)}
+                          onClick={() => handleRemoveAnexo(pathOrUrl)}
                           className="shrink-0 w-6 h-6 inline-flex items-center justify-center rounded text-[var(--color-fg-subtle)] hover:bg-rose-50 hover:text-rose-600 dark:hover:bg-rose-500/15 opacity-0 group-hover:opacity-100 transition-opacity"
                           title="Remover anexo"
                         >

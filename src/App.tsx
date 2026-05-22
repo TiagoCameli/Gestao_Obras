@@ -145,7 +145,7 @@ export default function App() {
             {/* Rotas mobile (PR25a Marco 5) — layout dedicado sem header desktop */}
             <Route
               element={
-                <ProtectedRoute>
+                <ProtectedRoute acao="usar_app_mobile">
                   <MobileLayout />
                 </ProtectedRoute>
               }
@@ -154,17 +154,19 @@ export default function App() {
               <Route
                 path="/m/scan"
                 element={
-                  <Suspense fallback={<div className="p-8 text-center text-[var(--color-fg-muted)]">Carregando scanner…</div>}>
-                    <MScanPage />
-                  </Suspense>
+                  <ProtectedRoute acao="scan_qr_equipamento">
+                    <Suspense fallback={<div className="p-8 text-center text-[var(--color-fg-muted)]">Carregando scanner…</div>}>
+                      <MScanPage />
+                    </Suspense>
+                  </ProtectedRoute>
                 }
               />
               <Route path="/m/eq/:equipamentoId" element={<MEquipamentoHubPage />} />
               <Route path="/m/eq/:equipamentoId/info" element={<MEquipamentoInfoPage />} />
-              <Route path="/m/checklist/:equipamentoId" element={<MChecklistPage />} />
-              <Route path="/m/medicao/:equipamentoId" element={<MMedicaoPage />} />
-              <Route path="/m/abrir-os/:equipamentoId" element={<MAbrirOSPage />} />
-              <Route path="/m/saida-combustivel/:equipamentoId" element={<MSaidaCombustivelPage />} />
+              <Route path="/m/checklist/:equipamentoId" element={<ProtectedRoute acao="executar_checklist_mobile"><MChecklistPage /></ProtectedRoute>} />
+              <Route path="/m/medicao/:equipamentoId" element={<ProtectedRoute acao="lancar_medicao_mobile"><MMedicaoPage /></ProtectedRoute>} />
+              <Route path="/m/abrir-os/:equipamentoId" element={<ProtectedRoute acao="abrir_os_mobile"><MAbrirOSPage /></ProtectedRoute>} />
+              <Route path="/m/saida-combustivel/:equipamentoId" element={<ProtectedRoute acao="saida_combustivel_mobile"><MSaidaCombustivelPage /></ProtectedRoute>} />
             </Route>
           </Routes>
           </ToastProvider>

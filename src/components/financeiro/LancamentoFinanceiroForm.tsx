@@ -43,6 +43,7 @@ import type {
   FormaPagamentoLancamento,
 } from '../../types';
 import { supabase } from '../../lib/supabase';
+import { useAnexosFinanceiroUrls } from '../../hooks/useFinanceiroAnexos';
 import Input from '../ui/Input';
 import Button from '../ui/Button';
 import SmartSelect from '../ui/SmartSelect';
@@ -117,6 +118,7 @@ export default function LancamentoFinanceiroForm({
   );
   const [observacoes, setObservacoes] = useState(initial?.observacoes ?? '');
   const [anexosUrls, setAnexosUrls] = useState<string[]>(initial?.anexosUrls ?? []);
+  const signedAnexosUrls = useAnexosFinanceiroUrls(anexosUrls);
   const [parcelas, setParcelas] = useState<ParcelaLancamento[]>(
     initial?.parcelas?.length
       ? initial.parcelas
@@ -374,8 +376,7 @@ export default function LancamentoFinanceiroForm({
         .from('financeiro-anexos')
         .upload(path, file, { contentType: file.type, upsert: false });
       if (error) throw error;
-      const { data } = supabase.storage.from('financeiro-anexos').getPublicUrl(path);
-      setAnexosUrls((prev) => [...prev, data.publicUrl]);
+      setAnexosUrls((prev) => [...prev, path]);
       markDirty();
       showToast({ kind: 'success', message: `Anexo "${file.name}" enviado.` });
     } catch (err) {
@@ -689,13 +690,14 @@ export default function LancamentoFinanceiroForm({
           <p className="text-[12px] text-[var(--color-fg-muted)] italic">Nenhum anexo.</p>
         ) : (
           <ul className="space-y-1.5">
-            {anexosUrls.map((url) => {
-              const nome = decodeURIComponent(url.split('/').pop() ?? '').replace(/^\d+_\w+\./, '*.');
+            {anexosUrls.map((pathOrUrl) => {
+              const nome = decodeURIComponent(pathOrUrl.split('/').pop() ?? '').replace(/^\d+_\w+\./, '*.');
+              const href = signedAnexosUrls[pathOrUrl] ?? (pathOrUrl.startsWith('http') ? pathOrUrl : undefined);
               return (
-                <li key={url} className="flex items-center gap-2 px-3 py-2 rounded-md border border-[var(--color-border)] bg-[var(--color-surface-1)] text-[12.5px]">
+                <li key={pathOrUrl} className="flex items-center gap-2 px-3 py-2 rounded-md border border-[var(--color-border)] bg-[var(--color-surface-1)] text-[12.5px]">
                   <FileText className="w-4 h-4 text-[var(--color-fg-muted)] shrink-0" />
                   <a
-                    href={url}
+                    href={href}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="flex-1 truncate text-[var(--color-fg)] hover:text-[var(--color-accent)]"
@@ -704,7 +706,7 @@ export default function LancamentoFinanceiroForm({
                   </a>
                   <button
                     type="button"
-                    onClick={() => removerAnexo(url)}
+                    onClick={() => removerAnexo(pathOrUrl)}
                     className="text-[var(--color-fg-subtle)] hover:text-rose-500"
                     title="Remover"
                   >

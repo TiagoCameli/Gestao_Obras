@@ -32,11 +32,11 @@ export default function MEquipamentoHubPage() {
   const { data: medicaoAtual } = useMedicaoAtual(equipamentoId ?? null);
   const { data: documentos = [] } = useDocumentosEquipamento(equipamentoId ?? null);
 
-  // Permissões (com fallback liberal para operador ver/abrir OS)
-  const podeChecklist = true; // Checklist é o caso de uso principal pro operador
-  const podeMedicao = true; // Apontar medição é simples
-  const podeAbrirOS = temAcao('criar_cadastros') || temAcao('editar_cadastros');
-  const podeSaidaCombustivel = temAcao('criar_saida_combustivel');
+  // Permissões: chaves específicas do grupo Mobile (audit Fase 5 #19/#20).
+  const podeChecklist = temAcao('executar_checklist_mobile');
+  const podeMedicao = temAcao('lancar_medicao_mobile');
+  const podeAbrirOS = temAcao('abrir_os_mobile');
+  const podeSaidaCombustivel = temAcao('saida_combustivel_mobile');
 
   // Catálogo de peças: documento do tipo 'catalogo_pecas' com arquivo anexado
   const catalogoPecas = documentos.find(

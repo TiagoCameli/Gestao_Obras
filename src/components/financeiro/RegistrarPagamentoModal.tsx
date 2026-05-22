@@ -76,8 +76,7 @@ export default function RegistrarPagamentoModal({
         .from('financeiro-anexos')
         .upload(path, file, { contentType: file.type, upsert: false });
       if (error) throw error;
-      const { data } = supabase.storage.from('financeiro-anexos').getPublicUrl(path);
-      setComprovanteUrl(data.publicUrl);
+      setComprovanteUrl(path);
       showToast({ kind: 'success', message: 'Comprovante enviado.' });
     } catch (err) {
       showToast({

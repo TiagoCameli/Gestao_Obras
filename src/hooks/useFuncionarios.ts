@@ -51,8 +51,16 @@ export function useExcluirFuncionario() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase.from('funcionarios').delete().eq('id', id);
-      if (error) throw error;
+      // Usa Edge Function delete-user para garantir que auth.users também é
+      // deletado (revoga sessões em outros devices). Se a Edge falhar por
+      // não estar deployada, faz fallback ao DELETE direto (mantém compat).
+      const { error: fnErr } = await supabase.functions.invoke('delete-user', {
+        body: { funcionarioId: id },
+      });
+      if (fnErr) {
+        const { error } = await supabase.from('funcionarios').delete().eq('id', id);
+        if (error) throw error;
+      }
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['funcionarios'] });
