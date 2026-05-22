@@ -38,6 +38,8 @@ import AnexosUploader from './AnexosUploader';
 import { useAdicionarInsumo } from '../../hooks/useInsumos';
 import { useMedicaoAtual } from '../../hooks/useMedicoesEquipamento';
 import { useAuth } from '../../contexts/AuthContext';
+import { useTransferenciasCombustivel } from '../../hooks/useTransferenciasCombustivel';
+import { calcularPrecoMedioTanque } from '../../utils/precoMedioTanque';
 
 const TIPO_MEDICAO_LABEL: Record<TipoMedicao, string> = {
   horimetro: 'Horímetro',
@@ -163,6 +165,7 @@ export default function SaidaCombustivelForm({
   const [novoCombustivelAberto, setNovoCombustivelAberto] = useState(false);
   const [novoCombustivelNome, setNovoCombustivelNome] = useState('');
   const adicionarInsumoMut = useAdicionarInsumo();
+  const { data: transferencias = [] } = useTransferenciasCombustivel();
 
   useEffect(() => {
     setListaCombustiveis(combustiveis);
@@ -243,15 +246,26 @@ export default function SaidaCombustivelForm({
     ? parseFloat(taxaLitroStr.replace(',', '.')) || 0
     : 0;
 
-  // Preço médio do tanque (só faz sentido pra origem=tanque).
-  const precoMedioTanque = useMemo(() => {
+  // Preço médio CORRENTE do tanque (inclui transferências recebidas — HF.6).
+  // Usa helper compartilhado que inclui entradas + transferências recebidas
+  // (fix Bug C2: inline anterior ignorava transferências — tanque abastecido
+  // só por transferência tinha precoMedio=0 e bloqueava saídas).
+  const precoMedioTanqueCorrente = useMemo(() => {
     if (origem !== 'tanque' || !tanqueId) return 0;
-    const ents = entradasCombustivel.filter((e) => e.depositoId === tanqueId);
-    if (ents.length === 0) return 0;
-    const totalValor = ents.reduce((s, e) => s + e.valorTotal, 0);
-    const totalLitros = ents.reduce((s, e) => s + e.quantidadeLitros, 0);
-    return totalLitros > 0 ? totalValor / totalLitros : 0;
-  }, [origem, tanqueId, entradasCombustivel]);
+    return calcularPrecoMedioTanque(tanqueId, entradasCombustivel, transferencias);
+  }, [origem, tanqueId, entradasCombustivel, transferencias]);
+
+  // Em edit mode com tanque/origem NÃO modificados, respeita o snapshot
+  // salvo (HF.11 — snapshot imutável). Caso contrário usa preço corrente.
+  // Snapshot imutável garante que o backfill HF.10 (point-in-time) não é
+  // perdido ao abrir+salvar a saída sem alterações.
+  const isEditingExistente = !!initial?.id;
+  const tanqueOrigemNaoMudou = !!initial && initial.tanqueId === tanqueId && initial.origem === origem;
+  const usaSnapshotSalvo = isEditingExistente && tanqueOrigemNaoMudou && (initial?.precoMedioTanqueSnapshot ?? 0) > 0;
+
+  const precoMedioTanque = usaSnapshotSalvo
+    ? (initial!.precoMedioTanqueSnapshot ?? 0)
+    : precoMedioTanqueCorrente;
 
   // Combustível disponível no tanque:
   //   - Tanque externo (Transterra): hardcode Diesel S10 (nunca recebe entradas).
@@ -899,8 +913,13 @@ export default function SaidaCombustivelForm({
           </div>
           {origem === 'tanque' && precoMedioTanque > 0 && (
             <div className="text-xs text-gray-500 mt-1">
-              (preço médio do tanque R$ {precoMedioTanque.toFixed(4)}
+              ({usaSnapshotSalvo ? 'preço salvo (snapshot)' : 'preço médio atual do tanque'}: R$ {precoMedioTanque.toFixed(4)}
               {taxaLitro > 0 && ` + taxa R$ ${taxaLitro.toFixed(4)}`})
+              {usaSnapshotSalvo && precoMedioTanqueCorrente > 0 && Math.abs(precoMedioTanqueCorrente - precoMedioTanque) > 0.01 && (
+                <span className="ml-2 text-gray-400">
+                  · preço atual: R$ {precoMedioTanqueCorrente.toFixed(4)}
+                </span>
+              )}
             </div>
           )}
         </div>

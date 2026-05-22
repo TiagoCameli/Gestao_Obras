@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import type { Deposito, TransferenciaCombustivel } from '../../types';
 import { useEntradasCombustivel } from '../../hooks/useEntradasCombustivel';
+import { useTransferenciasCombustivel } from '../../hooks/useTransferenciasCombustivel';
 import { useInsumos } from '../../hooks/useInsumos';
+import { calcularPrecoMedioTanque } from '../../utils/precoMedioTanque';
 import { calcularEstoqueCombustivelNaData } from '../../hooks/useEstoque';
 import Input from '../ui/Input';
 import Select from '../ui/Select';
@@ -35,6 +37,8 @@ export default function TransferenciaForm({
   const depositos = allDepositos.filter((d) => d.ativo !== false);
   const { data: entradasData } = useEntradasCombustivel();
   const allEntradas = entradasData ?? [];
+  const { data: transferenciasCombData } = useTransferenciasCombustivel();
+  const allTransferencias = transferenciasCombData ?? [];
   // F11 — Resolve id → nome do combustível pro banner de conflito de mistura.
   const { data: insumosData } = useInsumos();
   const allInsumos = insumosData ?? [];
@@ -113,13 +117,13 @@ export default function TransferenciaForm({
     };
   })();
 
-  // Preco medio do tanque de origem
-  const entradasOrigem = depositoOrigemId
-    ? allEntradas.filter((e) => e.depositoId === depositoOrigemId)
-    : [];
-  const totalLitrosEntradas = entradasOrigem.reduce((s, e) => s + e.quantidadeLitros, 0);
-  const totalValorEntradas = entradasOrigem.reduce((s, e) => s + e.valorTotal, 0);
-  const precoMedio = totalLitrosEntradas > 0 ? totalValorEntradas / totalLitrosEntradas : 0;
+  // Preço médio do tanque de origem — usa helper compartilhado que inclui
+  // entradas + transferências recebidas (fix Bug C2: inline anterior ignorava
+  // transferências recebidas — tanque abastecido só por transferência
+  // retornava 0 e auto-calculava valor total incorreto).
+  const precoMedio = depositoOrigemId
+    ? calcularPrecoMedioTanque(depositoOrigemId, allEntradas, allTransferencias)
+    : 0;
 
   // Auto-calcular valor total
   useEffect(() => {
