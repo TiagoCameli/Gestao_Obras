@@ -76,10 +76,11 @@ export function useRestaurarEntradaCombustivel() {
         .eq('id', id);
       if (error) throw error;
     },
-    onSuccess: () => {
-      invalidateCombustivelCaches(qc);
-      qc.invalidateQueries({ queryKey: ['entradas_combustivel', 'deletadas'] });
-    },
+    onSuccess: () =>
+      Promise.all([
+        invalidateCombustivelCaches(qc),
+        qc.invalidateQueries({ queryKey: ['entradas_combustivel', 'deletadas'] }),
+      ]),
   });
 }
 

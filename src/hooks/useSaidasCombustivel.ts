@@ -105,7 +105,7 @@ export function useAtualizarSaidasCombustivelBatch() {
         done += 1;
         onProgress?.(done, saidas.length);
       }
-      if (results.saved > 0) invalidateCombustivelCaches(qc);
+      if (results.saved > 0) await invalidateCombustivelCaches(qc);
       return results;
     },
     [qc, usuario?.nome],
@@ -146,10 +146,11 @@ export function useRestaurarSaidaCombustivel() {
         .eq('id', id);
       if (error) throw error;
     },
-    onSuccess: () => {
-      invalidateCombustivelCaches(qc);
-      qc.invalidateQueries({ queryKey: ['saidas_combustivel', 'deletadas'] });
-    },
+    onSuccess: () =>
+      Promise.all([
+        invalidateCombustivelCaches(qc),
+        qc.invalidateQueries({ queryKey: ['saidas_combustivel', 'deletadas'] }),
+      ]),
   });
 }
 

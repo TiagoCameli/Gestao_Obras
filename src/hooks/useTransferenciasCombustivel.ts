@@ -64,10 +64,11 @@ export function useRestaurarTransferenciaCombustivel() {
         .eq('id', id);
       if (error) throw error;
     },
-    onSuccess: () => {
-      invalidateCombustivelCaches(qc);
-      qc.invalidateQueries({ queryKey: ['transferencias_combustivel', 'deletadas'] });
-    },
+    onSuccess: () =>
+      Promise.all([
+        invalidateCombustivelCaches(qc),
+        qc.invalidateQueries({ queryKey: ['transferencias_combustivel', 'deletadas'] }),
+      ]),
   });
 }
 
