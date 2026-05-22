@@ -25,6 +25,7 @@ import type {
 import Drawer from '../../../ui/Drawer';
 import Button from '../../../ui/Button';
 import FilterCombobox from '../../../ui/FilterCombobox';
+import { useToast } from '../../../ui/Toast';
 import {
   DETECTOR_LABEL,
   SEVERITY_LABEL,
@@ -116,6 +117,7 @@ export default function AnomaliaDrawer({
   // Estado local do form D1 (combobox + "Atribuir" inline)
   const [equipSelecionado, setEquipSelecionado] = useState<string>('');
   const [atribuindo, setAtribuindo] = useState(false);
+  const { showToast } = useToast();
 
   // Reset state ao trocar de anomalia
   useEffect(() => {
@@ -175,7 +177,7 @@ export default function AnomaliaDrawer({
       // useEffect do AnomaliasTab fecha drawer + sinal visual de "resolvido".
     } catch (e) {
       console.error('[anomalia] falha ao atribuir', e);
-      alert('Falha ao atribuir equipamento. Tente novamente.');
+      showToast({ kind: 'error', message: 'Falha ao atribuir equipamento. Tente novamente.' });
     } finally {
       setAtribuindo(false);
     }

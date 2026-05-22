@@ -23,6 +23,7 @@ import type {
   SaidaCombustivel,
 } from '../../../../types';
 import Button from '../../../ui/Button';
+import { useToast } from '../../../ui/Toast';
 import {
   exportarMensalConsolidadoExcel,
   exportarMensalConsolidadoPDF,
@@ -77,6 +78,7 @@ export default function MensalConsolidadoModal({
 }: Props) {
   const [mes, setMes] = useState<string>(mesAnteriorIso());
   const [generating, setGenerating] = useState<'pdf' | 'xlsx' | null>(null);
+  const { showToast } = useToast();
 
   useEffect(() => {
     if (open) {
@@ -141,7 +143,7 @@ export default function MensalConsolidadoModal({
       }
     } catch (e) {
       console.error('Erro ao gerar relatório', e);
-      alert('Falha ao gerar o relatório. Tente novamente.');
+      showToast({ kind: 'error', message: 'Falha ao gerar o relatório. Tente novamente.' });
     } finally {
       setGenerating(null);
     }

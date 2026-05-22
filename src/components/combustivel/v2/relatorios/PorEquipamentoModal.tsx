@@ -15,6 +15,7 @@ import type {
   SaidaCombustivel,
 } from '../../../../types';
 import Button from '../../../ui/Button';
+import { useToast } from '../../../ui/Toast';
 import FilterCombobox from '../../../ui/FilterCombobox';
 import { fmtBRL } from '../../../../utils/exportTemplate';
 import {
@@ -68,6 +69,7 @@ export default function PorEquipamentoModal({
   const [from, setFrom] = useState<string>(initialRange.from);
   const [to, setTo] = useState<string>(initialRange.to);
   const [generating, setGenerating] = useState<'pdf' | 'xlsx' | null>(null);
+  const { showToast } = useToast();
 
   useEffect(() => {
     if (open) {
@@ -181,7 +183,7 @@ export default function PorEquipamentoModal({
       }
     } catch (e) {
       console.error('Erro ao gerar relatório', e);
-      alert('Falha ao gerar o relatório. Tente novamente.');
+      showToast({ kind: 'error', message: 'Falha ao gerar o relatório. Tente novamente.' });
     } finally {
       setGenerating(null);
     }
