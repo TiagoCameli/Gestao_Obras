@@ -123,10 +123,12 @@ export default function EntradaForm({
 
   // F11 — Pre-check de mistura. O trigger no DB é a fonte da verdade, mas
   // mostrar inline evita submit+erro feio. Bloqueia se tanque tem outro
-  // combustível corrente. Tanque vazio/externo passa.
+  // combustível corrente. Tanque vazio (nivel <= 0) ou externo passa —
+  // espelha a checagem do trigger fn_validate_entrada_combustivel.
   const conflitoCombustivel = (() => {
     if (!depositoSelecionado || !tipoCombustivel) return null;
     if (depositoSelecionado.ehExterno) return null;
+    if (depositoSelecionado.nivelAtualLitros <= 0) return null;
     if (!depositoSelecionado.combustivelAtualId) return null;
     if (depositoSelecionado.combustivelAtualId === tipoCombustivel) return null;
     return depositoSelecionado.combustivelAtualId;
