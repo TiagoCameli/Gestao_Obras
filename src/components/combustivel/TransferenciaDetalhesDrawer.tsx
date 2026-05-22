@@ -3,7 +3,9 @@
 import { useMemo, useState } from 'react';
 import { Trash2, Wallet, Droplet, Container, FileText, Calendar, Paperclip, History, ArrowRight } from 'lucide-react';
 import type { TransferenciaCombustivel, Deposito } from '../../types';
-import Drawer from '../ui/Drawer';
+import {
+  Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription, SheetFooter,
+} from '../shadcn/sheet';
 import Button from '../ui/Button';
 import HistoricoTimeline from './HistoricoTimeline';
 
@@ -64,9 +66,18 @@ export default function TransferenciaDetalhesDrawer({
 
   if (!transferencia) {
     return (
-      <Drawer open={open} onClose={onClose} title="Transferência" subtitle="Detalhes" width="lg">
-        <div className="text-sm text-[var(--color-fg-muted)] italic">Transferência não disponível.</div>
-      </Drawer>
+      <Sheet open={open} onOpenChange={(o) => { if (!o) onClose(); }}>
+        <SheetContent
+          side="right"
+          className="w-full data-[side=right]:sm:max-w-[900px] bg-[var(--color-surface-1)] text-[var(--color-fg)] border-l border-[var(--color-border)]"
+        >
+          <SheetHeader>
+            <SheetTitle>Transferência</SheetTitle>
+            <SheetDescription>Detalhes</SheetDescription>
+          </SheetHeader>
+          <div className="text-sm text-[var(--color-fg-muted)] italic mt-4">Transferência não disponível.</div>
+        </SheetContent>
+      </Sheet>
     );
   }
 
@@ -88,14 +99,17 @@ export default function TransferenciaDetalhesDrawer({
   ) : null;
 
   return (
-    <Drawer
-      open={open}
-      onClose={onClose}
-      title="Transferência"
-      subtitle={fmtDataHora(transferencia.dataHora)}
-      width="lg"
-      footer={footer}
-    >
+    <Sheet open={open} onOpenChange={(o) => { if (!o) onClose(); }}>
+      <SheetContent
+        side="right"
+        className="w-full data-[side=right]:sm:max-w-[900px] bg-[var(--color-surface-1)] text-[var(--color-fg)] border-l border-[var(--color-border)] overflow-y-auto"
+      >
+        <SheetHeader>
+          <SheetTitle>Transferência</SheetTitle>
+          <SheetDescription>{fmtDataHora(transferencia.dataHora)}</SheetDescription>
+        </SheetHeader>
+
+        <div className="mt-4">
       <div className="flex gap-1 mb-4 border-b border-[var(--color-border)]">
         <button
           type="button"
@@ -224,6 +238,12 @@ export default function TransferenciaDetalhesDrawer({
           )}
         </div>
       )}
-    </Drawer>
+        </div>
+
+        <SheetFooter className="mt-6">
+          {footer}
+        </SheetFooter>
+      </SheetContent>
+    </Sheet>
   );
 }

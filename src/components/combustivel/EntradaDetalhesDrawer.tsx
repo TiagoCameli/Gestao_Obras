@@ -5,7 +5,9 @@
 import { useMemo, useState } from 'react';
 import { Pencil, Trash2, Wallet, Droplet, Gauge, Container, FileText, Calendar, Paperclip, History } from 'lucide-react';
 import type { EntradaCombustivel, Deposito, Insumo, Fornecedor } from '../../types';
-import Drawer from '../ui/Drawer';
+import {
+  Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription, SheetFooter,
+} from '../shadcn/sheet';
 import Button from '../ui/Button';
 import HistoricoTimeline from './HistoricoTimeline';
 
@@ -83,9 +85,18 @@ export default function EntradaDetalhesDrawer({
 
   if (!entrada) {
     return (
-      <Drawer open={open} onClose={onClose} title="Entrada de combustível" subtitle="Detalhes" width="lg">
-        <div className="text-sm text-[var(--color-fg-muted)] italic">Entrada não disponível.</div>
-      </Drawer>
+      <Sheet open={open} onOpenChange={(o) => { if (!o) onClose(); }}>
+        <SheetContent
+          side="right"
+          className="w-full data-[side=right]:sm:max-w-[900px] bg-[var(--color-surface-1)] text-[var(--color-fg)] border-l border-[var(--color-border)]"
+        >
+          <SheetHeader>
+            <SheetTitle>Entrada de combustível</SheetTitle>
+            <SheetDescription>Detalhes</SheetDescription>
+          </SheetHeader>
+          <div className="text-sm text-[var(--color-fg-muted)] italic mt-4">Entrada não disponível.</div>
+        </SheetContent>
+      </Sheet>
     );
   }
 
@@ -121,14 +132,17 @@ export default function EntradaDetalhesDrawer({
   );
 
   return (
-    <Drawer
-      open={open}
-      onClose={onClose}
-      title="Entrada de combustível"
-      subtitle={fmtDataHora(entrada.dataHora)}
-      width="lg"
-      footer={footer}
-    >
+    <Sheet open={open} onOpenChange={(o) => { if (!o) onClose(); }}>
+      <SheetContent
+        side="right"
+        className="w-full data-[side=right]:sm:max-w-[900px] bg-[var(--color-surface-1)] text-[var(--color-fg)] border-l border-[var(--color-border)] overflow-y-auto"
+      >
+        <SheetHeader>
+          <SheetTitle>Entrada de combustível</SheetTitle>
+          <SheetDescription>{fmtDataHora(entrada.dataHora)}</SheetDescription>
+        </SheetHeader>
+
+        <div className="mt-4">
       <div className="flex gap-1 mb-4 border-b border-[var(--color-border)]">
         <button
           type="button"
@@ -259,6 +273,12 @@ export default function EntradaDetalhesDrawer({
           )}
         </div>
       )}
-    </Drawer>
+        </div>
+
+        <SheetFooter className="mt-6">
+          {footer}
+        </SheetFooter>
+      </SheetContent>
+    </Sheet>
   );
 }
