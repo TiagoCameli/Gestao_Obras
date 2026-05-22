@@ -21,7 +21,9 @@ import type {
   OrigemCombustivel,
   EtapaObra,
 } from '../../types';
-import Drawer from '../ui/Drawer';
+import {
+  Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription, SheetFooter,
+} from '../shadcn/sheet';
 import Button from '../ui/Button';
 import HistoricoTimeline from './HistoricoTimeline';
 
@@ -128,11 +130,20 @@ export default function SaidaDetalhesDrawer({
 
   if (!saida) {
     return (
-      <Drawer open={open} onClose={onClose} title="Saída de combustível" subtitle="Detalhes" width="lg">
-        <div className="text-sm text-[var(--color-fg-muted)] italic">
-          Saída não disponível.
-        </div>
-      </Drawer>
+      <Sheet open={open} onOpenChange={(o) => { if (!o) onClose(); }}>
+        <SheetContent
+          side="right"
+          className="w-full data-[side=right]:sm:max-w-[900px] bg-[var(--color-surface-1)] text-[var(--color-fg)] border-l border-[var(--color-border)]"
+        >
+          <SheetHeader>
+            <SheetTitle>Saída de combustível</SheetTitle>
+            <SheetDescription>Detalhes</SheetDescription>
+          </SheetHeader>
+          <div className="text-sm text-[var(--color-fg-muted)] italic mt-4">
+            Saída não disponível.
+          </div>
+        </SheetContent>
+      </Sheet>
     );
   }
 
@@ -196,14 +207,17 @@ export default function SaidaDetalhesDrawer({
   const consumidorTipo = saida.tipoConsumidor === 'equipamento_proprio' ? 'Equipamento próprio' : 'Carreta terceirizada';
 
   return (
-    <Drawer
-      open={open}
-      onClose={onClose}
-      title="Saída de combustível"
-      subtitle={fmtDataHora(saida.data)}
-      width="lg"
-      footer={footer}
-    >
+    <Sheet open={open} onOpenChange={(o) => { if (!o) onClose(); }}>
+      <SheetContent
+        side="right"
+        className="w-full data-[side=right]:sm:max-w-[900px] bg-[var(--color-surface-1)] text-[var(--color-fg)] border-l border-[var(--color-border)] overflow-y-auto"
+      >
+        <SheetHeader>
+          <SheetTitle>Saída de combustível</SheetTitle>
+          <SheetDescription>{fmtDataHora(saida.data)}</SheetDescription>
+        </SheetHeader>
+
+        <div className="mt-4">
       {/* F8.3 — tabs Detalhes / Histórico */}
       <div className="flex gap-1 mb-4 border-b border-[var(--color-border)]">
         <button
@@ -406,6 +420,12 @@ export default function SaidaDetalhesDrawer({
         )}
       </div>
       )}
-    </Drawer>
+        </div>
+
+        <SheetFooter className="mt-6">
+          {footer}
+        </SheetFooter>
+      </SheetContent>
+    </Sheet>
   );
 }

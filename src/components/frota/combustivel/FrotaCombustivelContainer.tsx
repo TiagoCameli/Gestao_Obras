@@ -5,6 +5,8 @@ import type {
   Deposito,
   SaidaCombustivel,
 } from '../../../types';
+import { useToast } from '../../ui/Toast';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '../../shadcn/dialog';
 import { useObras } from '../../../hooks/useObras';
 import { useEtapas } from '../../../hooks/useEtapas';
 import { useDepositos, useAdicionarDeposito, useAtualizarDeposito, useExcluirDeposito } from '../../../hooks/useDepositos';
@@ -21,13 +23,13 @@ import Button from '../../ui/Button';
 import PasswordDialog from '../../ui/PasswordDialog';
 // Saída unificada (Fase 4)
 import SaidaCombustivelForm from '../../combustivel/SaidaCombustivelForm';
-import SaidaCombustivelList from '../../combustivel/SaidaCombustivelList';
+import SaidaCombustivelListV2 from '../../combustivel/SaidaCombustivelListV2';
 import SaidaDetalhesDrawer from '../../combustivel/SaidaDetalhesDrawer';
 import EntradaForm from '../../combustivel/EntradaForm';
-import EntradaList from '../../combustivel/EntradaList';
+import EntradaListV2 from '../../combustivel/EntradaListV2';
 import EntradaDetalhesDrawer from '../../combustivel/EntradaDetalhesDrawer';
 import TransferenciaForm from '../../combustivel/TransferenciaForm';
-import TransferenciaList from '../../combustivel/TransferenciaList';
+import TransferenciaListV2 from '../../combustivel/TransferenciaListV2';
 import TransferenciaDetalhesDrawer from '../../combustivel/TransferenciaDetalhesDrawer';
 import TanqueList from './TanqueList';
 import TanqueForm from './TanqueForm';
@@ -79,6 +81,24 @@ function FrotaCombustivelContent() {
   const canCreateEntrada = temAcao('criar_entrada_combustivel');
   const canCreateSaida = temAcao('criar_saida_combustivel');
   const canCreateTransferencia = temAcao('criar_transferencia_combustivel');
+  const { showToast } = useToast();
+
+  // Confirm dialog state — substitui window.confirm() em pedirSenha (admin bypass).
+  const [confirmState, setConfirmState] = useState<{
+    open: boolean;
+    title: string;
+    message: string;
+    onConfirm: () => void;
+  } | null>(null);
+
+  // Prompt dialog state — substitui window.prompt() em handleMarcarVerificada.
+  const [promptState, setPromptState] = useState<{
+    open: boolean;
+    title: string;
+    placeholder: string;
+    onConfirm: (value: string) => void;
+  } | null>(null);
+  const [promptValue, setPromptValue] = useState('');
 
   const [subTab, setSubTab] = useState<SubTab>('visao_geral');
 
@@ -209,11 +229,9 @@ function FrotaCombustivelContent() {
   const [senhaAction, setSenhaAction] = useState<(() => void) | null>(null);
 
   // F3.D-fix: pedirSenha agora aceita opts:
-  // - confirmMessage: confirma com window.confirm() ANTES de rodar (usado em deletes
-  //   pra dar freio mesmo no admin bypass).
-  // - successMessage / errorMessage: alerta o usuário pós-execução. Resolve o
-  //   silent fail histórico onde mutate.mutateAsync rejeitada vinha sem feedback
-  //   (action() era fire-and-forget no admin bypass; toast nunca aparecia).
+  // - confirmMessage: confirma com ConfirmDialog state-driven ANTES de rodar (usado em
+  //   deletes pra dar freio mesmo no admin bypass).
+  // - successMessage / errorMessage: notifica o usuário pós-execução via useToast.
   // Sem opts = comportamento legado (preserva edit/atribuir flows).
   type SenhaOpts = {
     confirmMessage?: string;
@@ -225,18 +243,25 @@ function FrotaCombustivelContent() {
       try {
         await action();
         if (opts?.successMessage) {
-          // Sem lib de toast no projeto — usar alert pra feedback visível.
-          // Quando F6 trouxer toast lib, trocar aqui (1 ponto).
-          alert(opts.successMessage);
+          showToast({ kind: 'success', message: opts.successMessage });
         }
       } catch (e) {
         console.error('[combustivel] ação falhou', e);
         const msg = opts?.errorMessage ?? 'Operação falhou. Verifique o console e tente novamente.';
-        alert(msg);
+        showToast({ kind: 'error', message: msg });
       }
     };
     if (usuario?.cargo === 'Administrador') {
-      if (opts?.confirmMessage && !window.confirm(opts.confirmMessage)) {
+      if (opts?.confirmMessage) {
+        setConfirmState({
+          open: true,
+          title: 'Confirmar ação',
+          message: opts.confirmMessage,
+          onConfirm: () => {
+            setConfirmState(null);
+            void wrappedAction();
+          },
+        });
         return;
       }
       void wrappedAction();
@@ -424,24 +449,32 @@ function FrotaCombustivelContent() {
   const desfazerVerificacaoMut = useDesfazerVerificacaoAnomalia();
   const handleMarcarVerificada = useCallback(
     (anomaliaId: string) => {
-      // prompt nativo pra motivo opcional (ETs F6 swap por modal). Cancelar
-      // (=null) aborta toda a operação; vazio só não preenche motivo.
-      const motivo = window.prompt('Por que essa anomalia está OK? (opcional)');
-      if (motivo === null) return;
-      pedirSenha(
-        async () => {
-          await marcarVerificadaMut.mutateAsync({
-            anomaliaId,
-            checkedBy: usuario?.nome ?? null,
-            motivo: motivo.trim() || null,
-          });
+      // Dialog state-driven substitui window.prompt(). Cancelar fecha o dialog
+      // sem executar a ação; confirmar (com motivo vazio ou preenchido) prossegue.
+      setPromptValue('');
+      setPromptState({
+        open: true,
+        title: 'Por que essa anomalia está OK?',
+        placeholder: 'Motivo (opcional)',
+        onConfirm: (motivo) => {
+          setPromptState(null);
+          pedirSenha(
+            async () => {
+              await marcarVerificadaMut.mutateAsync({
+                anomaliaId,
+                checkedBy: usuario?.nome ?? null,
+                motivo: motivo.trim() || null,
+              });
+            },
+            {
+              successMessage: 'Anomalia marcada como verificada.',
+              errorMessage: 'Falha ao marcar anomalia. Tente novamente.',
+            },
+          );
         },
-        {
-          successMessage: 'Anomalia marcada como verificada.',
-          errorMessage: 'Falha ao marcar anomalia. Tente novamente.',
-        },
-      );
+      });
     },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [marcarVerificadaMut, usuario?.nome],
   );
   const handleDesfazerVerificacao = useCallback(
@@ -724,9 +757,11 @@ function FrotaCombustivelContent() {
       )}
 
       {!isLoadingCore && subTab === 'entradas' && (
-        <EntradaList
+        <EntradaListV2
           entradas={entradasFiltradas}
           depositos={depositosTodos}
+          combustiveis={combustiveis}
+          fornecedores={todosFornecedores}
           onEdit={handleEditEntrada}
           onDelete={(id) => pedirSenha(() => handleDeleteEntrada(id), {
             confirmMessage: 'Confirma exclusão desta entrada? Ação não pode ser desfeita.',
@@ -761,7 +796,7 @@ function FrotaCombustivelContent() {
               </Button>
             </div>
           )}
-          <SaidaCombustivelList
+          <SaidaCombustivelListV2
             saidas={saidasFiltradas}
             obras={obras}
             depositos={depositosTodos}
@@ -782,7 +817,7 @@ function FrotaCombustivelContent() {
       )}
 
       {!isLoadingCore && subTab === 'transferencias' && (
-        <TransferenciaList
+        <TransferenciaListV2
           transferencias={transferenciasFiltradas}
           depositos={depositosTodos}
           insumos={combustiveis}
@@ -958,6 +993,61 @@ function FrotaCombustivelContent() {
         depositos={depositosTodos}
         obras={obras}
       />
+
+      {/* Confirm dialog — substitui window.confirm() no admin bypass de pedirSenha. */}
+      {confirmState && (
+        <Dialog open={confirmState.open} onOpenChange={(o) => !o && setConfirmState(null)}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>{confirmState.title}</DialogTitle>
+            </DialogHeader>
+            <p className="text-sm text-[var(--color-fg-muted)] leading-relaxed">
+              {confirmState.message}
+            </p>
+            <DialogFooter>
+              <Button variant="secondary" onClick={() => setConfirmState(null)}>
+                Cancelar
+              </Button>
+              <Button variant="danger" onClick={confirmState.onConfirm}>
+                Confirmar
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
+
+      {/* Prompt dialog — substitui window.prompt() em handleMarcarVerificada. */}
+      {promptState && (
+        <Dialog open={promptState.open} onOpenChange={(o) => !o && setPromptState(null)}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>{promptState.title}</DialogTitle>
+            </DialogHeader>
+            <input
+              type="text"
+              value={promptValue}
+              onChange={(e) => setPromptValue(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  promptState.onConfirm(promptValue);
+                }
+              }}
+              placeholder={promptState.placeholder}
+              className="w-full h-10 px-3 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-1)] text-[var(--color-fg)] focus:outline-none focus:border-[var(--color-accent)]"
+              autoFocus
+            />
+            <DialogFooter>
+              <Button variant="secondary" onClick={() => setPromptState(null)}>
+                Cancelar
+              </Button>
+              <Button onClick={() => promptState.onConfirm(promptValue)}>
+                Confirmar
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
 
     </div>
   );

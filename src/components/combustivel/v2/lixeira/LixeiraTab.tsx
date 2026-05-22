@@ -9,6 +9,8 @@
 
 import { useMemo, useState } from 'react';
 import { ChevronDown, ChevronRight, Undo2, Droplet, ArrowDownToLine, ArrowUpFromLine, ArrowLeftRight, Container, Loader2 } from 'lucide-react';
+import { useToast } from '../../../ui/Toast';
+import ConfirmDialog from '../../../ui/ConfirmDialog';
 import {
   useSaidasCombustivelDeletadas,
   useRestaurarSaidaCombustivel,
@@ -53,6 +55,13 @@ export default function LixeiraTab({ equipamentos, obras, depositos }: Props) {
   const { temAcao } = useAuth();
   const canVerLixeira = temAcao('ver_lixeira_combustivel');
   const canRestaurar = temAcao('restaurar_lixeira_combustivel');
+  const { showToast } = useToast();
+  const [confirmState, setConfirmState] = useState<{
+    open: boolean;
+    title: string;
+    message: string;
+    onConfirm: () => void;
+  } | null>(null);
 
   const saidasQ = useSaidasCombustivelDeletadas();
   const entradasQ = useEntradasCombustivelDeletadas();
@@ -82,25 +91,32 @@ export default function LixeiraTab({ equipamentos, obras, depositos }: Props) {
 
   const isLoading = saidasQ.isLoading || entradasQ.isLoading || transfersQ.isLoading || tanquesQ.isLoading;
 
-  async function handleRestaurar(
+  function handleRestaurar(
     tipo: 'saida' | 'entrada' | 'transferencia' | 'tanque',
     id: string,
   ) {
     if (!canRestaurar) {
-      alert('Sem permissão para restaurar itens da lixeira.');
+      showToast({ kind: 'error', message: 'Sem permissão para restaurar itens da lixeira.' });
       return;
     }
-    if (!window.confirm('Restaurar este registro?')) return;
-    try {
-      if (tipo === 'saida') await restaurarSaida.mutateAsync(id);
-      else if (tipo === 'entrada') await restaurarEntrada.mutateAsync(id);
-      else if (tipo === 'transferencia') await restaurarTransf.mutateAsync(id);
-      else await restaurarTanque.mutateAsync(id);
-      alert('Registro restaurado.');
-    } catch (e) {
-      console.error('[lixeira] falha ao restaurar', e);
-      alert('Falha ao restaurar. Tente novamente.');
-    }
+    setConfirmState({
+      open: true,
+      title: 'Restaurar registro',
+      message: 'Restaurar este registro?',
+      onConfirm: async () => {
+        setConfirmState(null);
+        try {
+          if (tipo === 'saida') await restaurarSaida.mutateAsync(id);
+          else if (tipo === 'entrada') await restaurarEntrada.mutateAsync(id);
+          else if (tipo === 'transferencia') await restaurarTransf.mutateAsync(id);
+          else await restaurarTanque.mutateAsync(id);
+          showToast({ kind: 'success', message: 'Registro restaurado.' });
+        } catch (e) {
+          console.error('[lixeira] falha ao restaurar', e);
+          showToast({ kind: 'error', message: 'Falha ao restaurar. Tente novamente.' });
+        }
+      },
+    });
   }
 
   if (!canVerLixeira) {
@@ -122,6 +138,16 @@ export default function LixeiraTab({ equipamentos, obras, depositos }: Props) {
 
   return (
     <div className="space-y-4">
+      {confirmState && (
+        <ConfirmDialog
+          open={confirmState.open}
+          title={confirmState.title}
+          message={confirmState.message}
+          onConfirm={confirmState.onConfirm}
+          onClose={() => setConfirmState(null)}
+          requirePassword={false}
+        />
+      )}
       <div>
         <h2 className="text-lg font-semibold text-[var(--color-fg)]">Lixeira</h2>
         <p className="text-sm text-[var(--color-fg-muted)]">
