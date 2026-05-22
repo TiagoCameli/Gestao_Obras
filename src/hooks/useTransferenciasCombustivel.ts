@@ -3,6 +3,7 @@ import { supabase } from '../lib/supabase';
 import { dbToTransferenciaCombustivel, transferenciaCombustivelToDb } from '../lib/mappers';
 import type { TransferenciaCombustivel } from '../types';
 import { useAuth } from '../contexts/AuthContext';
+import { invalidateCombustivelCaches } from './useCombustivelInvalidator';
 
 export function useTransferenciasCombustivel() {
   return useQuery({
@@ -28,10 +29,7 @@ export function useAdicionarTransferenciaCombustivel() {
         .insert(transferenciaCombustivelToDb(transferencia));
       if (error) throw error;
     },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['transferencias_combustivel'] });
-      qc.invalidateQueries({ queryKey: ['depositos'] });
-    },
+    onSuccess: () => invalidateCombustivelCaches(qc),
   });
 }
 
@@ -67,9 +65,8 @@ export function useRestaurarTransferenciaCombustivel() {
       if (error) throw error;
     },
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['transferencias_combustivel'] });
+      invalidateCombustivelCaches(qc);
       qc.invalidateQueries({ queryKey: ['transferencias_combustivel', 'deletadas'] });
-      qc.invalidateQueries({ queryKey: ['depositos'] });
     },
   });
 }
@@ -89,9 +86,6 @@ export function useExcluirTransferenciaCombustivel() {
         .eq('id', id);
       if (error) throw error;
     },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['transferencias_combustivel'] });
-      qc.invalidateQueries({ queryKey: ['depositos'] });
-    },
+    onSuccess: () => invalidateCombustivelCaches(qc),
   });
 }

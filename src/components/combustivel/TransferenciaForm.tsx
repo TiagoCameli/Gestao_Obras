@@ -47,7 +47,13 @@ export default function TransferenciaForm({
   const [importModalOpen, setImportModalOpen] = useState(false);
   const [toastMsg, setToastMsg] = useState('');
 
-  const [dataHora, setDataHora] = useState('');
+  // HF.12 — Inicializa com agora (formato datetime-local sem TZ). Evita
+  // "salto" de saldo entre fallback nivelAtualLitros e RPC point-in-time.
+  const [dataHora, setDataHora] = useState(() => {
+    const d = new Date();
+    const pad = (n: number) => String(n).padStart(2, '0');
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  });
   const [depositoOrigemId, setDepositoOrigemId] = useState('');
   const [depositoDestinoId, setDepositoDestinoId] = useState('');
   const [quantidadeLitros, setQuantidadeLitros] = useState('');
@@ -71,15 +77,18 @@ export default function TransferenciaForm({
       setEstoqueOrigemNaData(depositoOrigem ? depositoOrigem.nivelAtualLitros : 0);
       return;
     }
+    let cancelled = false;
     // Fallback pro nível atual em caso de falha da RPC — evita bloquear
     // o form quando a função do banco está quebrada (vide migration
     // 20260512230000_fix_calcular_estoque_combustivel_na_data).
     calcularEstoqueCombustivelNaData(depositoOrigemId, dataHora)
-      .then(setEstoqueOrigemNaData)
+      .then((v) => { if (!cancelled) setEstoqueOrigemNaData(v); })
       .catch((err) => {
+        if (cancelled) return;
         console.error('[TransferenciaForm] estoque origem na data falhou', err);
         setEstoqueOrigemNaData(depositoOrigem ? depositoOrigem.nivelAtualLitros : 0);
       });
+    return () => { cancelled = true; };
   }, [depositoOrigemId, dataHora, depositoOrigem?.nivelAtualLitros, depositoOrigem]);
 
   useEffect(() => {
@@ -87,12 +96,15 @@ export default function TransferenciaForm({
       setEstoqueDestinoNaData(depositoDestino ? depositoDestino.nivelAtualLitros : 0);
       return;
     }
+    let cancelled = false;
     calcularEstoqueCombustivelNaData(depositoDestinoId, dataHora)
-      .then(setEstoqueDestinoNaData)
+      .then((v) => { if (!cancelled) setEstoqueDestinoNaData(v); })
       .catch((err) => {
+        if (cancelled) return;
         console.error('[TransferenciaForm] estoque destino na data falhou', err);
         setEstoqueDestinoNaData(depositoDestino ? depositoDestino.nivelAtualLitros : 0);
       });
+    return () => { cancelled = true; };
   }, [depositoDestinoId, dataHora, depositoDestino?.nivelAtualLitros, depositoDestino]);
 
   // HF.7 — Combustível que vai ser transferido (point-in-time do tanque
@@ -104,12 +116,15 @@ export default function TransferenciaForm({
       setCombustivelOrigemId(depositoOrigem?.combustivelAtualId ?? null);
       return;
     }
+    let cancelled = false;
     calcularCombustivelTanqueNaData(depositoOrigemId, dataHora)
-      .then(setCombustivelOrigemId)
+      .then((v) => { if (!cancelled) setCombustivelOrigemId(v); })
       .catch((err) => {
+        if (cancelled) return;
         console.error('[TransferenciaForm] combustível na data falhou', err);
         setCombustivelOrigemId(depositoOrigem?.combustivelAtualId ?? null);
       });
+    return () => { cancelled = true; };
   }, [depositoOrigemId, dataHora, depositoOrigem?.combustivelAtualId]);
   const combustivelOrigemNome = combustivelOrigemId
     ? (allInsumos.find((i) => i.id === combustivelOrigemId)?.nome ?? null)
@@ -120,6 +135,12 @@ export default function TransferenciaForm({
     ? depositoDestino.capacidadeLitros - estoqueDestinoNaData
     : 0;
   const semEspacoDestino = depositoDestino && qtdLitros > espacoDestinoNaData;
+  // HF.12 — Em modo backdated, o saldo NA DATA pode ser menor que o saldo
+  // ATUAL. Validar capacidade no PRESENTE também — evita estourar a real.
+  const espacoDestinoAtual = depositoDestino
+    ? depositoDestino.capacidadeLitros - depositoDestino.nivelAtualLitros
+    : 0;
+  const semEspacoDestinoAtual = depositoDestino && qtdLitros > espacoDestinoAtual;
   const mesmoTanque = depositoOrigemId && depositoOrigemId === depositoDestinoId;
 
   // F11 — Pre-check de mistura no destino. O trigger no DB é a fonte da
@@ -258,6 +279,7 @@ export default function TransferenciaForm({
     qtdLitros > 0 &&
     !semEstoqueOrigem &&
     !semEspacoDestino &&
+    !semEspacoDestinoAtual &&
     !mesmoTanque &&
     !conflitoCombustivelDestino;
 
@@ -396,7 +418,9 @@ export default function TransferenciaForm({
               ? `Estoque insuficiente (${estoqueOrigemNaData.toFixed(0)} L disponíveis${dataHora ? ' na data' : ''})`
               : semEspacoDestino
                 ? `Espaço insuficiente no destino (${espacoDestino.toFixed(0)} L de espaço${dataHora ? ' na data' : ''})`
-                : undefined
+                : semEspacoDestinoAtual
+                  ? `Excede capacidade atual do tanque (${espacoDestinoAtual.toFixed(0)} L livres hoje)`
+                  : undefined
           }
           required
         />

@@ -3,6 +3,7 @@ import { supabase } from '../lib/supabase';
 import { dbToEntradaCombustivel, entradaCombustivelToDb } from '../lib/mappers';
 import type { EntradaCombustivel } from '../types';
 import { useAuth } from '../contexts/AuthContext';
+import { invalidateCombustivelCaches } from './useCombustivelInvalidator';
 
 export function useEntradasCombustivel() {
   return useQuery({
@@ -26,10 +27,7 @@ export function useAdicionarEntradaCombustivel() {
       const { error } = await supabase.from('entradas_combustivel').insert(entradaCombustivelToDb(entrada));
       if (error) throw error;
     },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['entradas_combustivel'] });
-      qc.invalidateQueries({ queryKey: ['depositos'] });
-    },
+    onSuccess: () => invalidateCombustivelCaches(qc),
   });
 }
 
@@ -43,10 +41,7 @@ export function useAtualizarEntradaCombustivel() {
         .eq('id', entrada.id);
       if (error) throw error;
     },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['entradas_combustivel'] });
-      qc.invalidateQueries({ queryKey: ['depositos'] });
-    },
+    onSuccess: () => invalidateCombustivelCaches(qc),
   });
 }
 
@@ -82,9 +77,8 @@ export function useRestaurarEntradaCombustivel() {
       if (error) throw error;
     },
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['entradas_combustivel'] });
+      invalidateCombustivelCaches(qc);
       qc.invalidateQueries({ queryKey: ['entradas_combustivel', 'deletadas'] });
-      qc.invalidateQueries({ queryKey: ['depositos'] });
     },
   });
 }
@@ -104,9 +98,6 @@ export function useExcluirEntradaCombustivel() {
         .eq('id', id);
       if (error) throw error;
     },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['entradas_combustivel'] });
-      qc.invalidateQueries({ queryKey: ['depositos'] });
-    },
+    onSuccess: () => invalidateCombustivelCaches(qc),
   });
 }

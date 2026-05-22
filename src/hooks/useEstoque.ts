@@ -1,5 +1,18 @@
 import { supabase } from '../lib/supabase';
 
+/** HF.12 — Normaliza um datetime-local ("YYYY-MM-DDTHH:MM" sem TZ, hora local
+ *  do navegador) pra ISO 8601 UTC explícito ("YYYY-MM-DDTHH:MM:SS.sssZ").
+ *  Sem isso, o Postgres ao castar `::timestamptz` assume UTC e ignora o TZ
+ *  do usuário, devolvendo saldos em janela errada. */
+function toIsoUtc(dataHoraLocal: string): string {
+  // Se já vem em formato com TZ (ex: "Z" final ou "+/-HH:MM"), passa direto.
+  if (/(?:Z|[+-]\d{2}:?\d{2})$/.test(dataHoraLocal)) return dataHoraLocal;
+  // Constrói Date considerando TZ local do navegador, retorna ISO UTC.
+  const d = new Date(dataHoraLocal);
+  if (isNaN(d.getTime())) return dataHoraLocal; // fallback se input inválido
+  return d.toISOString();
+}
+
 export async function calcularEstoqueCombustivelNaData(
   depositoId: string,
   dataHora: string,
@@ -7,7 +20,7 @@ export async function calcularEstoqueCombustivelNaData(
 ): Promise<number> {
   const { data, error } = await supabase.rpc('calcular_estoque_combustivel_na_data', {
     p_deposito_id: depositoId,
-    p_data_hora: dataHora,
+    p_data_hora: toIsoUtc(dataHora),
     p_excluir_id: excluirId ?? null,
   });
   if (error) throw error;
@@ -22,7 +35,7 @@ export async function calcularCombustivelTanqueNaData(
 ): Promise<string | null> {
   const { data, error } = await supabase.rpc('calcular_combustivel_tanque_na_data', {
     p_deposito_id: depositoId,
-    p_data_hora: dataHora,
+    p_data_hora: toIsoUtc(dataHora),
   });
   if (error) throw error;
   return (data as string | null) ?? null;

@@ -4,17 +4,16 @@ import { supabase } from '../lib/supabase';
 import { dbToSaidaCombustivel, saidaCombustivelToDb } from '../lib/mappers';
 import type { SaidaCombustivel } from '../types';
 import { useAuth } from '../contexts/AuthContext';
+import { invalidateCombustivelCaches } from './useCombustivelInvalidator';
 
 /**
  * Lista todas as saídas de combustível (modelo unificado pós-Fase 2).
  * Substitui useAbastecimentos + useAbastecimentosCarreta após Fase 5.
  *
- * Mutations invalidam 5 queryKeys pra manter cache coerente:
- * - ['saidas_combustivel']         — esta tabela
- * - ['transportadora_movimentos']  — trigger cria movimentos pra carretas
- * - ['transportadora_saldos']      — saldo derivado dos movimentos
- * - ['abastecimentos']             — compat shim legado lê daqui
- * - ['abastecimentos_carreta']     — idem
+ * Mutations usam invalidateCombustivelCaches (HF.12) pra refetchar todas as
+ * 9 queryKeys ligadas (depositos, entradas, saídas, transferências,
+ * esvaziamentos, transportadora_movimentos/saldos, abastecimentos shim).
+ * Bug #4: o conjunto antigo esquecera ['depositos'].
  */
 export function useSaidasCombustivel() {
   return useQuery({
@@ -33,18 +32,6 @@ export function useSaidasCombustivel() {
   });
 }
 
-const INVALIDATE_KEYS: readonly (readonly string[])[] = [
-  ['saidas_combustivel'],
-  ['transportadora_movimentos'],
-  ['transportadora_saldos'],
-  ['abastecimentos'],
-  ['abastecimentos_carreta'],
-];
-
-function invalidateAll(qc: ReturnType<typeof useQueryClient>) {
-  for (const k of INVALIDATE_KEYS) qc.invalidateQueries({ queryKey: k });
-}
-
 export function useAdicionarSaidaCombustivel() {
   const qc = useQueryClient();
   return useMutation({
@@ -54,7 +41,7 @@ export function useAdicionarSaidaCombustivel() {
         .insert(saidaCombustivelToDb(saida));
       if (error) throw error;
     },
-    onSuccess: () => invalidateAll(qc),
+    onSuccess: () => invalidateCombustivelCaches(qc),
   });
 }
 
@@ -68,7 +55,7 @@ export function useAtualizarSaidaCombustivel() {
         .eq('id', saida.id);
       if (error) throw error;
     },
-    onSuccess: () => invalidateAll(qc),
+    onSuccess: () => invalidateCombustivelCaches(qc),
   });
 }
 
@@ -118,7 +105,7 @@ export function useAtualizarSaidasCombustivelBatch() {
         done += 1;
         onProgress?.(done, saidas.length);
       }
-      if (results.saved > 0) invalidateAll(qc);
+      if (results.saved > 0) invalidateCombustivelCaches(qc);
       return results;
     },
     [qc, usuario?.nome],
@@ -160,7 +147,7 @@ export function useRestaurarSaidaCombustivel() {
       if (error) throw error;
     },
     onSuccess: () => {
-      invalidateAll(qc);
+      invalidateCombustivelCaches(qc);
       qc.invalidateQueries({ queryKey: ['saidas_combustivel', 'deletadas'] });
     },
   });
@@ -183,6 +170,6 @@ export function useExcluirSaidaCombustivel() {
         .eq('id', id);
       if (error) throw error;
     },
-    onSuccess: () => invalidateAll(qc),
+    onSuccess: () => invalidateCombustivelCaches(qc),
   });
 }

@@ -7,6 +7,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '../lib/supabase';
 import type { EsvaziamentoTanque } from '../types';
 import { useAuth } from '../contexts/AuthContext';
+import { invalidateCombustivelCaches } from './useCombustivelInvalidator';
 
 function gerarId(): string {
   return Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
@@ -61,11 +62,6 @@ export function useEsvaziarTanque() {
       });
       if (error) throw error;
     },
-    onSuccess: () => {
-      // Trigger no DB já recalculou nível + combustivel_atual_id — invalida
-      // depositos pra refletir e a lista de esvaziamentos pra histórico.
-      qc.invalidateQueries({ queryKey: ['depositos'] });
-      qc.invalidateQueries({ queryKey: ['esvaziamentos_tanque'] });
-    },
+    onSuccess: () => invalidateCombustivelCaches(qc),
   });
 }
