@@ -785,6 +785,7 @@ function FrotaCombustivelContent() {
         <TransferenciaList
           transferencias={transferenciasFiltradas}
           depositos={depositosTodos}
+          insumos={combustiveis}
           onDelete={(id) => pedirSenha(() => handleDeleteTransferencia(id), {
             confirmMessage: 'Confirma exclusão desta transferência? Ação não pode ser desfeita.',
             successMessage: 'Transferência excluída.',
@@ -843,6 +844,7 @@ function FrotaCombustivelContent() {
         open={transferenciaDetalhes !== null}
         onClose={() => setTransferenciaDetalhes(null)}
         depositos={depositosTodos}
+        insumos={combustiveis}
         onDelete={(id) => pedirSenha(() => handleDeleteTransferencia(id), {
           confirmMessage: 'Confirma exclusão desta transferência? Ação não pode ser desfeita.',
           successMessage: 'Transferência excluída.',

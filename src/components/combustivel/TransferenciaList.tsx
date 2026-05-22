@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import type { Deposito, TransferenciaCombustivel } from '../../types';
+import type { Deposito, Insumo, TransferenciaCombustivel } from '../../types';
 import { formatCurrency, formatDateTime } from '../../utils/formatters';
 import Button from '../ui/Button';
 import ConfirmDialog from '../ui/ConfirmDialog';
@@ -8,6 +8,8 @@ import AnexosBadge from './AnexosBadge';
 interface TransferenciaListProps {
   transferencias: TransferenciaCombustivel[];
   depositos: Deposito[];
+  /** HF.7 — Pra resolver tipoCombustivel (id) → nome do insumo. */
+  insumos?: Insumo[];
   onDelete: (id: string) => void;
   /** F8.5.2 — click numa row (fora dos botões) abre drawer detalhes. */
   onSelect?: (t: TransferenciaCombustivel) => void;
@@ -17,12 +19,14 @@ interface TransferenciaListProps {
 export default function TransferenciaList({
   transferencias,
   depositos,
+  insumos = [],
   onDelete,
   onSelect,
   canDelete = true,
 }: TransferenciaListProps) {
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const depositosMap = new Map(depositos.map((d) => [d.id, d]));
+  const insumosMap = new Map(insumos.map((i) => [i.id, i.nome]));
 
   const sorted = [...transferencias].sort(
     (a, b) => new Date(b.dataHora).getTime() - new Date(a.dataHora).getTime()
@@ -52,6 +56,9 @@ export default function TransferenciaList({
                 <th className="text-left px-4 py-3 text-white font-medium uppercase text-xs">
                   Destino
                 </th>
+                <th className="text-left px-4 py-3 text-white font-medium uppercase text-xs">
+                  Combustível
+                </th>
                 <th className="text-right px-4 py-3 text-white font-medium uppercase text-xs">
                   Litros
                 </th>
@@ -80,6 +87,13 @@ export default function TransferenciaList({
                     </td>
                     <td className="px-4 py-3">
                       {destino?.nome || '-'}
+                    </td>
+                    <td className="px-4 py-3">
+                      {t.tipoCombustivel ? (
+                        insumosMap.get(t.tipoCombustivel) ?? t.tipoCombustivel
+                      ) : (
+                        <span className="text-gray-400 italic">—</span>
+                      )}
                     </td>
                     <td className="px-4 py-3 text-right font-medium text-emt-verde">
                       {t.quantidadeLitros.toFixed(1)} L

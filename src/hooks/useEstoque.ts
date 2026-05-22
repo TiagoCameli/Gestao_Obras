@@ -14,6 +14,20 @@ export async function calcularEstoqueCombustivelNaData(
   return Number(data ?? 0);
 }
 
+/** HF.4 — Tipo de combustível que estava no tanque na data informada
+ *  (id de `insumos`). NULL se nada se aplicar (tanque sem fonte até a data). */
+export async function calcularCombustivelTanqueNaData(
+  depositoId: string,
+  dataHora: string
+): Promise<string | null> {
+  const { data, error } = await supabase.rpc('calcular_combustivel_tanque_na_data', {
+    p_deposito_id: depositoId,
+    p_data_hora: dataHora,
+  });
+  if (error) throw error;
+  return (data as string | null) ?? null;
+}
+
 export async function calcularEstoqueMaterial(
   depositoMaterialId: string,
   insumoId: string
