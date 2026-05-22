@@ -40,6 +40,7 @@ import { useMedicaoAtual } from '../../hooks/useMedicoesEquipamento';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTransferenciasCombustivel } from '../../hooks/useTransferenciasCombustivel';
 import { calcularPrecoMedioTanque } from '../../utils/precoMedioTanque';
+import { calcularEstoqueCombustivelNaData } from '../../hooks/useEstoque';
 
 const TIPO_MEDICAO_LABEL: Record<TipoMedicao, string> = {
   horimetro: 'Horímetro',
@@ -321,6 +322,32 @@ export default function SaidaCombustivelForm({
     ?? depositos.find((d) => d.id === tanqueId)
     ?? null;
 
+  // HF.5 — Saldo point-in-time pra bloquear saída acima do que o tanque tinha
+  // na data. Mesmo padrão do TransferenciaForm: async via RPC com fallback
+  // pro nível atual quando a função falha ou faltam dados. Em edição passa
+  // `initial.id` como p_excluir_id pra não contar a própria saída.
+  const [saldoTanqueNaData, setSaldoTanqueNaData] = useState(0);
+  useEffect(() => {
+    if (origem !== 'tanque' || !tanqueId || !data) {
+      setSaldoTanqueNaData(tanqueSelecionado?.nivelAtualLitros ?? 0);
+      return;
+    }
+    const dataIso = data.length === 16 ? `${data}:00` : data;
+    calcularEstoqueCombustivelNaData(tanqueId, dataIso, initial?.id)
+      .then(setSaldoTanqueNaData)
+      .catch((err) => {
+        console.error('[SaidaCombustivelForm] saldo na data falhou', err);
+        setSaldoTanqueNaData(tanqueSelecionado?.nivelAtualLitros ?? 0);
+      });
+  }, [origem, tanqueId, data, tanqueSelecionado?.nivelAtualLitros, initial?.id]);
+
+  // Bloqueio só pra tanques internos. Externos (Transterra) não têm
+  // controle de estoque — espelha a regra do trigger fn_validate_saida_combustivel.
+  const saldoInsuficiente = origem === 'tanque'
+    && !!tanqueSelecionado
+    && !tanqueSelecionado.ehExterno
+    && litros > saldoTanqueNaData;
+
   // Tanque com proprietária externa (Transterra/Areacre): split de preço Areacre vs cobrado.
   const tanqueExterno = !!tanqueSelecionado?.transportadoraProprietariaId;
   const proprietariaNomeAtual = tanqueExterno
@@ -398,7 +425,7 @@ export default function SaidaCombustivelForm({
     if (origem === 'tanque' && !tanqueId) faltam.push('Tanque');
     return faltam;
   }, [data, obraId, tipoCombustivel, litros, precoUnitario, tipoConsumidor, equipamentoId, transportadoraId, origem, tanqueId]);
-  const isValid = camposFaltantes.length === 0;
+  const isValid = camposFaltantes.length === 0 && !saldoInsuficiente;
 
   // F5.B.2 — sanity warnings (não bloqueiam submit; sinalizam valores absurdos
   // que costumam ser erros de digitação). Thresholds calibrados pelo histórico
@@ -833,6 +860,12 @@ export default function SaidaCombustivelForm({
           onChange={(e) => setLitrosStr(e.target.value)}
           required
         />
+        {saldoInsuficiente && (
+          <div className="mt-1.5 rounded-lg bg-red-50 border border-red-200 px-3 py-2 text-xs text-red-800">
+            Saldo insuficiente: {saldoTanqueNaData.toLocaleString('pt-BR', { maximumFractionDigits: 0 })} L
+            disponíveis{data ? ' na data selecionada' : ''}. Reduza os litros, escolha outro tanque ou ajuste a data.
+          </div>
+        )}
 
         {/* Preço unitário: input manual quando origem != tanque */}
         {origem !== 'tanque' && (

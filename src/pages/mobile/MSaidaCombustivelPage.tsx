@@ -31,6 +31,7 @@ import { useAdicionarSaidaCombustivel } from '../../hooks/useSaidasCombustivel';
 import { useEntradasCombustivel } from '../../hooks/useEntradasCombustivel';
 import { useTransferenciasCombustivel } from '../../hooks/useTransferenciasCombustivel';
 import { calcularPrecoMedioTanque } from '../../utils/precoMedioTanque';
+import { calcularEstoqueCombustivelNaData } from '../../hooks/useEstoque';
 
 function gerarId(prefix: string) {
   return prefix + '-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
@@ -95,6 +96,25 @@ export default function MSaidaCombustivelPage() {
 
   const combustivelDoTanque = tanqueSelecionado?.combustivelAtualId ?? '';
 
+  // HF.5 — Saldo atual do tanque (mobile usa "agora" como data da saída,
+  // então o cálculo point-in-time é equivalente ao nível atual; mantemos
+  // a RPC pra consistência com o web e pro caso da regra do tanque
+  // mudar pra permitir backdate no mobile).
+  const [saldoTanque, setSaldoTanque] = useState(0);
+  useEffect(() => {
+    if (!tanqueId) {
+      setSaldoTanque(tanqueSelecionado?.nivelAtualLitros ?? 0);
+      return;
+    }
+    const agora = new Date().toISOString();
+    calcularEstoqueCombustivelNaData(tanqueId, agora)
+      .then(setSaldoTanque)
+      .catch((err) => {
+        console.error('[MSaidaCombustivelPage] saldo na data falhou', err);
+        setSaldoTanque(tanqueSelecionado?.nivelAtualLitros ?? 0);
+      });
+  }, [tanqueId, tanqueSelecionado?.nivelAtualLitros]);
+
   // Pre-seleciona tanque se só houver 1 ativo
   useEffect(() => {
     if (!tanqueId && tanquesAtivos.length === 1) {
@@ -119,7 +139,10 @@ export default function MSaidaCombustivelPage() {
   }
 
   const litrosNum = numOrZero(litros);
-  const podeSalvar = !!tanqueId && !!obraId && !!etapaId && litrosNum > 0;
+  const saldoInsuficiente = !!tanqueSelecionado
+    && !tanqueSelecionado.ehExterno
+    && litrosNum > saldoTanque;
+  const podeSalvar = !!tanqueId && !!obraId && !!etapaId && litrosNum > 0 && !saldoInsuficiente;
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
@@ -282,6 +305,11 @@ export default function MSaidaCombustivelPage() {
             />
             <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-[var(--color-fg-muted)]">L</span>
           </div>
+          {saldoInsuficiente && (
+            <div className="mt-1.5 rounded-lg border border-[var(--color-danger)]/40 bg-[var(--color-danger-soft)] px-3 py-2 text-xs text-[var(--color-danger-fg)]">
+              Saldo insuficiente: {saldoTanque.toLocaleString('pt-BR', { maximumFractionDigits: 0 })}L disponíveis no tanque.
+            </div>
+          )}
         </div>
 
         <div>
