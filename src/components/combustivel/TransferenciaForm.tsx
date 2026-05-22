@@ -104,10 +104,12 @@ export default function TransferenciaForm({
 
   // F11 — Pre-check de mistura no destino. O trigger no DB é a fonte da
   // verdade, mas mostrar inline evita submit+erro feio. Bloqueia se destino
-  // tem combustível ≠ do origem. Destino vazio ou externo passa.
+  // tem combustível ≠ do origem. Destino vazio (nivel <= 0) ou externo passa —
+  // espelha o trigger fn_validate_transferencia_combustivel.
   const conflitoCombustivelDestino = (() => {
     if (!depositoOrigem || !depositoDestino) return null;
     if (depositoDestino.ehExterno) return null;
+    if (depositoDestino.nivelAtualLitros <= 0) return null;
     if (!depositoDestino.combustivelAtualId) return null;
     if (!depositoOrigem.combustivelAtualId) return null;
     if (depositoDestino.combustivelAtualId === depositoOrigem.combustivelAtualId) return null;

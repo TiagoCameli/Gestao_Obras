@@ -311,6 +311,7 @@ export function dbToTransferenciaCombustivel(row: any): TransferenciaCombustivel
     criadoPor: row.criado_por ?? '',
     fotoUrls: row.foto_urls ?? [],
     arquivoUrls: row.arquivo_urls ?? [],
+    tipoCombustivel: row.tipo_combustivel ?? null,
   };
 }
 

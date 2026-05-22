@@ -923,7 +923,12 @@ function BlocoCard({
   const tanqueSelecionado = bloco.tipoDestino === 'tanque_combustivel' && bloco.depositoDestinoId
     ? tanquesCombustivel.find((t) => t.id === bloco.depositoDestinoId)
     : undefined;
-  const combustivelObrigatorioId = tanqueSelecionado?.combustivelAtualId ?? null;
+  // Tanque vazio (nivel <= 0) não trava o combustível — espelha o trigger
+  // de validação no DB que ignora combustivel_atual_id quando nível é zero.
+  const combustivelObrigatorioId =
+    tanqueSelecionado && (tanqueSelecionado.nivelAtualLitros ?? 0) > 0
+      ? (tanqueSelecionado.combustivelAtualId ?? null)
+      : null;
   const combustivelObrigatorio = combustivelObrigatorioId
     ? insumos.find((i) => i.id === combustivelObrigatorioId)
     : undefined;
@@ -1144,7 +1149,8 @@ function BlocoCard({
                       tanquesAtivos.length === 0
                         ? <option disabled>Nenhum tanque cadastrado</option>
                         : tanquesAtivos.map((t) => {
-                            const combAtual = t.combustivelAtualId
+                            const tanqueVazio = (t.nivelAtualLitros ?? 0) <= 0;
+                            const combAtual = !tanqueVazio && t.combustivelAtualId
                               ? insumos.find((i) => i.id === t.combustivelAtualId)
                               : undefined;
                             return (

@@ -188,7 +188,7 @@ export function validarItemNoDestino(
 export function validarOrdemCompra(
   oc: OrdemCompra,
   insumos?: { id: string; tipo?: string; usadoEmManutencao?: boolean; nome?: string }[],
-  tanques?: { id: string; nome?: string; apelido?: string | null; combustivelAtualId?: string | null }[]
+  tanques?: { id: string; nome?: string; apelido?: string | null; combustivelAtualId?: string | null; nivelAtualLitros?: number }[]
 ): ValidacaoResultado {
   if (!oc.fornecedorId) {
     return { ok: false, erro: 'Selecione um fornecedor.', campo: 'fornecedorId' };
@@ -290,10 +290,14 @@ export function validarOrdemCompra(
       };
     }
 
-    // Tanque com combustível corrente: só aceita esse combustível
+    // Tanque com combustível corrente: só aceita esse combustível.
+    // Tanque vazio (nivel <= 0) é tratado como sem combustível — espelha o
+    // trigger fn_validate_entrada_combustivel que ignora combustivel_atual_id
+    // quando o nível é zero.
     if (destino === 'tanque_combustivel' && depositoDestinoId && tanques && insumos) {
       const tanque = tanques.find((t) => t.id === depositoDestinoId);
-      const combustivelAtual = tanque?.combustivelAtualId;
+      const tanqueVazio = (tanque?.nivelAtualLitros ?? 0) <= 0;
+      const combustivelAtual = tanqueVazio ? null : tanque?.combustivelAtualId;
       if (combustivelAtual && item.insumoId && item.insumoId !== combustivelAtual) {
         const insumoAtual = insumos.find((i) => i.id === combustivelAtual);
         const nomeTanque = tanque?.apelido || tanque?.nome || 'tanque destino';
