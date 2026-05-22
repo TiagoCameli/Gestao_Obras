@@ -34,9 +34,10 @@ Quando uma OS é aberta no sistema, o `status` do equipamento associado NÃO mud
 |---|---|---|
 | Gatilho DB vs hook client | **Trigger DB** | Padrão do projeto (`tg_os_grava_transicao`, `tg_sync_custo_pecas_os`); atomic com UPDATE da OS; evita o anti-pattern dos 2-calls do Item #5 |
 | Quando equipamento muda para "em manutenção" | **Quando OS entra em `em_execucao` pela 1ª vez** | Operador escolheu este momento; estados `rascunho`/`aberta`/`aguardando_pecas` deixam equipamento disponível enquanto OS é só "agendamento" |
-| Quando volta para "ativa" | **Sempre, ao concluir/cancelar/excluir** | Mesmo se equipamento estava em `fora_funcionamento` antes |
+| Quando volta para "ativa" | **Quando OS sai de `em_execucao` ou `aguardando_aprovacao` para `concluida`/`cancelada`/soft-delete** | Fluxo padrão da OS é `em_execucao → aguardando_aprovacao → concluida`; ambos os estados intermediários significam "equipamento ainda parado". Sempre volta para `ativa` (mesmo se vinha de `fora_funcionamento`). |
 | Equipamento em `fora_funcionamento` ao abrir OS | **Sobrescreve totalmente** (vai e volta) | Trata como qualquer outro estado; lógica mais simples |
 | Mapeamento `tipo` OS → `status` equipamento | **`preventiva, preditiva → manutencao_preventiva`; resto → `manutencao_corretiva`** | Preditiva é planejada por condição (natureza preventiva); corretiva/melhoria/garantia/recall todas implicam algo a corrigir |
+| Coluna `equipamentos.ativo` | **NÃO é tocada pelo trigger** | Invariante existente do projeto (migration `20260503210000_equipamentos_status_detalhado.sql`): `ativo = (status != 'fora_funcionamento')`. Equipamento em manutenção é `ativo=true` (ainda na frota corrente). Mexer aqui causaria regressão em `SaidaCombustivelForm` (filtra `ativo !== false`), em PDFs/dashboards e em índices parciais. |
 
 ---
 
@@ -50,20 +51,23 @@ ordens_servico (UPDATE)
         ▼
 [WHEN cláusula]──── filtra disparos relevantes:
         │           • OLD.status ≠ 'em_execucao' AND NEW.status = 'em_execucao'  (IDA)
-        │           • OLD.status = 'em_execucao' AND NEW.status IN ('concluida','cancelada')  (VOLTA)
-        │           • OLD.deleted_at IS NULL AND NEW.deleted_at IS NOT NULL AND OLD.status = 'em_execucao'  (SOFT-DELETE)
+        │           • OLD.status IN ('em_execucao','aguardando_aprovacao')
+        │             AND NEW.status IN ('concluida','cancelada')  (VOLTA)
+        │           • OLD.deleted_at IS NULL AND NEW.deleted_at IS NOT NULL
+        │             AND OLD.status IN ('em_execucao','aguardando_aprovacao')  (SOFT-DELETE)
         ▼
 tg_os_sync_equipamento_status()
    SECURITY DEFINER
    SET search_path = pg_catalog, public
         │
-        ├──[IDA]──▶ UPDATE equipamentos SET status = mapeia(NEW.tipo), ativo = false
+        ├──[IDA]──▶ UPDATE equipamentos SET status = mapeia(NEW.tipo)
+        │          (NÃO toca em equipamentos.ativo — preserva invariante)
         │          INSERT historico_status_equipamento (os_id = NEW.id, motivo)
         │
         └──[VOLTA + SOFT-DELETE]──▶
-                   verifica se há OUTRA OS em execução p/ mesmo equipamento
+                   verifica se há OUTRA OS ativa (em_execucao/aguardando_aprovacao) p/ mesmo equipamento
                    se sim → no-op (mantém em manutenção)
-                   se não → UPDATE equipamentos SET status = 'ativa', ativo = true
+                   se não → UPDATE equipamentos SET status = 'ativa'
                             INSERT historico_status_equipamento (os_id = NEW.id, motivo)
 ```
 
@@ -81,118 +85,128 @@ tg_os_sync_equipamento_status()
 ## 4. Implementação SQL
 
 ```sql
-CREATE OR REPLACE FUNCTION public.tg_os_sync_equipamento_status()
-RETURNS trigger
-LANGUAGE plpgsql
-SECURITY DEFINER
-SET search_path = pg_catalog, public
-AS $$
-DECLARE
+create or replace function public.tg_os_sync_equipamento_status()
+returns trigger
+language plpgsql
+security definer
+set search_path = pg_catalog, public
+as $$
+declare
   v_equip_status_atual text;
   v_novo_status_equip  text;
   v_motivo             text;
   v_hist_id            text;
-  v_outras_em_exec     integer;
-  v_acao               text;   -- 'IDA' | 'VOLTA'
-BEGIN
-  -- ─── Decide qual ramo executar ────────────────────────────────────
-  IF OLD.status IS DISTINCT FROM 'em_execucao'
-     AND NEW.status = 'em_execucao'
-     AND NEW.deleted_at IS NULL THEN
+  v_outras_ativas      integer;
+  v_acao               text;   -- 'IDA' ou 'VOLTA'
+begin
+  -- Decide ramo a executar
+  -- IDA: OS entra em em_execucao pela 1a vez (sem ja estar soft-deletada)
+  if old.status is distinct from 'em_execucao'
+     and new.status = 'em_execucao'
+     and new.deleted_at is null then
     v_acao := 'IDA';
 
-  ELSIF OLD.status = 'em_execucao'
-        AND NEW.status IN ('concluida', 'cancelada')
-        AND NEW.deleted_at IS NULL THEN
+  -- VOLTA: OS sai de em_execucao OU aguardando_aprovacao para concluida/cancelada
+  -- (fluxo padrao: em_execucao -> aguardando_aprovacao -> concluida)
+  elsif old.status in ('em_execucao', 'aguardando_aprovacao')
+        and new.status in ('concluida', 'cancelada')
+        and new.deleted_at is null then
     v_acao := 'VOLTA';
 
-  ELSIF OLD.deleted_at IS NULL
-        AND NEW.deleted_at IS NOT NULL
-        AND OLD.status = 'em_execucao' THEN
+  -- VOLTA por soft-delete: OS estava em em_execucao ou aguardando_aprovacao
+  elsif old.deleted_at is null
+        and new.deleted_at is not null
+        and old.status in ('em_execucao', 'aguardando_aprovacao') then
     v_acao := 'VOLTA';
 
-  ELSE
-    RETURN NEW;
-  END IF;
+  else
+    return new;
+  end if;
 
-  -- ─── Lê status atual do equipamento (idempotência + audit) ─────────
-  SELECT status INTO v_equip_status_atual
-    FROM public.equipamentos
-   WHERE id = NEW.equipamento_id;
+  -- Le status atual do equipamento (idempotencia + audit)
+  select status into v_equip_status_atual
+    from public.equipamentos
+   where id = new.equipamento_id;
 
-  IF v_equip_status_atual IS NULL THEN
-    RETURN NEW;
-  END IF;
+  if v_equip_status_atual is null then
+    return new;  -- defensivo: equipamento orfao
+  end if;
 
-  -- ─── Ramo IDA ─────────────────────────────────────────────────────
-  IF v_acao = 'IDA' THEN
-    v_novo_status_equip := CASE
-      WHEN NEW.tipo IN ('preventiva', 'preditiva') THEN 'manutencao_preventiva'
-      ELSE 'manutencao_corretiva'
-    END;
+  -- IDA
+  if v_acao = 'IDA' then
+    v_novo_status_equip := case
+      when new.tipo in ('preventiva', 'preditiva') then 'manutencao_preventiva'
+      else 'manutencao_corretiva'
+    end;
 
-    IF v_equip_status_atual = v_novo_status_equip THEN
-      RETURN NEW;
-    END IF;
+    if v_equip_status_atual = v_novo_status_equip then
+      return new;  -- ja esta no destino, no-op
+    end if;
 
-    UPDATE public.equipamentos
-       SET status     = v_novo_status_equip,
-           ativo      = false,
+    -- IMPORTANTE: NAO tocar em equipamentos.ativo. Invariante do projeto
+    -- (migration 20260503210000): ativo = (status != 'fora_funcionamento').
+    -- Manutencao mantem ativo=true; mexer aqui regrediria SaidaCombustivelForm,
+    -- PDFs e indices parciais.
+    update public.equipamentos
+       set status     = v_novo_status_equip,
            updated_at = now()
-     WHERE id = NEW.equipamento_id;
+     where id = new.equipamento_id;
 
-    v_motivo := 'OS ' || COALESCE(NEW.numero, NEW.id) || ' iniciou execução';
+    v_motivo := 'OS ' || coalesce(new.numero, new.id) || ' iniciou execucao';
 
-  -- ─── Ramo VOLTA ──────────────────────────────────────────────────
-  ELSE
-    SELECT count(*) INTO v_outras_em_exec
-      FROM public.ordens_servico
-     WHERE equipamento_id = NEW.equipamento_id
-       AND id <> NEW.id
-       AND status = 'em_execucao'
-       AND deleted_at IS NULL;
+  -- VOLTA (concluida, cancelada, soft-delete)
+  else
+    -- Outra OS ativa (em_execucao ou aguardando_aprovacao) mantem em manutencao
+    select count(*) into v_outras_ativas
+      from public.ordens_servico
+     where equipamento_id = new.equipamento_id
+       and id <> new.id
+       and status in ('em_execucao', 'aguardando_aprovacao')
+       and deleted_at is null;
 
-    IF v_outras_em_exec > 0 THEN
-      RETURN NEW;
-    END IF;
+    if v_outras_ativas > 0 then
+      return new;
+    end if;
 
-    IF v_equip_status_atual = 'ativa' THEN
-      RETURN NEW;
-    END IF;
+    if v_equip_status_atual = 'ativa' then
+      return new;  -- ja esta ativa, no-op
+    end if;
 
-    UPDATE public.equipamentos
-       SET status     = 'ativa',
-           ativo      = true,
+    update public.equipamentos
+       set status     = 'ativa',
            updated_at = now()
-     WHERE id = NEW.equipamento_id;
+     where id = new.equipamento_id;
 
-    v_motivo := 'OS ' || COALESCE(NEW.numero, NEW.id) || ' ' || CASE
-      WHEN NEW.deleted_at IS NOT NULL THEN 'excluída'
-      WHEN NEW.status = 'concluida' THEN 'concluída'
-      ELSE 'cancelada'
-    END;
-  END IF;
+    v_motivo := 'OS ' || coalesce(new.numero, new.id) || ' ' || case
+      when new.deleted_at is not null then 'excluida'
+      when new.status = 'concluida' then 'concluida'
+      else 'cancelada'
+    end;
+  end if;
 
-  -- ─── Audit em historico_status_equipamento ───────────────────────
-  v_hist_id := 'hist-os-' || NEW.id || '-' ||
+  -- Audit em historico_status_equipamento (so quando ha mudanca efetiva)
+  v_hist_id := 'hist-os-' || new.id || '-' ||
                replace(extract(epoch from clock_timestamp())::numeric(20,6)::text, '.', '');
 
-  INSERT INTO public.historico_status_equipamento
+  insert into public.historico_status_equipamento
     (id, equipamento_id, status_de, status_para, motivo, os_id, created_by)
-  VALUES
-    (v_hist_id, NEW.equipamento_id, v_equip_status_atual,
-     CASE WHEN v_acao = 'IDA' THEN v_novo_status_equip ELSE 'ativa' END,
-     v_motivo, NEW.id, COALESCE(NEW.updated_by, NEW.created_by))
-  ON CONFLICT (id) DO NOTHING;
+  values
+    (v_hist_id, new.equipamento_id, v_equip_status_atual,
+     case when v_acao = 'IDA' then v_novo_status_equip else 'ativa' end,
+     v_motivo, new.id, coalesce(new.updated_by, new.created_by))
+  on conflict (id) do nothing;
 
-  RETURN NEW;
-END;
+  return new;
+end;
 $$;
 
-CREATE TRIGGER trg_os_sync_equipamento_status_upd
-AFTER UPDATE OF status, deleted_at ON public.ordens_servico
-FOR EACH ROW
-EXECUTE FUNCTION public.tg_os_sync_equipamento_status();
+drop trigger if exists trg_os_sync_equipamento_status_upd on public.ordens_servico;
+create trigger trg_os_sync_equipamento_status_upd
+  after update of status, deleted_at on public.ordens_servico
+  for each row
+  when (old.status is distinct from new.status
+        or old.deleted_at is distinct from new.deleted_at)
+  execute function public.tg_os_sync_equipamento_status();
 ```
 
 ### Justificativas de design SQL
