@@ -23,13 +23,13 @@ import Button from '../../ui/Button';
 import PasswordDialog from '../../ui/PasswordDialog';
 // Saída unificada (Fase 4)
 import SaidaCombustivelForm from '../../combustivel/SaidaCombustivelForm';
-import SaidaCombustivelList from '../../combustivel/SaidaCombustivelList';
+import SaidaCombustivelListV2 from '../../combustivel/SaidaCombustivelListV2';
 import SaidaDetalhesDrawer from '../../combustivel/SaidaDetalhesDrawer';
 import EntradaForm from '../../combustivel/EntradaForm';
-import EntradaList from '../../combustivel/EntradaList';
+import EntradaListV2 from '../../combustivel/EntradaListV2';
 import EntradaDetalhesDrawer from '../../combustivel/EntradaDetalhesDrawer';
 import TransferenciaForm from '../../combustivel/TransferenciaForm';
-import TransferenciaList from '../../combustivel/TransferenciaList';
+import TransferenciaListV2 from '../../combustivel/TransferenciaListV2';
 import TransferenciaDetalhesDrawer from '../../combustivel/TransferenciaDetalhesDrawer';
 import TanqueList from './TanqueList';
 import TanqueForm from './TanqueForm';
@@ -757,9 +757,11 @@ function FrotaCombustivelContent() {
       )}
 
       {!isLoadingCore && subTab === 'entradas' && (
-        <EntradaList
+        <EntradaListV2
           entradas={entradasFiltradas}
           depositos={depositosTodos}
+          combustiveis={combustiveis}
+          fornecedores={todosFornecedores}
           onEdit={handleEditEntrada}
           onDelete={(id) => pedirSenha(() => handleDeleteEntrada(id), {
             confirmMessage: 'Confirma exclusão desta entrada? Ação não pode ser desfeita.',
@@ -794,7 +796,7 @@ function FrotaCombustivelContent() {
               </Button>
             </div>
           )}
-          <SaidaCombustivelList
+          <SaidaCombustivelListV2
             saidas={saidasFiltradas}
             obras={obras}
             depositos={depositosTodos}
@@ -815,7 +817,7 @@ function FrotaCombustivelContent() {
       )}
 
       {!isLoadingCore && subTab === 'transferencias' && (
-        <TransferenciaList
+        <TransferenciaListV2
           transferencias={transferenciasFiltradas}
           depositos={depositosTodos}
           onDelete={(id) => pedirSenha(() => handleDeleteTransferencia(id), {
