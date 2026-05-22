@@ -214,7 +214,11 @@ create trigger trg_os_sync_equipamento_status_upd
 - **SECURITY DEFINER:** trigger precisa escrever em `equipamentos` e `historico_status_equipamento` mesmo se o usuário invocador perder esses privilégios após o Item #3 (RLS tighten).
 - **`search_path = pg_catalog, public`:** mesmo padrão de `tg_os_pecas_valida_saldo` e `registra_execucao_atividade_em_conclusao`; imune a schema shadowing.
 - **`AFTER UPDATE OF status, deleted_at`:** evita disparos em UPDATEs de `custo_*` (que ocorrem com alta frequência via `tg_sync_custo_pecas_os`).
+- **`WHEN (old.status IS DISTINCT FROM new.status OR old.deleted_at IS DISTINCT FROM new.deleted_at)`:** coerência com `trg_os_grava_transicao_upd` (mesma tabela); evita entrar no plpgsql para UPDATEs idempotentes (ex: `UPDATE … SET status = status`).
+- **NÃO toca em `equipamentos.ativo`:** preserva a invariante `ativo = (status != 'fora_funcionamento')` (migration `20260503210000_equipamentos_status_detalhado.sql`). Mexer aqui regrediria filtros em `SaidaCombustivelForm.tsx:202`, contadores em PDFs/dashboards e índices parciais. Manutenção é "veículo da frota corrente em pausa", não "baixado".
+- **`aguardando_aprovacao` participa da VOLTA:** fluxo padrão do projeto é `em_execucao → aguardando_aprovacao → concluida` (ver `MudarStatusOSModal.tsx:28-29` e migration de criação da OS). Se VOLTA só dispara em `OLD.status='em_execucao'`, equipamento fica eternamente em manutenção quando OS é aprovada/concluída. A check de "outras OSs ativas" também inclui `aguardando_aprovacao`.
 - **ID determinístico `'hist-os-' || NEW.id || '-' || epoch`:** rastreável; ON CONFLICT cobre re-execução acidental do mesmo INSERT na mesma microssegundo (extremamente improvável mas defensivo).
+- **`COALESCE(new.numero, new.id)`:** defensivo. `ordens_servico.numero` é `text unique not null`, então o fallback nunca executa hoje. Mantido para sobreviver a mudanças futuras de schema.
 
 ---
 
@@ -226,12 +230,17 @@ create trigger trg_os_sync_equipamento_status_upd
 | Iniciar execução | aberta | em_execucao | NULL | **IDA** | `ativa` → `manutencao_*` |
 | Aguardando peças | em_execucao | aguardando_pecas | NULL | — | mantém em manutenção |
 | Retomar do aguardando_pecas | aguardando_pecas | em_execucao | NULL | IDA (idempotente) | já em manutenção: no-op |
-| Concluir | em_execucao | concluida | NULL | **VOLTA** | `manutencao_*` → `ativa` |
+| Enviar para aprovação | em_execucao | aguardando_aprovacao | NULL | — | mantém em manutenção (fluxo padrão) |
+| Voltar para execução | aguardando_aprovacao | em_execucao | NULL | IDA (idempotente) | já em manutenção: no-op |
+| Concluir direto | em_execucao | concluida | NULL | **VOLTA** | `manutencao_*` → `ativa` |
+| Concluir após aprovação | aguardando_aprovacao | concluida | NULL | **VOLTA** | `manutencao_*` → `ativa` |
 | Cancelar do meio | em_execucao | cancelada | NULL | **VOLTA** | `manutencao_*` → `ativa` |
+| Cancelar após aprovação | aguardando_aprovacao | cancelada | NULL | **VOLTA** | `manutencao_*` → `ativa` |
 | Cancelar sem ter iniciado | aberta | cancelada | NULL | — | nunca tocou no equip |
-| Soft-delete no meio | em_execucao | em_execucao | now() | **VOLTA** | `manutencao_*` → `ativa` |
+| Soft-delete no meio (em_execucao) | em_execucao | em_execucao | now() | **VOLTA** | `manutencao_*` → `ativa` |
+| Soft-delete em aguardando_aprovacao | aguardando_aprovacao | aguardando_aprovacao | now() | **VOLTA** | `manutencao_*` → `ativa` |
 | Soft-delete já concluída | concluida | concluida | now() | — | já voltou ao concluir |
-| Reabrir e re-concluir | concluida→aberta→em_execucao→concluida | (3 disparos) | NULL | IDA + VOLTA | ciclo completo, idempotente |
+| Reabrir e re-concluir | concluida→aberta→em_execucao→concluida | (vários disparos) | NULL | IDA + VOLTA | ciclo completo, idempotente |
 | 2 OSs simultâneas, 1 conclui | em_execucao | concluida | NULL | — (outra OS ativa) | mantém em manutenção |
 
 ---
@@ -257,7 +266,14 @@ create trigger trg_os_sync_equipamento_status_upd
 
 **E7 — Equipamento em `fora_funcionamento`.** Sobrescreve totalmente (decisão da pergunta 3).
 
-**E8 — `NEW.numero` NULL.** `COALESCE(NEW.numero, NEW.id)` no motivo cobre defensivamente.
+**E8 — `NEW.numero` NULL.** `COALESCE(NEW.numero, NEW.id)` no motivo cobre defensivamente. Como `ordens_servico.numero` é `text unique not null`, o fallback nunca executa hoje — mantido para sobreviver a mudanças de schema.
+
+**E9 — Fluxo padrão passa por `aguardando_aprovacao`.** A OS pode ir `em_execucao → aguardando_aprovacao → concluida` (ver `MudarStatusOSModal.tsx:28-29`). Ambos os predicados de VOLTA (status terminal e soft-delete) aceitam `OLD.status IN ('em_execucao', 'aguardando_aprovacao')`. A check de "outras OSs ativas" também inclui `aguardando_aprovacao` — uma OS aguardando aprovação ainda mantém o equipamento em manutenção.
+
+**E10 — `equipamentos.ativo` NÃO é tocado.** Invariante da migration `20260503210000_equipamentos_status_detalhado.sql`: `ativo = (status != 'fora_funcionamento')`. Manutenção mantém `ativo=true`. Tocar aqui regrediria:
+- `SaidaCombustivelForm.tsx:202` filtra `equipamentos.filter((e) => e.ativo !== false)` — veículo em manutenção sumiria do dropdown de saída de combustível.
+- `manutencaoPdfExport.ts:138,371` e `frotaExport.ts:82-94,157-169` contam "Frota ativa" por `e.ativo`.
+- Índice parcial `equipamentos_status_idx WHERE ativo` perderia as linhas em manutenção.
 
 ---
 

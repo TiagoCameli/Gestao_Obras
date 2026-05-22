@@ -4,7 +4,7 @@
 
 **Goal:** Sincronizar automaticamente `equipamentos.status` quando uma OS entra em `em_execucao` ou conclui/cancela/é soft-deletada, eliminando a necessidade de mudança manual via `StatusChangeMotivoModal`.
 
-**Architecture:** 1 trigger AFTER UPDATE OF status, deleted_at em `ordens_servico` + 1 função plpgsql SECURITY DEFINER com `search_path = pg_catalog, public`. Lógica única que cobre IDA (entrada em em_execucao), VOLTA (concluida/cancelada) e soft-delete; idempotente; trata OSs paralelas. Hooks `useMudarStatusOS` e `useExcluirOS` ganham 2 invalidações React Query no `onSuccess`.
+**Architecture:** 1 trigger AFTER UPDATE OF status, deleted_at em `ordens_servico` + 1 função plpgsql SECURITY DEFINER com `search_path = pg_catalog, public`. Lógica única que cobre IDA (entrada em em_execucao), VOLTA (sair de em_execucao/aguardando_aprovacao para concluida/cancelada) e soft-delete; idempotente; trata OSs paralelas; NÃO toca em `equipamentos.ativo` (preserva invariante existente). Hooks `useMudarStatusOS` e `useExcluirOS` ganham 2 invalidações React Query no `onSuccess`.
 
 **Tech Stack:** Postgres 17 (Supabase project `gunyitwrbxbmnezokgjq`), plpgsql, TypeScript, `@tanstack/react-query`, `supabase-js`.
 
@@ -41,11 +41,13 @@ Se houver colisão (alguém criou migration nesse timestamp), incrementar para `
 ```sql
 -- Frota/Manut audit #1 — Sincroniza equipamentos.status com OS.status
 -- Quando OS entra em em_execucao pela 1a vez: equipamento -> manutencao_*.
--- Quando OS conclui/cancela/e soft-deletada vindo de em_execucao: volta para ativa.
+-- Quando OS sai de em_execucao OU aguardando_aprovacao para concluida/cancelada
+-- (ou e soft-deletada): equipamento volta para ativa.
 -- Mapeamento OS.tipo -> equipamentos.status:
 --   preventiva, preditiva -> manutencao_preventiva
 --   corretiva, melhoria, garantia, recall -> manutencao_corretiva
--- Audit em historico_status_equipamento com os_id preenchido.
+-- NAO toca em equipamentos.ativo (invariante existente: ativo = status != 'fora_funcionamento').
+-- Audit em historico_status_equipamento com os_id preenchido (so quando ha mudanca efetiva).
 -- Idempotente. Trata OSs paralelas. Tratamento de fora_funcionamento: sobrescreve.
 
 begin;
@@ -61,23 +63,27 @@ declare
   v_novo_status_equip  text;
   v_motivo             text;
   v_hist_id            text;
-  v_outras_em_exec     integer;
-  v_acao               text;   -- 'IDA' | 'VOLTA'
+  v_outras_ativas      integer;
+  v_acao               text;   -- 'IDA' ou 'VOLTA'
 begin
   -- Decide ramo a executar
+  -- IDA: OS entra em em_execucao pela 1a vez (sem ja estar soft-deletada)
   if old.status is distinct from 'em_execucao'
      and new.status = 'em_execucao'
      and new.deleted_at is null then
     v_acao := 'IDA';
 
-  elsif old.status = 'em_execucao'
+  -- VOLTA: OS sai de em_execucao OU aguardando_aprovacao para concluida/cancelada
+  -- (fluxo padrao: em_execucao -> aguardando_aprovacao -> concluida)
+  elsif old.status in ('em_execucao', 'aguardando_aprovacao')
         and new.status in ('concluida', 'cancelada')
         and new.deleted_at is null then
     v_acao := 'VOLTA';
 
+  -- VOLTA por soft-delete: OS estava em em_execucao ou aguardando_aprovacao
   elsif old.deleted_at is null
         and new.deleted_at is not null
-        and old.status = 'em_execucao' then
+        and old.status in ('em_execucao', 'aguardando_aprovacao') then
     v_acao := 'VOLTA';
 
   else
@@ -104,9 +110,10 @@ begin
       return new;  -- ja esta no destino, no-op
     end if;
 
+    -- IMPORTANTE: NAO tocar em equipamentos.ativo. Invariante do projeto
+    -- (migration 20260503210000): ativo = (status != 'fora_funcionamento').
     update public.equipamentos
        set status     = v_novo_status_equip,
-           ativo      = false,
            updated_at = now()
      where id = new.equipamento_id;
 
@@ -114,15 +121,16 @@ begin
 
   -- VOLTA (concluida, cancelada, soft-delete)
   else
-    select count(*) into v_outras_em_exec
+    -- Outra OS ativa (em_execucao ou aguardando_aprovacao) mantem em manutencao
+    select count(*) into v_outras_ativas
       from public.ordens_servico
      where equipamento_id = new.equipamento_id
        and id <> new.id
-       and status = 'em_execucao'
+       and status in ('em_execucao', 'aguardando_aprovacao')
        and deleted_at is null;
 
-    if v_outras_em_exec > 0 then
-      return new;  -- outra OS mantem em manutencao
+    if v_outras_ativas > 0 then
+      return new;
     end if;
 
     if v_equip_status_atual = 'ativa' then
@@ -131,7 +139,6 @@ begin
 
     update public.equipamentos
        set status     = 'ativa',
-           ativo      = true,
            updated_at = now()
      where id = new.equipamento_id;
 
@@ -142,7 +149,7 @@ begin
     end;
   end if;
 
-  -- Audit em historico_status_equipamento
+  -- Audit em historico_status_equipamento (so quando ha mudanca efetiva)
   v_hist_id := 'hist-os-' || new.id || '-' ||
                replace(extract(epoch from clock_timestamp())::numeric(20,6)::text, '.', '');
 
@@ -162,15 +169,18 @@ drop trigger if exists trg_os_sync_equipamento_status_upd on public.ordens_servi
 create trigger trg_os_sync_equipamento_status_upd
   after update of status, deleted_at on public.ordens_servico
   for each row
+  when (old.status is distinct from new.status
+        or old.deleted_at is distinct from new.deleted_at)
   execute function public.tg_os_sync_equipamento_status();
 
 comment on function public.tg_os_sync_equipamento_status() is
   'Frota/Manut audit #1: sincroniza equipamentos.status com OS.status. '
-  'IDA quando OS entra em em_execucao pela 1a vez; VOLTA quando conclui/cancela/e '
-  'soft-deletada vindo de em_execucao. Mapeamento preventiva/preditiva -> '
-  'manutencao_preventiva; resto -> manutencao_corretiva. Idempotente, trata OSs '
-  'paralelas. SECURITY DEFINER + search_path setado para sobreviver a tighten de '
-  'RLS (Frota/Manut audit #3).';
+  'IDA quando OS entra em em_execucao pela 1a vez; VOLTA quando sai de '
+  'em_execucao/aguardando_aprovacao para concluida/cancelada (ou soft-delete). '
+  'Mapeamento preventiva/preditiva -> manutencao_preventiva; resto -> '
+  'manutencao_corretiva. NAO toca em equipamentos.ativo (invariante do projeto). '
+  'Idempotente, trata OSs paralelas. SECURITY DEFINER + search_path setado para '
+  'sobreviver a tighten de RLS (Frota/Manut audit #3).';
 
 commit;
 ```
@@ -423,7 +433,7 @@ Expected: 3 DELETEs com sucesso. Equipamento permanece em `status='ativa'` (não
 
 ---
 
-### Task 6: Testes manuais T1–T15
+### Task 6: Testes manuais T1–T19
 
 **Files:**
 - (apenas executa queries via MCP)
@@ -434,7 +444,7 @@ Expected: 3 DELETEs com sucesso. Equipamento permanece em `status='ativa'` (não
 
 > **Padrão de cada teste:** `INSERT OS → UPDATE status → SELECT verificação → cleanup`.
 
-- [ ] **Step T1: Happy path corretiva**
+- [ ] **Step T1: Happy path corretiva + verifica invariante de `ativo`**
 
 ```sql
 -- setup
@@ -443,10 +453,12 @@ values ('test-os-t1', 'OS-T1', '<EQUIP_ID>', 'corretiva', 'media', 'aberta', 'T1
 -- ida
 update public.ordens_servico set status='em_execucao', updated_by='test' where id='test-os-t1';
 -- verifica
-select status from public.equipamentos where id='<EQUIP_ID>'; -- esperado: manutencao_corretiva
+select status, ativo from public.equipamentos where id='<EQUIP_ID>';
+-- esperado: status=manutencao_corretiva, ativo=true (invariante preservada)
 -- volta
 update public.ordens_servico set status='concluida', updated_by='test' where id='test-os-t1';
-select status from public.equipamentos where id='<EQUIP_ID>'; -- esperado: ativa
+select status, ativo from public.equipamentos where id='<EQUIP_ID>';
+-- esperado: status=ativa, ativo=true
 select count(*) from public.historico_status_equipamento where os_id='test-os-t1'; -- esperado: 2
 -- cleanup
 delete from public.historico_status_equipamento where os_id='test-os-t1';
@@ -454,7 +466,7 @@ delete from public.os_transicoes where os_id='test-os-t1';
 delete from public.ordens_servico where id='test-os-t1';
 ```
 
-Expected: status intermediário `manutencao_corretiva`, status final `ativa`, 2 linhas no histórico.
+Expected: status intermediário `manutencao_corretiva` **com `ativo=true`** (não regressão), status final `ativa`, 2 linhas no histórico.
 
 - [ ] **Step T2: Happy path preventiva**
 
@@ -744,6 +756,94 @@ delete from public.ordens_servico where id like 'test-os-t15-%';
 ```
 
 Expected: tempo proporcional ao número de linhas, sem timeout. ~5-10ms adicional por linha é aceitável.
+
+- [ ] **Step T16: Fluxo via aguardando_aprovacao (caminho padrão)**
+
+> **Crítico:** este é o fluxo recomendado pelo projeto (`em_execucao → aguardando_aprovacao → concluida`). Sem esta cobertura, o trigger pode falhar silenciosamente em produção.
+
+```sql
+insert into public.ordens_servico (id, numero, equipamento_id, tipo, prioridade, status, defeito_reportado, created_by, updated_by)
+values ('test-os-t16', 'OS-T16', '<EQUIP_ID>', 'corretiva', 'media', 'aberta', 'T16', 'test', 'test');
+
+-- IDA
+update public.ordens_servico set status='em_execucao', updated_by='test' where id='test-os-t16';
+select status from public.equipamentos where id='<EQUIP_ID>'; -- esperado: manutencao_corretiva
+
+-- aguardando_aprovacao: equipamento DEVE continuar em manutencao
+update public.ordens_servico set status='aguardando_aprovacao', updated_by='test' where id='test-os-t16';
+select status from public.equipamentos where id='<EQUIP_ID>'; -- esperado: manutencao_corretiva (sem mudanca)
+select count(*) from public.historico_status_equipamento where os_id='test-os-t16'; -- esperado: 1 (so a IDA)
+
+-- concluida vindo de aguardando_aprovacao: VOLTA dispara
+update public.ordens_servico set status='concluida', updated_by='test' where id='test-os-t16';
+select status from public.equipamentos where id='<EQUIP_ID>'; -- esperado: ativa
+select count(*) from public.historico_status_equipamento where os_id='test-os-t16'; -- esperado: 2
+
+delete from public.historico_status_equipamento where os_id='test-os-t16';
+delete from public.os_transicoes where os_id='test-os-t16';
+delete from public.ordens_servico where id='test-os-t16';
+```
+
+Expected: equipamento volta para `ativa` mesmo passando por `aguardando_aprovacao` (regressão coberta).
+
+- [ ] **Step T17: Soft-delete de OS em aguardando_aprovacao**
+
+```sql
+insert into public.ordens_servico (id, numero, equipamento_id, tipo, prioridade, status, defeito_reportado, created_by, updated_by)
+values ('test-os-t17', 'OS-T17', '<EQUIP_ID>', 'corretiva', 'media', 'aberta', 'T17', 'test', 'test');
+update public.ordens_servico set status='em_execucao', updated_by='test' where id='test-os-t17';
+update public.ordens_servico set status='aguardando_aprovacao', updated_by='test' where id='test-os-t17';
+-- soft-delete enquanto aguardando_aprovacao
+update public.ordens_servico set deleted_at=now(), deleted_by='test', updated_by='test' where id='test-os-t17';
+select status from public.equipamentos where id='<EQUIP_ID>'; -- esperado: ativa
+select motivo from public.historico_status_equipamento where os_id='test-os-t17' order by created_at desc limit 1;
+-- esperado: 'OS OS-T17 excluida'
+delete from public.historico_status_equipamento where os_id='test-os-t17';
+delete from public.os_transicoes where os_id='test-os-t17';
+delete from public.ordens_servico where id='test-os-t17';
+```
+
+Expected: VOLTA dispara via ramo do soft-delete também a partir de `aguardando_aprovacao`.
+
+- [ ] **Step T18: Cancelar vindo de aguardando_aprovacao**
+
+```sql
+insert into public.ordens_servico (id, numero, equipamento_id, tipo, prioridade, status, defeito_reportado, created_by, updated_by)
+values ('test-os-t18', 'OS-T18', '<EQUIP_ID>', 'corretiva', 'media', 'aberta', 'T18', 'test', 'test');
+update public.ordens_servico set status='em_execucao', updated_by='test' where id='test-os-t18';
+update public.ordens_servico set status='aguardando_aprovacao', updated_by='test' where id='test-os-t18';
+update public.ordens_servico set status='cancelada', updated_by='test' where id='test-os-t18';
+select status from public.equipamentos where id='<EQUIP_ID>'; -- esperado: ativa
+delete from public.historico_status_equipamento where os_id='test-os-t18';
+delete from public.os_transicoes where os_id='test-os-t18';
+delete from public.ordens_servico where id='test-os-t18';
+```
+
+Expected: VOLTA dispara em `aguardando_aprovacao → cancelada`.
+
+- [ ] **Step T19: OSs paralelas com uma em aguardando_aprovacao**
+
+```sql
+insert into public.ordens_servico (id, numero, equipamento_id, tipo, prioridade, status, defeito_reportado, created_by, updated_by)
+values
+  ('test-os-t19a', 'OS-T19A', '<EQUIP_ID>', 'corretiva', 'media', 'aberta', 'T19A', 'test', 'test'),
+  ('test-os-t19b', 'OS-T19B', '<EQUIP_ID>', 'preventiva', 'media', 'aberta', 'T19B', 'test', 'test');
+update public.ordens_servico set status='em_execucao', updated_by='test' where id='test-os-t19a';
+update public.ordens_servico set status='aguardando_aprovacao', updated_by='test' where id='test-os-t19a';
+-- OS-A está em aguardando_aprovacao. Inicia OS-B.
+update public.ordens_servico set status='em_execucao', updated_by='test' where id='test-os-t19b';
+-- Conclui OS-A: outra OS (B) está em_execucao → trigger NÃO volta para ativa.
+update public.ordens_servico set status='concluida', updated_by='test' where id='test-os-t19a';
+select status from public.equipamentos where id='<EQUIP_ID>'; -- esperado: manutencao_preventiva (OS-B mantém)
+update public.ordens_servico set status='concluida', updated_by='test' where id='test-os-t19b';
+select status from public.equipamentos where id='<EQUIP_ID>'; -- esperado: ativa
+
+delete from public.historico_status_equipamento where os_id like 'test-os-t19%';
+delete from public.os_transicoes where os_id like 'test-os-t19%';
+delete from public.ordens_servico where id like 'test-os-t19%';
+```
+
+Expected: query "outras_ativas" cobre `aguardando_aprovacao` corretamente.
 
 ---
 
