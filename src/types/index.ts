@@ -233,6 +233,11 @@ export interface TransferenciaCombustivel {
   /** F9 — Anexos. Comprovante de transferência interna + foto do nível antes/depois. */
   fotoUrls?: string[] | null;
   arquivoUrls?: string[] | null;
+  /** HF.7 — Tipo de combustível congelado no momento da transferência.
+   *  Auto-stampado por trigger no DB (fn_stamp_transferencia_tipo_combustivel).
+   *  Frontend não precisa enviar — o valor é sempre derivado do estado do
+   *  tanque origem na data da transferência. */
+  tipoCombustivel?: string | null;
 }
 
 export interface Fornecedor {
