@@ -11,30 +11,15 @@
 -- get_cotacao_publica, responder_cotacao.
 
 REVOKE EXECUTE ON FUNCTION public.clear_login_attempts(text) FROM anon, public;
-REVOKE EXECUTE ON FUNCTION public.calcular_combustivel_tanque_na_data(uuid, date) FROM anon, public;
-REVOKE EXECUTE ON FUNCTION public.calcular_preco_medio_tanque_na_data(uuid, date) FROM anon, public;
+REVOKE EXECUTE ON FUNCTION public.calcular_combustivel_tanque_na_data(text, text) FROM anon, public;
+REVOKE EXECUTE ON FUNCTION public.calcular_preco_medio_tanque_na_data(text, text) FROM anon, public;
 
 -- fn_saidas_combustivel_movimentos é trigger fn — REVOKE quebra o trigger?
 -- Não: triggers rodam com privilégios do owner via SECURITY DEFINER, não pelo
 -- caller. REVOKE EXECUTE só fecha a porta /rest/v1/rpc/.
-DO $$
-BEGIN
-  IF EXISTS (
-    SELECT 1 FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
-    WHERE n.nspname = 'public' AND p.proname = 'fn_saidas_combustivel_movimentos'
-  ) THEN
-    EXECUTE format(
-      'REVOKE EXECUTE ON FUNCTION public.%I(%s) FROM anon, public',
-      'fn_saidas_combustivel_movimentos',
-      (SELECT pg_get_function_identity_arguments(p.oid)
-       FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
-       WHERE n.nspname = 'public' AND p.proname = 'fn_saidas_combustivel_movimentos'
-       LIMIT 1)
-    );
-  END IF;
-END $$;
+REVOKE EXECUTE ON FUNCTION public.fn_saidas_combustivel_movimentos() FROM anon, public;
 
 -- Garantia: authenticated continua chamando o que precisa (cálculo de saldo).
-GRANT EXECUTE ON FUNCTION public.calcular_combustivel_tanque_na_data(uuid, date) TO authenticated;
-GRANT EXECUTE ON FUNCTION public.calcular_preco_medio_tanque_na_data(uuid, date) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.calcular_combustivel_tanque_na_data(text, text) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.calcular_preco_medio_tanque_na_data(text, text) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.clear_login_attempts(text) TO authenticated;
