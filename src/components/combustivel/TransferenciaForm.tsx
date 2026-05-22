@@ -1,26 +1,32 @@
-import { useCallback, useEffect, useState, type FormEvent } from 'react';
+import { useCallback, useEffect, useState } from 'react';
+import { useForm, Controller } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
 import type { Deposito, TransferenciaCombustivel } from '../../types';
 import { useEntradasCombustivel } from '../../hooks/useEntradasCombustivel';
 import { useTransferenciasCombustivel } from '../../hooks/useTransferenciasCombustivel';
 import { useInsumos } from '../../hooks/useInsumos';
 import { calcularPrecoMedioTanque } from '../../utils/precoMedioTanque';
 import { calcularEstoqueCombustivelNaData, calcularCombustivelTanqueNaData } from '../../hooks/useEstoque';
-import Input from '../ui/Input';
 import Select from '../ui/Select';
 import Button from '../ui/Button';
 import ImportExcelModal, { parseStr, parseNumero, type ParsedRow } from '../ui/ImportExcelModal';
 import AnexosUploader from './AnexosUploader';
 import { useAuth } from '../../contexts/AuthContext';
+import {
+  transferenciaCombustivelSchema,
+  type TransferenciaCombustivelFormValues,
+} from '../../schemas/combustivel/transferenciaCombustivel.schema';
 
 interface TransferenciaFormProps {
+  initial?: TransferenciaCombustivel | null;
   onSubmit: (data: TransferenciaCombustivel) => void;
   onCancel: () => void;
   depositos: Deposito[];
   onImportBatch?: (items: TransferenciaCombustivel[]) => void;
 }
 
-function gerarId(): string {
-  return Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+function gerarId(prefix = 'tcf'): string {
+  return `${prefix}-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 7)}`;
 }
 
 const TRANSF_TEMPLATE = [
@@ -29,6 +35,7 @@ const TRANSF_TEMPLATE = [
 ];
 
 export default function TransferenciaForm({
+  initial,
   onSubmit,
   onCancel,
   depositos: allDepositos,
@@ -47,20 +54,44 @@ export default function TransferenciaForm({
   const [importModalOpen, setImportModalOpen] = useState(false);
   const [toastMsg, setToastMsg] = useState('');
 
-  const [dataHora, setDataHora] = useState('');
-  const [depositoOrigemId, setDepositoOrigemId] = useState('');
-  const [depositoDestinoId, setDepositoDestinoId] = useState('');
-  const [quantidadeLitros, setQuantidadeLitros] = useState('');
-  const [valorTotal, setValorTotal] = useState('');
-  const [observacoes, setObservacoes] = useState('');
-  // F9 — Anexos
-  const [fotoUrls, setFotoUrls] = useState<string[]>([]);
-  const [arquivoUrls, setArquivoUrls] = useState<string[]>([]);
-  const [pastaId] = useState(() => gerarId());
+  // F9 — Anexos (não validados pelo schema, ficam em useState)
+  const [fotoUrls, setFotoUrls] = useState<string[]>(initial?.fotoUrls ?? []);
+  const [arquivoUrls, setArquivoUrls] = useState<string[]>(initial?.arquivoUrls ?? []);
+  // pastaId estável pra agrupar uploads no Storage.
+  const [pastaId] = useState(() => initial?.id || gerarId());
+
+  const [submitting, setSubmitting] = useState(false);
+  const [erro, setErro] = useState<string | null>(null);
+
+  // ── react-hook-form + Zod ─────────────────────────────────────────────────
+  const {
+    control,
+    register,
+    handleSubmit: rhfHandleSubmit,
+    watch,
+    setValue,
+    formState: { errors, isValid: rhfIsValid },
+  } = useForm<TransferenciaCombustivelFormValues>({
+    resolver: zodResolver(transferenciaCombustivelSchema),
+    mode: 'onChange',
+    defaultValues: {
+      dataHora: initial?.dataHora ?? new Date().toISOString().slice(0, 16),
+      depositoOrigemId: initial?.depositoOrigemId ?? '',
+      depositoDestinoId: initial?.depositoDestinoId ?? '',
+      quantidadeLitros: initial?.quantidadeLitros ?? 0,
+      valorTotal: initial?.valorTotal ?? 0,
+      observacoes: initial?.observacoes ?? '',
+    },
+  });
+
+  const dataHora = watch('dataHora');
+  const depositoOrigemId = watch('depositoOrigemId');
+  const depositoDestinoId = watch('depositoDestinoId');
+  const quantidadeLitros = watch('quantidadeLitros');
 
   const depositoOrigem = depositos.find((d) => d.id === depositoOrigemId);
   const depositoDestino = depositos.find((d) => d.id === depositoDestinoId);
-  const qtdLitros = parseFloat(quantidadeLitros) || 0;
+  const qtdLitros = quantidadeLitros || 0;
 
   // Estoque na data/hora selecionada (async)
   const [estoqueOrigemNaData, setEstoqueOrigemNaData] = useState(0);
@@ -120,7 +151,6 @@ export default function TransferenciaForm({
     ? depositoDestino.capacidadeLitros - estoqueDestinoNaData
     : 0;
   const semEspacoDestino = depositoDestino && qtdLitros > espacoDestinoNaData;
-  const mesmoTanque = depositoOrigemId && depositoOrigemId === depositoDestinoId;
 
   // F11 — Pre-check de mistura no destino. O trigger no DB é a fonte da
   // verdade, mas mostrar inline evita submit+erro feio. Bloqueia se destino
@@ -147,12 +177,13 @@ export default function TransferenciaForm({
     ? calcularPrecoMedioTanque(depositoOrigemId, allEntradas, allTransferencias)
     : 0;
 
-  // Auto-calcular valor total
+  // Auto-fill valorTotal via watch + setValue.
+  // Só se NÃO for edit existente (pra não sobrescrever salvo).
   useEffect(() => {
-    if (precoMedio > 0 && qtdLitros > 0) {
-      setValorTotal((qtdLitros * precoMedio).toFixed(4));
+    if (!initial?.id && qtdLitros > 0 && precoMedio > 0) {
+      setValue('valorTotal', parseFloat((qtdLitros * precoMedio).toFixed(4)), { shouldValidate: true });
     }
-  }, [quantidadeLitros, depositoOrigemId, precoMedio, qtdLitros]);
+  }, [qtdLitros, precoMedio, initial?.id, setValue]);
 
   // Filtrar destinos: excluir o tanque de origem
   const depositosDestino = depositos.filter((d) => d.id !== depositoOrigemId);
@@ -230,39 +261,44 @@ export default function TransferenciaForm({
     [onImportBatch]
   );
 
-  const { temAcao } = useAuth();
+  const { temAcao, usuario } = useAuth();
   const canAct = temAcao('criar_transferencia_combustivel');
-  function handleSubmit(e: FormEvent) {
-    e.preventDefault();
+
+  const onSubmitForm = async (data: TransferenciaCombustivelFormValues) => {
     if (!canAct) return;
-    onSubmit({
-      id: pastaId,
-      dataHora,
-      depositoOrigemId,
-      depositoDestinoId,
-      quantidadeLitros: qtdLitros,
-      valorTotal: parseFloat(valorTotal) || 0,
-      observacoes,
-      criadoPor: '',
-      fotoUrls,
-      arquivoUrls,
-    });
-  }
+    setSubmitting(true);
+    setErro(null);
+    try {
+      await onSubmit({
+        id: initial?.id ?? pastaId,
+        dataHora: data.dataHora,
+        depositoOrigemId: data.depositoOrigemId,
+        depositoDestinoId: data.depositoDestinoId,
+        quantidadeLitros: data.quantidadeLitros,
+        valorTotal: data.valorTotal,
+        observacoes: data.observacoes,
+        criadoPor: usuario?.nome ?? '',
+        fotoUrls,
+        arquivoUrls,
+      });
+    } catch (err) {
+      setErro(err instanceof Error ? err.message : 'Erro ao salvar transferência');
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
   const espacoDestino = espacoDestinoNaData;
 
+  // Bloquear submit em condições operacionais extras (além do Zod)
   const isValid =
-    dataHora &&
-    depositoOrigemId &&
-    depositoDestinoId &&
-    qtdLitros > 0 &&
+    rhfIsValid &&
     !semEstoqueOrigem &&
     !semEspacoDestino &&
-    !mesmoTanque &&
     !conflitoCombustivelDestino;
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
+    <form onSubmit={rhfHandleSubmit(onSubmitForm)} className="space-y-4">
       {onImportBatch && (
         <div className="flex justify-end">
           <Button type="button" variant="secondary" className="text-xs px-3 py-1.5" onClick={() => setImportModalOpen(true)}>
@@ -271,33 +307,48 @@ export default function TransferenciaForm({
         </div>
       )}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <Input
-          label="Data e Hora"
-          id="dataHoraTransf"
-          type="datetime-local"
-          value={dataHora}
-          onChange={(e) => setDataHora(e.target.value)}
-          required
-        />
+        <div>
+          <label htmlFor="dataHoraTransf" className="block text-sm font-medium text-gray-700 mb-1">
+            Data e Hora
+          </label>
+          <input
+            id="dataHoraTransf"
+            type="datetime-local"
+            {...register('dataHora')}
+            className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emt-verde"
+          />
+          {errors.dataHora && (
+            <p className="mt-1 text-xs text-[var(--color-danger)]">{errors.dataHora.message}</p>
+          )}
+        </div>
         <div />
 
         <div>
-          <Select
-            label="Tanque de Origem"
-            id="depositoOrigemId"
-            value={depositoOrigemId}
-            onChange={(e) => setDepositoOrigemId(e.target.value)}
-            options={depositos.map((d) => ({
-              value: d.id,
-              label: `${d.nome} (${d.nivelAtualLitros.toFixed(0)}/${d.capacidadeLitros.toFixed(0)} L)`,
-            }))}
-            placeholder={
-              depositos.length === 0
-                ? 'Nenhum tanque ativo'
-                : 'Selecione o tanque de origem'
-            }
-            required
+          <Controller
+            name="depositoOrigemId"
+            control={control}
+            render={({ field }) => (
+              <Select
+                label="Tanque de Origem"
+                id="depositoOrigemId"
+                value={field.value}
+                onChange={(e) => field.onChange(e.target.value)}
+                options={depositos.map((d) => ({
+                  value: d.id,
+                  label: `${d.nome} (${d.nivelAtualLitros.toFixed(0)}/${d.capacidadeLitros.toFixed(0)} L)`,
+                }))}
+                placeholder={
+                  depositos.length === 0
+                    ? 'Nenhum tanque ativo'
+                    : 'Selecione o tanque de origem'
+                }
+                required
+              />
+            )}
           />
+          {errors.depositoOrigemId && (
+            <p className="mt-1 text-xs text-[var(--color-danger)]">{errors.depositoOrigemId.message}</p>
+          )}
           {depositoOrigem && (
             <div className="mt-1.5 flex items-center gap-2">
               <div className="flex-1 bg-gray-200 rounded-full h-1.5">
@@ -332,25 +383,34 @@ export default function TransferenciaForm({
         </div>
 
         <div>
-          <Select
-            label="Tanque de Destino"
-            id="depositoDestinoId"
-            value={depositoDestinoId}
-            onChange={(e) => setDepositoDestinoId(e.target.value)}
-            options={depositosDestino.map((d) => ({
-              value: d.id,
-              label: `${d.nome} (${d.nivelAtualLitros.toFixed(0)}/${d.capacidadeLitros.toFixed(0)} L)`,
-            }))}
-            placeholder={
-              !depositoOrigemId
-                ? 'Selecione a origem primeiro'
-                : depositosDestino.length === 0
-                  ? 'Nenhum outro tanque disponível'
-                  : 'Selecione o tanque de destino'
-            }
-            disabled={!depositoOrigemId}
-            required
+          <Controller
+            name="depositoDestinoId"
+            control={control}
+            render={({ field }) => (
+              <Select
+                label="Tanque de Destino"
+                id="depositoDestinoId"
+                value={field.value}
+                onChange={(e) => field.onChange(e.target.value)}
+                options={depositosDestino.map((d) => ({
+                  value: d.id,
+                  label: `${d.nome} (${d.nivelAtualLitros.toFixed(0)}/${d.capacidadeLitros.toFixed(0)} L)`,
+                }))}
+                placeholder={
+                  !depositoOrigemId
+                    ? 'Selecione a origem primeiro'
+                    : depositosDestino.length === 0
+                      ? 'Nenhum outro tanque disponível'
+                      : 'Selecione o tanque de destino'
+                }
+                disabled={!depositoOrigemId}
+                required
+              />
+            )}
           />
+          {errors.depositoDestinoId && (
+            <p className="mt-1 text-xs text-[var(--color-danger)]">{errors.depositoDestinoId.message}</p>
+          )}
           {depositoDestino && (
             <div className="mt-1.5 flex items-center gap-2">
               <div className="flex-1 bg-gray-200 rounded-full h-1.5">
@@ -383,34 +443,48 @@ export default function TransferenciaForm({
           )}
         </div>
 
-        <Input
-          label="Quantidade (litros)"
-          id="quantidadeLitrosTransf"
-          type="number"
-          step="0.0001"
-          min="0"
-          value={quantidadeLitros}
-          onChange={(e) => setQuantidadeLitros(e.target.value)}
-          error={
-            semEstoqueOrigem
-              ? `Estoque insuficiente (${estoqueOrigemNaData.toFixed(0)} L disponíveis${dataHora ? ' na data' : ''})`
-              : semEspacoDestino
-                ? `Espaço insuficiente no destino (${espacoDestino.toFixed(0)} L de espaço${dataHora ? ' na data' : ''})`
-                : undefined
-          }
-          required
-        />
+        <div>
+          <label htmlFor="quantidadeLitrosTransf" className="block text-sm font-medium text-gray-700 mb-1">
+            Quantidade (litros)
+          </label>
+          <input
+            id="quantidadeLitrosTransf"
+            type="number"
+            step="0.0001"
+            min="0"
+            {...register('quantidadeLitros', { valueAsNumber: true })}
+            className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emt-verde"
+          />
+          {errors.quantidadeLitros && (
+            <p className="mt-1 text-xs text-[var(--color-danger)]">{errors.quantidadeLitros.message}</p>
+          )}
+          {semEstoqueOrigem && (
+            <p className="mt-1 text-xs text-[var(--color-danger)]">
+              Estoque insuficiente ({estoqueOrigemNaData.toFixed(0)} L disponíveis{dataHora ? ' na data' : ''})
+            </p>
+          )}
+          {semEspacoDestino && !semEstoqueOrigem && (
+            <p className="mt-1 text-xs text-[var(--color-danger)]">
+              Espaço insuficiente no destino ({espacoDestino.toFixed(0)} L de espaço{dataHora ? ' na data' : ''})
+            </p>
+          )}
+        </div>
 
         <div>
-          <Input
-            label="Valor Total (R$)"
+          <label htmlFor="valorTotalTransf" className="block text-sm font-medium text-gray-700 mb-1">
+            Valor Total (R$)
+          </label>
+          <input
             id="valorTotalTransf"
             type="number"
             step="0.0001"
             min="0"
-            value={valorTotal}
-            onChange={(e) => setValorTotal(e.target.value)}
+            {...register('valorTotal', { valueAsNumber: true })}
+            className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emt-verde"
           />
+          {errors.valorTotal && (
+            <p className="mt-1 text-xs text-[var(--color-danger)]">{errors.valorTotal.message}</p>
+          )}
           {precoMedio > 0 && (
             <p className="text-xs text-gray-500 mt-1">
               Preço médio do tanque origem: R$ {precoMedio.toFixed(4)}/L
@@ -428,10 +502,9 @@ export default function TransferenciaForm({
         </label>
         <textarea
           id="observacoesTransf"
+          {...register('observacoes')}
           className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emt-verde"
           rows={3}
-          value={observacoes}
-          onChange={(e) => setObservacoes(e.target.value)}
           placeholder="Alguma observação sobre a transferência..."
         />
       </div>
@@ -445,12 +518,16 @@ export default function TransferenciaForm({
         pastaId={`transferencia/${pastaId}`}
       />
 
+      {erro && (
+        <p className="text-sm text-[var(--color-danger)]">{erro}</p>
+      )}
+
       <div className="flex justify-end gap-3 pt-2">
         <Button variant="secondary" type="button" onClick={onCancel}>
           Cancelar
         </Button>
-        <Button type="submit" disabled={!isValid}>
-          Registrar Transferência
+        <Button type="submit" disabled={!isValid || submitting || !canAct}>
+          {submitting ? 'Salvando…' : 'Registrar Transferência'}
         </Button>
       </div>
 
