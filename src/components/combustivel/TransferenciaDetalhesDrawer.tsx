@@ -1,8 +1,8 @@
 // F8.5.2 — Drawer read-only de detalhes da Transferência entre tanques.
 
 import { useMemo, useState } from 'react';
-import { Trash2, Wallet, Droplet, Container, FileText, Calendar, Paperclip, History, ArrowRight } from 'lucide-react';
-import type { TransferenciaCombustivel, Deposito } from '../../types';
+import { Trash2, Wallet, Droplet, Container, FileText, Calendar, Paperclip, History, ArrowRight, Fuel } from 'lucide-react';
+import type { TransferenciaCombustivel, Deposito, Insumo } from '../../types';
 import Drawer from '../ui/Drawer';
 import Button from '../ui/Button';
 import HistoricoTimeline from './HistoricoTimeline';
@@ -12,6 +12,8 @@ interface Props {
   open: boolean;
   onClose: () => void;
   depositos: Deposito[];
+  /** HF.7 — Pra resolver tipoCombustivel (id) → nome do insumo. */
+  insumos?: Insumo[];
   onDelete?: (id: string) => void;
   canDelete?: boolean;
 }
@@ -56,10 +58,12 @@ export default function TransferenciaDetalhesDrawer({
   open,
   onClose,
   depositos,
+  insumos = [],
   onDelete,
   canDelete = true,
 }: Props) {
   const tanquesMap = useMemo(() => new Map(depositos.map((d) => [d.id, d.apelido || d.nome])), [depositos]);
+  const insumosMap = useMemo(() => new Map(insumos.map((i) => [i.id, i.nome])), [insumos]);
   const [tab, setTab] = useState<'detalhes' | 'historico'>('detalhes');
 
   if (!transferencia) {
@@ -148,18 +152,29 @@ export default function TransferenciaDetalhesDrawer({
           </div>
 
           {/* Diagrama origem → destino */}
-          <div className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-1)] p-4 flex items-center justify-center gap-3">
-            <div className="flex flex-col items-center gap-1.5 flex-1 min-w-0">
-              <Container className="w-5 h-5 text-[var(--color-fg-muted)]" />
-              <div className="text-[10px] uppercase tracking-wide text-[var(--color-fg-muted)] font-semibold">Origem</div>
-              <div className="text-sm font-semibold text-center truncate w-full">{origemLabel}</div>
+          <div className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-1)] p-4 space-y-3">
+            <div className="flex items-center justify-center gap-3">
+              <div className="flex flex-col items-center gap-1.5 flex-1 min-w-0">
+                <Container className="w-5 h-5 text-[var(--color-fg-muted)]" />
+                <div className="text-[10px] uppercase tracking-wide text-[var(--color-fg-muted)] font-semibold">Origem</div>
+                <div className="text-sm font-semibold text-center truncate w-full">{origemLabel}</div>
+              </div>
+              <ArrowRight className="w-5 h-5 text-[var(--color-accent)] shrink-0" />
+              <div className="flex flex-col items-center gap-1.5 flex-1 min-w-0">
+                <Container className="w-5 h-5 text-[var(--color-fg-muted)]" />
+                <div className="text-[10px] uppercase tracking-wide text-[var(--color-fg-muted)] font-semibold">Destino</div>
+                <div className="text-sm font-semibold text-center truncate w-full">{destinoLabel}</div>
+              </div>
             </div>
-            <ArrowRight className="w-5 h-5 text-[var(--color-accent)] shrink-0" />
-            <div className="flex flex-col items-center gap-1.5 flex-1 min-w-0">
-              <Container className="w-5 h-5 text-[var(--color-fg-muted)]" />
-              <div className="text-[10px] uppercase tracking-wide text-[var(--color-fg-muted)] font-semibold">Destino</div>
-              <div className="text-sm font-semibold text-center truncate w-full">{destinoLabel}</div>
-            </div>
+            {transferencia.tipoCombustivel && (
+              <div className="flex items-center justify-center gap-1.5 pt-2 border-t border-[var(--color-border)] text-xs text-[var(--color-fg-muted)]">
+                <Fuel className="w-3.5 h-3.5" />
+                <span>Combustível:</span>
+                <strong className="text-[var(--color-fg)]">
+                  {insumosMap.get(transferencia.tipoCombustivel) ?? transferencia.tipoCombustivel}
+                </strong>
+              </div>
+            )}
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-4">

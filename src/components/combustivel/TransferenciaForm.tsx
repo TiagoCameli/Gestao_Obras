@@ -4,7 +4,7 @@ import { useEntradasCombustivel } from '../../hooks/useEntradasCombustivel';
 import { useTransferenciasCombustivel } from '../../hooks/useTransferenciasCombustivel';
 import { useInsumos } from '../../hooks/useInsumos';
 import { calcularPrecoMedioTanque } from '../../utils/precoMedioTanque';
-import { calcularEstoqueCombustivelNaData } from '../../hooks/useEstoque';
+import { calcularEstoqueCombustivelNaData, calcularCombustivelTanqueNaData } from '../../hooks/useEstoque';
 import Input from '../ui/Input';
 import Select from '../ui/Select';
 import Button from '../ui/Button';
@@ -94,6 +94,26 @@ export default function TransferenciaForm({
         setEstoqueDestinoNaData(depositoDestino ? depositoDestino.nivelAtualLitros : 0);
       });
   }, [depositoDestinoId, dataHora, depositoDestino?.nivelAtualLitros, depositoDestino]);
+
+  // HF.7 — Combustível que vai ser transferido (point-in-time do tanque
+  // origem na data selecionada). Usa fallback pro combustivelAtualId quando
+  // a RPC falha ou faltam dados. NULL → "indisponível" no rótulo.
+  const [combustivelOrigemId, setCombustivelOrigemId] = useState<string | null>(null);
+  useEffect(() => {
+    if (!depositoOrigemId || !dataHora) {
+      setCombustivelOrigemId(depositoOrigem?.combustivelAtualId ?? null);
+      return;
+    }
+    calcularCombustivelTanqueNaData(depositoOrigemId, dataHora)
+      .then(setCombustivelOrigemId)
+      .catch((err) => {
+        console.error('[TransferenciaForm] combustível na data falhou', err);
+        setCombustivelOrigemId(depositoOrigem?.combustivelAtualId ?? null);
+      });
+  }, [depositoOrigemId, dataHora, depositoOrigem?.combustivelAtualId]);
+  const combustivelOrigemNome = combustivelOrigemId
+    ? (allInsumos.find((i) => i.id === combustivelOrigemId)?.nome ?? null)
+    : null;
 
   const semEstoqueOrigem = depositoOrigemId && qtdLitros > estoqueOrigemNaData;
   const espacoDestinoNaData = depositoDestino
@@ -297,6 +317,16 @@ export default function TransferenciaForm({
               <span className="text-xs text-gray-500">
                 {estoqueOrigemNaData.toFixed(0)} L disponíveis{dataHora ? ' na data' : ''}
               </span>
+            </div>
+          )}
+          {depositoOrigem && (
+            <div className="mt-1.5 text-xs text-gray-700">
+              Combustível:{' '}
+              {combustivelOrigemNome ? (
+                <strong>{combustivelOrigemNome}</strong>
+              ) : (
+                <span className="text-gray-400 italic">indisponível (tanque sem fonte rastreável)</span>
+              )}
             </div>
           )}
         </div>
