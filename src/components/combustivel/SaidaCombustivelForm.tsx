@@ -13,13 +13,17 @@
 //
 // Preview de impacto financeiro renderiza só quando os campos relevantes
 // estão preenchidos — evita ruído visual com 0×0.
+//
+// RZ.3 — Migrado para react-hook-form + Zod.
+// ~16 useState de campos → useForm com zodResolver.
+// Regras condicionais via superRefine no schema.
 
-import { useCallback, useMemo, useState, useEffect, type FormEvent } from 'react';
+import { useMemo, useState, useEffect } from 'react';
+import { useForm, Controller } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
 import { Truck, Settings2, Camera, Gauge } from 'lucide-react';
 import type {
   SaidaCombustivel,
-  TipoConsumidorSaida,
-  OrigemCombustivel,
   TipoMedicao,
   Obra,
   EtapaObra,
@@ -41,6 +45,10 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useTransferenciasCombustivel } from '../../hooks/useTransferenciasCombustivel';
 import { calcularPrecoMedioTanque } from '../../utils/precoMedioTanque';
 import { calcularEstoqueCombustivelNaData } from '../../hooks/useEstoque';
+import {
+  saidaCombustivelSchema,
+  type SaidaCombustivelFormValues,
+} from '../../schemas/combustivel/saidaCombustivel.schema';
 
 const TIPO_MEDICAO_LABEL: Record<TipoMedicao, string> = {
   horimetro: 'Horímetro',
@@ -76,7 +84,7 @@ function gerarId(): string {
   return Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
 }
 
-const ORIGEM_OPTIONS: { value: OrigemCombustivel; label: string }[] = [
+const ORIGEM_OPTIONS: { value: SaidaCombustivelFormValues['origem']; label: string }[] = [
   { value: 'tanque', label: 'Tanque' },
   { value: 'dinheiro', label: 'Dinheiro' },
   { value: 'requisicao', label: 'Requisição' },
@@ -103,70 +111,76 @@ export default function SaidaCombustivelForm({
   combustiveis,
   entradasCombustivel,
 }: Props) {
-  // ── Estado: tipo de consumidor (radio cards grandes) ──
-  // Persiste do initial em modo edição (não força reset).
-  const [tipoConsumidor, setTipoConsumidor] = useState<TipoConsumidorSaida>(
-    initial?.tipoConsumidor ?? 'equipamento_proprio'
-  );
+  // ── react-hook-form + Zod ──────────────────────────────────────────────────
+  const {
+    control,
+    register,
+    handleSubmit: rhfHandleSubmit,
+    watch,
+    setValue,
+    formState: { errors, isValid: rhfIsValid },
+  } = useForm<SaidaCombustivelFormValues>({
+    resolver: zodResolver(saidaCombustivelSchema),
+    mode: 'onChange',
+    defaultValues: {
+      data: (initial?.data ?? new Date().toISOString()).slice(0, 16),
+      origem: initial?.origem ?? 'tanque',
+      tipoConsumidor: initial?.tipoConsumidor ?? 'equipamento_proprio',
+      tanqueId: initial?.tanqueId ?? '',
+      equipamentoId:
+        initial?.equipamentoId === 'desconhecido' ? '' : (initial?.equipamentoId ?? ''),
+      transportadoraId: initial?.transportadoraId ?? '',
+      placa: initial?.placa ?? '',
+      obraId: initial?.obraId ?? '',
+      etapaId: initial?.etapaId ?? '',
+      tipoCombustivel: initial?.tipoCombustivel ?? '',
+      litros: initial?.litros ?? 0,
+      taxaLitro: initial?.taxaLitro ?? 0,
+      precoUnitarioManual:
+        initial?.origem !== 'tanque' ? (initial?.precoUnitario ?? 0) : 0,
+      precoCombustivel: initial?.precoCombustivel ?? 0,
+      precoCombustivelAreacre: initial?.precoCombustivelAreacre ?? 0,
+      motorista: initial?.motorista ?? '',
+      medicaoLeitura:
+        initial?.medicaoNoAbastecimento != null
+          ? String(initial.medicaoNoAbastecimento)
+          : '',
+      observacoes: initial?.observacoes ?? '',
+      pago: initial?.pago ?? false,
+      pagoEm: initial?.pagoEm?.slice(0, 16) ?? '',
+    },
+  });
 
-  // ── Estado: origem ──
-  const [origem, setOrigem] = useState<OrigemCombustivel>(initial?.origem ?? 'tanque');
+  // Watch campos pra cálculos derivados e condicionais do JSX
+  const origem = watch('origem');
+  const tipoConsumidor = watch('tipoConsumidor');
+  const tanqueId = watch('tanqueId');
+  const equipamentoId = watch('equipamentoId');
+  const obraId = watch('obraId');
+  const litros = watch('litros') || 0;
+  const taxaLitroRaw = watch('taxaLitro') || 0;
+  const taxaLitro = tipoConsumidor === 'carreta_transportadora' ? taxaLitroRaw : 0;
+  const precoUnitarioManual = watch('precoUnitarioManual') || 0;
+  const precoCombustivel = watch('precoCombustivel') || 0;
+  const precoCombustivelAreacre = watch('precoCombustivelAreacre') || 0;
+  const pago = watch('pago');
+  const data = watch('data');
 
-  // ── Estado comum ──
-  // initial.data vem do DB como ISO completo ("2026-05-05T08:01:00+00:00").
-  // Input datetime-local exige formato truncado YYYY-MM-DDTHH:MM (16 chars) —
-  // sem truncar, o input rejeita o valor e fica vazio em modo edição.
-  const [data, setData] = useState(
-    (initial?.data ?? new Date().toISOString()).slice(0, 16)
-  );
-  const [obraId, setObraId] = useState(initial?.obraId ?? '');
-  const [etapaId, setEtapaId] = useState(initial?.etapaId ?? '');
-  const [tanqueId, setTanqueId] = useState(initial?.tanqueId ?? '');
-  const [tipoCombustivel, setTipoCombustivel] = useState(initial?.tipoCombustivel ?? '');
-  const [litrosStr, setLitrosStr] = useState(initial?.litros?.toString() ?? '');
-  const [precoUnitarioManualStr, setPrecoUnitarioManualStr] = useState(
-    initial?.precoUnitario?.toString() ?? ''
-  );
-  const [observacoes, setObservacoes] = useState(initial?.observacoes ?? '');
+  // ── useState pra anexos + inline-create + saldo ────────────────────────────
   const [fotoUrls, setFotoUrls] = useState<string[]>(initial?.fotoUrls ?? []);
   const [arquivoUrls, setArquivoUrls] = useState<string[]>(initial?.arquivoUrls ?? []);
+  const [submitting, setSubmitting] = useState(false);
+  const [erro, setErro] = useState<string | null>(null);
 
-  // ── Estado: equipamento próprio ──
-  const [equipamentoId, setEquipamentoId] = useState(
-    initial?.equipamentoId === 'desconhecido' ? '' : (initial?.equipamentoId ?? '')
-  );
-
-  // ── Estado: medição (horímetro/odômetro/km) no abastecimento ──
-  // PR2 Marco 0 — captura a leitura do painel no momento da saída.
-  // Aparece apenas quando: tipoConsumidor='equipamento_proprio' e equipamentoId definido.
-  const [medicaoStr, setMedicaoStr] = useState(
-    initial?.medicaoNoAbastecimento != null ? String(initial.medicaoNoAbastecimento) : ''
-  );
-
-  // ── Estado: carreta ──
-  const [transportadoraId, setTransportadoraId] = useState(initial?.transportadoraId ?? '');
-  const [placa, setPlaca] = useState(initial?.placa ?? '');
-  const [motorista, setMotorista] = useState(initial?.motorista ?? '');
-  const [taxaLitroStr, setTaxaLitroStr] = useState(
-    initial?.taxaLitro != null ? String(initial.taxaLitro) : '0'
-  );
-  const [precoCombustivelStr, setPrecoCombustivelStr] = useState(
-    initial?.precoCombustivel != null ? String(initial.precoCombustivel) : ''
-  );
-  const [precoCombustivelAreacreStr, setPrecoCombustivelAreacreStr] = useState(
-    initial?.precoCombustivelAreacre != null ? String(initial.precoCombustivelAreacre) : ''
-  );
-
-  // ── Estado: requisição ──
-  const [pago, setPago] = useState<boolean>(initial?.pago ?? false);
-  const [pagoEm, setPagoEm] = useState(initial?.pagoEm ?? '');
-
-  // ── Combustível inline (criar novo) ──
+  // Combustível inline (criar novo)
   const [listaCombustiveis, setListaCombustiveis] = useState<Insumo[]>(combustiveis);
   const [novoCombustivelAberto, setNovoCombustivelAberto] = useState(false);
   const [novoCombustivelNome, setNovoCombustivelNome] = useState('');
   const adicionarInsumoMut = useAdicionarInsumo();
   const { data: transferencias = [] } = useTransferenciasCombustivel();
+
+  // Medição (gerida por watch no RHF — campo medicaoLeitura)
+  const medicaoStr = watch('medicaoLeitura');
 
   useEffect(() => {
     setListaCombustiveis(combustiveis);
@@ -174,19 +188,16 @@ export default function SaidaCombustivelForm({
 
   // ── Pre-fill: taxa default da transportadora quando muda transp ──
   useEffect(() => {
-    if (tipoConsumidor !== 'carreta_transportadora' || !transportadoraId) return;
+    if (tipoConsumidor !== 'carreta_transportadora' || !watch('transportadoraId')) return;
     if (initial) return; // edição — não sobrescreve
+    const transportadoraId = watch('transportadoraId');
     const t = transportadoras.find((x) => x.id === transportadoraId);
-    // taxaLitroPadrao não está no tipo Fornecedor TS atual (é flag DB).
-    // Se um dia subir pro tipo TS, popular aqui. Por enquanto deixa o
-    // input do user ou o default '0' que veio do useState.
     if (t && (t as unknown as { taxaLitroPadrao?: number }).taxaLitroPadrao != null) {
-      setTaxaLitroStr(String((t as unknown as { taxaLitroPadrao?: number }).taxaLitroPadrao));
+      setValue('taxaLitro', (t as unknown as { taxaLitroPadrao?: number }).taxaLitroPadrao ?? 0);
     }
-  }, [transportadoraId, tipoConsumidor, transportadoras, initial]);
+  }, [watch('transportadoraId'), tipoConsumidor, transportadoras, initial, setValue]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Listas filtradas ──
-  // Equipamentos: ativos + ocultar sentinel 'desconhecido'.
   const equipamentosVisiveis = useMemo(
     () => equipamentos.filter((e) => e.ativo !== false && e.id !== 'desconhecido'),
     [equipamentos]
@@ -205,8 +216,7 @@ export default function SaidaCombustivelForm({
     return null;
   }, [equipamentoSelecionado]);
 
-  // Carrega a última leitura do equipamento (view v_equipamento_medicao_atual).
-  // Em edição não mostra alerta de inconsistência (a edição pode estar corrigindo a própria leitura).
+  // Carrega a última leitura do equipamento.
   const { data: medicaoAtual } = useMedicaoAtual(
     tipoConsumidor === 'equipamento_proprio' ? equipamentoId : null
   );
@@ -223,7 +233,6 @@ export default function SaidaCombustivelForm({
     return null;
   }, [medicaoValida, medicaoValor, medicaoAtual, initial]);
 
-  // Transportadoras: já filtradas eh_transportadora=true pelo container (assumido).
   // Tanques são globais (Fase 6) — único filtro contextual:
   //   - equipamento_proprio: só tanques internos (eh_externo=false).
   //   - carreta_transportadora: TODOS (incluindo Transterra externo).
@@ -242,15 +251,8 @@ export default function SaidaCombustivelForm({
   );
 
   // ── Cálculos ──
-  const litros = parseFloat(litrosStr.replace(',', '.')) || 0;
-  const taxaLitro = tipoConsumidor === 'carreta_transportadora'
-    ? parseFloat(taxaLitroStr.replace(',', '.')) || 0
-    : 0;
 
   // Preço médio CORRENTE do tanque (inclui transferências recebidas — HF.6).
-  // Usa helper compartilhado que inclui entradas + transferências recebidas
-  // (fix Bug C2: inline anterior ignorava transferências — tanque abastecido
-  // só por transferência tinha precoMedio=0 e bloqueava saídas).
   const precoMedioTanqueCorrente = useMemo(() => {
     if (origem !== 'tanque' || !tanqueId) return 0;
     return calcularPrecoMedioTanque(tanqueId, entradasCombustivel, transferencias);
@@ -258,20 +260,19 @@ export default function SaidaCombustivelForm({
 
   // Em edit mode com tanque/origem NÃO modificados, respeita o snapshot
   // salvo (HF.11 — snapshot imutável). Caso contrário usa preço corrente.
-  // Snapshot imutável garante que o backfill HF.10 (point-in-time) não é
-  // perdido ao abrir+salvar a saída sem alterações.
   const isEditingExistente = !!initial?.id;
-  const tanqueOrigemNaoMudou = !!initial && initial.tanqueId === tanqueId && initial.origem === origem;
-  const usaSnapshotSalvo = isEditingExistente && tanqueOrigemNaoMudou && (initial?.precoMedioTanqueSnapshot ?? 0) > 0;
+  const tanqueOrigemNaoMudou =
+    !!initial && initial.tanqueId === tanqueId && initial.origem === origem;
+  const usaSnapshotSalvo =
+    isEditingExistente &&
+    tanqueOrigemNaoMudou &&
+    (initial?.precoMedioTanqueSnapshot ?? 0) > 0;
 
   const precoMedioTanque = usaSnapshotSalvo
     ? (initial!.precoMedioTanqueSnapshot ?? 0)
     : precoMedioTanqueCorrente;
 
   // Combustível disponível no tanque:
-  //   - Tanque externo (Transterra): hardcode Diesel S10 (nunca recebe entradas).
-  //   - Tanque interno: ditado pela entrada mais recente.
-  // Misturar combustíveis no mesmo tanque é erro operacional (não suportado).
   const tipoCombustivelDoTanque = useMemo(() => {
     if (origem !== 'tanque' || !tanqueId) return '';
     const tanque = depositos.find((d) => d.id === tanqueId);
@@ -288,29 +289,32 @@ export default function SaidaCombustivelForm({
   }, [origem, tanqueId, depositos, combustiveis, entradasCombustivel]);
 
   // Auto-seleciona combustível conforme o tanque escolhido.
-  // Em edição (initial !== undefined) preserva o valor salvo — caso o
-  // tanque já tenha trocado de combustível desde a saída, não sobrescreve.
+  // Em edição preserva o valor salvo.
   useEffect(() => {
     if (initial) return;
-    if (tipoCombustivelDoTanque) setTipoCombustivel(tipoCombustivelDoTanque);
-  }, [tipoCombustivelDoTanque, initial]);
-
-  // Carreta + tanque: precoCombustivel default = preço médio do tanque (usuário sobrescreve).
-  useEffect(() => {
-    if (tipoConsumidor === 'carreta_transportadora' && origem === 'tanque' && precoMedioTanque > 0 && !precoCombustivelStr) {
-      setPrecoCombustivelStr(precoMedioTanque.toFixed(4));
+    if (tipoCombustivelDoTanque) {
+      setValue('tipoCombustivel', tipoCombustivelDoTanque, { shouldValidate: true });
     }
-  }, [tipoConsumidor, origem, precoMedioTanque, precoCombustivelStr]);
+  }, [tipoCombustivelDoTanque, initial, setValue]);
+
+  // Carreta + tanque: precoCombustivel default = preço médio do tanque.
+  useEffect(() => {
+    if (
+      tipoConsumidor === 'carreta_transportadora' &&
+      origem === 'tanque' &&
+      precoMedioTanque > 0 &&
+      !precoCombustivel
+    ) {
+      setValue('precoCombustivel', parseFloat(precoMedioTanque.toFixed(4)), {
+        shouldValidate: true,
+      });
+    }
+  }, [tipoConsumidor, origem, precoMedioTanque, precoCombustivel, setValue]);
 
   // Preço unitário final:
-  //   - origem='tanque': preco_medio + taxa (taxa só carreta).
-  //   - outras: input manual.
-  const precoUnitarioManual = parseFloat(precoUnitarioManualStr.replace(',', '.')) || 0;
-  const precoCombustivelNum = parseFloat(precoCombustivelStr.replace(',', '.')) || 0;
-  const precoCombustivelAreacreNum = parseFloat(precoCombustivelAreacreStr.replace(',', '.')) || 0;
   const precoUnitario =
     tipoConsumidor === 'carreta_transportadora' && origem === 'tanque'
-      ? precoCombustivelNum + taxaLitro
+      ? precoCombustivel + taxaLitro
       : origem === 'tanque'
         ? precoMedioTanque + taxaLitro
         : precoUnitarioManual;
@@ -318,14 +322,12 @@ export default function SaidaCombustivelForm({
   const valorTotal = litros * precoUnitario;
 
   // Tanque info pra preview de impacto financeiro
-  const tanqueSelecionado = tanquesVisiveis.find((d) => d.id === tanqueId)
-    ?? depositos.find((d) => d.id === tanqueId)
-    ?? null;
+  const tanqueSelecionado =
+    tanquesVisiveis.find((d) => d.id === tanqueId) ??
+    depositos.find((d) => d.id === tanqueId) ??
+    null;
 
-  // HF.5 — Saldo point-in-time pra bloquear saída acima do que o tanque tinha
-  // na data. Mesmo padrão do TransferenciaForm: async via RPC com fallback
-  // pro nível atual quando a função falha ou faltam dados. Em edição passa
-  // `initial.id` como p_excluir_id pra não contar a própria saída.
+  // HF.5 — Saldo point-in-time pra bloquear saída acima do que o tanque tinha na data.
   const [saldoTanqueNaData, setSaldoTanqueNaData] = useState(0);
   useEffect(() => {
     if (origem !== 'tanque' || !tanqueId || !data) {
@@ -341,50 +343,63 @@ export default function SaidaCombustivelForm({
       });
   }, [origem, tanqueId, data, tanqueSelecionado?.nivelAtualLitros, initial?.id]);
 
-  // Bloqueio só pra tanques internos. Externos (Transterra) não têm
-  // controle de estoque — espelha a regra do trigger fn_validate_saida_combustivel.
-  const saldoInsuficiente = origem === 'tanque'
-    && !!tanqueSelecionado
-    && !tanqueSelecionado.ehExterno
-    && litros > saldoTanqueNaData;
+  const saldoInsuficiente =
+    origem === 'tanque' &&
+    !!tanqueSelecionado &&
+    !tanqueSelecionado.ehExterno &&
+    litros > saldoTanqueNaData;
 
-  // Tanque com proprietária externa (Transterra/Areacre): split de preço Areacre vs cobrado.
+  // Tanque com proprietária externa (Transterra/Areacre): split de preço.
   const tanqueExterno = !!tanqueSelecionado?.transportadoraProprietariaId;
   const proprietariaNomeAtual = tanqueExterno
-    ? (transportadoras.find((t) => t.id === tanqueSelecionado!.transportadoraProprietariaId)?.nome ?? '?')
+    ? (transportadoras.find(
+        (t) => t.id === tanqueSelecionado!.transportadoraProprietariaId
+      )?.nome ?? '?')
     : '';
   const creditoAreacreValor = tanqueExterno
-    ? litros * (precoCombustivelAreacreNum + taxaLitro)
+    ? litros * (precoCombustivelAreacre + taxaLitro)
     : 0;
   const margemEmt = tanqueExterno ? valorTotal - creditoAreacreValor : 0;
 
-  // Tanque externo: precoAreacre default = mesmo do precoCombustivel (paridade).
-  // Usuário sobrescreve pra criar margem EMT (preco_transp − preco_areacre).
+  // Tanque externo: precoAreacre default = mesmo do precoCombustivel.
   useEffect(() => {
-    if (tipoConsumidor === 'carreta_transportadora' && tanqueExterno && precoCombustivelNum > 0 && !precoCombustivelAreacreStr) {
-      setPrecoCombustivelAreacreStr(precoCombustivelNum.toString());
+    if (
+      tipoConsumidor === 'carreta_transportadora' &&
+      tanqueExterno &&
+      precoCombustivel > 0 &&
+      !precoCombustivelAreacre
+    ) {
+      setValue('precoCombustivelAreacre', precoCombustivel, { shouldValidate: true });
     }
-  }, [tipoConsumidor, tanqueExterno, precoCombustivelNum, precoCombustivelAreacreStr]);
+  }, [tipoConsumidor, tanqueExterno, precoCombustivel, precoCombustivelAreacre, setValue]);
 
-  // Preview de impacto financeiro:
-  //   - carreta + tanque externo (proprietária preenchida) → crédito proprietária + débito transportadora.
-  //   - carreta + tanque EMT (proprietária NULL) → débito transportadora + nota estoque.
-  //   - equipamento_proprio + tanque interno → ▼ estoque (sem movimento financeiro).
+  // Preview de impacto financeiro
   type PreviewLinha = { sinal: '▲' | '▼'; texto: string; cor: 'verde' | 'vermelho' | 'cinza' };
   const previewImpacto: PreviewLinha[] = useMemo(() => {
     if (litros <= 0 || valorTotal <= 0) return [];
+    const transportadoraId = watch('transportadoraId');
 
     const linhas: PreviewLinha[] = [];
 
     if (tipoConsumidor === 'carreta_transportadora') {
       if (!transportadoraId || !tanqueSelecionado) return [];
-      const transpNome = transportadoras.find((t) => t.id === transportadoraId)?.nome ?? '?';
+      const transpNome =
+        transportadoras.find((t) => t.id === transportadoraId)?.nome ?? '?';
       if (tanqueSelecionado.transportadoraProprietariaId) {
-        const proprietariaNome = transportadoras.find(
-          (t) => t.id === tanqueSelecionado.transportadoraProprietariaId
-        )?.nome ?? '?';
-        linhas.push({ sinal: '▲', texto: `Crédito ${proprietariaNome}: ${fmtBRL(creditoAreacreValor)}`, cor: 'verde' });
-        linhas.push({ sinal: '▼', texto: `Débito ${transpNome}: ${fmtBRL(valorTotal)}`, cor: 'vermelho' });
+        const proprietariaNome =
+          transportadoras.find(
+            (t) => t.id === tanqueSelecionado.transportadoraProprietariaId
+          )?.nome ?? '?';
+        linhas.push({
+          sinal: '▲',
+          texto: `Crédito ${proprietariaNome}: ${fmtBRL(creditoAreacreValor)}`,
+          cor: 'verde',
+        });
+        linhas.push({
+          sinal: '▼',
+          texto: `Débito ${transpNome}: ${fmtBRL(valorTotal)}`,
+          cor: 'vermelho',
+        });
         if (Math.abs(margemEmt) > 0.005) {
           linhas.push({
             sinal: margemEmt > 0 ? '▲' : '▼',
@@ -394,47 +409,37 @@ export default function SaidaCombustivelForm({
         }
       } else {
         // Tanque EMT
-        linhas.push({ sinal: '▼', texto: `Débito ${transpNome}: ${fmtBRL(valorTotal)}`, cor: 'vermelho' });
-        linhas.push({ sinal: '▼', texto: `Estoque tanque ${tanqueSelecionado.nome}: −${litros.toLocaleString('pt-BR')} L`, cor: 'cinza' });
+        linhas.push({
+          sinal: '▼',
+          texto: `Débito ${transpNome}: ${fmtBRL(valorTotal)}`,
+          cor: 'vermelho',
+        });
+        linhas.push({
+          sinal: '▼',
+          texto: `Estoque tanque ${tanqueSelecionado.nome}: −${litros.toLocaleString('pt-BR')} L`,
+          cor: 'cinza',
+        });
       }
     } else if (tipoConsumidor === 'equipamento_proprio') {
-      // Só mostra impacto de estoque quando origem=tanque e tanque interno escolhido
       if (origem === 'tanque' && tanqueSelecionado && !tanqueSelecionado.ehExterno) {
-        linhas.push({ sinal: '▼', texto: `Estoque tanque ${tanqueSelecionado.nome}: −${litros.toLocaleString('pt-BR')} L`, cor: 'cinza' });
+        linhas.push({
+          sinal: '▼',
+          texto: `Estoque tanque ${tanqueSelecionado.nome}: −${litros.toLocaleString('pt-BR')} L`,
+          cor: 'cinza',
+        });
       }
     }
 
     return linhas;
-  }, [tipoConsumidor, transportadoraId, transportadoras, tanqueSelecionado, litros, valorTotal, origem, creditoAreacreValor, margemEmt]);
+  }, [tipoConsumidor, tanqueSelecionado, litros, valorTotal, origem, creditoAreacreValor, margemEmt, transportadoras]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // ── Validação ──
-  // F5.B.1 — em vez de bool, retorna lista de campos faltantes pra exibir feedback.
-  // isValid deriva de length === 0; banner inline lista o que falta com nome humano.
-  const camposFaltantes = useMemo(() => {
-    const faltam: string[] = [];
-    if (!data) faltam.push('Data e hora');
-    if (!obraId) faltam.push('Obra');
-    if (!tipoCombustivel) faltam.push('Combustível');
-    if (litros <= 0) faltam.push('Litros');
-    if (precoUnitario <= 0) faltam.push('Preço unitário');
-    if (tipoConsumidor === 'equipamento_proprio') {
-      if (!equipamentoId) faltam.push('Equipamento');
-    } else {
-      if (!transportadoraId) faltam.push('Transportadora');
-    }
-    if (origem === 'tanque' && !tanqueId) faltam.push('Tanque');
-    return faltam;
-  }, [data, obraId, tipoCombustivel, litros, precoUnitario, tipoConsumidor, equipamentoId, transportadoraId, origem, tanqueId]);
-  const isValid = camposFaltantes.length === 0 && !saldoInsuficiente;
-
-  // F5.B.2 — sanity warnings (não bloqueiam submit; sinalizam valores absurdos
-  // que costumam ser erros de digitação). Thresholds calibrados pelo histórico
-  // do BR-364: maior abastecimento real ~5000L (usina) e ~R$ 31k. 1000L+ ou
-  // R$10k+ em saída individual costuma ser zero a mais — vale confirmar.
+  // F5.B.2 — sanity warnings
   const sanityWarnings = useMemo(() => {
     const warnings: string[] = [];
     if (litros >= 1000) {
-      warnings.push(`${litros.toLocaleString('pt-BR')} L é um volume alto — confirme antes de salvar.`);
+      warnings.push(
+        `${litros.toLocaleString('pt-BR')} L é um volume alto — confirme antes de salvar.`
+      );
     }
     if (valorTotal >= 10000) {
       warnings.push(`${fmtBRL(valorTotal)} é um valor alto — confirme antes de salvar.`);
@@ -442,30 +447,63 @@ export default function SaidaCombustivelForm({
     return warnings;
   }, [litros, valorTotal]);
 
-  // ── Submit ──
+  // F5.B.1 — campos faltantes (para feedback visual; isValid vem do RHF)
+  // Mantemos pra exibir banner com nomes amigáveis
+  const camposFaltantes = useMemo(() => {
+    const faltam: string[] = [];
+    if (!data) faltam.push('Data e hora');
+    if (!obraId) faltam.push('Obra');
+    if (!watch('tipoCombustivel')) faltam.push('Combustível');
+    if (litros <= 0) faltam.push('Litros');
+    if (precoUnitario <= 0 && origem !== 'tanque') faltam.push('Preço unitário');
+    if (tipoConsumidor === 'equipamento_proprio') {
+      if (!equipamentoId) faltam.push('Equipamento');
+    } else {
+      if (!watch('transportadoraId')) faltam.push('Transportadora');
+    }
+    if (origem === 'tanque' && !tanqueId) faltam.push('Tanque');
+    return faltam;
+  }, [data, obraId, litros, precoUnitario, origem, tipoConsumidor, equipamentoId, tanqueId]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const isValid = rhfIsValid && !saldoInsuficiente;
+
+  // ── Auth ──
   const { temAcao } = useAuth();
   const isEditing = !!initial;
-  const canAct = isEditing ? temAcao('editar_combustivel') : (
-    tipoConsumidor === 'carreta_transportadora'
+  const canAct = isEditing
+    ? temAcao('editar_combustivel')
+    : tipoConsumidor === 'carreta_transportadora'
       ? temAcao('criar_abastecimento_carreta')
-      : temAcao('criar_saida_combustivel')
-  );
-  const handleSubmit = useCallback(
-    async (e: FormEvent) => {
-      e.preventDefault();
-      if (!canAct) return;
-      if (!isValid) return;
+      : temAcao('criar_saida_combustivel');
 
-      const alocacoes: AlocacaoEtapa[] | null = etapaId
-        ? [{ etapaId, percentual: 100 }]
+  // ── Submit ──
+  const onSubmitForm = async (formData: SaidaCombustivelFormValues) => {
+    if (!canAct) return;
+    setSubmitting(true);
+    setErro(null);
+    try {
+      const taxaEfetiva =
+        formData.tipoConsumidor === 'carreta_transportadora' ? formData.taxaLitro : 0;
+
+      let precoUnit: number;
+      if (formData.tipoConsumidor === 'carreta_transportadora' && formData.origem === 'tanque') {
+        precoUnit = formData.precoCombustivel + taxaEfetiva;
+      } else if (formData.origem === 'tanque') {
+        precoUnit = precoMedioTanque + taxaEfetiva;
+      } else {
+        precoUnit = formData.precoUnitarioManual;
+      }
+
+      const vtotal = formData.litros * precoUnit;
+
+      const alocacoes: AlocacaoEtapa[] | null = formData.etapaId
+        ? [{ etapaId: formData.etapaId, percentual: 100 }]
         : null;
 
-      // Medição: só registra quando tipoConsumidor='equipamento_proprio',
-      // o equipamento tem tipoMedicao definido e o operador informou um valor válido.
       const medicaoEfetiva: number | null =
-        tipoConsumidor === 'equipamento_proprio'
-          && tipoMedicaoEquipamento
-          && medicaoValida
+        formData.tipoConsumidor === 'equipamento_proprio' &&
+        tipoMedicaoEquipamento &&
+        medicaoValida
           ? medicaoValor
           : null;
       const tipoMedicaoEfetivo: TipoMedicao | null =
@@ -473,113 +511,170 @@ export default function SaidaCombustivelForm({
 
       const payload: SaidaCombustivel = {
         id: initial?.id ?? gerarId(),
-        data: data.length === 16 ? `${data}:00` : data, // garante seconds
-        origem,
-        tipoConsumidor,
-        tanqueId: origem === 'tanque' ? tanqueId || null : null,
-        equipamentoId: tipoConsumidor === 'equipamento_proprio' ? equipamentoId || null : null,
-        transportadoraId: tipoConsumidor === 'carreta_transportadora' ? transportadoraId || null : null,
-        placa: tipoConsumidor === 'carreta_transportadora' ? (placa || null) : null,
-        motorista: tipoConsumidor === 'carreta_transportadora' ? motorista.trim() : '',
-        obraId: obraId || null,
-        etapaId: etapaId || null,
+        data:
+          formData.data.length === 16 ? `${formData.data}:00` : formData.data,
+        origem: formData.origem,
+        tipoConsumidor: formData.tipoConsumidor,
+        tanqueId:
+          formData.origem === 'tanque' ? formData.tanqueId || null : null,
+        equipamentoId:
+          formData.tipoConsumidor === 'equipamento_proprio'
+            ? formData.equipamentoId || null
+            : null,
+        transportadoraId:
+          formData.tipoConsumidor === 'carreta_transportadora'
+            ? formData.transportadoraId || null
+            : null,
+        placa:
+          formData.tipoConsumidor === 'carreta_transportadora'
+            ? formData.placa || null
+            : null,
+        motorista:
+          formData.tipoConsumidor === 'carreta_transportadora'
+            ? formData.motorista.trim()
+            : '',
+        obraId: formData.obraId || null,
+        etapaId: formData.etapaId || null,
         alocacoes,
-        tipoCombustivel,
-        litros,
-        precoMedioTanqueSnapshot: origem === 'tanque' ? precoMedioTanque : null,
-        taxaLitro,
+        tipoCombustivel: formData.tipoCombustivel,
+        litros: formData.litros,
+        precoMedioTanqueSnapshot:
+          formData.origem === 'tanque' ? precoMedioTanque : null,
+        taxaLitro: taxaEfetiva,
         precoCombustivel:
-          tipoConsumidor === 'carreta_transportadora'
-            ? precoCombustivelNum
-            : origem === 'tanque' ? precoMedioTanque : precoUnitarioManual,
-        precoCombustivelAreacre: tanqueExterno ? precoCombustivelAreacreNum : null,
-        precoUnitario,
-        valorTotal,
+          formData.tipoConsumidor === 'carreta_transportadora'
+            ? formData.precoCombustivel
+            : formData.origem === 'tanque'
+              ? precoMedioTanque
+              : formData.precoUnitarioManual,
+        precoCombustivelAreacre: tanqueExterno
+          ? formData.precoCombustivelAreacre
+          : null,
+        precoUnitario: precoUnit,
+        valorTotal: vtotal,
         fotoUrls: fotoUrls.length > 0 ? fotoUrls : null,
         arquivoUrls: arquivoUrls.length > 0 ? arquivoUrls : [],
-        observacoes: observacoes || null,
-        pago: origem === 'requisicao' ? pago : null,
-        pagoEm: origem === 'requisicao' && pagoEm ? pagoEm : null,
+        observacoes: formData.observacoes || null,
+        pago: formData.origem === 'requisicao' ? formData.pago : null,
+        pagoEm:
+          formData.origem === 'requisicao' && formData.pagoEm
+            ? formData.pagoEm
+            : null,
         movimentoId: initial?.movimentoId ?? null,
         medicaoNoAbastecimento: medicaoEfetiva,
         tipoMedicaoSnapshot: tipoMedicaoEfetivo,
         createdAt: initial?.createdAt ?? new Date().toISOString(),
         updatedAt: new Date().toISOString(),
         createdBy: initial?.createdBy ?? null,
-        // Container injeta updatedBy=usuario?.nome no path de atualização.
-        // Form passa pelo valor inicial (ou null em insert) sem opinar.
         updatedBy: initial?.updatedBy ?? null,
       };
 
       await onSubmit(payload);
-    },
-    [
-      isValid, initial, data, origem, tipoConsumidor, tanqueId, equipamentoId,
-      transportadoraId, placa, motorista, obraId, etapaId, tipoCombustivel,
-      litros, precoMedioTanque, taxaLitro, precoUnitario, valorTotal,
-      precoCombustivelNum, precoCombustivelAreacreNum, precoUnitarioManual,
-      tanqueExterno, tipoMedicaoEquipamento, medicaoValida, medicaoValor,
-      fotoUrls, arquivoUrls, observacoes, pago, pagoEm, onSubmit, canAct,
-    ]
-  );
+    } catch (err) {
+      setErro(err instanceof Error ? err.message : 'Erro ao salvar saída');
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
   // ── Render ──
   return (
-    <form onSubmit={handleSubmit} className="space-y-5">
+    <form onSubmit={rhfHandleSubmit(onSubmitForm)} className="space-y-5">
+      {erro && (
+        <div className="rounded-lg bg-red-50 border border-red-200 px-3 py-2 text-xs text-red-800">
+          {erro}
+        </div>
+      )}
+
       {/* Tipo de consumidor — radio cards grandes */}
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-2">
           Tipo de Consumidor
         </label>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <button
-            type="button"
-            onClick={() => setTipoConsumidor('equipamento_proprio')}
-            className={`flex items-center gap-3 px-4 py-4 rounded-xl border-2 transition-all text-left ${
-              tipoConsumidor === 'equipamento_proprio'
-                ? 'border-emt-verde bg-emt-verde/10 shadow-sm'
-                : 'border-gray-200 bg-white hover:border-gray-300'
-            }`}
-          >
-            <div className={`w-11 h-11 rounded-lg flex items-center justify-center shrink-0 ${
-              tipoConsumidor === 'equipamento_proprio' ? 'bg-emt-verde text-white' : 'bg-gray-100 text-gray-500'
-            }`}>
-              <Settings2 className="w-6 h-6" />
-            </div>
-            <div className="min-w-0">
-              <div className={`font-semibold text-sm ${
-                tipoConsumidor === 'equipamento_proprio' ? 'text-emt-verde-escuro' : 'text-gray-800'
-              }`}>
-                Equipamento Próprio
-              </div>
-              <div className="text-xs text-gray-500">Saída pra equipamento da EMT</div>
-            </div>
-          </button>
+        <Controller
+          name="tipoConsumidor"
+          control={control}
+          render={({ field }) => (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <button
+                type="button"
+                onClick={() => {
+                  field.onChange('equipamento_proprio');
+                  // Limpa campos de carreta
+                  setValue('transportadoraId', '');
+                  setValue('placa', '');
+                  setValue('motorista', '');
+                }}
+                className={`flex items-center gap-3 px-4 py-4 rounded-xl border-2 transition-all text-left ${
+                  field.value === 'equipamento_proprio'
+                    ? 'border-emt-verde bg-emt-verde/10 shadow-sm'
+                    : 'border-gray-200 bg-white hover:border-gray-300'
+                }`}
+              >
+                <div
+                  className={`w-11 h-11 rounded-lg flex items-center justify-center shrink-0 ${
+                    field.value === 'equipamento_proprio'
+                      ? 'bg-emt-verde text-white'
+                      : 'bg-gray-100 text-gray-500'
+                  }`}
+                >
+                  <Settings2 className="w-6 h-6" />
+                </div>
+                <div className="min-w-0">
+                  <div
+                    className={`font-semibold text-sm ${
+                      field.value === 'equipamento_proprio'
+                        ? 'text-emt-verde-escuro'
+                        : 'text-gray-800'
+                    }`}
+                  >
+                    Equipamento Próprio
+                  </div>
+                  <div className="text-xs text-gray-500">Saída pra equipamento da EMT</div>
+                </div>
+              </button>
 
-          <button
-            type="button"
-            onClick={() => setTipoConsumidor('carreta_transportadora')}
-            className={`flex items-center gap-3 px-4 py-4 rounded-xl border-2 transition-all text-left ${
-              tipoConsumidor === 'carreta_transportadora'
-                ? 'border-emt-verde bg-emt-verde/10 shadow-sm'
-                : 'border-gray-200 bg-white hover:border-gray-300'
-            }`}
-          >
-            <div className={`w-11 h-11 rounded-lg flex items-center justify-center shrink-0 ${
-              tipoConsumidor === 'carreta_transportadora' ? 'bg-emt-verde text-white' : 'bg-gray-100 text-gray-500'
-            }`}>
-              <Truck className="w-6 h-6" />
+              <button
+                type="button"
+                onClick={() => {
+                  field.onChange('carreta_transportadora');
+                  // Limpa campos de equipamento próprio
+                  setValue('equipamentoId', '');
+                  setValue('medicaoLeitura', '');
+                }}
+                className={`flex items-center gap-3 px-4 py-4 rounded-xl border-2 transition-all text-left ${
+                  field.value === 'carreta_transportadora'
+                    ? 'border-emt-verde bg-emt-verde/10 shadow-sm'
+                    : 'border-gray-200 bg-white hover:border-gray-300'
+                }`}
+              >
+                <div
+                  className={`w-11 h-11 rounded-lg flex items-center justify-center shrink-0 ${
+                    field.value === 'carreta_transportadora'
+                      ? 'bg-emt-verde text-white'
+                      : 'bg-gray-100 text-gray-500'
+                  }`}
+                >
+                  <Truck className="w-6 h-6" />
+                </div>
+                <div className="min-w-0">
+                  <div
+                    className={`font-semibold text-sm ${
+                      field.value === 'carreta_transportadora'
+                        ? 'text-emt-verde-escuro'
+                        : 'text-gray-800'
+                    }`}
+                  >
+                    Carreta de Transportadora
+                  </div>
+                  <div className="text-xs text-gray-500">
+                    Carreta abastece — gera saldo conta-corrente
+                  </div>
+                </div>
+              </button>
             </div>
-            <div className="min-w-0">
-              <div className={`font-semibold text-sm ${
-                tipoConsumidor === 'carreta_transportadora' ? 'text-emt-verde-escuro' : 'text-gray-800'
-              }`}>
-                Carreta de Transportadora
-              </div>
-              <div className="text-xs text-gray-500">Carreta abastece — gera saldo conta-corrente</div>
-            </div>
-          </button>
-        </div>
+          )}
+        />
       </div>
 
       {/* Origem do combustível — radio inline */}
@@ -587,62 +682,109 @@ export default function SaidaCombustivelForm({
         <label className="block text-sm font-medium text-gray-700 mb-2">
           Origem do Combustível
         </label>
-        <div className="flex gap-2 flex-wrap">
-          {ORIGEM_OPTIONS.map((opt) => (
-            <button
-              key={opt.value}
-              type="button"
-              onClick={() => setOrigem(opt.value)}
-              className={`px-4 py-2 rounded-lg border text-sm font-medium transition-colors ${
-                origem === opt.value
-                  ? 'border-emt-verde bg-emt-verde text-white'
-                  : 'border-gray-300 bg-white text-gray-700 hover:border-emt-verde'
-              }`}
-            >
-              {opt.label}
-            </button>
-          ))}
-        </div>
+        <Controller
+          name="origem"
+          control={control}
+          render={({ field }) => (
+            <div className="flex gap-2 flex-wrap">
+              {ORIGEM_OPTIONS.map((opt) => (
+                <button
+                  key={opt.value}
+                  type="button"
+                  onClick={() => {
+                    field.onChange(opt.value);
+                    if (opt.value !== 'tanque') {
+                      setValue('tanqueId', '');
+                    } else {
+                      setValue('precoUnitarioManual', 0);
+                    }
+                  }}
+                  className={`px-4 py-2 rounded-lg border text-sm font-medium transition-colors ${
+                    field.value === opt.value
+                      ? 'border-emt-verde bg-emt-verde text-white'
+                      : 'border-gray-300 bg-white text-gray-700 hover:border-emt-verde'
+                  }`}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+          )}
+        />
       </div>
 
       {/* Bloco condicional: equipamento ou carreta */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <Input
-          label="Data e Hora"
-          id="saidaData"
-          type="datetime-local"
-          value={data}
-          onChange={(e) => setData(e.target.value)}
-          required
-        />
+        <div>
+          <Input
+            label="Data e Hora"
+            id="saidaData"
+            type="datetime-local"
+            {...register('data')}
+            required
+          />
+          {errors.data && (
+            <p className="mt-1 text-xs text-[var(--color-danger)]">{errors.data.message}</p>
+          )}
+        </div>
 
-        <Select
-          label="Obra"
-          id="saidaObra"
-          value={obraId}
-          onChange={(e) => { setObraId(e.target.value); setEtapaId(''); setTanqueId(''); }}
-          options={obras.map((o) => ({ value: o.id, label: o.nome }))}
-          placeholder="Selecione"
-          required
-        />
+        <div>
+          <Controller
+            name="obraId"
+            control={control}
+            render={({ field }) => (
+              <Select
+                label="Obra"
+                id="saidaObra"
+                value={field.value}
+                onChange={(e) => {
+                  field.onChange(e.target.value);
+                  setValue('etapaId', '');
+                  setValue('tanqueId', '');
+                }}
+                options={obras.map((o) => ({ value: o.id, label: o.nome }))}
+                placeholder="Selecione"
+                required
+                error={errors.obraId?.message}
+              />
+            )}
+          />
+        </div>
 
         {tipoConsumidor === 'equipamento_proprio' ? (
           <>
             <div>
-              <label htmlFor="saidaEquip" className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">
+              <label
+                htmlFor="saidaEquip"
+                className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1"
+              >
                 Equipamento <span className="text-red-500">*</span>
               </label>
-              <FilterCombobox
-                value={equipamentoId}
-                onChange={(v) => { setEquipamentoId(v); setMedicaoStr(''); }}
-                options={equipamentosVisiveis.map((eq) => ({
-                  value: eq.id,
-                  label: eq.codigoPatrimonio
-                    ? `${eq.codigoPatrimonio} — ${eq.nome}`
-                    : eq.nome,
-                }))}
-                placeholder="Buscar equipamento por código ou nome"
+              <Controller
+                name="equipamentoId"
+                control={control}
+                render={({ field }) => (
+                  <FilterCombobox
+                    value={field.value}
+                    onChange={(v) => {
+                      field.onChange(v);
+                      setValue('medicaoLeitura', '');
+                    }}
+                    options={equipamentosVisiveis.map((eq) => ({
+                      value: eq.id,
+                      label: eq.codigoPatrimonio
+                        ? `${eq.codigoPatrimonio} — ${eq.nome}`
+                        : eq.nome,
+                    }))}
+                    placeholder="Buscar equipamento por código ou nome"
+                  />
+                )}
               />
+              {errors.equipamentoId && (
+                <p className="mt-1 text-xs text-[var(--color-danger)]">
+                  {errors.equipamentoId.message}
+                </p>
+              )}
             </div>
             {equipamentoId && tipoMedicaoEquipamento && (
               <div>
@@ -652,15 +794,16 @@ export default function SaidaCombustivelForm({
                 >
                   <Gauge className="w-4 h-4 text-gray-500" />
                   {TIPO_MEDICAO_LABEL[tipoMedicaoEquipamento]} no abastecimento
-                  <span className="ml-1 text-xs text-gray-400 font-normal">({TIPO_MEDICAO_UNIDADE[tipoMedicaoEquipamento]})</span>
+                  <span className="ml-1 text-xs text-gray-400 font-normal">
+                    ({TIPO_MEDICAO_UNIDADE[tipoMedicaoEquipamento]})
+                  </span>
                 </label>
                 <input
                   id="saidaMedicao"
                   type="number"
                   step={tipoMedicaoEquipamento === 'horimetro' ? '0.1' : '1'}
                   min="0"
-                  value={medicaoStr}
-                  onChange={(e) => setMedicaoStr(e.target.value)}
+                  {...register('medicaoLeitura')}
                   placeholder={
                     medicaoAtual
                       ? `Última: ${medicaoAtual.medicaoAtual.toLocaleString('pt-BR')} ${TIPO_MEDICAO_UNIDADE[medicaoAtual.tipoMedicao]}`
@@ -675,69 +818,96 @@ export default function SaidaCombustivelForm({
                   </p>
                 )}
                 {medicaoAlerta && (
-                  <p className="mt-1 text-xs text-[var(--color-warning-fg)]">
-                    {medicaoAlerta}
-                  </p>
+                  <p className="mt-1 text-xs text-[var(--color-warning-fg)]">{medicaoAlerta}</p>
                 )}
               </div>
             )}
           </>
         ) : (
           <>
-            <Select
-              label="Transportadora"
-              id="saidaTransp"
-              value={transportadoraId}
-              onChange={(e) => setTransportadoraId(e.target.value)}
-              options={transportadoras.map((t) => ({ value: t.id, label: t.nome }))}
-              placeholder="Selecione transportadora"
-              required
-            />
-            <Input
-              label="Placa da Carreta"
-              id="saidaPlaca"
-              type="text"
-              value={placa}
-              onChange={(e) => setPlaca(e.target.value.toUpperCase())}
-              placeholder="ABC-1234"
-            />
-            <Input
-              label="Motorista"
-              id="saidaMotorista"
-              type="text"
-              value={motorista}
-              onChange={(e) => setMotorista(e.target.value)}
-              placeholder="Nome do motorista (opcional)"
-            />
+            <div>
+              <Controller
+                name="transportadoraId"
+                control={control}
+                render={({ field }) => (
+                  <Select
+                    label="Transportadora"
+                    id="saidaTransp"
+                    value={field.value}
+                    onChange={(e) => field.onChange(e.target.value)}
+                    options={transportadoras.map((t) => ({ value: t.id, label: t.nome }))}
+                    placeholder="Selecione transportadora"
+                    required
+                    error={errors.transportadoraId?.message}
+                  />
+                )}
+              />
+            </div>
+            <div>
+              <Input
+                label="Placa da Carreta"
+                id="saidaPlaca"
+                type="text"
+                {...register('placa')}
+                placeholder="ABC-1234"
+              />
+            </div>
+            <div>
+              <Input
+                label="Motorista"
+                id="saidaMotorista"
+                type="text"
+                {...register('motorista')}
+                placeholder="Nome do motorista (opcional)"
+              />
+            </div>
           </>
         )}
 
         {origem === 'tanque' && (
-          <Select
-            label="Tanque"
-            id="saidaTanque"
-            value={tanqueId}
-            onChange={(e) => setTanqueId(e.target.value)}
-            options={tanquesVisiveis.map((t) => ({
-              value: t.id,
-              label: t.apelido ? `${t.apelido} (${t.nome})` : t.nome,
-            }))}
-            placeholder={obraId ? 'Selecione tanque' : 'Selecione obra primeiro'}
-            disabled={!obraId}
-            required
-          />
+          <div>
+            <Controller
+              name="tanqueId"
+              control={control}
+              render={({ field }) => (
+                <Select
+                  label="Tanque"
+                  id="saidaTanque"
+                  value={field.value}
+                  onChange={(e) => field.onChange(e.target.value)}
+                  options={tanquesVisiveis.map((t) => ({
+                    value: t.id,
+                    label: t.apelido ? `${t.apelido} (${t.nome})` : t.nome,
+                  }))}
+                  placeholder={obraId ? 'Selecione tanque' : 'Selecione obra primeiro'}
+                  disabled={!obraId}
+                  required
+                  error={errors.tanqueId?.message}
+                />
+              )}
+            />
+          </div>
         )}
 
         <div>
-          <label htmlFor="saidaEtapa" className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">
+          <label
+            htmlFor="saidaEtapa"
+            className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1"
+          >
             Etapa
           </label>
           {obraId ? (
-            <FilterCombobox
-              value={etapaId}
-              onChange={setEtapaId}
-              options={etapasDaObra.map((et) => ({ value: et.id, label: et.nome }))}
-              placeholder="Buscar etapa por código ou nome (opcional)"
+            <Controller
+              name="etapaId"
+              control={control}
+              render={({ field }) => (
+                <FilterCombobox
+                  value={field.value}
+                  onChange={field.onChange}
+                  options={etapasDaObra.map((et) => ({ value: et.id, label: et.nome }))}
+                  placeholder="Buscar etapa por código ou nome (opcional)"
+                />
+              )}
             />
           ) : (
             <input
@@ -752,18 +922,22 @@ export default function SaidaCombustivelForm({
 
         <div>
           {origem === 'tanque' && tanqueId && tanqueExterno ? (
-            // Tanque externo (Transterra): Select habilitado — fornece múltiplos
-            // combustíveis (Diesel S10 + Arla). Default sugerido = Diesel S10
-            // via tipoCombustivelDoTanque, mas usuário troca pra Arla quando
-            // for o caso.
-            <Select
-              label="Tipo de Combustível"
-              id="saidaCombustivel"
-              value={tipoCombustivel}
-              onChange={(e) => setTipoCombustivel(e.target.value)}
-              options={listaCombustiveis.map((c) => ({ value: c.id, label: c.nome }))}
-              placeholder="Selecione combustível"
-              required
+            // Tanque externo (Transterra): Select habilitado
+            <Controller
+              name="tipoCombustivel"
+              control={control}
+              render={({ field }) => (
+                <Select
+                  label="Tipo de Combustível"
+                  id="saidaCombustivel"
+                  value={field.value}
+                  onChange={(e) => field.onChange(e.target.value)}
+                  options={listaCombustiveis.map((c) => ({ value: c.id, label: c.nome }))}
+                  placeholder="Selecione combustível"
+                  required
+                  error={errors.tipoCombustivel?.message}
+                />
+              )}
             />
           ) : origem === 'tanque' && tanqueId ? (
             tipoCombustivelDoTanque ? (
@@ -786,14 +960,21 @@ export default function SaidaCombustivelForm({
               </div>
             )
           ) : (
-            <Select
-              label="Tipo de Combustível"
-              id="saidaCombustivel"
-              value={tipoCombustivel}
-              onChange={(e) => setTipoCombustivel(e.target.value)}
-              options={listaCombustiveis.map((c) => ({ value: c.id, label: c.nome }))}
-              placeholder="Selecione combustível"
-              required
+            <Controller
+              name="tipoCombustivel"
+              control={control}
+              render={({ field }) => (
+                <Select
+                  label="Tipo de Combustível"
+                  id="saidaCombustivel"
+                  value={field.value}
+                  onChange={(e) => field.onChange(e.target.value)}
+                  options={listaCombustiveis.map((c) => ({ value: c.id, label: c.nome }))}
+                  placeholder="Selecione combustível"
+                  required
+                  error={errors.tipoCombustivel?.message}
+                />
+              )}
             />
           )}
           {!novoCombustivelAberto ? (
@@ -831,7 +1012,7 @@ export default function SaidaCombustivelForm({
                     };
                     adicionarInsumoMut.mutate(novo);
                     setListaCombustiveis((prev) => [...prev, novo]);
-                    setTipoCombustivel(novo.id);
+                    setValue('tipoCombustivel', novo.id, { shouldValidate: true });
                     setNovoCombustivelNome('');
                     setNovoCombustivelAberto(false);
                   }}
@@ -841,7 +1022,10 @@ export default function SaidaCombustivelForm({
                 <button
                   type="button"
                   className="text-xs text-gray-500 hover:text-gray-700"
-                  onClick={() => { setNovoCombustivelAberto(false); setNovoCombustivelNome(''); }}
+                  onClick={() => {
+                    setNovoCombustivelAberto(false);
+                    setNovoCombustivelNome('');
+                  }}
                 >
                   Cancelar
                 </button>
@@ -850,109 +1034,128 @@ export default function SaidaCombustivelForm({
           )}
         </div>
 
-        <Input
-          label="Quantidade (litros)"
-          id="saidaLitros"
-          type="number"
-          step="0.001"
-          min="0"
-          value={litrosStr}
-          onChange={(e) => setLitrosStr(e.target.value)}
-          required
-        />
-        {saldoInsuficiente && (
-          <div className="mt-1.5 rounded-lg bg-red-50 border border-red-200 px-3 py-2 text-xs text-red-800">
-            Saldo insuficiente: {saldoTanqueNaData.toLocaleString('pt-BR', { maximumFractionDigits: 0 })} L
-            disponíveis{data ? ' na data selecionada' : ''}. Reduza os litros, escolha outro tanque ou ajuste a data.
-          </div>
-        )}
+        <div>
+          <Input
+            label="Quantidade (litros)"
+            id="saidaLitros"
+            type="number"
+            step="0.001"
+            min="0"
+            {...register('litros', { valueAsNumber: true })}
+            error={
+              saldoInsuficiente
+                ? `Saldo insuficiente: ${saldoTanqueNaData.toLocaleString('pt-BR', { maximumFractionDigits: 0 })} L disponíveis${data ? ' na data selecionada' : ''}. Reduza os litros, escolha outro tanque ou ajuste a data.`
+                : errors.litros?.message
+            }
+            required
+          />
+        </div>
 
         {/* Preço unitário: input manual quando origem != tanque */}
         {origem !== 'tanque' && (
-          <Input
-            label="Preço Unitário (R$/L)"
-            id="saidaPrecoUnit"
-            type="number"
-            step="0.0001"
-            min="0"
-            value={precoUnitarioManualStr}
-            onChange={(e) => setPrecoUnitarioManualStr(e.target.value)}
-            required
-          />
+          <div>
+            <Input
+              label="Preço Unitário (R$/L)"
+              id="saidaPrecoUnit"
+              type="number"
+              step="0.0001"
+              min="0"
+              {...register('precoUnitarioManual', { valueAsNumber: true })}
+              error={errors.precoUnitarioManual?.message}
+              required
+            />
+          </div>
         )}
 
-        {/* Tanque externo (Transterra): preço Areacre cobra (vai pro crédito proprietária) */}
+        {/* Tanque externo (Transterra): preço Areacre cobra */}
         {tipoConsumidor === 'carreta_transportadora' && origem === 'tanque' && tanqueExterno && (
-          <Input
-            label={`Preço ${proprietariaNomeAtual} cobra (R$/L)`}
-            id="saidaPrecoAreacre"
-            type="number"
-            step="any"
-            min="0"
-            value={precoCombustivelAreacreStr}
-            onChange={(e) => setPrecoCombustivelAreacreStr(e.target.value)}
-            required
-          />
+          <div>
+            <Input
+              label={`Preço ${proprietariaNomeAtual} cobra (R$/L)`}
+              id="saidaPrecoAreacre"
+              type="number"
+              step="any"
+              min="0"
+              {...register('precoCombustivelAreacre', { valueAsNumber: true })}
+              error={errors.precoCombustivelAreacre?.message}
+              required
+            />
+          </div>
         )}
 
-        {/* Preço combustível: cobrado da transportadora (default = preço médio) */}
+        {/* Preço combustível: cobrado da transportadora */}
         {tipoConsumidor === 'carreta_transportadora' && origem === 'tanque' && (
-          <Input
-            label={tanqueExterno ? "Preço cobrado da transportadora (R$/L)" : "Preço Combustível (R$/L)"}
-            id="saidaPrecoCombustivel"
-            type="number"
-            step="any"
-            min="0"
-            value={precoCombustivelStr}
-            onChange={(e) => setPrecoCombustivelStr(e.target.value)}
-            placeholder={precoMedioTanque > 0 ? precoMedioTanque.toFixed(4) : '0,0000'}
-            required
-          />
+          <div>
+            <Input
+              label={
+                tanqueExterno
+                  ? 'Preço cobrado da transportadora (R$/L)'
+                  : 'Preço Combustível (R$/L)'
+              }
+              id="saidaPrecoCombustivel"
+              type="number"
+              step="any"
+              min="0"
+              {...register('precoCombustivel', { valueAsNumber: true })}
+              placeholder={precoMedioTanque > 0 ? precoMedioTanque.toFixed(4) : '0,0000'}
+              error={errors.precoCombustivel?.message}
+              required
+            />
+          </div>
         )}
 
         {/* Taxa por litro: só carreta + origem=tanque */}
         {tipoConsumidor === 'carreta_transportadora' && origem === 'tanque' && (
-          <Input
-            label={tanqueExterno ? `Taxa ${proprietariaNomeAtual} (R$/L)` : "Taxa por Litro (R$/L)"}
-            id="saidaTaxa"
-            type="number"
-            step="any"
-            min="0"
-            value={taxaLitroStr}
-            onChange={(e) => setTaxaLitroStr(e.target.value)}
-            placeholder="0,0000"
-          />
+          <div>
+            <Input
+              label={
+                tanqueExterno
+                  ? `Taxa ${proprietariaNomeAtual} (R$/L)`
+                  : 'Taxa por Litro (R$/L)'
+              }
+              id="saidaTaxa"
+              type="number"
+              step="any"
+              min="0"
+              {...register('taxaLitro', { valueAsNumber: true })}
+              error={errors.taxaLitro?.message}
+              placeholder="0,0000"
+            />
+          </div>
         )}
 
         {/* Preview da soma cobrada */}
-        {tipoConsumidor === 'carreta_transportadora' && origem === 'tanque' && (precoCombustivelNum > 0 || taxaLitro > 0) && (
-          <p className="md:col-span-2 text-sm text-gray-600 dark:text-slate-400">
-            Preço unitário cobrado: <strong>{fmtBRL(precoUnitario, 4)}/L</strong>
-            {' '}({fmtBRL(precoCombustivelNum, 4)} combustível + {fmtBRL(taxaLitro, 4)} taxa)
-          </p>
-        )}
+        {tipoConsumidor === 'carreta_transportadora' &&
+          origem === 'tanque' &&
+          (precoCombustivel > 0 || taxaLitro > 0) && (
+            <p className="md:col-span-2 text-sm text-gray-600 dark:text-slate-400">
+              Preço unitário cobrado: <strong>{fmtBRL(precoUnitario, 4)}/L</strong>
+              {' '}({fmtBRL(precoCombustivel, 4)} combustível + {fmtBRL(taxaLitro, 4)} taxa)
+            </p>
+          )}
       </div>
 
       {/* Preview de cálculo — só renderiza quando tem dado */}
       {litros > 0 && precoUnitario > 0 ? (
         <div className="rounded-lg bg-gray-50 border border-gray-200 px-4 py-3">
-          <div className="text-xs text-gray-500 uppercase tracking-wide mb-1">
-            Cálculo
-          </div>
+          <div className="text-xs text-gray-500 uppercase tracking-wide mb-1">Cálculo</div>
           <div className="text-sm font-mono text-gray-800">
-            {litros.toLocaleString('pt-BR')} L &nbsp;×&nbsp;
-            R$ {precoUnitario.toFixed(4)} &nbsp;=&nbsp;
+            {litros.toLocaleString('pt-BR')} L &nbsp;×&nbsp; R$ {precoUnitario.toFixed(4)}{' '}
+            &nbsp;=&nbsp;{' '}
             <span className="font-bold text-emt-verde-escuro">{fmtBRL(valorTotal)}</span>
           </div>
           {origem === 'tanque' && precoMedioTanque > 0 && (
             <div className="text-xs text-gray-500 mt-1">
-              ({usaSnapshotSalvo ? 'preço salvo (snapshot)' : 'preço médio atual do tanque'}: R$ {precoMedioTanque.toFixed(4)}
+              ({usaSnapshotSalvo ? 'preço salvo (snapshot)' : 'preço médio atual do tanque'}: R${' '}
+              {precoMedioTanque.toFixed(4)}
               {taxaLitro > 0 && ` + taxa R$ ${taxaLitro.toFixed(4)}`})
-              {usaSnapshotSalvo && precoMedioTanqueCorrente > 0 && Math.abs(precoMedioTanqueCorrente - precoMedioTanque) > 0.01 && (
-                <span className="ml-2 text-gray-400">
-                  · preço atual: R$ {precoMedioTanqueCorrente.toFixed(4)}
-                </span>
-              )}
+              {usaSnapshotSalvo &&
+                precoMedioTanqueCorrente > 0 &&
+                Math.abs(precoMedioTanqueCorrente - precoMedioTanque) > 0.01 && (
+                  <span className="ml-2 text-gray-400">
+                    · preço atual: R$ {precoMedioTanqueCorrente.toFixed(4)}
+                  </span>
+                )}
             </div>
           )}
         </div>
@@ -970,11 +1173,12 @@ export default function SaidaCombustivelForm({
           </div>
           <div className="space-y-1">
             {previewImpacto.map((linha, i) => {
-              const corClass = linha.cor === 'verde'
-                ? 'text-green-700'
-                : linha.cor === 'vermelho'
-                ? 'text-red-700'
-                : 'text-gray-700';
+              const corClass =
+                linha.cor === 'verde'
+                  ? 'text-green-700'
+                  : linha.cor === 'vermelho'
+                    ? 'text-red-700'
+                    : 'text-gray-700';
               return (
                 <div key={i} className={`text-sm font-mono flex items-center gap-2 ${corClass}`}>
                   <span className="font-bold">{linha.sinal}</span>
@@ -995,8 +1199,7 @@ export default function SaidaCombustivelForm({
           id="saidaObs"
           className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emt-verde"
           rows={2}
-          value={observacoes}
-          onChange={(e) => setObservacoes(e.target.value)}
+          {...register('observacoes')}
           placeholder="Opcional"
         />
       </div>
@@ -1019,27 +1222,32 @@ export default function SaidaCombustivelForm({
       {/* Pago/PagoEm — só requisição */}
       {origem === 'requisicao' && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 rounded-lg bg-blue-50 border border-blue-200 px-4 py-3">
-          <label className="flex items-center gap-2 text-sm font-medium text-gray-700">
-            <input
-              type="checkbox"
-              className="w-4 h-4"
-              checked={pago}
-              onChange={(e) => setPago(e.target.checked)}
-            />
-            Pago
-          </label>
+          <Controller
+            name="pago"
+            control={control}
+            render={({ field }) => (
+              <label className="flex items-center gap-2 text-sm font-medium text-gray-700">
+                <input
+                  type="checkbox"
+                  className="w-4 h-4"
+                  checked={field.value}
+                  onChange={(e) => field.onChange(e.target.checked)}
+                />
+                Pago
+              </label>
+            )}
+          />
           <Input
             label="Pago em"
             id="saidaPagoEm"
             type="datetime-local"
-            value={pagoEm.length >= 16 ? pagoEm.slice(0, 16) : pagoEm}
-            onChange={(e) => setPagoEm(e.target.value ? `${e.target.value}:00` : '')}
+            {...register('pagoEm')}
             disabled={!pago}
           />
         </div>
       )}
 
-      {/* F5.B.2 — sanity warnings (não bloqueiam, só alertam) */}
+      {/* F5.B.2 — sanity warnings */}
       {sanityWarnings.length > 0 && (
         <div className="rounded-lg border border-[var(--color-warning)]/40 bg-[var(--color-warning-soft)] p-3 space-y-1">
           {sanityWarnings.map((w, i) => (
@@ -1054,15 +1262,13 @@ export default function SaidaCombustivelForm({
         </div>
       )}
 
-      {/* F5.B.1 — feedback do que falta preencher (substitui o silent disabled) */}
+      {/* F5.B.1 — feedback do que falta preencher */}
       {camposFaltantes.length > 0 && (
         <div className="rounded-lg border border-dashed border-[var(--color-border)] bg-[var(--color-surface-2)]/40 p-3">
           <p className="text-xs font-semibold uppercase tracking-wide text-[var(--color-fg-muted)] mb-1.5">
             Para salvar, preencha:
           </p>
-          <p className="text-sm text-[var(--color-fg)]">
-            {camposFaltantes.join(' · ')}
-          </p>
+          <p className="text-sm text-[var(--color-fg)]">{camposFaltantes.join(' · ')}</p>
         </div>
       )}
 
@@ -1071,8 +1277,8 @@ export default function SaidaCombustivelForm({
         <Button variant="secondary" type="button" onClick={onCancel}>
           Cancelar
         </Button>
-        <Button type="submit" disabled={!isValid}>
-          {initial ? 'Salvar Alterações' : 'Registrar Saída'}
+        <Button type="submit" disabled={!isValid || submitting || !canAct}>
+          {submitting ? 'Salvando…' : initial ? 'Salvar Alterações' : 'Registrar Saída'}
         </Button>
       </div>
     </form>
