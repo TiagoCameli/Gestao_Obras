@@ -242,6 +242,11 @@ export function useMudarStatusOS() {
       // Invalida todas as queries de detalhe por numero (não temos o numero aqui)
       qc.invalidateQueries({ queryKey: ['ordem_servico_numero'] });
       qc.invalidateQueries({ queryKey: ['os_transicoes', variables.osId] });
+      // Frota/Manut audit #1: trigger no DB pode ter mudado equipamentos.status
+      qc.invalidateQueries({ queryKey: ['equipamentos'] });
+      qc.invalidateQueries({
+        predicate: (q) => q.queryKey[0] === 'historico_status_equipamento',
+      });
     },
   });
 }
@@ -258,6 +263,11 @@ export function useExcluirOS() {
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['ordens_servico'] });
+      // Frota/Manut audit #1: trigger no DB pode ter mudado equipamentos.status
+      qc.invalidateQueries({ queryKey: ['equipamentos'] });
+      qc.invalidateQueries({
+        predicate: (q) => q.queryKey[0] === 'historico_status_equipamento',
+      });
     },
   });
 }
