@@ -11,7 +11,7 @@ import { useObras } from '../../../hooks/useObras';
 import { useEtapas } from '../../../hooks/useEtapas';
 import { useDepositos, useAdicionarDeposito, useAtualizarDeposito, useExcluirDeposito } from '../../../hooks/useDepositos';
 // Hooks novos (Fase 3) — saídas via tabela unificada saidas_combustivel
-import { useSaidasCombustivel, useAdicionarSaidaCombustivel, useAtualizarSaidaCombustivel, useExcluirSaidaCombustivel } from '../../../hooks/useSaidasCombustivel';
+import { useSaidasCombustivel, useAdicionarSaidaCombustivel, useAtualizarSaidaCombustivel, useExcluirSaidaCombustivel, useRegistrarSaidaFIFO } from '../../../hooks/useSaidasCombustivel';
 import { useEntradasCombustivel, useAdicionarEntradaCombustivel, useAtualizarEntradaCombustivel, useExcluirEntradaCombustivel } from '../../../hooks/useEntradasCombustivel';
 import { useTransferenciasCombustivel, useAdicionarTransferenciaCombustivel, useExcluirTransferenciaCombustivel } from '../../../hooks/useTransferenciasCombustivel';
 import { useEquipamentos } from '../../../hooks/useEquipamentos';
@@ -187,6 +187,8 @@ function FrotaCombustivelContent() {
   const adicionarSaidaMut = useAdicionarSaidaCombustivel();
   const atualizarSaidaMut = useAtualizarSaidaCombustivel();
   const excluirSaidaMut = useExcluirSaidaCombustivel();
+  // FI.4 — Insert atômico via RPC (saida + saidas_lotes + sem_suprimento)
+  const registrarSaidaFIFOMut = useRegistrarSaidaFIFO();
 
   // Entrada mutations
   const adicionarEntradaMut = useAdicionarEntradaCombustivel();
@@ -413,18 +415,36 @@ function FrotaCombustivelContent() {
 
   // Saida handlers (modelo unificado SaidaCombustivel)
   const handleSubmitSaida = useCallback(
-    async (saida: SaidaCombustivel) => {
+    async (
+      saida: SaidaCombustivel,
+      fifoMeta?: {
+        lotes: { fonteTipo: 'entrada' | 'transferencia'; fonteId: string; litros: number; precoLote: number }[];
+        litrosSemSuprimento: number;
+      },
+    ) => {
       if (editandoSaida) {
         // F5.A.0: rastreia quem alterou. Atribuição retroativa em batch
         // (F2.B.2) também passa por aqui — todo UPDATE seta updated_by.
+        // FI.4 — Edit mode preserva snapshot (HF.11): não recalcula FIFO,
+        // não toca em saidas_lotes (RLS update admin-only).
         await atualizarSaidaMut.mutateAsync({ ...saida, updatedBy: usuario?.nome || null });
+      } else if (fifoMeta) {
+        // FI.4 — Insert atômico via RPC: grava saida + saidas_lotes +
+        // saidas_sem_suprimento em uma única transação.
+        await registrarSaidaFIFOMut.mutateAsync({
+          saida: { ...saida, createdBy: usuario?.nome || null },
+          lotes: fifoMeta.lotes,
+          litrosSemSuprimento: fifoMeta.litrosSemSuprimento,
+        });
       } else {
+        // Fallback: origem != tanque (dinheiro/requisição) não tem FIFO,
+        // usa insert legado.
         await adicionarSaidaMut.mutateAsync({ ...saida, createdBy: usuario?.nome || null });
       }
       setModalSaidaOpen(false);
       setEditandoSaida(null);
     },
-    [editandoSaida, atualizarSaidaMut, adicionarSaidaMut, usuario]
+    [editandoSaida, atualizarSaidaMut, adicionarSaidaMut, registrarSaidaFIFOMut, usuario]
   );
 
   const handleEditSaida = useCallback((s: SaidaCombustivel) => {

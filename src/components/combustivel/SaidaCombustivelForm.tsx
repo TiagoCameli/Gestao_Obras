@@ -44,7 +44,9 @@ import { useAdicionarInsumo } from '../../hooks/useInsumos';
 import { useMedicaoAtual } from '../../hooks/useMedicoesEquipamento';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTransferenciasCombustivel } from '../../hooks/useTransferenciasCombustivel';
+import { useSaidasCombustivel } from '../../hooks/useSaidasCombustivel';
 import { calcularPrecoMedioTanque } from '../../utils/precoMedioTanque';
+import { calcularPrecoFIFO } from '../../utils/fifoCombustivel';
 import { calcularEstoqueCombustivelNaData } from '../../hooks/useEstoque';
 import {
   saidaCombustivelSchema,
@@ -64,9 +66,25 @@ const TIPO_MEDICAO_UNIDADE: Record<TipoMedicao, string> = {
   km: 'km',
 };
 
+/**
+ * FI.4 — Metadata FIFO opcional. Quando origem='tanque' e for NOVA saída,
+ * o form passa esses lotes pro container chamar a RPC atômica
+ * `registrar_saida_combustivel_fifo`. Em edit mode ou origem != tanque,
+ * `fifoMeta` vem undefined e o container usa o insert/update legado.
+ */
+export interface SaidaSubmitFifoMeta {
+  lotes: {
+    fonteTipo: 'entrada' | 'transferencia';
+    fonteId: string;
+    litros: number;
+    precoLote: number;
+  }[];
+  litrosSemSuprimento: number;
+}
+
 interface Props {
   initial?: SaidaCombustivel | null;
-  onSubmit: (s: SaidaCombustivel) => Promise<void> | void;
+  onSubmit: (s: SaidaCombustivel, fifoMeta?: SaidaSubmitFifoMeta) => Promise<void> | void;
   onCancel: () => void;
 
   obras: Obra[];
@@ -180,6 +198,9 @@ export default function SaidaCombustivelForm({
   const [novoCombustivelNome, setNovoCombustivelNome] = useState('');
   const adicionarInsumoMut = useAdicionarInsumo();
   const { data: transferencias = [] } = useTransferenciasCombustivel();
+  // FI.4 — saídas existentes pro replay FIFO (consome lotes em ordem
+  // cronológica antes desta nova saída).
+  const { data: saidasExistentes = [] } = useSaidasCombustivel();
 
   // Medição (gerida por watch no RHF — campo medicaoLeitura)
   const medicaoStr = watch('medicaoLeitura');
@@ -254,11 +275,46 @@ export default function SaidaCombustivelForm({
 
   // ── Cálculos ──
 
-  // Preço médio CORRENTE do tanque (inclui transferências recebidas — HF.6).
-  const precoMedioTanqueCorrente = useMemo(() => {
-    if (origem !== 'tanque' || !tanqueId) return 0;
-    return calcularPrecoMedioTanque(tanqueId, entradasCombustivel, transferencias);
-  }, [origem, tanqueId, entradasCombustivel, transferencias]);
+  // FI.4 — Preço CORRENTE via FIFO real (custeio por lote).
+  // Substitui calcularPrecoMedioTanque (média vitalícia ponderada de todas
+  // as entradas) por consumo lote-a-lote em ordem cronológica.
+  //
+  // O resultado traz {precoMedio, detalhamento[], litrosSemSuprimento}:
+  //   - precoMedio: média ponderada DAS porções consumidas (não vitalícia)
+  //   - detalhamento: quebra por lote, pra grava em saidas_lotes
+  //   - litrosSemSuprimento: > 0 quando saída excede o suprimento → grava
+  //     em saidas_sem_suprimento pra revisão.
+  const fifoResult = useMemo(() => {
+    if (origem !== 'tanque' || !tanqueId) {
+      return { precoMedio: 0, detalhamento: [] as ReturnType<typeof calcularPrecoFIFO>['detalhamento'], litrosSemSuprimento: 0 };
+    }
+    const dataValue = data
+      ? data.length === 16
+        ? `${data}:00`
+        : data
+      : new Date().toISOString().slice(0, 19);
+    if (!litros || litros <= 0) {
+      return { precoMedio: 0, detalhamento: [], litrosSemSuprimento: 0 };
+    }
+    return calcularPrecoFIFO({
+      tanqueId,
+      dataHora: dataValue,
+      litros,
+      entradas: entradasCombustivel,
+      transferencias,
+      // Em edit mode exclui ESTA saída do replay (senão consumiria 2x).
+      saidasAnteriores: saidasExistentes.filter(
+        (s) => s.tanqueId === tanqueId && s.id !== initial?.id,
+      ),
+    });
+  }, [origem, tanqueId, data, litros, entradasCombustivel, transferencias, saidasExistentes, initial?.id]);
+
+  // Preço médio CORRENTE do tanque (FIFO). Usado no preview da UI.
+  const precoMedioTanqueCorrente = fifoResult.precoMedio;
+  // Compatibilidade: mantém o helper antigo importado pra fallback de
+  // diagnóstico se algum reviewer quiser comparar valores (mas não é mais
+  // usado no fluxo principal).
+  void calcularPrecoMedioTanque;
 
   // Em edit mode com tanque/origem NÃO modificados, respeita o snapshot
   // salvo (HF.11 — snapshot imutável). Caso contrário usa preço corrente.
@@ -571,7 +627,24 @@ export default function SaidaCombustivelForm({
         updatedBy: initial?.updatedBy ?? null,
       };
 
-      await onSubmit(payload);
+      // FI.4 — passa FIFO meta pro container quando NEW + origem=tanque.
+      // Container usa pra chamar a RPC `registrar_saida_combustivel_fifo`
+      // (insert atômico: saida + saidas_lotes + saidas_sem_suprimento).
+      // Em edit mode preserva snapshot imutável (HF.11), não recalcula.
+      const fifoMeta: SaidaSubmitFifoMeta | undefined =
+        !isEditingExistente && formData.origem === 'tanque'
+          ? {
+              lotes: fifoResult.detalhamento.map((p) => ({
+                fonteTipo: p.fonteTipo,
+                fonteId: p.fonteId,
+                litros: p.litros,
+                precoLote: p.preco,
+              })),
+              litrosSemSuprimento: fifoResult.litrosSemSuprimento,
+            }
+          : undefined;
+
+      await onSubmit(payload, fifoMeta);
     } catch (err) {
       setErro(err instanceof Error ? err.message : 'Erro ao salvar saída');
     } finally {
@@ -1157,16 +1230,41 @@ export default function SaidaCombustivelForm({
           </div>
           {origem === 'tanque' && precoMedioTanque > 0 && (
             <div className="text-xs text-gray-500 mt-1">
-              ({usaSnapshotSalvo ? 'preço salvo (snapshot)' : 'preço médio atual do tanque'}: R${' '}
+              ({usaSnapshotSalvo ? 'preço salvo (snapshot)' : 'preço FIFO atual do tanque'}: R${' '}
               {precoMedioTanque.toFixed(4)}
               {taxaLitro > 0 && ` + taxa R$ ${taxaLitro.toFixed(4)}`})
               {usaSnapshotSalvo &&
                 precoMedioTanqueCorrente > 0 &&
                 Math.abs(precoMedioTanqueCorrente - precoMedioTanque) > 0.01 && (
                   <span className="ml-2 text-gray-400">
-                    · preço atual: R$ {precoMedioTanqueCorrente.toFixed(4)}
+                    · preço FIFO atual: R$ {precoMedioTanqueCorrente.toFixed(4)}
                   </span>
                 )}
+            </div>
+          )}
+
+          {/* FI.4 — Detalhamento dos lotes FIFO (só em NEW, >1 lote). */}
+          {!usaSnapshotSalvo && origem === 'tanque' && fifoResult.detalhamento.length > 1 && (
+            <details className="text-xs text-gray-600 mt-2">
+              <summary className="cursor-pointer hover:text-gray-800">
+                Detalhamento FIFO ({fifoResult.detalhamento.length} lotes)
+              </summary>
+              <ul className="ml-4 mt-1 space-y-0.5 font-mono">
+                {fifoResult.detalhamento.map((p, i) => (
+                  <li key={i}>
+                    {p.litros.toFixed(2)} L × R$ {p.preco.toFixed(4)}/L = R${' '}
+                    {(p.litros * p.preco).toFixed(2)}
+                  </li>
+                ))}
+              </ul>
+            </details>
+          )}
+
+          {/* FI.4 — Warning: litros sem suprimento na linha do tempo. */}
+          {!usaSnapshotSalvo && origem === 'tanque' && fifoResult.litrosSemSuprimento > 0 && (
+            <div className="text-xs text-amber-700 mt-2 p-2 rounded bg-amber-50 border border-amber-200">
+              ⚠ {fifoResult.litrosSemSuprimento.toFixed(2)} L sem suprimento na linha do tempo.
+              Vai ser registrado em <code>saidas_sem_suprimento</code> pra revisão.
             </div>
           )}
         </div>

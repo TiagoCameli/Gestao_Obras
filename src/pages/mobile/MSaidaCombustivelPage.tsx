@@ -28,10 +28,10 @@ import { useInsumos } from '../../hooks/useInsumos';
 import { useAuth } from '../../contexts/AuthContext';
 import { useToast } from '../../components/ui/Toast';
 import AnexosUploader from '../../components/combustivel/AnexosUploader';
-import { useAdicionarSaidaCombustivel } from '../../hooks/useSaidasCombustivel';
+import { useRegistrarSaidaFIFO, useSaidasCombustivel } from '../../hooks/useSaidasCombustivel';
 import { useEntradasCombustivel } from '../../hooks/useEntradasCombustivel';
 import { useTransferenciasCombustivel } from '../../hooks/useTransferenciasCombustivel';
-import { calcularPrecoMedioTanque } from '../../utils/precoMedioTanque';
+import { calcularPrecoFIFO } from '../../utils/fifoCombustivel';
 import { calcularEstoqueCombustivelNaData } from '../../hooks/useEstoque';
 import { nowAsLocalInput, inputLocalToWallClock, fmtBRL } from '../../components/combustivel/v2/shared/formatters';
 
@@ -59,7 +59,9 @@ export default function MSaidaCombustivelPage() {
   const { data: entradasCombustivel = [] } = useEntradasCombustivel();
   const { data: transferencias = [] } = useTransferenciasCombustivel();
   const { data: insumos = [] } = useInsumos();
-  const adicionarSaidaMutation = useAdicionarSaidaCombustivel();
+  // FI.5 — saídas existentes pro replay FIFO + mutation atômica via RPC.
+  const { data: saidasExistentes = [] } = useSaidasCombustivel();
+  const registrarSaidaFIFOMut = useRegistrarSaidaFIFO();
 
   const tanquesAtivos = useMemo(
     () => depositos.filter((d) => d.ativo).sort((a, b) => a.nome.localeCompare(b.nome)),
@@ -92,10 +94,27 @@ export default function MSaidaCombustivelPage() {
     [tanquesAtivos, tanqueId],
   );
 
-  const precoMedioTanque = useMemo(() => {
-    if (!tanqueId) return 0;
-    return calcularPrecoMedioTanque(tanqueId, entradasCombustivel, transferencias);
-  }, [tanqueId, entradasCombustivel, transferencias]);
+  // FI.5 — Preço FIFO real (custeio por lote). Substitui média vitalícia.
+  // Preview reativo: usa litros digitados + "agora" como data. No submit
+  // a gente recalcula pra garantir consistência com o timestamp final.
+  const fifoPreview = useMemo(() => {
+    if (!tanqueId) {
+      return { precoMedio: 0, detalhamento: [] as ReturnType<typeof calcularPrecoFIFO>['detalhamento'], litrosSemSuprimento: 0 };
+    }
+    const litrosNum = Number(litros.replace(',', '.'));
+    if (!Number.isFinite(litrosNum) || litrosNum <= 0) {
+      return { precoMedio: 0, detalhamento: [], litrosSemSuprimento: 0 };
+    }
+    return calcularPrecoFIFO({
+      tanqueId,
+      dataHora: new Date().toISOString().slice(0, 19),
+      litros: litrosNum,
+      entradas: entradasCombustivel,
+      transferencias,
+      saidasAnteriores: saidasExistentes.filter((s) => s.tanqueId === tanqueId),
+    });
+  }, [tanqueId, litros, entradasCombustivel, transferencias, saidasExistentes]);
+  const precoMedioTanque = fifoPreview.precoMedio;
 
   const combustivelDoTanque = tanqueSelecionado?.combustivelAtualId ?? '';
 
@@ -166,41 +185,61 @@ export default function MSaidaCombustivelPage() {
       // Mobile não tem campo editável de data — usa "agora" do device como wall-clock.
       const agoraWallClock = inputLocalToWallClock(nowAsLocalInput());
       const agoraSistema = new Date().toISOString(); // pra createdAt/updatedAt (metadata)
-      const valorTotal = litrosNum * precoMedioTanque;
 
-      await adicionarSaidaMutation.mutateAsync({
-        id: saidaId,
-        data: agoraWallClock,
-        origem: 'tanque',
-        tipoConsumidor: 'equipamento_proprio',   // S1: fix enum
+      // FI.5 — Recalcula FIFO com timestamp final (consistência).
+      const fifo = calcularPrecoFIFO({
         tanqueId,
-        equipamentoId,
-        transportadoraId: null,
-        placa: null,
-        obraId,
-        etapaId,
-        alocacoes: etapaId ? [{ etapaId, percentual: 100 }] : null,  // S6: fix alocacoes
-        tipoCombustivel: combustivelDoTanque,    // S3: UUID do insumo do tanque
+        dataHora: agoraWallClock,
         litros: litrosNum,
-        precoMedioTanqueSnapshot: precoMedioTanque,  // S4: snapshot persistido
-        taxaLitro: 0,
-        precoUnitario: precoMedioTanque,         // S2: preco calculado
-        precoCombustivel: null,
-        precoCombustivelAreacre: null,
-        valorTotal,                              // S2: valor calculado
-        observacoes: observacoes.trim() || `Saída via mobile · ${usuario?.nome ?? ''}`,
-        pago: false,
-        pagoEm: null,
-        movimentoId: null,
-        fotoUrls: fotoUrls,
-        arquivoUrls: [],
-        motorista: usuario?.nome ?? '',
-        medicaoNoAbastecimento: medicaoNum,
-        tipoMedicaoSnapshot: equipamento.tipoMedicao ?? null,
-        createdAt: agoraSistema,
-        updatedAt: agoraSistema,
-        createdBy: usuario?.nome ?? null,
-        updatedBy: null,
+        entradas: entradasCombustivel,
+        transferencias,
+        saidasAnteriores: saidasExistentes.filter((s) => s.tanqueId === tanqueId),
+      });
+      const precoFIFO = fifo.precoMedio;
+      const valorTotal = litrosNum * precoFIFO;
+
+      await registrarSaidaFIFOMut.mutateAsync({
+        saida: {
+          id: saidaId,
+          data: agoraWallClock,
+          origem: 'tanque',
+          tipoConsumidor: 'equipamento_proprio',   // S1: fix enum
+          tanqueId,
+          equipamentoId,
+          transportadoraId: null,
+          placa: null,
+          obraId,
+          etapaId,
+          alocacoes: etapaId ? [{ etapaId, percentual: 100 }] : null,  // S6: fix alocacoes
+          tipoCombustivel: combustivelDoTanque,    // S3: UUID do insumo do tanque
+          litros: litrosNum,
+          precoMedioTanqueSnapshot: precoFIFO,     // S4: snapshot FIFO persistido
+          taxaLitro: 0,
+          precoUnitario: precoFIFO,                // S2: preco calculado (FIFO)
+          precoCombustivel: null,
+          precoCombustivelAreacre: null,
+          valorTotal,                              // S2: valor calculado
+          observacoes: observacoes.trim() || `Saída via mobile · ${usuario?.nome ?? ''}`,
+          pago: false,
+          pagoEm: null,
+          movimentoId: null,
+          fotoUrls: fotoUrls,
+          arquivoUrls: [],
+          motorista: usuario?.nome ?? '',
+          medicaoNoAbastecimento: medicaoNum,
+          tipoMedicaoSnapshot: equipamento.tipoMedicao ?? null,
+          createdAt: agoraSistema,
+          updatedAt: agoraSistema,
+          createdBy: usuario?.nome ?? null,
+          updatedBy: null,
+        },
+        lotes: fifo.detalhamento.map((p) => ({
+          fonteTipo: p.fonteTipo,
+          fonteId: p.fonteId,
+          litros: p.litros,
+          precoLote: p.preco,
+        })),
+        litrosSemSuprimento: fifo.litrosSemSuprimento,
       });
 
       showToast({
@@ -350,6 +389,12 @@ export default function MSaidaCombustivelPage() {
           {saldoInsuficiente && (
             <div className="mt-1.5 rounded-lg border border-[var(--color-danger)]/40 bg-[var(--color-danger-soft)] px-3 py-2 text-xs text-[var(--color-danger-fg)]">
               Saldo insuficiente: {saldoTanque.toLocaleString('pt-BR', { maximumFractionDigits: 0 })}L disponíveis no tanque.
+            </div>
+          )}
+          {/* FI.5 — Warning: litros sem suprimento na linha do tempo. */}
+          {fifoPreview.litrosSemSuprimento > 0 && (
+            <div className="mt-1.5 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+              ⚠ {fifoPreview.litrosSemSuprimento.toFixed(2)} L sem suprimento registrado neste tanque.
             </div>
           )}
         </div>
