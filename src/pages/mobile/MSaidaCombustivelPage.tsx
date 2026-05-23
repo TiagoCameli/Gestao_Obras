@@ -16,7 +16,7 @@
 
 import { useState, useMemo, useEffect, type FormEvent } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { ArrowLeft, Droplet, CheckCircle2, AlertTriangle, Gauge } from 'lucide-react';
+import { ArrowLeft, Droplet, CheckCircle2, AlertTriangle, Gauge, Fuel } from 'lucide-react';
 import Button from '../../components/ui/Button';
 import SmartSelect from '../../components/ui/SmartSelect';
 import { useEquipamentos } from '../../hooks/useEquipamentos';
@@ -24,6 +24,7 @@ import { useMedicaoAtual } from '../../hooks/useMedicoesEquipamento';
 import { useDepositos } from '../../hooks/useDepositos';
 import { useObras } from '../../hooks/useObras';
 import { useEtapas } from '../../hooks/useEtapas';
+import { useInsumos } from '../../hooks/useInsumos';
 import { useAuth } from '../../contexts/AuthContext';
 import { useToast } from '../../components/ui/Toast';
 import AnexosUploader from '../../components/combustivel/AnexosUploader';
@@ -32,7 +33,7 @@ import { useEntradasCombustivel } from '../../hooks/useEntradasCombustivel';
 import { useTransferenciasCombustivel } from '../../hooks/useTransferenciasCombustivel';
 import { calcularPrecoMedioTanque } from '../../utils/precoMedioTanque';
 import { calcularEstoqueCombustivelNaData } from '../../hooks/useEstoque';
-import { nowAsLocalInput, inputLocalToWallClock } from '../../components/combustivel/v2/shared/formatters';
+import { nowAsLocalInput, inputLocalToWallClock, fmtBRL } from '../../components/combustivel/v2/shared/formatters';
 
 function gerarId(prefix: string) {
   return prefix + '-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
@@ -57,6 +58,7 @@ export default function MSaidaCombustivelPage() {
   const { data: etapas = [] } = useEtapas();
   const { data: entradasCombustivel = [] } = useEntradasCombustivel();
   const { data: transferencias = [] } = useTransferenciasCombustivel();
+  const { data: insumos = [] } = useInsumos();
   const adicionarSaidaMutation = useAdicionarSaidaCombustivel();
 
   const tanquesAtivos = useMemo(
@@ -96,6 +98,12 @@ export default function MSaidaCombustivelPage() {
   }, [tanqueId, entradasCombustivel, transferencias]);
 
   const combustivelDoTanque = tanqueSelecionado?.combustivelAtualId ?? '';
+
+  // Nome amigável do combustível pra exibir no card de resumo.
+  const combustivelNome = useMemo(() => {
+    if (!combustivelDoTanque) return null;
+    return insumos.find((i) => i.id === combustivelDoTanque)?.nome ?? null;
+  }, [combustivelDoTanque, insumos]);
 
   // HF.5 — Saldo atual do tanque (mobile usa "agora" como data da saída,
   // então o cálculo point-in-time é equivalente ao nível atual; mantemos
@@ -140,6 +148,7 @@ export default function MSaidaCombustivelPage() {
   }
 
   const litrosNum = numOrZero(litros);
+  const valorTotalAtual = litrosNum * precoMedioTanque;
   const saldoInsuficiente = !!tanqueSelecionado
     && !tanqueSelecionado.ehExterno
     && litrosNum > saldoTanque;
@@ -249,6 +258,35 @@ export default function MSaidaCombustivelPage() {
             ))}
           </SmartSelect>
         </div>
+
+        {tanqueId && (
+          <div className="rounded-xl border border-[var(--color-accent)]/30 bg-[var(--color-accent)]/5 p-3 space-y-2">
+            <div className="flex items-center gap-2 text-xs font-medium text-[var(--color-fg-muted)]">
+              <Fuel className="w-4 h-4" />
+              Resumo da saída
+            </div>
+            <div className="grid grid-cols-3 gap-2 text-center">
+              <div>
+                <div className="text-[10px] uppercase tracking-wide text-[var(--color-fg-subtle)]">Combustível</div>
+                <div className="text-sm font-semibold text-[var(--color-fg)] mt-0.5 truncate">
+                  {combustivelNome ?? '—'}
+                </div>
+              </div>
+              <div>
+                <div className="text-[10px] uppercase tracking-wide text-[var(--color-fg-subtle)]">R$ / litro</div>
+                <div className="text-sm font-semibold text-[var(--color-fg)] mt-0.5 font-mono">
+                  {precoMedioTanque > 0 ? fmtBRL(precoMedioTanque) : '—'}
+                </div>
+              </div>
+              <div>
+                <div className="text-[10px] uppercase tracking-wide text-[var(--color-fg-subtle)]">Total</div>
+                <div className="text-sm font-semibold text-[var(--color-accent)] mt-0.5 font-mono">
+                  {valorTotalAtual > 0 ? fmtBRL(valorTotalAtual) : '—'}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
 
         <div>
           <label htmlFor="obraSel" className="block text-xs font-medium text-[var(--color-fg-muted)] mb-1">
