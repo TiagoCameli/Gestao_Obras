@@ -19,12 +19,11 @@ type ScanStatus = 'idle' | 'starting' | 'ready' | 'denied' | 'error'
 export default function MScanPage() {
   const navigate = useNavigate()
   const { showToast } = useToast()
-  // Propaga a página de origem (passada pelo MobileScanShortcut) pra /m.
+  // Botão Voltar volta direto pra origem (passada pelo MobileScanShortcut via ?from=),
+  // pulando a intermediária /m. Se não houver origem (acesso direto a /m/scan), cai em /m.
   const [searchParams] = useSearchParams()
   const fromParam = searchParams.get('from')
-  const voltarTo = fromParam
-    ? `/m?from=${encodeURIComponent(fromParam)}`
-    : '/m'
+  const voltarTo = fromParam ?? '/m'
   const scannerRef = useRef<Html5Qrcode | null>(null)
   const [status, setStatus] = useState<ScanStatus>('idle')
   const [errorMsg, setErrorMsg] = useState<string>('')
