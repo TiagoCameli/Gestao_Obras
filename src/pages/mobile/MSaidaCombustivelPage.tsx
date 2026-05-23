@@ -32,6 +32,7 @@ import { useEntradasCombustivel } from '../../hooks/useEntradasCombustivel';
 import { useTransferenciasCombustivel } from '../../hooks/useTransferenciasCombustivel';
 import { calcularPrecoMedioTanque } from '../../utils/precoMedioTanque';
 import { calcularEstoqueCombustivelNaData } from '../../hooks/useEstoque';
+import { nowAsLocalInput, inputLocalToWallClock } from '../../components/combustivel/v2/shared/formatters';
 
 function gerarId(prefix: string) {
   return prefix + '-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
@@ -152,12 +153,15 @@ export default function MSaidaCombustivelPage() {
     try {
       const saidaId = gerarId('saida');
       const medicaoNum = medicaoLeitura.trim() ? numOrZero(medicaoLeitura) : null;
-      const agora = new Date().toISOString();
+      // Wall-clock: timestamp digitado/registrado pelo operador é o que vai pro DB.
+      // Mobile não tem campo editável de data — usa "agora" do device como wall-clock.
+      const agoraWallClock = inputLocalToWallClock(nowAsLocalInput());
+      const agoraSistema = new Date().toISOString(); // pra createdAt/updatedAt (metadata)
       const valorTotal = litrosNum * precoMedioTanque;
 
       await adicionarSaidaMutation.mutateAsync({
         id: saidaId,
-        data: agora,
+        data: agoraWallClock,
         origem: 'tanque',
         tipoConsumidor: 'equipamento_proprio',   // S1: fix enum
         tanqueId,
@@ -184,8 +188,8 @@ export default function MSaidaCombustivelPage() {
         motorista: usuario?.nome ?? '',
         medicaoNoAbastecimento: medicaoNum,
         tipoMedicaoSnapshot: equipamento.tipoMedicao ?? null,
-        createdAt: agora,
-        updatedAt: agora,
+        createdAt: agoraSistema,
+        updatedAt: agoraSistema,
         createdBy: usuario?.nome ?? null,
         updatedBy: null,
       });

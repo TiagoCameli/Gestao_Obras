@@ -50,6 +50,7 @@ import {
   saidaCombustivelSchema,
   type SaidaCombustivelFormValues,
 } from '../../schemas/combustivel/saidaCombustivel.schema';
+import { nowAsLocalInput } from './v2/shared/formatters';
 
 const TIPO_MEDICAO_LABEL: Record<TipoMedicao, string> = {
   horimetro: 'Horímetro',
@@ -124,7 +125,7 @@ export default function SaidaCombustivelForm({
     resolver: zodResolver(saidaCombustivelSchema),
     mode: 'onChange',
     defaultValues: {
-      data: (initial?.data ?? new Date().toISOString()).slice(0, 16),
+      data: initial?.data ? initial.data.slice(0, 16) : nowAsLocalInput(),
       origem: initial?.origem ?? 'tanque',
       tipoConsumidor: initial?.tipoConsumidor ?? 'equipamento_proprio',
       tanqueId: initial?.tanqueId ?? '',

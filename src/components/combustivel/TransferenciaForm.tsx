@@ -16,6 +16,7 @@ import {
   transferenciaCombustivelSchema,
   type TransferenciaCombustivelFormValues,
 } from '../../schemas/combustivel/transferenciaCombustivel.schema';
+import { nowAsLocalInput } from './v2/shared/formatters';
 
 interface TransferenciaFormProps {
   initial?: TransferenciaCombustivel | null;
@@ -75,7 +76,7 @@ export default function TransferenciaForm({
     resolver: zodResolver(transferenciaCombustivelSchema),
     mode: 'onChange',
     defaultValues: {
-      dataHora: initial?.dataHora ?? new Date().toISOString().slice(0, 16),
+      dataHora: initial?.dataHora ? initial.dataHora.slice(0, 16) : nowAsLocalInput(),
       depositoOrigemId: initial?.depositoOrigemId ?? '',
       depositoDestinoId: initial?.depositoDestinoId ?? '',
       quantidadeLitros: initial?.quantidadeLitros ?? 0,
