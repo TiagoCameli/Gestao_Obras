@@ -26,6 +26,7 @@ import AnexosBadge from './AnexosBadge';
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
 } from '../shadcn/dropdown-menu';
+import { fmtDataHora as fmtData } from './v2/shared/formatters';
 
 interface Props {
   saidas: SaidaCombustivel[];
@@ -49,14 +50,6 @@ const ORIGEM_LABEL: Record<OrigemCombustivel, string> = {
 
 function fmtBRL(n: number): string {
   return n.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-}
-
-function fmtData(iso: string): string {
-  if (!iso) return '—';
-  const d = new Date(iso);
-  if (isNaN(d.getTime())) return iso.slice(0, 10);
-  const pad = (n: number) => String(n).padStart(2, '0');
-  return `${pad(d.getDate())}/${pad(d.getMonth() + 1)}/${String(d.getFullYear()).slice(2)} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
 const PAGE_SIZE_KEY = 'saida-combustivel-list-page-size-v2';

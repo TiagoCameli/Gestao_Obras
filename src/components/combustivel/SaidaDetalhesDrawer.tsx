@@ -26,6 +26,7 @@ import {
 } from '../shadcn/sheet';
 import Button from '../ui/Button';
 import HistoricoTimeline from './HistoricoTimeline';
+import { fmtDataHora } from './v2/shared/formatters';
 
 interface Props {
   saida: SaidaCombustivel | null;
@@ -57,14 +58,6 @@ function fmtBRL(n: number): string {
 function fmtBRLDec4(n: number): string {
   return `R$ ${n.toLocaleString('pt-BR', { minimumFractionDigits: 4, maximumFractionDigits: 4 })}`;
 }
-function fmtDataHora(iso: string): string {
-  if (!iso) return '—';
-  const d = new Date(iso);
-  if (isNaN(d.getTime())) return iso;
-  const pad = (n: number) => String(n).padStart(2, '0');
-  return `${pad(d.getDate())}/${pad(d.getMonth() + 1)}/${d.getFullYear()} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
-}
-
 /** F9 — Extrai nome do arquivo a partir da signed URL do Supabase Storage.
  *  Path inclui timestamp prefix "1234567890-" que removemos pra display. */
 function fileNameFromUrl(url: string): string {
