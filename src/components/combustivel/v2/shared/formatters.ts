@@ -34,61 +34,79 @@ export function fmtPct(n: number, dec = 1): string {
   return `${sign}${n.toLocaleString('pt-BR', { minimumFractionDigits: dec, maximumFractionDigits: dec })}%`;
 }
 
-const FMT_DATA = new Intl.DateTimeFormat('pt-BR', {
-  day: '2-digit',
-  month: '2-digit',
-  year: '2-digit',
-  timeZone: 'America/Sao_Paulo',
-});
+// =============================================================================
+// Wall-clock semantics (user-entered timestamps).
+// NÃO converte timezone. O horário digitado pelo operador é o horário
+// armazenado e exibido para todos os viewers, independente da TZ do device.
+// Vale para qualquer coluna user-entered (data, data_hora, etc).
+// =============================================================================
 
-const FMT_DATA_HORA = new Intl.DateTimeFormat('pt-BR', {
-  day: '2-digit',
-  month: '2-digit',
-  year: '2-digit',
-  hour: '2-digit',
-  minute: '2-digit',
-  hour12: false,
-  timeZone: 'America/Sao_Paulo',
-});
+const WALL_CLOCK_RE = /^(\d{4})-(\d{2})-(\d{2})(?:[T ](\d{2}):(\d{2}))?/
 
+/**
+ * Formata como DD/MM/YY. Não aplica timezone — extrai a data wall-clock da string.
+ * Aceita "YYYY-MM-DD", "YYYY-MM-DDTHH:MM[:SS][offset]", "YYYY-MM-DD HH:MM:SS[offset]".
+ */
 export function fmtData(iso: string | null | undefined): string {
-  if (!iso) return '—';
-  const d = new Date(iso);
-  if (isNaN(d.getTime())) return iso.slice(0, 10);
-  return FMT_DATA.format(d);
+  if (!iso) return '—'
+  const m = iso.match(WALL_CLOCK_RE)
+  if (!m) return iso
+  return `${m[3]}/${m[2]}/${m[1]!.slice(2)}`
 }
 
+/**
+ * Formata como DD/MM/YY HH:MM. Não aplica timezone — extrai wall-clock direto.
+ */
 export function fmtDataHora(iso: string | null | undefined): string {
-  if (!iso) return '—';
-  const d = new Date(iso);
-  if (isNaN(d.getTime())) return iso.slice(0, 16);
-  // pt-BR formato "21/05/26, 11:43" — remover a vírgula
-  return FMT_DATA_HORA.format(d).replace(', ', ' ');
+  if (!iso) return '—'
+  const m = iso.match(WALL_CLOCK_RE)
+  if (!m) return iso
+  if (!m[4]) return `${m[3]}/${m[2]}/${m[1]!.slice(2)}` // só data
+  return `${m[3]}/${m[2]}/${m[1]!.slice(2)} ${m[4]}:${m[5]}`
 }
 
-export function nowAsLocalInputBRT(): string {
-  const now = new Date();
-  const parts = new Intl.DateTimeFormat('pt-BR', {
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-    hour12: false,
-    timeZone: 'America/Sao_Paulo',
-  }).formatToParts(now);
-  const year = parts.find((p) => p.type === 'year')?.value;
-  const month = parts.find((p) => p.type === 'month')?.value;
-  const day = parts.find((p) => p.type === 'day')?.value;
-  const hour = parts.find((p) => p.type === 'hour')?.value;
-  const minute = parts.find((p) => p.type === 'minute')?.value;
-  return `${year}-${month}-${day}T${hour}:${minute}`;
+/**
+ * Default pra <input type="datetime-local">: clock do device do operador.
+ * Retorna "YYYY-MM-DDTHH:MM".
+ */
+export function nowAsLocalInput(): string {
+  const now = new Date()
+  const pad = (n: number) => String(n).padStart(2, '0')
+  return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}T${pad(now.getHours())}:${pad(now.getMinutes())}`
 }
 
-export function inputLocalBRTtoISOUTC(brtIso: string): string {
-  if (!brtIso) return '';
-  const completed = brtIso.length === 16 ? brtIso + ':00' : brtIso;
-  return new Date(completed + '-03:00').toISOString();
+/**
+ * Pass-through pra string vinda de <input type="datetime-local"> antes de mandar pro DB.
+ * Apenas garante seconds resolution (DB espera HH:MM:SS).
+ */
+export function inputLocalToWallClock(input: string): string {
+  if (!input) return ''
+  return input.length === 16 ? input + ':00' : input
+}
+
+// =============================================================================
+// Auto-set timestamptz (created_at/updated_at — metadata do sistema).
+// ÚNICO caso intencional de conversão de TZ: server timestamps precisam ser
+// exibidos numa TZ consistente (BR) já que servidor não sabe a TZ do operador.
+// Use APENAS para created_at/updated_at, NUNCA para campos user-entered.
+// =============================================================================
+
+const FMT_SISTEMA = new Intl.DateTimeFormat('pt-BR', {
+  day: '2-digit', month: '2-digit', year: '2-digit',
+  hour: '2-digit', minute: '2-digit', hour12: false,
+  timeZone: 'America/Sao_Paulo',
+});
+
+/**
+ * Formata timestamptz auto-set como DD/MM/YY HH:MM em horário de Brasília.
+ * Para created_at, updated_at, e outros campos gerados server-side.
+ * NÃO use para campos user-entered (use fmtDataHora).
+ */
+export function fmtDataHoraSistema(iso: string | null | undefined): string {
+  if (!iso) return '—'
+  const d = new Date(iso)
+  if (isNaN(d.getTime())) return iso.slice(0, 16)
+  return FMT_SISTEMA.format(d).replace(', ', ' ')
 }
 
 export function fmtMesAno(iso: string): string {

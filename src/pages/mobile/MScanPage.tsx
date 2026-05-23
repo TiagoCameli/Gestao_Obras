@@ -6,7 +6,7 @@
 // Spec: docs/superpowers/specs/2026-05-21-qr-scanner-mobile-design.md
 
 import { useEffect, useRef, useState, useCallback } from 'react'
-import { useNavigate, Link } from 'react-router-dom'
+import { useNavigate, Link, useSearchParams } from 'react-router-dom'
 import { Html5Qrcode, type CameraDevice } from 'html5-qrcode'
 import { ArrowLeft, Flashlight, FlashlightOff, RefreshCw, Camera } from 'lucide-react'
 import { extractEquipamentoId } from '../../utils/parseFreteQrUrl'
@@ -19,6 +19,12 @@ type ScanStatus = 'idle' | 'starting' | 'ready' | 'denied' | 'error'
 export default function MScanPage() {
   const navigate = useNavigate()
   const { showToast } = useToast()
+  // Propaga a página de origem (passada pelo MobileScanShortcut) pra /m.
+  const [searchParams] = useSearchParams()
+  const fromParam = searchParams.get('from')
+  const voltarTo = fromParam
+    ? `/m?from=${encodeURIComponent(fromParam)}`
+    : '/m'
   const scannerRef = useRef<Html5Qrcode | null>(null)
   const [status, setStatus] = useState<ScanStatus>('idle')
   const [errorMsg, setErrorMsg] = useState<string>('')
@@ -155,7 +161,7 @@ export default function MScanPage() {
     <div className="fixed inset-0 bg-black flex flex-col z-50">
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 bg-black/80 text-white">
-        <Link to="/m" className="inline-flex items-center gap-2 text-sm" aria-label="Voltar">
+        <Link to={voltarTo} className="inline-flex items-center gap-2 text-sm" aria-label="Voltar">
           <ArrowLeft className="w-5 h-5" />
           Voltar
         </Link>
