@@ -14,6 +14,7 @@ import {
   entradaCombustivelSchema,
   type EntradaCombustivelFormValues,
 } from '../../schemas/combustivel/entradaCombustivel.schema';
+import { nowAsLocalInput } from './v2/shared/formatters';
 
 interface EntradaFormProps {
   initial?: EntradaCombustivel | null;
@@ -97,7 +98,7 @@ export default function EntradaForm({
     resolver: zodResolver(entradaCombustivelSchema),
     mode: 'onChange',
     defaultValues: {
-      dataHora: initial?.dataHora ?? new Date().toISOString().slice(0, 16),
+      dataHora: initial?.dataHora ? initial.dataHora.slice(0, 16) : nowAsLocalInput(),
       depositoId: initial?.depositoId ?? '',
       tipoCombustivel: initial?.tipoCombustivel ?? '',
       quantidadeLitros: initial?.quantidadeLitros ?? 0,
