@@ -71,8 +71,9 @@ export default function MScanPage() {
       // Quando é o boot inicial (deviceId undefined): pede traseira via
       // facingMode (mais robusto que parsear label, que pode vir em pt-BR
       // — "Câmera traseira" — ou vazio antes da permissão em iOS Safari).
+      // html5-qrcode aceita apenas string simples ou { exact }, não { ideal }.
       const cameraSelector: string | MediaTrackConstraints = deviceId
-        ?? { facingMode: { ideal: 'environment' } }
+        ?? { facingMode: 'environment' }
 
       // Atualiza UI: tenta achar índice da traseira por label PT/EN; se
       // não acha, fica em 0 (não bloqueia, só pra exibição).
