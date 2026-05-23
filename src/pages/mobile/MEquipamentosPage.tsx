@@ -2,14 +2,25 @@
 // hub /m/eq/:id quando toca, em vez de expandir o card.
 
 import { useState, useMemo } from 'react';
-import { Link } from 'react-router-dom';
-import { Search, ClipboardCheck, ChevronRight, Wrench, QrCode } from 'lucide-react';
+import { Link, useSearchParams } from 'react-router-dom';
+import { Search, ClipboardCheck, ChevronRight, Wrench, QrCode, ArrowLeft } from 'lucide-react';
 import { useEquipamentos } from '../../hooks/useEquipamentos';
 import { getCategoriaFrota } from '../../lib/frotaConstants';
+
+// Mapeia path da origem (propagado por MobileScanShortcut/MScanPage via ?from=)
+// pra rótulo amigável do botão "Voltar".
+function rotuloOrigem(path: string): string {
+  if (path.startsWith('/manutencao')) return 'Manutenção';
+  if (path === '/combustivel') return 'Combustível';
+  if (path === '/frota') return 'Frota';
+  return 'Voltar';
+}
 
 export default function MEquipamentosPage() {
   const { data: equipamentos = [], isLoading } = useEquipamentos();
   const [busca, setBusca] = useState('');
+  const [searchParams] = useSearchParams();
+  const from = searchParams.get('from');
 
   const ativos = useMemo(() => {
     return equipamentos
@@ -29,6 +40,15 @@ export default function MEquipamentosPage() {
 
   return (
     <div className="space-y-3">
+      {from && (
+        <Link
+          to={from}
+          className="inline-flex items-center gap-1.5 text-sm font-medium text-[var(--color-fg-muted)] hover:text-[var(--color-fg)] -ml-1 px-1 py-1"
+        >
+          <ArrowLeft className="w-4 h-4" />
+          {rotuloOrigem(from)}
+        </Link>
+      )}
       <div>
         <h1 className="text-xl font-semibold text-[var(--color-fg)]">Pré-uso</h1>
         <p className="text-xs text-[var(--color-fg-muted)] mt-0.5">

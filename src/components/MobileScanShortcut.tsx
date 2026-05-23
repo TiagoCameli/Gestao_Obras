@@ -3,13 +3,17 @@
 // Inserido no topo das páginas administrativas dos módulos de Frota,
 // Manutenção e Combustível para operadores que abrem o app no celular.
 
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { QrCode } from 'lucide-react';
 
 export default function MobileScanShortcut() {
+  // Propaga a página de origem via query param. O scanner repassa
+  // pra /m, que mostra um botão "Voltar para <origem>".
+  const { pathname } = useLocation();
+  const to = `/m/scan?from=${encodeURIComponent(pathname)}`;
   return (
     <Link
-      to="/m/scan"
+      to={to}
       className="md:hidden flex items-center justify-center gap-2 w-full h-12 rounded-xl bg-[var(--color-accent)] text-[var(--color-fg-on-accent)] font-semibold text-base shadow-sm hover:opacity-90 active:scale-[0.98] transition-all"
     >
       <QrCode className="w-5 h-5" />
