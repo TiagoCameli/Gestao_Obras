@@ -58,6 +58,56 @@ export function useAdicionarSaidaCombustivel() {
   });
 }
 
+/**
+ * FI.4 — Insert atômico via RPC `registrar_saida_combustivel_fifo`.
+ *
+ * Substitui `useAdicionarSaidaCombustivel` em fluxos novos (desktop +
+ * mobile) que usam custeio FIFO real (helper `calcularPrecoFIFO`).
+ *
+ * A RPC grava 3 linhas numa transação:
+ *  - `saidas_combustivel` (a saída em si)
+ *  - `saidas_lotes` (N porções consumidas — uma por lote)
+ *  - `saidas_sem_suprimento` (se houve litros sem lote disponível)
+ *
+ * Edit mode continua usando `useAtualizarSaidaCombustivel` (preserva
+ * snapshot imutável, HF.11 — não recalcula FIFO em edit).
+ */
+export function useRegistrarSaidaFIFO() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (params: {
+      saida: SaidaCombustivel;
+      lotes: {
+        fonteTipo: 'entrada' | 'transferencia';
+        fonteId: string;
+        litros: number;
+        precoLote: number;
+      }[];
+      litrosSemSuprimento: number;
+    }) => {
+      const { data, error } = await supabase.rpc('registrar_saida_combustivel_fifo', {
+        p_saida: saidaCombustivelToDb(params.saida),
+        p_lotes: params.lotes.map((l) => ({
+          fonte_tipo: l.fonteTipo,
+          fonte_id: l.fonteId,
+          litros: l.litros,
+          preco_lote: l.precoLote,
+        })),
+        p_litros_sem_suprimento: params.litrosSemSuprimento,
+      });
+      if (error) throw error;
+      return data as string;
+    },
+    onSuccess: () => {
+      invalidateAll(qc);
+      qc.invalidateQueries({ queryKey: ['entradas_combustivel'] });
+      qc.invalidateQueries({ queryKey: ['transferencias_combustivel'] });
+      qc.invalidateQueries({ queryKey: ['saidas_lotes'] });
+      qc.invalidateQueries({ queryKey: ['saidas_sem_suprimento'] });
+    },
+  });
+}
+
 export function useAtualizarSaidaCombustivel() {
   const qc = useQueryClient();
   return useMutation({

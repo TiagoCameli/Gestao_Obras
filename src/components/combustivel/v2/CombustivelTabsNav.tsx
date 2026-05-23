@@ -21,6 +21,7 @@ export type CombustivelTabId =
   | 'obras'
   | 'fornecedores'
   | 'anomalias'
+  | 'sem_suprimento'
   | 'relatorios'
   | 'lixeira';
 
@@ -48,6 +49,7 @@ const PERM_BY_TAB: Record<CombustivelTabId, string> = {
   obras: 'aba_combustivel_obras',
   fornecedores: 'aba_combustivel_fornecedores',
   anomalias: 'aba_combustivel_anomalias',
+  sem_suprimento: 'aba_combustivel_sem_suprimento',
   relatorios: 'aba_combustivel_relatorios',
   lixeira: 'aba_combustivel_lixeira',
 };
@@ -75,6 +77,7 @@ function buildGroups(
         { key: 'obras', label: 'Obras' },
         { key: 'fornecedores', label: 'Fornecedores' },
         { key: 'anomalias', label: 'Anomalias' },
+        { key: 'sem_suprimento', label: 'Sem Suprimento' },
       ]),
     },
     { label: '', tabs: filterTabs([{ key: 'relatorios', label: 'Relatórios' }]) },
