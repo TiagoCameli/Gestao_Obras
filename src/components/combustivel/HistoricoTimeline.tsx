@@ -9,6 +9,7 @@
 import { useMemo } from 'react';
 import { Plus, Pencil, Trash2, Undo2, AlertOctagon, Clock } from 'lucide-react';
 import { useAuditLogPorAlvo, type AuditAction, type AuditEntry } from '../../hooks/useAuditLog';
+import { fmtDataHora as fmtDataHoraBR } from './v2/shared/formatters';
 
 interface Props {
   alvoId: string | null;
@@ -69,14 +70,6 @@ const DEFAULT_FIELD_LABELS: Record<string, string> = {
   nivel_atual_litros: 'Nível atual',
   ativo: 'Ativo',
 };
-
-function fmtDataHoraBR(iso: string): string {
-  if (!iso) return '—';
-  const d = new Date(iso);
-  if (isNaN(d.getTime())) return iso;
-  const pad = (n: number) => String(n).padStart(2, '0');
-  return `${pad(d.getDate())}/${pad(d.getMonth() + 1)}/${d.getFullYear()} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
-}
 
 function fmtValor(
   field: string,

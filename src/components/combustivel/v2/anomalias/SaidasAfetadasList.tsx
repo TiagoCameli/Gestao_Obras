@@ -4,6 +4,7 @@
 
 import { Pencil, Trash2 } from 'lucide-react';
 import type { Equipamento, Fornecedor, Insumo, Obra, SaidaCombustivel } from '../../../../types';
+import { fmtDataHora } from '../shared/formatters';
 
 interface Props {
   saidas: SaidaCombustivel[];
@@ -18,14 +19,6 @@ interface Props {
   onDelete?: (id: string) => void;
   /** Bloqueia ações enquanto uma mutation está rodando. */
   busy?: boolean;
-}
-
-function fmtDataHora(iso: string): string {
-  if (!iso) return '—';
-  const d = new Date(iso);
-  if (isNaN(d.getTime())) return iso.slice(0, 10);
-  const pad = (n: number) => String(n).padStart(2, '0');
-  return `${pad(d.getDate())}/${pad(d.getMonth() + 1)}/${String(d.getFullYear()).slice(2)} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
 function fmtBRL(n: number): string {

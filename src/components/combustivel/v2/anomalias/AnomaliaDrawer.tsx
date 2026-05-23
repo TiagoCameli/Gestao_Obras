@@ -35,6 +35,7 @@ import {
 import SaidasAfetadasList from './SaidasAfetadasList';
 import type { AnomaliaCheck } from '../../../../hooks/useAnomaliasChecks';
 import { useAuth } from '../../../../contexts/AuthContext';
+import { fmtDataHora as fmtDataHoraBR } from '../shared/formatters';
 
 interface Props {
   anomalia: Anomalia | null;
@@ -85,18 +86,6 @@ const SEVERITY_STYLES: Record<Severidade, {
     iconColor: 'text-[var(--color-info)]',
   },
 };
-
-function fmtDataHoraBR(iso: string): string {
-  if (!iso) return '—';
-  const d = new Date(iso);
-  if (isNaN(d.getTime())) return iso;
-  const dd = String(d.getDate()).padStart(2, '0');
-  const mm = String(d.getMonth() + 1).padStart(2, '0');
-  const yy = String(d.getFullYear()).slice(2);
-  const hh = String(d.getHours()).padStart(2, '0');
-  const mi = String(d.getMinutes()).padStart(2, '0');
-  return `${dd}/${mm}/${yy} ${hh}:${mi}`;
-}
 
 export default function AnomaliaDrawer({
   anomalia,

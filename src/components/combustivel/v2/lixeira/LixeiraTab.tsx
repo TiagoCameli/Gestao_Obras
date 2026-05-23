@@ -31,20 +31,13 @@ import type { Equipamento, Obra, Deposito } from '../../../../types';
 import Button from '../../../ui/Button';
 import EmptyState from '../shared/EmptyState';
 import { useAuth } from '../../../../contexts/AuthContext';
+import { fmtDataHora as fmtDataHoraBR } from '../shared/formatters';
 
 interface Props {
   equipamentos: Equipamento[];
   obras: Obra[];
   /** Tanques ativos pra resolver nomes em saídas/entradas/transferências deletadas. */
   depositos: Deposito[];
-}
-
-function fmtDataHoraBR(iso: string | null): string {
-  if (!iso) return '—';
-  const d = new Date(iso);
-  if (isNaN(d.getTime())) return iso;
-  const pad = (n: number) => String(n).padStart(2, '0');
-  return `${pad(d.getDate())}/${pad(d.getMonth() + 1)}/${d.getFullYear()} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
 function fmtBRL(n: number): string {

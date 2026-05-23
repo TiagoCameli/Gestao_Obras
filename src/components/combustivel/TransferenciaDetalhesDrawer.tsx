@@ -8,6 +8,7 @@ import {
 } from '../shadcn/sheet';
 import Button from '../ui/Button';
 import HistoricoTimeline from './HistoricoTimeline';
+import { fmtDataHora } from './v2/shared/formatters';
 
 interface Props {
   transferencia: TransferenciaCombustivel | null;
@@ -22,13 +23,6 @@ interface Props {
 
 function fmtBRL(n: number): string {
   return n.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-}
-function fmtDataHora(iso: string): string {
-  if (!iso) return '—';
-  const d = new Date(iso);
-  if (isNaN(d.getTime())) return iso;
-  const pad = (n: number) => String(n).padStart(2, '0');
-  return `${pad(d.getDate())}/${pad(d.getMonth() + 1)}/${d.getFullYear()} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 function fileNameFromUrl(url: string): string {
   const m = url.match(/\/object\/sign\/[^/]+\/([^?]+)/);
