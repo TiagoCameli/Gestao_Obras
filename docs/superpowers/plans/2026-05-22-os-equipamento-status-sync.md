@@ -438,7 +438,7 @@ Expected: 3 DELETEs com sucesso. Equipamento permanece em `status='ativa'` (não
 **Files:**
 - (apenas executa queries via MCP)
 
-> **Objetivo:** validar todos os 15 cenários do spec contra o ambiente. Cada step é auto-contido — cria dados, exerce o trigger, verifica, limpa. Usa `os_id` no formato `test-os-syncN` para facilitar limpeza.
+> **Objetivo:** validar os 19 cenários (15 originais + T16-T19 para fluxo via `aguardando_aprovacao` e invariante de `ativo`) contra o ambiente. Cada step é auto-contido — cria dados, exerce o trigger, verifica, limpa. Usa `os_id` no formato `test-os-syncN` para facilitar limpeza.
 
 > **Pré-requisito:** ter `<EQUIP_ID>` de um equipamento `ativa` (mesmo equipamento usado no Task 5 está OK).
 
@@ -978,11 +978,11 @@ Caso o audit ainda esteja untracked, simplesmente não atualizar agora. Quando o
 ✅ **Spec coverage:**
 - Seção 3 Arquitetura → Task 1 (migration) + Task 3+4 (hooks).
 - Seção 4 SQL → Task 1.
-- Seção 5 Matriz de comportamento → Task 5 (smoke) + Task 6 (T1–T15).
-- Seção 6 Edge-cases E1–E8 → coberto por T1–T15.
+- Seção 5 Matriz de comportamento → Task 5 (smoke) + Task 6 (T1–T19).
+- Seção 6 Edge-cases E1–E10 → coberto por T1–T19 (E9 aguardando_aprovacao em T16-T18; E10 invariante de `ativo` em T1).
 - Seção 7 Mudanças no client → Task 3 + Task 4.
 - Seção 8 Error handling → cobrição via T5/T6/T7/T8 (cancelar sem iniciar, race covers, soft-delete).
-- Seção 9 Plano de testes T1–T15 → Task 6 inteira.
+- Seção 9 Plano de testes T1–T19 → Task 6 inteira.
 - Seção 10 Out-of-scope → não há tasks (correto).
 - Seção 11 Arquivos → Task 1 e Tasks 3+4.
 - Seção 12 Dependências com #3/#4/#5 → mencionado nos comments SQL e no audit.

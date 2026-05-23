@@ -1,10 +1,12 @@
 -- Frota/Manut audit #1 — Sincroniza equipamentos.status com OS.status
 -- Quando OS entra em em_execucao pela 1a vez: equipamento -> manutencao_*.
--- Quando OS conclui/cancela/e soft-deletada vindo de em_execucao: volta para ativa.
+-- Quando OS sai de em_execucao OU aguardando_aprovacao para concluida/cancelada
+-- (ou e soft-deletada): equipamento volta para ativa.
 -- Mapeamento OS.tipo -> equipamentos.status:
 --   preventiva, preditiva -> manutencao_preventiva
 --   corretiva, melhoria, garantia, recall -> manutencao_corretiva
--- Audit em historico_status_equipamento com os_id preenchido.
+-- NAO toca em equipamentos.ativo (invariante existente: ativo = status != 'fora_funcionamento').
+-- Audit em historico_status_equipamento com os_id preenchido (so quando ha mudanca efetiva).
 -- Idempotente. Trata OSs paralelas. Tratamento de fora_funcionamento: sobrescreve.
 
 begin;
@@ -20,23 +22,27 @@ declare
   v_novo_status_equip  text;
   v_motivo             text;
   v_hist_id            text;
-  v_outras_em_exec     integer;
-  v_acao               text;   -- 'IDA' | 'VOLTA'
+  v_outras_ativas      integer;
+  v_acao               text;   -- 'IDA' ou 'VOLTA'
 begin
   -- Decide ramo a executar
+  -- IDA: OS entra em em_execucao pela 1a vez (sem ja estar soft-deletada)
   if old.status is distinct from 'em_execucao'
      and new.status = 'em_execucao'
      and new.deleted_at is null then
     v_acao := 'IDA';
 
-  elsif old.status = 'em_execucao'
+  -- VOLTA: OS sai de em_execucao OU aguardando_aprovacao para concluida/cancelada
+  -- (fluxo padrao: em_execucao -> aguardando_aprovacao -> concluida)
+  elsif old.status in ('em_execucao', 'aguardando_aprovacao')
         and new.status in ('concluida', 'cancelada')
         and new.deleted_at is null then
     v_acao := 'VOLTA';
 
+  -- VOLTA por soft-delete: OS estava em em_execucao ou aguardando_aprovacao
   elsif old.deleted_at is null
         and new.deleted_at is not null
-        and old.status = 'em_execucao' then
+        and old.status in ('em_execucao', 'aguardando_aprovacao') then
     v_acao := 'VOLTA';
 
   else
@@ -63,9 +69,10 @@ begin
       return new;  -- ja esta no destino, no-op
     end if;
 
+    -- IMPORTANTE: NAO tocar em equipamentos.ativo. Invariante do projeto
+    -- (migration 20260503210000): ativo = (status != 'fora_funcionamento').
     update public.equipamentos
        set status     = v_novo_status_equip,
-           ativo      = false,
            updated_at = now()
      where id = new.equipamento_id;
 
@@ -73,15 +80,16 @@ begin
 
   -- VOLTA (concluida, cancelada, soft-delete)
   else
-    select count(*) into v_outras_em_exec
+    -- Outra OS ativa (em_execucao ou aguardando_aprovacao) mantem em manutencao
+    select count(*) into v_outras_ativas
       from public.ordens_servico
      where equipamento_id = new.equipamento_id
        and id <> new.id
-       and status = 'em_execucao'
+       and status in ('em_execucao', 'aguardando_aprovacao')
        and deleted_at is null;
 
-    if v_outras_em_exec > 0 then
-      return new;  -- outra OS mantem em manutencao
+    if v_outras_ativas > 0 then
+      return new;
     end if;
 
     if v_equip_status_atual = 'ativa' then
@@ -90,7 +98,6 @@ begin
 
     update public.equipamentos
        set status     = 'ativa',
-           ativo      = true,
            updated_at = now()
      where id = new.equipamento_id;
 
@@ -101,7 +108,7 @@ begin
     end;
   end if;
 
-  -- Audit em historico_status_equipamento
+  -- Audit em historico_status_equipamento (so quando ha mudanca efetiva)
   v_hist_id := 'hist-os-' || new.id || '-' ||
                replace(extract(epoch from clock_timestamp())::numeric(20,6)::text, '.', '');
 
@@ -121,14 +128,17 @@ drop trigger if exists trg_os_sync_equipamento_status_upd on public.ordens_servi
 create trigger trg_os_sync_equipamento_status_upd
   after update of status, deleted_at on public.ordens_servico
   for each row
+  when (old.status is distinct from new.status
+        or old.deleted_at is distinct from new.deleted_at)
   execute function public.tg_os_sync_equipamento_status();
 
 comment on function public.tg_os_sync_equipamento_status() is
   'Frota/Manut audit #1: sincroniza equipamentos.status com OS.status. '
-  'IDA quando OS entra em em_execucao pela 1a vez; VOLTA quando conclui/cancela/e '
-  'soft-deletada vindo de em_execucao. Mapeamento preventiva/preditiva -> '
-  'manutencao_preventiva; resto -> manutencao_corretiva. Idempotente, trata OSs '
-  'paralelas. SECURITY DEFINER + search_path setado para sobreviver a tighten de '
-  'RLS (Frota/Manut audit #3).';
+  'IDA quando OS entra em em_execucao pela 1a vez; VOLTA quando sai de '
+  'em_execucao/aguardando_aprovacao para concluida/cancelada (ou soft-delete). '
+  'Mapeamento preventiva/preditiva -> manutencao_preventiva; resto -> '
+  'manutencao_corretiva. NAO toca em equipamentos.ativo (invariante do projeto). '
+  'Idempotente, trata OSs paralelas. SECURITY DEFINER + search_path setado para '
+  'sobreviver a tighten de RLS (Frota/Manut audit #3).';
 
 commit;
