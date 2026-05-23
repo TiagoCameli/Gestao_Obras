@@ -9,7 +9,7 @@ import { QrCode } from 'lucide-react';
 export default function MobileScanShortcut() {
   return (
     <Link
-      to="/m"
+      to="/m/scan"
       className="md:hidden flex items-center justify-center gap-2 w-full h-12 rounded-xl bg-[var(--color-accent)] text-[var(--color-fg-on-accent)] font-semibold text-base shadow-sm hover:opacity-90 active:scale-[0.98] transition-all"
     >
       <QrCode className="w-5 h-5" />

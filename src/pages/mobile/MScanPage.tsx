@@ -67,18 +67,30 @@ export default function MScanPage() {
       }
       setCameras(devices)
 
-      // Default: traseira (procura por label contendo "back" ou "rear"; fallback pra primeira)
-      const targetId =
-        deviceId ??
-        (devices.find((d) => /back|rear|environment/i.test(d.label))?.id || devices[0].id)
-      const targetIdx = devices.findIndex((d) => d.id === targetId)
-      if (targetIdx >= 0) setCameraIdx(targetIdx)
+      // Quando deviceId é passado (botão "Trocar câmera"): usa esse id.
+      // Quando é o boot inicial (deviceId undefined): pede traseira via
+      // facingMode (mais robusto que parsear label, que pode vir em pt-BR
+      // — "Câmera traseira" — ou vazio antes da permissão em iOS Safari).
+      const cameraSelector: string | MediaTrackConstraints = deviceId
+        ?? { facingMode: { ideal: 'environment' } }
+
+      // Atualiza UI: tenta achar índice da traseira por label PT/EN; se
+      // não acha, fica em 0 (não bloqueia, só pra exibição).
+      if (deviceId) {
+        const idx = devices.findIndex((d) => d.id === deviceId)
+        if (idx >= 0) setCameraIdx(idx)
+      } else {
+        const backIdx = devices.findIndex((d) =>
+          /back|rear|environment|traseira|trás/i.test(d.label),
+        )
+        setCameraIdx(backIdx >= 0 ? backIdx : 0)
+      }
 
       // Inicia decoder
       const scanner = new Html5Qrcode(READER_ELEMENT_ID, { verbose: false })
       scannerRef.current = scanner
       await scanner.start(
-        targetId,
+        cameraSelector,
         { fps: 10, qrbox: { width: 250, height: 250 } },
         (decodedText) => handleDecoded(decodedText),
         () => {
