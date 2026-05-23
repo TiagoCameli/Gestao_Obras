@@ -28,7 +28,6 @@ import NotFound from './pages/NotFound';
 import RodoTrackerPage from './modules/rodotracker/RodoTrackerPage';
 import ApontamentoPage from './modules/apontamento/ApontamentoPage';
 import MobileLayout from './layouts/MobileLayout';
-import MEquipamentosPage from './pages/mobile/MEquipamentosPage';
 import MChecklistPage from './pages/mobile/MChecklistPage';
 import MMedicaoPage from './pages/mobile/MMedicaoPage';
 import MAbrirOSPage from './pages/mobile/MAbrirOSPage';
@@ -150,7 +149,9 @@ export default function App() {
                 </ProtectedRoute>
               }
             >
-              <Route path="/m" element={<MEquipamentosPage />} />
+              {/* /m foi descontinuada: hub do equipamento só acessível via scan QR
+                  a partir de /frota, /manutencao ou /combustivel. Redirect silencioso. */}
+              <Route path="/m" element={<Navigate to="/frota" replace />} />
               <Route
                 path="/m/scan"
                 element={
