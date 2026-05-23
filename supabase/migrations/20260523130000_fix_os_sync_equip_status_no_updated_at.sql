@@ -1,13 +1,12 @@
--- Frota/Manut audit #1 — Sincroniza equipamentos.status com OS.status
--- Quando OS entra em em_execucao pela 1a vez: equipamento -> manutencao_*.
--- Quando OS sai de em_execucao OU aguardando_aprovacao para concluida/cancelada
--- (ou e soft-deletada): equipamento volta para ativa.
--- Mapeamento OS.tipo -> equipamentos.status:
---   preventiva, preditiva -> manutencao_preventiva
---   corretiva, melhoria, garantia, recall -> manutencao_corretiva
--- NAO toca em equipamentos.ativo (invariante existente: ativo = status != 'fora_funcionamento').
--- Audit em historico_status_equipamento com os_id preenchido (so quando ha mudanca efetiva).
--- Idempotente. Trata OSs paralelas. Tratamento de fora_funcionamento: sobrescreve.
+-- Fix do bug em 20260522130000_os_sync_equipamento_status.sql
+-- A funcao original fazia "update equipamentos set status=..., updated_at = now()"
+-- mas a tabela equipamentos NAO possui coluna updated_at (so created_at tambem
+-- nao existe). Isso fazia o trigger trg_os_sync_equipamento_status_upd falhar
+-- com erro 42703 em TODO UPDATE de OS que disparasse IDA ou VOLTA,
+-- quebrando operacionalmente qualquer transicao de status.
+--
+-- Este fix re-cria a funcao SEM as duas referencias a updated_at = now().
+-- Trigger nao precisa ser recriado (a definicao continua valida).
 
 begin;
 
@@ -71,6 +70,7 @@ begin
 
     -- IMPORTANTE: NAO tocar em equipamentos.ativo. Invariante do projeto
     -- (migration 20260503210000): ativo = (status != 'fora_funcionamento').
+    -- equipamentos nao possui coluna updated_at/created_at neste schema.
     update public.equipamentos
        set status = v_novo_status_equip
      where id = new.equipamento_id;
@@ -122,21 +122,14 @@ begin
 end;
 $$;
 
-drop trigger if exists trg_os_sync_equipamento_status_upd on public.ordens_servico;
-create trigger trg_os_sync_equipamento_status_upd
-  after update of status, deleted_at on public.ordens_servico
-  for each row
-  when (old.status is distinct from new.status
-        or old.deleted_at is distinct from new.deleted_at)
-  execute function public.tg_os_sync_equipamento_status();
-
 comment on function public.tg_os_sync_equipamento_status() is
   'Frota/Manut audit #1: sincroniza equipamentos.status com OS.status. '
   'IDA quando OS entra em em_execucao pela 1a vez; VOLTA quando sai de '
   'em_execucao/aguardando_aprovacao para concluida/cancelada (ou soft-delete). '
   'Mapeamento preventiva/preditiva -> manutencao_preventiva; resto -> '
   'manutencao_corretiva. NAO toca em equipamentos.ativo (invariante do projeto). '
-  'Idempotente, trata OSs paralelas. SECURITY DEFINER + search_path setado para '
-  'sobreviver a tighten de RLS (Frota/Manut audit #3).';
+  'NAO usa updated_at (coluna nao existe em equipamentos). Idempotente, '
+  'trata OSs paralelas. SECURITY DEFINER + search_path setado para sobreviver '
+  'a tighten de RLS (Frota/Manut audit #3).';
 
 commit;
