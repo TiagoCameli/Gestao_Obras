@@ -874,7 +874,7 @@ Limites/MIME já corrigidos no Bloco 1.5 — exceto `financeiro-anexos` que é o
 
 | # | Módulo | Prioridade | Problema | Esforço |
 |---|---|---|---|---|
-| 1 | Integração | 🔴 **ALTA** | **OS ↔ Status do equipamento sem automação.** Abrir OS não muda status para `manutencao_corretiva`; concluir não volta para `ativa`. Equipamento permanece "operando" no sistema durante manutenção → recebe abastecimento, frete, apontamento. (M5) | 6-8h (trigger BEFORE UPDATE em `ordens_servico` que atualiza `equipamentos.status` + insere em `historico_status_equipamento`; testes) |
+| 1 | Integração | ✅ **RESOLVIDO** | ~~**OS ↔ Status do equipamento sem automação.** Abrir OS não muda status para `manutencao_corretiva`; concluir não volta para `ativa`. Equipamento permanece "operando" no sistema durante manutenção → recebe abastecimento, frete, apontamento. (M5)~~ Resolvido pela migration `20260522130000_os_sync_equipamento_status.sql` (+ fix `20260523130000_fix_os_sync_equip_status_no_updated_at.sql`) e hooks `useMudarStatusOS`/`useExcluirOS`. Trigger `trg_os_sync_equipamento_status_upd` cobre IDA (entrada em em_execucao), VOLTA (saída de em_execucao/aguardando_aprovacao para concluida/cancelada/soft-delete), 19 testes T1-T19 validados. Spec: `docs/superpowers/specs/2026-05-22-os-equipamento-status-sync-design.md`. | — |
 | 2 | Integração | 🔴 **ALTA** | **OS concluída não gera lançamento financeiro automaticamente.** Custo de oficina externa e peças de fornecedor ficam só na manutenção; financeiro precisa replicar manualmente. Divergência permanente. (Fase 4.5) | 12-16h (trigger AFTER UPDATE em `ordens_servico` quando `status='concluida' AND custo_total > 0` cria `lancamento_financeiro` por categoria; decidir regra de fornecedor/centro custo) |
 | 3 | Frota+Manut. | 🔴 **ALTA** | **Policies blanket em 19 tabelas (Finding S1).** Operador pode DELETE direto, UPDATE custos, apagar audit log de OS/equipamento. **Mesmo F6 do baseline, ainda não corrigido aqui.** | 6-8h (migration aplicando policies granulares via `private.current_has_action()` em todas as 19 tabelas; testes de não-regressão) |
 | 4 | Manutenção | 🔴 **ALTA** | **`registra_execucao_atividade_em_conclusao` cria duplicata em reabertura** (Finding S7). Bug do ID aleatório + ON CONFLICT DO NOTHING. Próxima preventiva calculada erradamente. | 1-2h (migration: refazer função com ID determinístico `'exec-' \|\| NEW.id` + ON CONFLICT (id) DO NOTHING) |
@@ -914,7 +914,7 @@ Limites/MIME já corrigidos no Bloco 1.5 — exceto `financeiro-anexos` que é o
 | M2 | `AgendaPreventivasPage.tsx` | MED | Carrega toda a frota sem filtro server-side |
 | M3 | `NovaOSModal.tsx` | MED | Sintomas array livre sem dicionário |
 | M4 | `ordens_servico` | MED | Sem CHECK exclusivo (2 OSs paralelas no mesmo equipamento) |
-| M5 | Integração OS↔Frota | **ALTA** | Status do equipamento não muda automaticamente |
+| M5 | Integração OS↔Frota | ✅ **RESOLVIDO** | ~~Status do equipamento não muda automaticamente~~ — trigger `trg_os_sync_equipamento_status_upd` (migrations 20260522130000 + 20260523130000) cobre IDA/VOLTA com 19 testes validados |
 | M6 | `tg_os_pecas_valida_saldo` (skip cancelada) | MED | Cancelar OS não libera reservas |
 | M7 | `v_saldo_estoque` | MED | **A verificar**: filtra `deleted_at IS NULL` em entradas/saidas/transferencias? |
 | M8 | OS conclui | MED | Status `reservada → consumida` é manual; `saida_material_id` pode ficar NULL |
@@ -932,6 +932,11 @@ Limites/MIME já corrigidos no Bloco 1.5 — exceto `financeiro-anexos` que é o
 | S8 | OS pecas/MO/transicoes, hist_status | MED | Hard-delete em audit log |
 
 ---
+
+## Apêndice — Follow-ups identificados durante execução do item #1
+
+- **Invariante `ativo = (status != 'fora_funcionamento')` desincronizada em edge-cases.** Cenários T12/T13 do plano do item #1: se equipamento começa com `ativo=false` (ex: fora_funcionamento, ou estado manual incorreto) e o trigger sincroniza `status`, ele NÃO restaura `ativo`. Solução proposta: criar `tg_equipamentos_sync_ativo` (BEFORE UPDATE em `equipamentos`) que automaticamente mantém `ativo = (NEW.status != 'fora_funcionamento')`. Tratamento sistemático, ortogonal ao item #1.
+- **`tg_os_sync_equipamento_status` exposta via PostgREST RPC** (advisors `anon_security_definer_function_executable` + `authenticated_security_definer_function_executable`). Função é trigger-only (depende de OLD/NEW); chamada via RPC dá erro mas é boa prática REVOKE EXECUTE. Tratamento sistemático: REVOKE em todas as 14+ funções SECURITY DEFINER trigger-only existentes (não só na nossa). Pode virar item dedicado no audit.
 
 ## Apêndice — Estratégias fora do escopo de 18 itens
 
