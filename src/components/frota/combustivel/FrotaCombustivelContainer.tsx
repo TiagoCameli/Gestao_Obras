@@ -41,6 +41,7 @@ import FilterChips from '../../combustivel/v2/filters/FilterChips';
 import CombustivelTabsNav, { type CombustivelTabId } from '../../combustivel/v2/CombustivelTabsNav';
 import VisaoGeralTab from '../../combustivel/v2/visao-geral/VisaoGeralTab';
 import LixeiraTab from '../../combustivel/v2/lixeira/LixeiraTab';
+import SemSuprimentoTab from '../../combustivel/v2/sem-suprimento/SemSuprimentoTab';
 import ErrorState from '../../combustivel/v2/shared/ErrorState';
 import SkeletonBlock from '../../combustivel/v2/shared/SkeletonBlock';
 import CombustivelErrorBoundary from '../../combustivel/v2/shared/CombustivelErrorBoundary';
@@ -734,6 +735,12 @@ function FrotaCombustivelContent() {
           onDesfazerVerificacao={handleDesfazerVerificacao}
         />
       )}
+
+      {/* FI.7 — Aba "Sem Suprimento": relatório de saídas órfãs FIFO
+          (sem entrada/transferência anterior pra suprir). Auditoria
+          read-only — usuário pode revisar caso a caso e criar entrada
+          retroativa se aplicável. */}
+      {!isLoadingCore && subTab === 'sem_suprimento' && <SemSuprimentoTab />}
 
       {!isLoadingCore && subTab === 'relatorios' && (
         <RelatoriosTab

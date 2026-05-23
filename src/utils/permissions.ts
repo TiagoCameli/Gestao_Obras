@@ -558,6 +558,7 @@ export const ACOES_PLATAFORMA: AcaoPlataforma[] = [
   { chave: 'aba_combustivel_obras', label: 'Aba: Obras (combustível)', grupo: 'Abas · Combustível' },
   { chave: 'aba_combustivel_fornecedores', label: 'Aba: Fornecedores (combustível)', grupo: 'Abas · Combustível' },
   { chave: 'aba_combustivel_anomalias', label: 'Aba: Anomalias', grupo: 'Abas · Combustível' },
+  { chave: 'aba_combustivel_sem_suprimento', label: 'Aba: Sem Suprimento (auditoria FIFO)', grupo: 'Abas · Combustível' },
   { chave: 'aba_combustivel_relatorios', label: 'Aba: Relatórios', grupo: 'Abas · Combustível' },
   { chave: 'aba_combustivel_lixeira', label: 'Aba: Lixeira (combustível)', grupo: 'Abas · Combustível' },
 
