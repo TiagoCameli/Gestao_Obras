@@ -12,6 +12,7 @@ import Button from '../components/ui/Button';
 import SmartSelect from '../components/ui/SmartSelect';
 import ConfirmDialog from '../components/ui/ConfirmDialog';
 import FrotaStats from '../components/frota/FrotaStats';
+import MobileScanShortcut from '../components/MobileScanShortcut';
 import FrotaGrid from '../components/frota/FrotaGrid';
 import FrotaList from '../components/frota/FrotaList';
 import FrotaDetalhe from '../components/frota/FrotaDetalhe';
@@ -191,6 +192,7 @@ export default function Frota() {
 
   return (
     <div className="space-y-6">
+      <MobileScanShortcut />
       {/* HERO HEADER */}
       <header className="rounded-2xl border border-[var(--color-border)] bg-gradient-to-br from-[var(--color-surface-1)] to-[var(--color-surface-2)] p-5 sm:p-6">
         <div className="flex items-start justify-between gap-4 flex-wrap">
