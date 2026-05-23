@@ -21,6 +21,7 @@
 import { useMemo, useState, useEffect } from 'react';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
+import { Link } from 'react-router-dom';
 import { Truck, Settings2, Camera, Gauge } from 'lucide-react';
 import type {
   SaidaCombustivel,
@@ -917,6 +918,15 @@ export default function SaidaCombustivelForm({
               placeholder="Selecione obra primeiro"
               className="w-full h-[38px] rounded-lg px-3 py-2 text-sm bg-gray-100 dark:bg-slate-700 border border-gray-300 dark:border-slate-600 text-gray-400 dark:text-slate-500"
             />
+          )}
+          {obraId && etapasDaObra.length === 0 && (
+            <div className="text-xs text-[var(--color-warning-fg)] mt-1">
+              Esta obra não tem etapas cadastradas. Cadastre em{' '}
+              <Link to="/cadastros/etapas" className="underline">
+                Cadastros › Etapas
+              </Link>{' '}
+              antes de prosseguir.
+            </div>
           )}
         </div>
 

@@ -23,6 +23,7 @@ import PlanoDetalhePage from '../components/manutencao/planos/PlanoDetalhePage';
 import AgendaPreventivasPage from '../components/manutencao/AgendaPreventivasPage';
 import AlmoxarifadoPage from '../components/manutencao/AlmoxarifadoPage';
 import ChecklistsPage from '../components/manutencao/ChecklistsPage';
+import MobileScanShortcut from '../components/MobileScanShortcut';
 
 const STATUS_OPTS: { value: StatusOS | 'todas' | 'abertas'; label: string }[] = [
   { value: 'abertas', label: 'Abertas' },
@@ -72,6 +73,7 @@ export default function ManutencaoPage() {
 
   return (
     <div className="space-y-4">
+      <MobileScanShortcut />
       <SubNav pathname={pathname} />
       {inner}
     </div>
