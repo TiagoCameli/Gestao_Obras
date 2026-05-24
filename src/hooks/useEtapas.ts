@@ -9,7 +9,15 @@ export function useEtapas() {
     queryFn: async () => {
       const { data, error } = await supabase.from('etapas_obra').select('*');
       if (error) throw error;
-      return (data ?? []).map(dbToEtapa);
+      // etapas_obra não tem coluna `ordem` nem timestamp — Postgres devolve
+      // em ordem indeterminada. Aqui aplica natural sort por nome (ex.:
+      // "Etapa 2" antes de "Etapa 10") como fonte única de verdade. Consumers
+      // que já fazem .sort(localeCompare) acabam mantendo a mesma ordem.
+      return (data ?? [])
+        .map(dbToEtapa)
+        .sort((a, b) =>
+          a.nome.localeCompare(b.nome, 'pt-BR', { numeric: true, sensitivity: 'base' }),
+        );
     },
   });
 }
