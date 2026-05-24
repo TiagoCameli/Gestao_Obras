@@ -147,9 +147,13 @@ export default function EntradaForm({
   // mostrar inline evita submit+erro feio. Bloqueia se tanque tem outro
   // combustível corrente. Tanque vazio (nivel <= 0) ou externo passa —
   // espelha a checagem do trigger fn_validate_entrada_combustivel.
+  // Edit mode: se o tipo não mudou em relação ao original da entrada, não
+  // bloqueia (estado atual do tanque pode incluir entradas posteriores de
+  // outro tipo, mas esse edit não introduz mistura).
   const conflitoCombustivel = (() => {
     if (!depositoSelecionado || !tipoCombustivel) return null;
     if (depositoSelecionado.ehExterno) return null;
+    if (initial && initial.tipoCombustivel === tipoCombustivel) return null;
     if (depositoSelecionado.nivelAtualLitros <= 0) return null;
     if (!depositoSelecionado.combustivelAtualId) return null;
     if (depositoSelecionado.combustivelAtualId === tipoCombustivel) return null;
