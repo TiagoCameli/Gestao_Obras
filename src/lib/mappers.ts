@@ -1721,7 +1721,7 @@ export function saidaCombustivelToDb(s: SaidaCombustivel) {
     preco_combustivel_areacre: s.precoCombustivelAreacre,
     preco_unitario: s.precoUnitario,
     valor_total: s.valorTotal,
-    foto_urls: s.fotoUrls,
+    foto_urls: s.fotoUrls ?? [],
     arquivo_urls: s.arquivoUrls ?? [],
     observacoes: s.observacoes,
     pago: s.pago,
