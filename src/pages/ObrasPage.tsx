@@ -57,7 +57,7 @@ function useAllContractItems() {
         .from('rodotracker_contract_items')
         .select('id, obra_id, code, name, unit, contracted_qty, unit_price, type');
       if (error) throw error;
-      return ((data ?? []) as ContractItemRow[]).map((r) => ({
+      const items = ((data ?? []) as ContractItemRow[]).map((r) => ({
         id: r.id,
         obraId: r.obra_id,
         code: r.code ?? '',
@@ -67,6 +67,17 @@ function useAllContractItems() {
         unitPrice: Number(r.unit_price) || 0,
         type: ((r.type ?? 'item') as ContractItemUI['type']),
       }));
+      // Natural sort por code dentro de cada obra (ex.: "1.2" antes de "1.10").
+      // Itens sem code caem pro fim, e desempate por name.
+      return items.sort((a, b) => {
+        if (a.obraId !== b.obraId) return a.obraId.localeCompare(b.obraId, 'pt-BR');
+        const aHasCode = !!a.code;
+        const bHasCode = !!b.code;
+        if (aHasCode !== bHasCode) return aHasCode ? -1 : 1;
+        const byCode = a.code.localeCompare(b.code, 'pt-BR', { numeric: true });
+        if (byCode !== 0) return byCode;
+        return a.name.localeCompare(b.name, 'pt-BR', { numeric: true });
+      });
     },
     staleTime: 30_000,
   });
