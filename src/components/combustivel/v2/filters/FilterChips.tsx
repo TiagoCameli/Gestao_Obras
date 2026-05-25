@@ -69,6 +69,14 @@ export default function FilterChips({ obrasMap, equipamentosMap, insumosMap, tra
   if (state.apenasSentinel) {
     chips.push({ kind: 'sentinel', value: '', label: 'Apenas sem equipamento' });
   }
+  if (state.saidasView !== 'todas') {
+    const labelView = state.saidasView === 'internas' ? 'Internas' : 'Externas';
+    chips.push({ kind: 'saidas_view', value: '', label: `Saídas: ${labelView}` });
+  }
+  for (const o of state.origensExterna) {
+    const labelOrigem = o === 'dinheiro' ? 'Dinheiro' : o === 'requisicao' ? 'Requisição' : 'Tanque Externo';
+    chips.push({ kind: 'origem_externa', value: o, label: `Origem: ${labelOrigem}` });
+  }
 
   return (
     <div className="flex flex-wrap items-center gap-1.5 px-3 sm:px-4 py-2 border-b border-[var(--color-border)] bg-[var(--color-surface-1)]">
