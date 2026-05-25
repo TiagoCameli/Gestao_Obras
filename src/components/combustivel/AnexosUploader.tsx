@@ -139,6 +139,7 @@ interface UseUploadFotosOpts {
   pastaId: string
 }
 
+// eslint-disable-next-line react-refresh/only-export-components -- transitional: hook lives here alongside its consumer component; extract to own file when duplication with default AnexosUploader is consolidated.
 export function useUploadFotos({ fotoUrls, onChange, pastaId }: UseUploadFotosOpts) {
   const [erros, setErros] = useState<string[]>([])
   const [uploading, setUploading] = useState(false)
