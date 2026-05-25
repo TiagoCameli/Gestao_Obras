@@ -1,73 +1,68 @@
-import { useMemo } from 'react';
-import { PackageCheck, Truck } from 'lucide-react';
-import type { Frete } from '../../types';
-import AnexosUploader from '../combustivel/AnexosUploader';
-import { useAtualizarFrete } from '../../hooks/useFretes';
-import { useToast } from '../ui/Toast';
-import { calcularUpdateFotoChegada } from '../../utils/freteFotoChegada';
+import { useMemo } from 'react'
+import { PackageCheck } from 'lucide-react'
+import type { Frete } from '../../types'
+import { UploadFotosButtons } from '../combustivel/AnexosUploader'
+import FotoFreteGaleria from './FotoFreteGaleria'
+import { useAtualizarFrete } from '../../hooks/useFretes'
+import { useToast } from '../ui/Toast'
+import { calcularUpdateFotoChegada } from '../../utils/freteFotoChegada'
 
 interface Props {
-  frete: Frete;
-  canEdit: boolean;
+  frete: Frete
+  canEdit: boolean
   /** Variante visual: 'card' (drawer) ou 'compact' (expand-row). */
-  variant?: 'card' | 'compact';
+  variant?: 'card' | 'compact'
 }
 
 function fmtData(iso: string): string {
-  if (!iso) return '—';
-  const m = iso.match(/^(\d{4})-(\d{2})-(\d{2})/);
-  if (m) return `${m[3]}/${m[2]}/${m[1]}`;
-  return iso;
+  if (!iso) return '—'
+  const m = iso.match(/^(\d{4})-(\d{2})-(\d{2})/)
+  if (m) return `${m[3]}/${m[2]}/${m[1]}`
+  return iso
 }
 
 /**
- * Bloco unificado de upload + display das fotos de chegada do frete.
- * Usado em 2 lugares: drawer de detalhes e linha expandida da tabela.
- *
- * Comportamento (Fase A):
- * - Combina fotoChegadaUrl + fotoUrls (até 8 fotos)
- * - 1ª foto = principal (vai pra fotoChegadaUrl); resto vai pra fotoUrls
- * - Remover a 1ª promove a 2ª (sem confirmar)
- * - Auto-preenche dataChegada quando 1ª foto sobe e dataChegada estava vazia
+ * Bloco de exibição + upload das fotos de chegada do frete no drawer/row-expanded.
+ * Display sempre usa FotoFreteGaleria (lightbox + download, sem delete).
+ * Upload disponível quando canEdit=true.
+ * Delete só no modo edição do FreteForm.
  */
 export default function FreteFotoChegadaBlock({ frete, canEdit, variant = 'card' }: Props) {
-  const atualizarMutation = useAtualizarFrete();
-  const { showToast } = useToast();
+  const atualizarMutation = useAtualizarFrete()
+  const { showToast } = useToast()
 
   const fotosAtuais = useMemo<string[]>(() => {
-    const all: string[] = [];
-    if (frete.fotoChegadaUrl) all.push(frete.fotoChegadaUrl);
-    if (frete.fotoUrls) all.push(...frete.fotoUrls);
-    return all;
-  }, [frete]);
+    const all: string[] = []
+    if (frete.fotoChegadaUrl) all.push(frete.fotoChegadaUrl)
+    if (frete.fotoUrls) all.push(...frete.fotoUrls)
+    return all
+  }, [frete])
 
   const handleFotoChange = (novas: string[]) => {
-    const novaUrl = novas[0] ?? null;
-    const extras = novas.slice(1);
-    const hoje = new Date().toISOString().slice(0, 10);
+    const novaUrl = novas[0] ?? null
+    const extras = novas.slice(1)
+    const hoje = new Date().toISOString().slice(0, 10)
     const payload = calcularUpdateFotoChegada({
       novaUrl,
       dataChegadaAtual: frete.dataChegada,
       hoje,
-    });
+    })
     atualizarMutation.mutate(
       { ...frete, ...payload, fotoUrls: extras },
       {
-        onSuccess: () => {
-          showToast({ kind: 'success', message: 'Fotos atualizadas.' });
-        },
+        onSuccess: () => showToast({ kind: 'success', message: 'Fotos atualizadas.' }),
         onError: (err: unknown) => {
-          const msg = err instanceof Error ? err.message : String(err);
-          showToast({ kind: 'error', message: `Falha ao salvar fotos: ${msg}` });
+          const msg = err instanceof Error ? err.message : String(err)
+          showToast({ kind: 'error', message: `Falha ao salvar fotos: ${msg}` })
         },
       },
-    );
-  };
+    )
+  }
 
-  const isCompact = variant === 'compact';
+  const isCompact = variant === 'compact'
   const containerClass = isCompact
     ? 'rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-2)]/40 p-3'
-    : 'rounded-xl border-2 border-[var(--color-accent)]/30 bg-[var(--color-accent)]/5 p-4';
+    : 'rounded-xl border-2 border-[var(--color-accent)]/30 bg-[var(--color-accent)]/5 p-4'
 
   return (
     <div className={containerClass}>
@@ -85,41 +80,22 @@ export default function FreteFotoChegadaBlock({ frete, canEdit, variant = 'card'
         </div>
       </div>
 
-      {canEdit ? (
-        <AnexosUploader
-          fotoUrls={fotosAtuais}
-          arquivoUrls={[]}
-          onChangeFotos={handleFotoChange}
-          onChangeArquivos={() => {}}
-          pastaId={`frete-chegada/${frete.id}`}
-          hideArquivos
-        />
-      ) : fotosAtuais.length > 0 ? (
-        <div className="grid grid-cols-3 gap-2">
-          {fotosAtuais.map((url, i) => (
-            <a
-              key={url}
-              href={url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="relative block aspect-square rounded-lg overflow-hidden border border-[var(--color-border)] hover:border-[var(--color-accent)] transition-colors"
-            >
-              <img src={url} alt={`Foto da chegada ${i + 1}`} className="w-full h-full object-cover" loading="lazy" />
-              {i === 0 && (
-                <span className="absolute top-1 left-1 px-1.5 py-0.5 text-[9px] uppercase tracking-wide bg-[var(--color-accent)] text-[var(--color-fg-on-accent)] rounded-full font-bold">
-                  Principal
-                </span>
-              )}
-            </a>
-          ))}
-        </div>
-      ) : (
-        <div className="aspect-video rounded-lg border-2 border-dashed border-[var(--color-border)] flex flex-col items-center justify-center text-center px-4">
-          <Truck className="w-8 h-8 text-[var(--color-fg-muted)] mb-2" />
-          <p className="text-sm text-[var(--color-fg-muted)]">Sem foto de chegada registrada.</p>
-          <p className="text-xs text-[var(--color-fg-muted)] mt-1">Você não tem permissão para anexar.</p>
+      {canEdit && (
+        <div className="mb-3">
+          <UploadFotosButtons
+            fotoUrls={fotosAtuais}
+            onChange={handleFotoChange}
+            pastaId={`frete-chegada/${frete.id}`}
+          />
         </div>
       )}
+
+      <FotoFreteGaleria
+        fotoUrls={fotosAtuais}
+        canDelete={false}
+        canDownload
+        size={isCompact ? 'compact' : 'normal'}
+      />
     </div>
-  );
+  )
 }
