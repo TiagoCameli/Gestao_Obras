@@ -1,14 +1,18 @@
 /**
  * PedidoCompraListV2 — lista premium dos pedidos com filtros, badges e ações.
  *
- * Layout: tabela em desktop (≥sm) e cards empilhados em mobile.
- * Filtros: busca textual, status, urgência, obra.
+ * Layout: tabela em desktop (≥sm) via ui/DataTable; cards empilhados em mobile.
+ * Filtros: busca textual, status, urgência, obra, tipo, solicitante, período.
  * Ações por linha: Editar, Aprovar, Reprovar (modal motivo), Enviar p/ cotação,
  * Gerar OC, Histórico (drawer auditoria), Excluir.
+ *
+ * Onda 3.C — desktop table migrou pra DataTable. Mobile card view e
+ * filtros próprios preservados.
  */
 import { useMemo, useState } from 'react';
+import type { ColumnDef } from '@tanstack/react-table';
 import {
-  Search, FileEdit, CheckCircle2, XCircle, Send, ShoppingCart,
+  FileEdit, CheckCircle2, XCircle, Send, ShoppingCart,
   History, Trash2, Inbox, FileText, RotateCcw,
 } from 'lucide-react';
 import type { PedidoCompra, Obra, Cotacao, OrdemCompra, StatusPedidoCompra, UrgenciaPedidoCompra, TipoItemCompra } from '../../types';
@@ -18,6 +22,9 @@ import {
   FiltrosBarra, FilterPill, FilterDateRange, FilterMultiCheck,
 } from './FiltrosCompras';
 import { dentroDoPeriodo } from '../../utils/comprasFiltros';
+import DataTable from '../ui/DataTable';
+import EmptyState from '../ui/EmptyState';
+import Button from '../ui/Button';
 
 interface Props {
   pedidos: PedidoCompra[];
@@ -43,6 +50,8 @@ const URGENCIA_LABEL: Record<UrgenciaPedidoCompra, string> = {
   baixa: 'Baixa', normal: 'Normal', alta: 'Alta', critica: 'Crítica',
 };
 
+// Mantidas Tailwind hardcoded por enquanto (visual chips deliberados).
+// Migrar pra tokens semânticos em Onda 8 (polish).
 const URGENCIA_CHIP: Record<UrgenciaPedidoCompra, string> = {
   baixa:    'bg-slate-50 text-slate-700 border-slate-300 dark:bg-slate-500/10 dark:text-slate-200 dark:border-slate-500/30',
   normal:   'bg-blue-50 text-blue-700 border-blue-300 dark:bg-blue-500/10 dark:text-blue-200 dark:border-blue-500/30',
@@ -60,6 +69,8 @@ const STATUS_OPTIONS: { value: '' | StatusPedidoCompra; label: string }[] = [
   { value: 'comprado', label: 'Comprados' },
   { value: 'cancelado', label: 'Cancelados' },
 ];
+
+const PAGE_SIZE_KEY = 'pedidos-compra-list-page-size';
 
 function formatarData(s: string): string {
   if (!s) return '—';
@@ -86,12 +97,10 @@ export default function PedidoCompraListV2({
   const [solicitantesFiltro, setSolicitantesFiltro] = useState<string[]>([]);
   const [dataDe, setDataDe] = useState('');
   const [dataAte, setDataAte] = useState('');
-  // valor estimado removido do form de pedido — filtros descontinuados
   const [historicoAberto, setHistoricoAberto] = useState<PedidoCompra | null>(null);
 
   const obrasMap = useMemo(() => new Map(obras.map((o) => [o.id, o.nome])), [obras]);
 
-  // Lista única de solicitantes (de pedidos não deletados)
   const solicitantesOptions = useMemo(() => {
     const set = new Set<string>();
     pedidos.filter((p) => !p.deletadoEm).forEach((p) => p.solicitante && set.add(p.solicitante));
@@ -108,7 +117,6 @@ export default function PedidoCompraListV2({
     (tipoFiltro ? 1 : 0) + (solicitantesFiltro.length > 0 ? 1 : 0) +
     (dataDe || dataAte ? 1 : 0);
 
-  // Pedidos visíveis (não deletados) filtrados
   const filtrados = useMemo(() => {
     const q = busca.trim().toLowerCase();
     return pedidos
@@ -132,8 +140,8 @@ export default function PedidoCompraListV2({
           || (p.descricaoLivre || '').toLowerCase().includes(q)
           || p.itens.some((i) => i.descricao.toLowerCase().includes(q))
         );
-      })
-      .sort((a, b) => (b.data || '').localeCompare(a.data || ''));
+      });
+    // sort removido — DataTable cuida via defaultSorting
   }, [pedidos, busca, statusFiltro, obraFiltro, urgenciaFiltro, tipoFiltro,
        solicitantesFiltro, dataDe, dataAte, obrasMap]);
 
@@ -155,9 +163,152 @@ export default function PedidoCompraListV2({
     return m;
   }, [cotacoes, ordens]);
 
+  const columns = useMemo<ColumnDef<PedidoCompra>[]>(() => [
+    {
+      id: 'numero',
+      header: 'Número',
+      accessorKey: 'numero',
+      cell: ({ row }) => (
+        <div>
+          <span className="font-mono text-xs text-[var(--color-fg)] whitespace-nowrap">
+            {row.original.numero}
+          </span>
+          {row.original.valorEstimado != null && (
+            <div className="text-3xs text-[var(--color-fg-subtle)] font-sans mt-0.5">
+              ~ {formatarMoeda(row.original.valorEstimado)}
+            </div>
+          )}
+        </div>
+      ),
+    },
+    {
+      id: 'data',
+      header: 'Data',
+      accessorKey: 'data',
+      cell: ({ row }) => (
+        <span className="text-[var(--color-fg-muted)] whitespace-nowrap text-xs">
+          {formatarData(row.original.data)}
+        </span>
+      ),
+    },
+    {
+      id: 'obra',
+      header: 'Obra',
+      enableSorting: false,
+      accessorFn: (p) => obrasMap.get(p.obraId) ?? '',
+      cell: ({ row }) => obrasMap.get(row.original.obraId)
+        ? <span className="text-[var(--color-fg)]">{obrasMap.get(row.original.obraId)}</span>
+        : <span className="text-[var(--color-fg-subtle)] italic">—</span>,
+    },
+    {
+      id: 'solicitante',
+      header: 'Solicitante',
+      accessorKey: 'solicitante',
+      cell: ({ row }) => <span className="text-[var(--color-fg)]">{row.original.solicitante}</span>,
+    },
+    {
+      id: 'itens',
+      header: 'Itens',
+      enableSorting: false,
+      cell: ({ row }) => <ResumoItens pedido={row.original} />,
+    },
+    {
+      id: 'urgencia',
+      header: 'Urgência',
+      accessorKey: 'urgencia',
+      cell: ({ row }) => (
+        <span className={`inline-flex items-center px-2 h-6 rounded-md border text-2xs font-medium ${URGENCIA_CHIP[row.original.urgencia]}`}>
+          {URGENCIA_LABEL[row.original.urgencia]}
+        </span>
+      ),
+    },
+    {
+      id: 'status',
+      header: 'Status',
+      accessorKey: 'status',
+      cell: ({ row }) => {
+        const ligacoes = ligacoesMap.get(row.original.id);
+        return (
+          <div>
+            <BadgeStatusCompra status={row.original.status} />
+            {ligacoes && (ligacoes.qtdCotacoes > 0 || ligacoes.qtdOCs > 0) && (
+              <div className="text-3xs text-[var(--color-fg-subtle)] mt-1">
+                {ligacoes.qtdCotacoes > 0 && `${ligacoes.qtdCotacoes} cotação(ões)`}
+                {ligacoes.qtdCotacoes > 0 && ligacoes.qtdOCs > 0 && ' · '}
+                {ligacoes.qtdOCs > 0 && `${ligacoes.qtdOCs} OC(s)`}
+              </div>
+            )}
+          </div>
+        );
+      },
+    },
+    {
+      id: 'actions',
+      header: '',
+      enableSorting: false,
+      enableHiding: false,
+      cell: ({ row }) => (
+        <div onClick={(e) => e.stopPropagation()}>
+          <AcoesPedido
+            pedido={row.original}
+            canApprove={canApprove}
+            canCreate={canCreate}
+            onAprovar={() => onAprovar(row.original)}
+            onReprovar={() => onReprovar(row.original)}
+            onDesaprovar={onDesaprovar ? () => onDesaprovar(row.original) : undefined}
+            onEditar={onEditar ? () => onEditar(row.original) : undefined}
+            onExcluir={() => onExcluir(row.original)}
+            onEnviarCotacao={() => onEnviarCotacao(row.original)}
+            onGerarOC={() => onGerarOC(row.original)}
+            onHistorico={() => setHistoricoAberto(row.original)}
+          />
+        </div>
+      ),
+    },
+  ], [obrasMap, ligacoesMap, canApprove, canCreate,
+       onAprovar, onReprovar, onDesaprovar, onEditar, onExcluir, onEnviarCotacao, onGerarOC]);
+
+  // Empty wrapper compartilhado (desktop + mobile). DataTable não é usado quando
+  // não há dados pra evitar render duplicado da empty state.
+  if (filtrados.length === 0) {
+    return (
+      <>
+        <FiltrosBarra totalAtivos={filtrosAtivos} total={0} onLimpar={limparFiltros}>
+          {/* filtros — repetidos abaixo */}
+          <FilterPill label="Status" value={statusFiltro} onChange={(v) => setStatusFiltro(v as '' | StatusPedidoCompra)} options={STATUS_OPTIONS} />
+          <FilterPill label="Obra" value={obraFiltro} onChange={setObraFiltro} options={[{ value: '', label: 'Todas' }, ...obras.map((o) => ({ value: o.id, label: o.nome }))]} />
+          <FilterPill label="Urgência" value={urgenciaFiltro} onChange={(v) => setUrgenciaFiltro(v as '' | UrgenciaPedidoCompra)} options={[{ value: '', label: 'Todas' }, { value: 'baixa', label: 'Baixa' }, { value: 'normal', label: 'Normal' }, { value: 'alta', label: 'Alta' }, { value: 'critica', label: 'Crítica' }]} />
+          <FilterPill label="Tipo" value={tipoFiltro} onChange={(v) => setTipoFiltro(v as '' | TipoItemCompra)} options={[{ value: '', label: 'Todos' }, { value: 'material', label: 'Material' }, { value: 'servico', label: 'Serviço' }]} />
+          <FilterMultiCheck label="Solicitante" selected={solicitantesFiltro} onChange={setSolicitantesFiltro} options={solicitantesOptions} />
+          <FilterDateRange label="Período" de={dataDe} ate={dataAte} onChange={(d, a) => { setDataDe(d); setDataAte(a); }} />
+        </FiltrosBarra>
+        <EmptyState
+          icon={Inbox}
+          title={busca ? 'Nenhum pedido encontrado' : 'Sem pedidos ainda'}
+          description={busca
+            ? 'Ajuste a busca ou os filtros para encontrar o pedido.'
+            : canCreate
+              ? 'Clique em "Novo Pedido" no topo da página para registrar a primeira solicitação.'
+              : 'Quando alguém criar um pedido, ele aparecerá aqui.'}
+          action={busca ? (
+            <Button variant="secondary" onClick={limparFiltros}>Limpar filtros</Button>
+          ) : undefined}
+        />
+        {historicoAberto && (
+          <HistoricoCompras
+            open={!!historicoAberto}
+            onClose={() => setHistoricoAberto(null)}
+            entidade="pedido"
+            entidadeId={historicoAberto.id}
+            numero={historicoAberto.numero}
+          />
+        )}
+      </>
+    );
+  }
+
   return (
     <>
-      {/* Barra de filtros premium */}
       <FiltrosBarra totalAtivos={filtrosAtivos} total={filtrados.length} onLimpar={limparFiltros}>
         <FilterPill
           label="Status"
@@ -202,117 +353,42 @@ export default function PedidoCompraListV2({
         <FilterDateRange label="Período" de={dataDe} ate={dataAte} onChange={(d, a) => { setDataDe(d); setDataAte(a); }} />
       </FiltrosBarra>
 
-      {/* Tabela (≥sm) */}
-      {filtrados.length === 0 ? (
-        <EmptyState busca={busca} canCreate={canCreate} />
-      ) : (
-        <>
-          <div className="hidden sm:block rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface-1)] overflow-hidden">
-            <table className="w-full text-sm">
-              <thead className="bg-[var(--color-surface-2)]/60 text-[10.5px] uppercase tracking-[0.06em] text-[var(--color-fg-muted)] border-b border-[var(--color-border)]">
-                <tr>
-                  <th className="px-4 py-3 text-left font-semibold">Número</th>
-                  <th className="px-4 py-3 text-left font-semibold">Data</th>
-                  <th className="px-4 py-3 text-left font-semibold">Obra</th>
-                  <th className="px-4 py-3 text-left font-semibold">Solicitante</th>
-                  <th className="px-4 py-3 text-left font-semibold">Itens</th>
-                  <th className="px-4 py-3 text-left font-semibold">Urgência</th>
-                  <th className="px-4 py-3 text-left font-semibold">Status</th>
-                  <th className="px-4 py-3 text-right font-semibold">Ações</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-[var(--color-border)]">
-                {filtrados.map((p) => {
-                  const ligacoes = ligacoesMap.get(p.id);
-                  return (
-                    <tr
-                      key={p.id}
-                      className="hover:bg-[var(--color-surface-2)]/50 transition-colors cursor-pointer"
-                      onClick={(e) => {
-                        // Ignora clique se foi em botão de ação (última coluna)
-                        if ((e.target as HTMLElement).closest('button,a,[role="menu"]')) return;
-                        onVerDetalhes?.(p);
-                      }}
-                    >
-                      <td className="px-4 py-3 font-mono text-xs text-[var(--color-fg)] whitespace-nowrap">
-                        {p.numero}
-                        {p.valorEstimado != null && (
-                          <div className="text-[10px] text-[var(--color-fg-subtle)] font-sans mt-0.5">
-                            ~ {formatarMoeda(p.valorEstimado)}
-                          </div>
-                        )}
-                      </td>
-                      <td className="px-4 py-3 text-[var(--color-fg-muted)] whitespace-nowrap">
-                        {formatarData(p.data)}
-                      </td>
-                      <td className="px-4 py-3 text-[var(--color-fg)]">
-                        {obrasMap.get(p.obraId) || <span className="text-[var(--color-fg-subtle)] italic">—</span>}
-                      </td>
-                      <td className="px-4 py-3 text-[var(--color-fg)]">{p.solicitante}</td>
-                      <td className="px-4 py-3">
-                        <ResumoItens pedido={p} />
-                      </td>
-                      <td className="px-4 py-3">
-                        <span className={`inline-flex items-center px-2 h-6 rounded-md border text-[11px] font-medium ${URGENCIA_CHIP[p.urgencia]}`}>
-                          {URGENCIA_LABEL[p.urgencia]}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3">
-                        <BadgeStatusCompra status={p.status} />
-                        {ligacoes && (ligacoes.qtdCotacoes > 0 || ligacoes.qtdOCs > 0) && (
-                          <div className="text-[10px] text-[var(--color-fg-subtle)] mt-1">
-                            {ligacoes.qtdCotacoes > 0 && `${ligacoes.qtdCotacoes} cotação(ões)`}
-                            {ligacoes.qtdCotacoes > 0 && ligacoes.qtdOCs > 0 && ' · '}
-                            {ligacoes.qtdOCs > 0 && `${ligacoes.qtdOCs} OC(s)`}
-                          </div>
-                        )}
-                      </td>
-                      <td className="px-4 py-3">
-                        <AcoesPedido
-                          pedido={p}
-                          canApprove={canApprove}
-                          canCreate={canCreate}
-                          onAprovar={() => onAprovar(p)}
-                          onReprovar={() => onReprovar(p)}
-                          onDesaprovar={onDesaprovar ? () => onDesaprovar(p) : undefined}
-                          onEditar={onEditar ? () => onEditar(p) : undefined}
-                          onExcluir={() => onExcluir(p)}
-                          onEnviarCotacao={() => onEnviarCotacao(p)}
-                          onGerarOC={() => onGerarOC(p)}
-                          onHistorico={() => setHistoricoAberto(p)}
-                        />
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+      {/* Desktop: DataTable */}
+      <div className="hidden sm:block">
+        <DataTable<PedidoCompra>
+          columns={columns}
+          data={filtrados}
+          getRowId={(row) => row.id}
+          persistPageSizeKey={PAGE_SIZE_KEY}
+          defaultSorting={[{ id: 'data', desc: true }]}
+          onRowClick={onVerDetalhes}
+          enableDensityToggle
+          enableColumnVisibilityToggle
+          itemLabel={{ singular: 'pedido', plural: 'pedidos' }}
+        />
+      </div>
 
-          {/* Cards (mobile) */}
-          <div className="sm:hidden space-y-2">
-            {filtrados.map((p) => (
-              <PedidoCard
-                key={p.id}
-                pedido={p}
-                obraNome={obrasMap.get(p.obraId)}
-                canApprove={canApprove}
-                canCreate={canCreate}
-                onAprovar={() => onAprovar(p)}
-                onReprovar={() => onReprovar(p)}
-                onDesaprovar={onDesaprovar ? () => onDesaprovar(p) : undefined}
-                onEditar={onEditar ? () => onEditar(p) : undefined}
-                onExcluir={() => onExcluir(p)}
-                onEnviarCotacao={() => onEnviarCotacao(p)}
-                onGerarOC={() => onGerarOC(p)}
-                onHistorico={() => setHistoricoAberto(p)}
-              />
-            ))}
-          </div>
-        </>
-      )}
+      {/* Mobile: cards empilhados (preserva layout original < sm) */}
+      <div className="sm:hidden space-y-2">
+        {filtrados.map((p) => (
+          <PedidoCard
+            key={p.id}
+            pedido={p}
+            obraNome={obrasMap.get(p.obraId)}
+            canApprove={canApprove}
+            canCreate={canCreate}
+            onAprovar={() => onAprovar(p)}
+            onReprovar={() => onReprovar(p)}
+            onDesaprovar={onDesaprovar ? () => onDesaprovar(p) : undefined}
+            onEditar={onEditar ? () => onEditar(p) : undefined}
+            onExcluir={() => onExcluir(p)}
+            onEnviarCotacao={() => onEnviarCotacao(p)}
+            onGerarOC={() => onGerarOC(p)}
+            onHistorico={() => setHistoricoAberto(p)}
+          />
+        ))}
+      </div>
 
-      {/* Drawer de histórico */}
       {historicoAberto && (
         <HistoricoCompras
           open={!!historicoAberto}
@@ -347,7 +423,7 @@ function ResumoItens({ pedido }: { pedido: PedidoCompra }) {
       {temDescricao && (
         <span className="ml-1 text-[var(--color-fg-subtle)]">+ descrição</span>
       )}
-      <div className="text-[10px] text-[var(--color-fg-subtle)] truncate max-w-[180px] mt-0.5">
+      <div className="text-3xs text-[var(--color-fg-subtle)] truncate max-w-[180px] mt-0.5">
         {pedido.itens.slice(0, 2).map((i) => i.descricao).join(' · ')}
         {pedido.itens.length > 2 && ` +${pedido.itens.length - 2}`}
       </div>
@@ -403,9 +479,6 @@ function AcoesPedido({
           </IconButton>
         </>
       )}
-      {/* Editar só aparece enquanto o pedido está PENDENTE. Uma vez aprovado
-          (ou seguindo no fluxo), travar é a regra de negócio — pra editar é
-          preciso primeiro clicar em "Voltar para Pendente" (ícone ao lado). */}
       {onEditar && pedido.status === 'pendente' && (
         <IconButton title="Editar" onClick={onEditar}>
           <FileEdit className="w-3.5 h-3.5" />
@@ -433,8 +506,8 @@ function IconButton({
 }) {
   const cls = {
     default: 'text-[var(--color-fg-subtle)] hover:text-[var(--color-fg)] hover:bg-[var(--color-surface-2)]',
-    success: 'text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-950/40',
-    danger:  'text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40',
+    success: 'text-[var(--color-success-fg)] hover:bg-[var(--color-success-soft)]',
+    danger:  'text-[var(--color-danger)] hover:bg-[var(--color-danger-soft)]',
   }[variant];
   return (
     <button
@@ -496,27 +569,6 @@ function PedidoCard({
           onGerarOC={onGerarOC}
           onHistorico={onHistorico}
         />
-      </div>
-    </div>
-  );
-}
-
-function EmptyState({ busca, canCreate }: { busca: string; canCreate: boolean }) {
-  return (
-    <div className="rounded-xl border border-dashed border-[var(--color-border)] py-14 text-center">
-      <Inbox className="w-8 h-8 mx-auto text-[var(--color-fg-subtle)] mb-2" />
-      <h3 className="text-sm font-semibold text-[var(--color-fg)] mb-1">
-        {busca ? 'Nenhum pedido encontrado' : 'Sem pedidos ainda'}
-      </h3>
-      <p className="text-xs text-[var(--color-fg-muted)] max-w-sm mx-auto">
-        {busca
-          ? 'Ajuste a busca ou os filtros para encontrar o pedido.'
-          : canCreate
-            ? 'Clique em "Novo Pedido" no topo da página para registrar a primeira solicitação.'
-            : 'Quando alguém criar um pedido, ele aparecerá aqui.'}
-      </p>
-      <div className="sr-only">
-        <Search /> {/* manter o ícone importado */}
       </div>
     </div>
   );
