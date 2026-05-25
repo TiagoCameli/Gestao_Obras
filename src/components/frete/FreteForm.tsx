@@ -58,30 +58,22 @@ export default function FreteForm({
   const [placaCarreta, setPlacaCarreta] = useState(initial?.placaCarreta || '');
   const [motorista, setMotorista] = useState(initial?.motorista || '');
   const [observacoes, setObservacoes] = useState(initial?.observacoes || '');
-  // FF.3 — Anexos universais (fotos + arquivos) + foto destacada da chegada.
-  const [fotoUrls, setFotoUrls] = useState<string[]>(initial?.fotoUrls ?? []);
+  // Fotos do frete unificadas: 1ª é a principal (vai pra fotoChegadaUrl no submit),
+  // resto vai pra fotoUrls. Limite 8 (vem do AnexosUploader).
+  const [fotosFrete, setFotosFrete] = useState<string[]>(() => {
+    const all: string[] = []
+    if (initial?.fotoChegadaUrl) all.push(initial.fotoChegadaUrl)
+    if (initial?.fotoUrls) all.push(...initial.fotoUrls)
+    return all
+  });
   const [arquivoUrls, setArquivoUrls] = useState<string[]>(initial?.arquivoUrls ?? []);
-  const [fotoChegadaUrls, setFotoChegadaUrls] = useState<string[]>(
-    initial?.fotoChegadaUrl ? [initial.fotoChegadaUrl] : []
-  );
 
-  // FF.3-bis — Auto-preencher data de chegada quando foto da chegada é
-  // adicionada. Lógica:
-  //   - transição [] → [url] dispara o autofill (não é "sumiu e voltou").
-  //   - só preenche se dataChegada estiver vazia (respeita edição manual).
-  //   - usa data LOCAL do dispositivo (espelha o stamp da foto, que também
-  //     usa horário local).
-  // Comportamento intencional: se user remover a foto, dataChegada continua
-  // preenchida — ele pode limpar manualmente se quiser.
-  function handleFotoChegadaChange(novas: string[]) {
-    if (fotoChegadaUrls.length === 0 && novas.length > 0 && !dataChegada) {
-      const hoje = new Date();
-      const yyyy = hoje.getFullYear();
-      const mm = String(hoje.getMonth() + 1).padStart(2, '0');
-      const dd = String(hoje.getDate()).padStart(2, '0');
-      setDataChegada(`${yyyy}-${mm}-${dd}`);
+  function handleFotosFreteChange(novas: string[]) {
+    // Auto-fill dataChegada na 1ª foto se ainda vazio
+    if (fotosFrete.length === 0 && novas.length > 0 && !dataChegada) {
+      setDataChegada(new Date().toISOString().slice(0, 10));
     }
-    setFotoChegadaUrls(novas);
+    setFotosFrete(novas);
   }
 
   // Inline nova localidade
@@ -259,10 +251,9 @@ export default function FreteForm({
       motorista,
       observacoes,
       criadoPor: initial?.criadoPor || '',
-      // FF.3 — anexos universais + foto chegada destacada.
-      fotoUrls,
+      fotoChegadaUrl: fotosFrete[0] ?? null,
+      fotoUrls: fotosFrete.slice(1),
       arquivoUrls,
-      fotoChegadaUrl: fotoChegadaUrls[0] ?? null,
     });
   }
 
@@ -557,35 +548,34 @@ export default function FreteForm({
           placeholder="Alguma observação..."
         />
       </div>
-      {/* FF.3 — Foto da Chegada (slot dedicado destacado). Identifica visualmente
-          que a carga chegou no destino. Reusa AnexosUploader com hideArquivos
-          (só fotos) — o validador de limite QTD_MAX permite até 8, mas a UX
-          aqui é "1 foto principal" — extras podem ir nos Anexos abaixo. */}
+      {/* Bloco único de fotos: 1ª = foto principal de chegada; demais vão pra fotoUrls.
+          Limite 8 (controlado pelo AnexosUploader). */}
       <div className="rounded-lg border-2 border-dashed border-emt-verde/40 bg-emt-verde/5 p-4">
         <div className="flex items-center gap-2 mb-3">
           <span className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-emt-verde/20 text-emt-verde text-xs font-bold">📦</span>
           <div>
-            <h3 className="text-sm font-semibold text-gray-800">Foto da Chegada da Carga</h3>
-            <p className="text-xs text-gray-500">Registra com GPS + horário que a carga chegou no destino.</p>
+            <h3 className="text-sm font-semibold text-gray-800">Fotos da Chegada da Carga</h3>
+            <p className="text-xs text-gray-500">Até 8 fotos. A 1ª é a principal (registra GPS + horário da chegada).</p>
           </div>
         </div>
         <AnexosUploader
-          fotoUrls={fotoChegadaUrls}
+          fotoUrls={fotosFrete}
           arquivoUrls={[]}
-          onChangeFotos={handleFotoChegadaChange}
+          onChangeFotos={handleFotosFreteChange}
           onChangeArquivos={() => {}}
           pastaId={`frete-chegada/${initial?.id ?? 'novo'}`}
           hideArquivos
         />
       </div>
 
-      {/* FF.3 — Anexos universais (outras fotos + arquivos: NF, comprovantes). */}
+      {/* Arquivos do frete (NF, comprovantes, planilhas) — separado das fotos. */}
       <AnexosUploader
-        fotoUrls={fotoUrls}
+        fotoUrls={[]}
         arquivoUrls={arquivoUrls}
-        onChangeFotos={setFotoUrls}
+        onChangeFotos={() => {}}
         onChangeArquivos={setArquivoUrls}
         pastaId={`frete/${initial?.id ?? 'novo'}`}
+        hideFotos
       />
 
       <div className="flex justify-end gap-3 pt-2">
