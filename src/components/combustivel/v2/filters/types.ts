@@ -81,7 +81,23 @@ export interface CombustivelFilterState {
    *  = sentinels da obra X. Ignora equipamentoIds quando true (mutuamente
    *  excludentes). Só faz sentido em mode='proprios'. */
   apenasSentinel: boolean;
+  /** Sub-divisão da aba Saídas. Persiste na URL mas só tem efeito quando
+   *  subTab='saidas'. Default 'todas' preserva comportamento legado. */
+  saidasView: SaidasView;
+  /** Subset opcional dentro de saidasView='externas'. Vazio = todas as 3
+   *  origens externas. Ignorado quando saidasView !== 'externas'. */
+  origensExterna: OrigemExterna[];
 }
+
+/** Sub-divisão da aba Saídas. Aplica somente em subTab='saidas'.
+ *  'todas' = sem filtro adicional (default).
+ *  'internas' = origem='tanque' && deposito.ehExterno=false.
+ *  'externas' = origem='dinheiro' || origem='requisicao' ||
+ *               (origem='tanque' && deposito.ehExterno=true). */
+export type SaidasView = 'todas' | 'internas' | 'externas';
+
+/** Origem derivada pra subset de saídas externas. */
+export type OrigemExterna = 'dinheiro' | 'requisicao' | 'tanque_externo';
 
 export interface SavedView {
   id: string;
