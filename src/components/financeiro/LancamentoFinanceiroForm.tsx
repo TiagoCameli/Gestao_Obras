@@ -1,29 +1,26 @@
 /**
- * LancamentoFinanceiroForm — Formulário de lançamento financeiro.
+ * LancamentoFinanceiroForm — Onda 5.D: migração MINIMAL pra RHF + Zod.
+ *
+ * Escopo: apenas os 9 campos top-level scalares (dataEmissao, fornecedor,
+ * favorecido, empresa, categoria, descricao, valorTotal, formaPagamento,
+ * observacoes) entram no RHF + Zod. parcelas[] e rateios[] continuam em
+ * useState — lógica complexa (auto-redistribuição, soma==total, tipos
+ * de destino com campos contextuais, % vs R$) não vale o custo de
+ * useFieldArray + zod cross-array.
+ *
+ * Cross-validations (soma das parcelas e rateios bate com total, rateio
+ * obra_etapa precisa obraId+etapaObraId, fornecedor OU favorecido) ficam
+ * em `validar()`, chamada no submit handler com mensagem agregada via
+ * showToast. Schema captura per-field básico (required, > 0).
  *
  * Modos:
- *   - 'avulso'  → tudo editável, pelo menos 1 linha de rateio obrigatória
- *                 com destino preenchido (obra+etapa, OS de manutenção, sede)
- *   - 'oc'      → header e rateio TRAVADOS (pré-preenchidos da OC), só
- *                 categoria + forma de pagamento + parcelas + anexos editáveis
- *
- * Estrutura visual (de cima pra baixo):
- *   1. Banner contextual (avulso = info; oc = travado/auditoria)
- *   2. Header: número, datas, fornecedor, empresa, categoria, descrição, total
- *   3. Parcelas (1+ linhas; soma = total)
- *   4. Rateio (1+ linhas; soma = total; valor OU %)
- *   5. Anexos (upload Supabase Storage)
- *   6. Observações
- *
- * Validações antes de salvar (showToast se falhar):
- *   - Fornecedor OU favorecidoNome preenchido
- *   - Valor total > 0
- *   - Soma das parcelas = valor total (tolerância 0.01)
- *   - Soma dos rateios = valor total (tolerância 0.01)
- *   - Cada rateio: obra_etapa exige obraId+etapaObraId; manutencao exige ordemServicoId
- *   - Sede dispensa campos extras
+ *   - 'avulso'  → tudo editável
+ *   - 'oc'      → header + rateio TRAVADOS (pré-preenchidos da OC),
+ *                 só categoria + forma de pagamento + parcelas + anexos editáveis
  */
-import { useEffect, useMemo, useState, useCallback } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useForm, Controller } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
 import {
   Plus, Trash2, Banknote, Lock, Paperclip,
   Building2, Wrench, Briefcase, Warehouse, Fuel, X, FileText, Loader2,
@@ -50,6 +47,10 @@ import SmartSelect from '../ui/SmartSelect';
 import ComboboxInput from '../ui/ComboboxInput';
 import { useToast } from '../ui/Toast';
 import CategoriaFinanceiraQuickModal from './CategoriaFinanceiraQuickModal';
+import {
+  lancamentoFinanceiroFormSchema,
+  type LancamentoFinanceiroFormValues,
+} from '../../schemas/financeiro/lancamentoFinanceiro.schema';
 
 interface Props {
   initial: LancamentoFinanceiro | null;
@@ -68,7 +69,6 @@ interface Props {
   onDirtyChange?: (dirty: boolean) => void;
 }
 
-// Opções de tipo de destino do rateio — subset relevante.
 const TIPOS_DESTINO: { value: TipoDestinoRateio; label: string; Icon: typeof Building2; sub: string }[] = [
   { value: 'obra_etapa',             label: 'Obra (etapa)',          Icon: Building2, sub: 'Custo da etapa' },
   { value: 'manutencao_equipamento', label: 'Manutenção (OS)',       Icon: Wrench,    sub: 'Custo da OS' },
@@ -94,29 +94,29 @@ function novoId(prefix: string): string {
   return `${prefix}_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 7)}`;
 }
 
+function buildDefaults(initial: LancamentoFinanceiro | null): LancamentoFinanceiroFormValues {
+  return {
+    dataEmissao: initial?.dataEmissao || new Date().toISOString().slice(0, 10),
+    fornecedorId: initial?.fornecedorId ?? '',
+    favorecidoNome: initial?.favorecidoNome ?? '',
+    empresaPagadoraId: initial?.empresaPagadoraId ?? '',
+    categoriaId: initial?.categoriaId ?? '',
+    descricao: initial?.descricao ?? '',
+    valorTotal: initial?.valorTotal ?? (undefined as unknown as number),
+    formaPagamento: (initial?.formaPagamento as FormaPagamentoLancamento) ?? 'pix',
+    observacoes: initial?.observacoes ?? '',
+  };
+}
+
 export default function LancamentoFinanceiroForm({
   initial, modo, fornecedores, empresas, obras, etapas, ordensServico, equipamentos,
   categorias, proximoNumero, onSubmit, onCancel, onCreateFornecedor, onDirtyChange,
 }: Props) {
   const { showToast } = useToast();
-
   const travado = modo === 'oc';
 
-  // ── State ───────────────────────────────────────────────────────────
+  // ── Estado fora do RHF (lógica complex) ──────────────────────────────────
   const [numero] = useState(initial?.numero || proximoNumero);
-  const [dataEmissao, setDataEmissao] = useState(
-    initial?.dataEmissao || new Date().toISOString().slice(0, 10),
-  );
-  const [fornecedorId, setFornecedorId] = useState(initial?.fornecedorId ?? '');
-  const [favorecidoNome, setFavorecidoNome] = useState(initial?.favorecidoNome ?? '');
-  const [empresaPagadoraId, setEmpresaPagadoraId] = useState(initial?.empresaPagadoraId ?? '');
-  const [categoriaId, setCategoriaId] = useState(initial?.categoriaId ?? '');
-  const [descricao, setDescricao] = useState(initial?.descricao ?? '');
-  const [valorTotal, setValorTotal] = useState(initial?.valorTotal ?? 0);
-  const [formaPagamento, setFormaPagamento] = useState<FormaPagamentoLancamento | string>(
-    initial?.formaPagamento ?? 'pix',
-  );
-  const [observacoes, setObservacoes] = useState(initial?.observacoes ?? '');
   const [anexosUrls, setAnexosUrls] = useState<string[]>(initial?.anexosUrls ?? []);
   const signedAnexosUrls = useAnexosFinanceiroUrls(anexosUrls);
   const [parcelas, setParcelas] = useState<ParcelaLancamento[]>(
@@ -135,49 +135,59 @@ export default function LancamentoFinanceiroForm({
     initial?.rateios?.length ? initial.rateios : [],
   );
   const [uploading, setUploading] = useState(false);
-  // Modal de cadastro rápido de categoria financeira (abre via "+ Nova categoria")
   const [novaCategoriaModal, setNovaCategoriaModal] = useState(false);
 
-  // ── Dirty tracking ──────────────────────────────────────────────────
-  const [dirty, setDirty] = useState(false);
-  const markDirty = useCallback(() => {
-    if (!dirty) {
-      setDirty(true);
-      onDirtyChange?.(true);
-    }
-  }, [dirty, onDirtyChange]);
-  useEffect(() => () => onDirtyChange?.(false), [onDirtyChange]);
+  // ── RHF + Zod (9 campos top-level) ───────────────────────────────────────
+  const {
+    register,
+    handleSubmit: rhfHandleSubmit,
+    watch,
+    setValue,
+    reset,
+    control,
+    formState: { errors, isDirty: rhfIsDirty },
+  } = useForm<LancamentoFinanceiroFormValues>({
+    resolver: zodResolver(lancamentoFinanceiroFormSchema),
+    mode: 'onChange',
+    defaultValues: buildDefaults(initial),
+  });
 
-  // ── Cálculos derivados ──────────────────────────────────────────────
+  useEffect(() => {
+    reset(buildDefaults(initial));
+  }, [initial, reset]);
+
+  const valorTotalWatch = Number(watch('valorTotal') ?? 0) || 0;
+  const dataEmissaoWatch = watch('dataEmissao');
+  const categoriaIdWatch = watch('categoriaId');
+  const fornecedorIdWatch = watch('fornecedorId');
+  const favorecidoNomeWatch = watch('favorecidoNome');
+
+  // ── Dirty tracking (combina RHF + array changes manuais) ─────────────────
+  const [arrayDirty, setArrayDirty] = useState(false);
+  const dirty = rhfIsDirty || arrayDirty;
+  useEffect(() => { onDirtyChange?.(dirty); }, [dirty, onDirtyChange]);
+  useEffect(() => () => onDirtyChange?.(false), [onDirtyChange]);
+  const markArrayDirty = useCallback(() => setArrayDirty(true), []);
+
+  // ── Cálculos derivados ──────────────────────────────────────────────────
   const somaParcelas = parcelas.reduce((s, p) => s + (Number(p.valor) || 0), 0);
   const somaRateios = rateios.reduce((s, r) => s + (Number(r.valor) || 0), 0);
-  const diferencaParcelas = valorTotal - somaParcelas;
-  const diferencaRateios = valorTotal - somaRateios;
+  const diferencaParcelas = valorTotalWatch - somaParcelas;
+  const diferencaRateios = valorTotalWatch - somaRateios;
 
-  // Categorias ativas (inativas só aparecem se já estiver selecionada)
   const categoriasOpcoes = useMemo(() => {
     const ativas = categorias.filter((c) => c.ativo);
-    const atual = categorias.find((c) => c.id === categoriaId);
+    const atual = categorias.find((c) => c.id === categoriaIdWatch);
     if (atual && !atual.ativo) return [atual, ...ativas];
     return ativas;
-  }, [categorias, categoriaId]);
+  }, [categorias, categoriaIdWatch]);
 
-  // ── Handlers de parcelas ────────────────────────────────────────────
-  //
-  // Tanto adicionar quanto remover **redistribuem o valor_total igualmente**
-  // entre as parcelas resultantes. Isso evita que o usuário tenha que fazer
-  // a conta manualmente e mantém a soma sempre batendo com o total.
-  // Centavos errantes ficam na última parcela.
-  //
-  // O usuário pode ainda ajustar manualmente cada parcela depois — só não
-  // queremos que clicar em "+/-" deixe a tela com soma desbalanceada.
-
-  /** Helper: redistribui igualmente valorTotal entre N parcelas. */
+  // ── Handlers de parcelas (preservados — useState complexo) ───────────────
   function redistribuirIgual(arr: ParcelaLancamento[]): ParcelaLancamento[] {
     const n = arr.length;
-    if (n === 0 || valorTotal <= 0) return arr;
-    const base = Math.floor((valorTotal / n) * 100) / 100; // 2 casas decimais
-    const resto = +(valorTotal - base * n).toFixed(2);
+    if (n === 0 || valorTotalWatch <= 0) return arr;
+    const base = Math.floor((valorTotalWatch / n) * 100) / 100;
+    const resto = +(valorTotalWatch - base * n).toFixed(2);
     return arr.map((p, i) => ({
       ...p,
       numero: i + 1,
@@ -186,9 +196,8 @@ export default function LancamentoFinanceiroForm({
   }
 
   function adicionarParcela() {
-    markDirty();
-    const ultimaData = parcelas[parcelas.length - 1]?.dataVencimento || dataEmissao;
-    // Próxima parcela: 30 dias depois da última (default razoável)
+    markArrayDirty();
+    const ultimaData = parcelas[parcelas.length - 1]?.dataVencimento || dataEmissaoWatch;
     const proxData = new Date(ultimaData);
     proxData.setDate(proxData.getDate() + 30);
     setParcelas((prev) => {
@@ -208,7 +217,7 @@ export default function LancamentoFinanceiroForm({
   }
 
   function atualizarParcela(idx: number, patch: Partial<ParcelaLancamento>) {
-    markDirty();
+    markArrayDirty();
     setParcelas((prev) => prev.map((p, i) => (i === idx ? { ...p, ...patch } : p)));
   }
 
@@ -217,7 +226,7 @@ export default function LancamentoFinanceiroForm({
       showToast({ kind: 'info', message: 'Mantenha pelo menos uma parcela.' });
       return;
     }
-    markDirty();
+    markArrayDirty();
     setParcelas((prev) => {
       const restantes = prev.filter((_, i) => i !== idx);
       return redistribuirIgual(restantes);
@@ -225,16 +234,15 @@ export default function LancamentoFinanceiroForm({
   }
 
   function parcelarIgual(qtd: number) {
-    if (qtd < 1 || !valorTotal) {
+    if (qtd < 1 || !valorTotalWatch) {
       showToast({ kind: 'info', message: 'Defina o valor total primeiro.' });
       return;
     }
-    markDirty();
-    const valorParcela = Math.round((valorTotal / qtd) * 100) / 100;
-    // Ajuste de centavos: última parcela compensa a diferença
-    const resto = valorTotal - valorParcela * qtd;
+    markArrayDirty();
+    const valorParcela = Math.round((valorTotalWatch / qtd) * 100) / 100;
+    const resto = valorTotalWatch - valorParcela * qtd;
     const novas: ParcelaLancamento[] = Array.from({ length: qtd }, (_, i) => {
-      const data = new Date(dataEmissao);
+      const data = new Date(dataEmissaoWatch);
       data.setDate(data.getDate() + 30 * (i + 1));
       const valor = i === qtd - 1 ? +(valorParcela + resto).toFixed(2) : valorParcela;
       return {
@@ -249,9 +257,9 @@ export default function LancamentoFinanceiroForm({
     setParcelas(novas);
   }
 
-  // ── Handlers de rateio ──────────────────────────────────────────────
+  // ── Handlers de rateio ──────────────────────────────────────────────────
   function adicionarRateio() {
-    markDirty();
+    markArrayDirty();
     setRateios((prev) => [
       ...prev,
       {
@@ -264,37 +272,33 @@ export default function LancamentoFinanceiroForm({
   }
 
   function atualizarRateio(idx: number, patch: Partial<RateioLancamento>) {
-    markDirty();
+    markArrayDirty();
     setRateios((prev) => prev.map((r, i) => (i === idx ? { ...r, ...patch } : r)));
   }
 
   function removerRateio(idx: number) {
-    markDirty();
+    markArrayDirty();
     setRateios((prev) => prev.filter((_, i) => i !== idx));
   }
 
-  // Quando o usuário muda valor TOTAL, recalibra parcelas pra distribuir igualmente
-  // se ainda não foram tocadas (todas com valor 0 ou apenas 1 parcela).
+  // Quando valor TOTAL muda via RHF, recalibra parcelas se ainda intocadas
   function setValorTotalAjustando(novo: number) {
-    markDirty();
-    setValorTotal(novo);
+    setValue('valorTotal', novo, { shouldDirty: true, shouldValidate: true });
     if (parcelas.length === 1) {
       setParcelas((prev) => [{ ...prev[0], valor: novo }]);
     }
   }
 
-  // ── Validação ───────────────────────────────────────────────────────
-  function validar(): string | null {
-    if (!fornecedorId && !favorecidoNome.trim()) {
+  // ── Validação cross-field ───────────────────────────────────────────────
+  function validar(values: LancamentoFinanceiroFormValues): string | null {
+    // Schema já garante descricao + valorTotal + dataEmissao + formaPagamento.
+    // Aqui validamos as regras cross-field e cross-array.
+    if (!values.fornecedorId && !values.favorecidoNome?.trim()) {
       return 'Informe o fornecedor (cadastrado) ou o nome do favorecido.';
     }
-    if (!descricao.trim()) {
-      return 'Informe uma descrição do lançamento.';
-    }
-    if (valorTotal <= 0) return 'Valor total precisa ser maior que zero.';
 
     if (Math.abs(diferencaParcelas) > 0.01) {
-      return `Soma das parcelas (${somaParcelas.toFixed(2)}) não bate com o valor total (${valorTotal.toFixed(2)}). Diferença: R$ ${diferencaParcelas.toFixed(2)}.`;
+      return `Soma das parcelas (${somaParcelas.toFixed(2)}) não bate com o valor total (${values.valorTotal.toFixed(2)}). Diferença: R$ ${diferencaParcelas.toFixed(2)}.`;
     }
     for (const p of parcelas) {
       if (!p.dataVencimento) return `Parcela ${p.numero}: defina a data de vencimento.`;
@@ -305,7 +309,7 @@ export default function LancamentoFinanceiroForm({
       return 'Adicione pelo menos uma linha de rateio (onde o custo será alocado).';
     }
     if (Math.abs(diferencaRateios) > 0.01) {
-      return `Soma do rateio (${somaRateios.toFixed(2)}) não bate com o valor total (${valorTotal.toFixed(2)}). Diferença: R$ ${diferencaRateios.toFixed(2)}.`;
+      return `Soma do rateio (${somaRateios.toFixed(2)}) não bate com o valor total (${values.valorTotal.toFixed(2)}). Diferença: R$ ${diferencaRateios.toFixed(2)}.`;
     }
     for (let i = 0; i < rateios.length; i++) {
       const r = rateios[i];
@@ -314,10 +318,6 @@ export default function LancamentoFinanceiroForm({
         if (!r.obraId) return `Rateio ${i + 1}: selecione a obra.`;
         if (!r.etapaObraId) return `Rateio ${i + 1}: selecione a etapa.`;
       }
-      // ⚠ OS é OPCIONAL aqui em manutenção: peças vão pro almoxarifado e
-      //   a OS "puxa" depois quando consome (regra v2.7). A obrigação de
-      //   "serviço precisa de OS" já é aplicada na OC, não precisa
-      //   ser revalidada no lançamento financeiro.
       if (r.tipoDestino === 'obra_deposito' && !r.obraId) {
         return `Rateio ${i + 1}: selecione a obra do depósito.`;
       }
@@ -325,8 +325,8 @@ export default function LancamentoFinanceiroForm({
     return null;
   }
 
-  async function handleSubmit() {
-    const erro = validar();
+  const onValidSubmit = useCallback(async (values: LancamentoFinanceiroFormValues) => {
+    const erro = validar(values);
     if (erro) {
       showToast({ kind: 'error', message: erro });
       return;
@@ -338,16 +338,16 @@ export default function LancamentoFinanceiroForm({
       numero,
       origem: initial?.origem ?? (modo === 'oc' ? 'oc' : 'avulso'),
       ordemCompraId: initial?.ordemCompraId,
-      dataEmissao,
-      dataVencimento: parcelas[0]?.dataVencimento || dataEmissao,
-      fornecedorId: fornecedorId || undefined,
-      favorecidoNome: favorecidoNome || undefined,
-      empresaPagadoraId: empresaPagadoraId || undefined,
-      categoriaId: categoriaId || undefined,
-      descricao,
-      valorTotal,
-      formaPagamento,
-      observacoes,
+      dataEmissao: values.dataEmissao,
+      dataVencimento: parcelas[0]?.dataVencimento || values.dataEmissao,
+      fornecedorId: values.fornecedorId || undefined,
+      favorecidoNome: values.favorecidoNome || undefined,
+      empresaPagadoraId: values.empresaPagadoraId || undefined,
+      categoriaId: values.categoriaId || undefined,
+      descricao: values.descricao,
+      valorTotal: values.valorTotal,
+      formaPagamento: values.formaPagamento,
+      observacoes: values.observacoes,
       anexosUrls,
       status: initial?.status ?? 'em_aberto',
       parcelas: parcelas.map((p) => ({ ...p, lancamentoId: lancId })),
@@ -362,9 +362,10 @@ export default function LancamentoFinanceiroForm({
         message: err instanceof Error ? err.message : 'Erro ao salvar lançamento.',
       });
     }
-  }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initial, modo, numero, parcelas, rateios, anexosUrls, somaParcelas, somaRateios, diferencaParcelas, diferencaRateios, onSubmit, showToast]);
 
-  // ── Upload de anexo ─────────────────────────────────────────────────
+  // ── Upload de anexo ─────────────────────────────────────────────────────
   async function handleUploadAnexo(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -377,7 +378,7 @@ export default function LancamentoFinanceiroForm({
         .upload(path, file, { contentType: file.type, upsert: false });
       if (error) throw error;
       setAnexosUrls((prev) => [...prev, path]);
-      markDirty();
+      markArrayDirty();
       showToast({ kind: 'success', message: `Anexo "${file.name}" enviado.` });
     } catch (err) {
       showToast({
@@ -386,28 +387,21 @@ export default function LancamentoFinanceiroForm({
       });
     } finally {
       setUploading(false);
-      e.target.value = ''; // reset pra permitir reupload do mesmo arquivo
+      e.target.value = '';
     }
   }
 
   function removerAnexo(url: string) {
-    markDirty();
+    markArrayDirty();
     setAnexosUrls((prev) => prev.filter((u) => u !== url));
-    // Não deletamos do Storage agora — fica órfão. Job de limpeza futuro.
   }
 
-  // ── Render ──────────────────────────────────────────────────────────
+  // ── Render ──────────────────────────────────────────────────────────────
   return (
-    <form
-      onSubmit={(e) => {
-        e.preventDefault();
-        handleSubmit();
-      }}
-      className="space-y-6"
-    >
+    <form onSubmit={rhfHandleSubmit(onValidSubmit)} className="space-y-6">
       {/* Banner de modo */}
       {travado && (
-        <div className="px-3.5 py-2.5 rounded-lg border border-sky-200 dark:border-sky-500/30 bg-sky-50/70 dark:bg-sky-500/[0.06] text-[12px] text-sky-900 dark:text-sky-100 leading-relaxed flex items-start gap-2">
+        <div className="px-3.5 py-2.5 rounded-lg border border-sky-200 dark:border-sky-500/30 bg-sky-50/70 dark:bg-sky-500/[0.06] text-xs text-sky-900 dark:text-sky-100 leading-relaxed flex items-start gap-2">
           <Lock className="w-4 h-4 mt-[1px] shrink-0" />
           <span>
             Este lançamento vem da OC{' '}
@@ -426,57 +420,68 @@ export default function LancamentoFinanceiroForm({
         <Field label="Data de emissão">
           <Input
             type="date"
-            value={dataEmissao}
-            onChange={(e) => { markDirty(); setDataEmissao(e.target.value); }}
             disabled={travado}
+            error={errors.dataEmissao?.message}
+            {...register('dataEmissao')}
           />
         </Field>
         <Field label="Empresa pagadora">
-          <SmartSelect
-            value={empresaPagadoraId}
-            onChange={(e) => { markDirty(); setEmpresaPagadoraId(e.target.value); }}
-            disabled={travado}
-            className="w-full h-[42px] rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-1)] disabled:bg-[var(--color-surface-2)] disabled:cursor-not-allowed px-3 py-2 text-sm text-left focus:outline-none focus:ring-2 focus:ring-[var(--color-ring)] focus:border-[var(--color-accent)] flex items-center"
-          >
-            <option value="">— escolha a empresa —</option>
-            {empresas.map((e) => (
-              <option key={e.id} value={e.id}>{e.nome}</option>
-            ))}
-          </SmartSelect>
+          <Controller
+            control={control}
+            name="empresaPagadoraId"
+            render={({ field }) => (
+              <SmartSelect
+                value={field.value ?? ''}
+                onChange={(e) => field.onChange(e.target.value)}
+                disabled={travado}
+                className="w-full h-[42px] rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-1)] disabled:bg-[var(--color-surface-2)] disabled:cursor-not-allowed px-3 py-2 text-sm text-left focus:outline-none focus:ring-2 focus:ring-[var(--color-ring)] focus:border-[var(--color-accent)] flex items-center"
+              >
+                <option value="">— escolha a empresa —</option>
+                {empresas.map((e) => (
+                  <option key={e.id} value={e.id}>{e.nome}</option>
+                ))}
+              </SmartSelect>
+            )}
+          />
         </Field>
 
         <Field label="Fornecedor / favorecido" className="sm:col-span-2">
           <FornecedorOuFavorecidoPicker
             fornecedores={fornecedores}
-            fornecedorId={fornecedorId}
-            favorecidoNome={favorecidoNome}
+            fornecedorId={fornecedorIdWatch ?? ''}
+            favorecidoNome={favorecidoNomeWatch ?? ''}
             disabled={travado}
             onChange={({ fornecedorId, favorecidoNome }) => {
-              markDirty();
-              setFornecedorId(fornecedorId);
-              setFavorecidoNome(favorecidoNome);
+              setValue('fornecedorId', fornecedorId, { shouldDirty: true, shouldValidate: true });
+              setValue('favorecidoNome', favorecidoNome, { shouldDirty: true, shouldValidate: true });
             }}
             onCreate={async (nome) => {
               const id = await onCreateFornecedor(nome);
-              setFornecedorId(id);
-              setFavorecidoNome('');
+              setValue('fornecedorId', id, { shouldDirty: true });
+              setValue('favorecidoNome', '', { shouldDirty: true });
             }}
           />
         </Field>
 
         <Field label="Categoria">
           <div className="flex items-stretch gap-1.5">
-            <SmartSelect
-              value={categoriaId}
-              onChange={(e) => { markDirty(); setCategoriaId(e.target.value); }}
-              wrapperClassName="relative flex-1 min-w-0"
-              className="w-full h-[42px] rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-1)] px-3 py-2 text-sm text-left focus:outline-none focus:ring-2 focus:ring-[var(--color-ring)] focus:border-[var(--color-accent)] flex items-center"
-            >
-              <option value="">— sem categoria —</option>
-              {categoriasOpcoes.map((c) => (
-                <option key={c.id} value={c.id}>{c.nome}{!c.ativo ? ' (inativa)' : ''}</option>
-              ))}
-            </SmartSelect>
+            <Controller
+              control={control}
+              name="categoriaId"
+              render={({ field }) => (
+                <SmartSelect
+                  value={field.value ?? ''}
+                  onChange={(e) => field.onChange(e.target.value)}
+                  wrapperClassName="relative flex-1 min-w-0"
+                  className="w-full h-[42px] rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-1)] px-3 py-2 text-sm text-left focus:outline-none focus:ring-2 focus:ring-[var(--color-ring)] focus:border-[var(--color-accent)] flex items-center"
+                >
+                  <option value="">— sem categoria —</option>
+                  {categoriasOpcoes.map((c) => (
+                    <option key={c.id} value={c.id}>{c.nome}{!c.ativo ? ' (inativa)' : ''}</option>
+                  ))}
+                </SmartSelect>
+              )}
+            />
             <button
               type="button"
               onClick={() => setNovaCategoriaModal(true)}
@@ -489,30 +494,45 @@ export default function LancamentoFinanceiroForm({
         </Field>
 
         <Field label="Forma de pagamento">
-          <SmartSelect
-            value={formaPagamento}
-            onChange={(e) => { markDirty(); setFormaPagamento(e.target.value as FormaPagamentoLancamento); }}
-            className="w-full h-[42px] rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-1)] px-3 py-2 text-sm text-left focus:outline-none focus:ring-2 focus:ring-[var(--color-ring)] focus:border-[var(--color-accent)] flex items-center"
-          >
-            {FORMAS_PAGAMENTO.map((f) => (
-              <option key={f.value} value={f.value}>{f.label}</option>
-            ))}
-          </SmartSelect>
+          <Controller
+            control={control}
+            name="formaPagamento"
+            render={({ field }) => (
+              <SmartSelect
+                value={field.value}
+                onChange={(e) => field.onChange(e.target.value as FormaPagamentoLancamento)}
+                className="w-full h-[42px] rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-1)] px-3 py-2 text-sm text-left focus:outline-none focus:ring-2 focus:ring-[var(--color-ring)] focus:border-[var(--color-accent)] flex items-center"
+              >
+                {FORMAS_PAGAMENTO.map((f) => (
+                  <option key={f.value} value={f.value}>{f.label}</option>
+                ))}
+              </SmartSelect>
+            )}
+          />
         </Field>
 
         <Field label="Valor total">
-          <MoneyInput
-            value={valorTotal}
-            onChange={setValorTotalAjustando}
-            disabled={travado}
+          <Controller
+            control={control}
+            name="valorTotal"
+            render={({ field }) => (
+              <MoneyInput
+                value={field.value ?? 0}
+                onChange={setValorTotalAjustando}
+                disabled={travado}
+              />
+            )}
           />
+          {errors.valorTotal && (
+            <p className="text-xs text-[var(--color-danger)] mt-1">{errors.valorTotal.message}</p>
+          )}
         </Field>
 
         <Field label="Descrição" className="sm:col-span-2 lg:col-span-3">
           <Input
-            value={descricao}
-            onChange={(e) => { markDirty(); setDescricao(e.target.value); }}
             placeholder="Ex: NF 12345 — Cimento e areia para obra BR-364"
+            error={errors.descricao?.message}
+            {...register('descricao')}
           />
         </Field>
       </section>
@@ -529,7 +549,7 @@ export default function LancamentoFinanceiroForm({
                 key={n}
                 type="button"
                 onClick={() => parcelarIgual(n)}
-                className="px-2 py-1 text-[11.5px] rounded-md border border-[var(--color-border)] bg-[var(--color-surface-1)] hover:bg-[var(--color-surface-2)] text-[var(--color-fg-muted)] hover:text-[var(--color-fg)]"
+                className="px-2 py-1 text-2xs rounded-md border border-[var(--color-border)] bg-[var(--color-surface-1)] hover:bg-[var(--color-surface-2)] text-[var(--color-fg-muted)] hover:text-[var(--color-fg)]"
                 title={`Parcelar em ${n}x igual`}
               >
                 {n}x
@@ -544,15 +564,15 @@ export default function LancamentoFinanceiroForm({
         </SectionHeader>
 
         {Math.abs(diferencaParcelas) > 0.01 && (
-          <div className="mb-2 px-3 py-1.5 rounded-md border border-amber-200 dark:border-amber-500/30 bg-amber-50/70 dark:bg-amber-500/[0.06] text-[11.5px] text-amber-900 dark:text-amber-100">
+          <div className="mb-2 px-3 py-1.5 rounded-md border border-[var(--color-warning)]/30 bg-[var(--color-warning-soft)] text-2xs text-[var(--color-warning-fg)]">
             ⚠ Soma das parcelas <strong>{somaParcelas.toFixed(2)}</strong> difere do total
-            (<strong>{valorTotal.toFixed(2)}</strong>) em <strong>R$ {diferencaParcelas.toFixed(2)}</strong>.
+            (<strong>{valorTotalWatch.toFixed(2)}</strong>) em <strong>R$ {diferencaParcelas.toFixed(2)}</strong>.
           </div>
         )}
 
         <div className="rounded-xl border border-[var(--color-border)] overflow-hidden">
           <table className="w-full text-sm">
-            <thead className="bg-[var(--color-surface-2)] text-[10.5px] uppercase tracking-[0.06em] text-[var(--color-fg-muted)]">
+            <thead className="bg-[var(--color-surface-2)] text-3xs uppercase tracking-wider text-[var(--color-fg-muted)]">
               <tr>
                 <th className="px-3 py-2 text-left w-12">Nº</th>
                 <th className="px-3 py-2 text-left">Vencimento</th>
@@ -563,7 +583,7 @@ export default function LancamentoFinanceiroForm({
             <tbody className="divide-y divide-[var(--color-border)]">
               {parcelas.map((p, i) => (
                 <tr key={p.id}>
-                  <td className="px-3 py-2 text-[12.5px] text-[var(--color-fg-muted)]">
+                  <td className="px-3 py-2 text-xs text-[var(--color-fg-muted)]">
                     {p.numero}/{parcelas.length}
                   </td>
                   <td className="px-3 py-2">
@@ -584,7 +604,7 @@ export default function LancamentoFinanceiroForm({
                     <button
                       type="button"
                       onClick={() => removerParcela(i)}
-                      className="inline-flex w-7 h-7 items-center justify-center rounded-md text-[var(--color-fg-subtle)] hover:bg-rose-50 hover:text-rose-600 dark:hover:bg-rose-500/15"
+                      className="inline-flex w-7 h-7 items-center justify-center rounded-md text-[var(--color-fg-subtle)] hover:bg-[var(--color-danger-soft)] hover:text-[var(--color-danger)]"
                       title="Remover parcela"
                     >
                       <Trash2 className="w-3.5 h-3.5" />
@@ -617,16 +637,16 @@ export default function LancamentoFinanceiroForm({
         </SectionHeader>
 
         {Math.abs(diferencaRateios) > 0.01 && rateios.length > 0 && (
-          <div className="mb-2 px-3 py-1.5 rounded-md border border-amber-200 dark:border-amber-500/30 bg-amber-50/70 dark:bg-amber-500/[0.06] text-[11.5px] text-amber-900 dark:text-amber-100">
+          <div className="mb-2 px-3 py-1.5 rounded-md border border-[var(--color-warning)]/30 bg-[var(--color-warning-soft)] text-2xs text-[var(--color-warning-fg)]">
             ⚠ Soma do rateio <strong>{somaRateios.toFixed(2)}</strong> difere do total
-            (<strong>{valorTotal.toFixed(2)}</strong>) em <strong>R$ {diferencaRateios.toFixed(2)}</strong>.
+            (<strong>{valorTotalWatch.toFixed(2)}</strong>) em <strong>R$ {diferencaRateios.toFixed(2)}</strong>.
             {!travado && (
               <button
                 type="button"
-                className="ml-2 underline text-amber-900 dark:text-amber-100 hover:opacity-80"
+                className="ml-2 underline hover:opacity-80"
                 onClick={() => {
                   if (rateios.length === 0) return;
-                  markDirty();
+                  markArrayDirty();
                   const ultimo = rateios[rateios.length - 1];
                   atualizarRateio(rateios.length - 1, {
                     valor: +(ultimo.valor + diferencaRateios).toFixed(2),
@@ -641,7 +661,7 @@ export default function LancamentoFinanceiroForm({
 
         <div className="space-y-2">
           {rateios.length === 0 && (
-            <div className="rounded-xl border border-dashed border-[var(--color-border)] py-8 text-center text-[12.5px] text-[var(--color-fg-muted)]">
+            <div className="rounded-xl border border-dashed border-[var(--color-border)] py-8 text-center text-xs text-[var(--color-fg-muted)]">
               Sem rateio definido. Clique em <strong>+ Destino</strong> pra adicionar.
             </div>
           )}
@@ -650,7 +670,7 @@ export default function LancamentoFinanceiroForm({
               key={r.id}
               idx={i}
               rateio={r}
-              valorTotalLanc={valorTotal}
+              valorTotalLanc={valorTotalWatch}
               obras={obras}
               etapas={etapas}
               ordensServico={ordensServico}
@@ -669,7 +689,7 @@ export default function LancamentoFinanceiroForm({
           titulo="Anexos"
           subtitulo="Boletos, notas fiscais, comprovantes (PDF ou imagem, máx 20 MB)"
         >
-          <label className="inline-flex items-center gap-1.5 px-3 py-1.5 text-[12.5px] rounded-md border border-[var(--color-border)] bg-[var(--color-surface-1)] hover:bg-[var(--color-surface-2)] cursor-pointer">
+          <label className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-md border border-[var(--color-border)] bg-[var(--color-surface-1)] hover:bg-[var(--color-surface-2)] cursor-pointer">
             {uploading ? (
               <Loader2 className="w-3.5 h-3.5 animate-spin" />
             ) : (
@@ -687,14 +707,14 @@ export default function LancamentoFinanceiroForm({
         </SectionHeader>
 
         {anexosUrls.length === 0 ? (
-          <p className="text-[12px] text-[var(--color-fg-muted)] italic">Nenhum anexo.</p>
+          <p className="text-xs text-[var(--color-fg-muted)] italic">Nenhum anexo.</p>
         ) : (
           <ul className="space-y-1.5">
             {anexosUrls.map((pathOrUrl) => {
               const nome = decodeURIComponent(pathOrUrl.split('/').pop() ?? '').replace(/^\d+_\w+\./, '*.');
               const href = signedAnexosUrls[pathOrUrl] ?? (pathOrUrl.startsWith('http') ? pathOrUrl : undefined);
               return (
-                <li key={pathOrUrl} className="flex items-center gap-2 px-3 py-2 rounded-md border border-[var(--color-border)] bg-[var(--color-surface-1)] text-[12.5px]">
+                <li key={pathOrUrl} className="flex items-center gap-2 px-3 py-2 rounded-md border border-[var(--color-border)] bg-[var(--color-surface-1)] text-xs">
                   <FileText className="w-4 h-4 text-[var(--color-fg-muted)] shrink-0" />
                   <a
                     href={href}
@@ -707,7 +727,7 @@ export default function LancamentoFinanceiroForm({
                   <button
                     type="button"
                     onClick={() => removerAnexo(pathOrUrl)}
-                    className="text-[var(--color-fg-subtle)] hover:text-rose-500"
+                    className="text-[var(--color-fg-subtle)] hover:text-[var(--color-danger)]"
                     title="Remover"
                   >
                     <X className="w-3.5 h-3.5" />
@@ -725,19 +745,18 @@ export default function LancamentoFinanceiroForm({
           Observações
         </label>
         <textarea
-          value={observacoes}
-          onChange={(e) => { markDirty(); setObservacoes(e.target.value); }}
           rows={2}
           placeholder="Observações internas (opcional)"
           className="w-full px-3 py-2 text-sm rounded-md border border-[var(--color-border)] bg-[var(--color-surface-1)] focus:outline-none focus:ring-2 focus:ring-[var(--color-ring)] focus:border-[var(--color-accent)]"
+          {...register('observacoes')}
         />
       </section>
 
       {/* ── Footer ──────────────────────────────────────────────────── */}
       <div className="sticky bottom-0 -mx-6 px-6 py-4 border-t border-[var(--color-border)] bg-[var(--color-surface-1)]/95 backdrop-blur-sm flex items-center justify-between">
-        <div className="text-[12.5px] text-[var(--color-fg-muted)] inline-flex items-center gap-2">
+        <div className="text-xs text-[var(--color-fg-muted)] inline-flex items-center gap-2">
           <Banknote className="w-4 h-4 text-[var(--color-accent)]" />
-          Total: <strong className="text-[var(--color-fg)] tabular-nums">R$ {valorTotal.toFixed(2)}</strong>
+          Total: <strong className="text-[var(--color-fg)] tabular-nums">R$ {valorTotalWatch.toFixed(2)}</strong>
           {' · '}
           {parcelas.length}x · {rateios.length} destino{rateios.length === 1 ? '' : 's'}
         </div>
@@ -747,26 +766,23 @@ export default function LancamentoFinanceiroForm({
         </div>
       </div>
 
-      {/* Modal de cadastro rápido de categoria */}
       <CategoriaFinanceiraQuickModal
         open={novaCategoriaModal}
         onClose={() => setNovaCategoriaModal(false)}
         ordemSugerida={
-          // Última ordem + 10 (ou 999 se a lista estiver vazia)
           categorias.length > 0
             ? Math.max(...categorias.map((c) => c.ordem)) + 10
             : 999
         }
         onCriada={(cat) => {
-          markDirty();
-          setCategoriaId(cat.id);
+          setValue('categoriaId', cat.id, { shouldDirty: true, shouldValidate: true });
         }}
       />
     </form>
   );
 }
 
-// ───────────────────────── Sub-componentes ─────────────────────────
+// ───────────────────────── Sub-componentes (preservados) ─────────────
 
 function Field({
   label, children, className = '',
@@ -787,9 +803,9 @@ function SectionHeader({
   return (
     <div className="flex items-center justify-between mb-2.5">
       <div>
-        <h3 className="text-[13px] font-semibold tracking-tight text-[var(--color-fg)]">{titulo}</h3>
+        <h3 className="text-sm font-semibold tracking-tight text-[var(--color-fg)]">{titulo}</h3>
         {subtitulo && (
-          <p className="text-[11.5px] text-[var(--color-fg-muted)] mt-0.5">{subtitulo}</p>
+          <p className="text-2xs text-[var(--color-fg-muted)] mt-0.5">{subtitulo}</p>
         )}
       </div>
       {children}
@@ -802,7 +818,7 @@ function MoneyInput({
 }: { value: number; onChange: (v: number) => void; disabled?: boolean }) {
   return (
     <div className="relative">
-      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[12px] font-medium text-[var(--color-fg-subtle)] pointer-events-none select-none z-10">
+      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-medium text-[var(--color-fg-subtle)] pointer-events-none select-none z-10">
         R$
       </span>
       <input
@@ -825,7 +841,6 @@ function MoneyInput({
   );
 }
 
-/** Combobox de fornecedor com fallback pra "favorecido livre" (nome em texto). */
 function FornecedorOuFavorecidoPicker({
   fornecedores, fornecedorId, favorecidoNome, disabled, onChange, onCreate,
 }: {
@@ -836,7 +851,7 @@ function FornecedorOuFavorecidoPicker({
   onChange: (v: { fornecedorId: string; favorecidoNome: string }) => void;
   onCreate: (nome: string) => Promise<void>;
 }) {
-  void onCreate; // reservado pra cadastro inline futuro
+  void onCreate;
   const fornecedorSelecionado = fornecedores.find((f) => f.id === fornecedorId);
 
   if (disabled) {
@@ -849,7 +864,6 @@ function FornecedorOuFavorecidoPicker({
     );
   }
 
-  // Modo simples: SmartSelect + campo livre como alternativa
   return (
     <div className="space-y-1.5">
       <SmartSelect
@@ -874,7 +888,6 @@ function FornecedorOuFavorecidoPicker({
   );
 }
 
-/** Linha do rateio: tipo + campos contextuais + valor (com chip visual). */
 function RateioRow({
   idx, rateio, valorTotalLanc, obras, etapas, ordensServico, equipamentos, travado, onChange, onRemove,
 }: {
@@ -894,7 +907,6 @@ function RateioRow({
   const etapasDaObra = etapas.filter((e) => e.obraId === rateio.obraId);
   const osAbertas = ordensServico.filter((o) => o.status !== 'concluida' && o.status !== 'cancelada');
 
-  // Toggle valor/% — armazena em flag local. Conversão é feita no onChange.
   const [modoInput, setModoInput] = useState<'valor' | 'percentual'>(rateio.percentual != null ? 'percentual' : 'valor');
 
   function setValor(v: number) {
@@ -908,9 +920,8 @@ function RateioRow({
   return (
     <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-1)] p-3">
       <div className="flex items-start gap-3 flex-wrap">
-        {/* Tipo de destino */}
         <div className="flex-shrink-0">
-          <label className="block text-[10.5px] uppercase tracking-wide text-[var(--color-fg-muted)] mb-1">
+          <label className="block text-3xs uppercase tracking-wide text-[var(--color-fg-muted)] mb-1">
             Bloco {idx + 1}
           </label>
           <SmartSelect
@@ -925,7 +936,7 @@ function RateioRow({
               depositoId: undefined,
             })}
             disabled={travado}
-            className="h-9 px-2 text-[12.5px] rounded-md border border-[var(--color-border)] bg-[var(--color-surface-1)] disabled:bg-[var(--color-surface-2)] flex items-center min-w-[200px]"
+            className="h-9 px-2 text-xs rounded-md border border-[var(--color-border)] bg-[var(--color-surface-1)] disabled:bg-[var(--color-surface-2)] flex items-center min-w-[200px]"
           >
             {TIPOS_DESTINO.map((t) => (
               <option key={t.value} value={t.value}>{t.label} — {t.sub}</option>
@@ -933,7 +944,6 @@ function RateioRow({
           </SmartSelect>
         </div>
 
-        {/* Campos contextuais (obra/etapa, OS, etc.) */}
         <div className="flex-1 min-w-[240px] grid grid-cols-1 sm:grid-cols-2 gap-2 items-end">
           {rateio.tipoDestino === 'obra_etapa' && (
             <>
@@ -985,7 +995,7 @@ function RateioRow({
                   );
                 })}
               </CompactSelect>
-              <p className="text-[10.5px] text-[var(--color-fg-subtle)] mt-1 leading-snug">
+              <p className="text-3xs text-[var(--color-fg-subtle)] mt-1 leading-snug">
                 {rateio.ordemServicoId
                   ? '✓ Serviço alocado direto na OS.'
                   : 'Sem OS = peça vai pro almoxarifado; a OS puxa o custo quando consome.'}
@@ -1006,18 +1016,17 @@ function RateioRow({
           )}
 
           {rateio.tipoDestino === 'sede' && (
-            <div className="text-[11.5px] text-[var(--color-fg-muted)] italic">
+            <div className="text-2xs text-[var(--color-fg-muted)] italic">
               Sem campos extras — custo vai pro administrativo da sede.
             </div>
           )}
           {(rateio.tipoDestino === 'deposito_central' || rateio.tipoDestino === 'tanque_combustivel') && (
-            <div className="text-[11.5px] text-[var(--color-fg-muted)] italic">
+            <div className="text-2xs text-[var(--color-fg-muted)] italic">
               {rateio.tipoDestino === 'deposito_central' ? 'Depósito central' : 'Tanque de combustível'} — destino genérico, sem vínculo específico aqui.
             </div>
           )}
         </div>
 
-        {/* Valor / Percentual + ações */}
         <div className="flex items-end gap-2 ml-auto">
           <div className="inline-flex flex-col items-end">
             <div className="flex items-center gap-1 mb-1">
@@ -1025,9 +1034,9 @@ function RateioRow({
                 type="button"
                 onClick={() => setModoInput('valor')}
                 className={
-                  'px-2 py-0.5 text-[10.5px] rounded ' +
+                  'px-2 py-0.5 text-3xs rounded ' +
                   (modoInput === 'valor'
-                    ? 'bg-[var(--color-accent)] text-[var(--color-on-accent)]'
+                    ? 'bg-[var(--color-accent)] text-[var(--color-fg-on-accent)]'
                     : 'text-[var(--color-fg-muted)] hover:text-[var(--color-fg)]')
                 }
                 disabled={travado}
@@ -1038,9 +1047,9 @@ function RateioRow({
                 type="button"
                 onClick={() => setModoInput('percentual')}
                 className={
-                  'px-2 py-0.5 text-[10.5px] rounded ' +
+                  'px-2 py-0.5 text-3xs rounded ' +
                   (modoInput === 'percentual'
-                    ? 'bg-[var(--color-accent)] text-[var(--color-on-accent)]'
+                    ? 'bg-[var(--color-accent)] text-[var(--color-fg-on-accent)]'
                     : 'text-[var(--color-fg-muted)] hover:text-[var(--color-fg)]')
                 }
                 disabled={travado}
@@ -1052,7 +1061,7 @@ function RateioRow({
               <MoneyInput value={rateio.valor} onChange={setValor} disabled={travado} />
             ) : (
               <div className="relative">
-                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[12px] font-medium text-[var(--color-fg-subtle)] pointer-events-none">%</span>
+                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-medium text-[var(--color-fg-subtle)] pointer-events-none">%</span>
                 <input
                   type="number"
                   step="0.01"
@@ -1065,7 +1074,7 @@ function RateioRow({
                 />
               </div>
             )}
-            <span className="text-[10.5px] text-[var(--color-fg-subtle)] mt-0.5 tabular-nums">
+            <span className="text-3xs text-[var(--color-fg-subtle)] mt-0.5 tabular-nums">
               {modoInput === 'valor'
                 ? (valorTotalLanc > 0 ? `${((rateio.valor / valorTotalLanc) * 100).toFixed(1)}% do total` : '')
                 : `R$ ${rateio.valor.toFixed(2)}`}
@@ -1075,7 +1084,7 @@ function RateioRow({
             <button
               type="button"
               onClick={onRemove}
-              className="inline-flex w-9 h-9 items-center justify-center rounded-md text-[var(--color-fg-subtle)] hover:bg-rose-50 hover:text-rose-600 dark:hover:bg-rose-500/15"
+              className="inline-flex w-9 h-9 items-center justify-center rounded-md text-[var(--color-fg-subtle)] hover:bg-[var(--color-danger-soft)] hover:text-[var(--color-danger)]"
               title="Remover destino"
             >
               <Trash2 className="w-3.5 h-3.5" />
@@ -1084,7 +1093,7 @@ function RateioRow({
         </div>
       </div>
 
-      <div className="flex items-center gap-1.5 mt-2 text-[11px] text-[var(--color-fg-subtle)]">
+      <div className="flex items-center gap-1.5 mt-2 text-2xs text-[var(--color-fg-subtle)]">
         <TIcon className="w-3 h-3" />
         <span>{tipoInfo.label} · {tipoInfo.sub}</span>
       </div>
@@ -1103,14 +1112,14 @@ function CompactSelect({
 }) {
   return (
     <div>
-      <label className="block text-[10.5px] uppercase tracking-wide text-[var(--color-fg-muted)] mb-1">
+      <label className="block text-3xs uppercase tracking-wide text-[var(--color-fg-muted)] mb-1">
         {label}
       </label>
       <SmartSelect
         value={value}
         onChange={(e) => onChange(e.target.value)}
         disabled={disabled}
-        className="w-full h-9 px-2 text-[12.5px] rounded-md border border-[var(--color-border)] bg-[var(--color-surface-1)] disabled:bg-[var(--color-surface-2)] disabled:cursor-not-allowed disabled:opacity-90 flex items-center"
+        className="w-full h-9 px-2 text-xs rounded-md border border-[var(--color-border)] bg-[var(--color-surface-1)] disabled:bg-[var(--color-surface-2)] disabled:cursor-not-allowed disabled:opacity-90 flex items-center"
       >
         {children}
       </SmartSelect>
