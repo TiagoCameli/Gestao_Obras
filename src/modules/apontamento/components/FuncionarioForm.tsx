@@ -1,11 +1,24 @@
-import { useEffect, useState } from "react";
+/**
+ * FuncionarioForm (Apontamento RH) — Onda 5.C: migrado pra RHF + Zod (hybrid).
+ *
+ * RHF gerencia campos top-level (identificação + cargo/vínculo + vigência).
+ * Fotos (até 5, com upload async pro Storage) e documentos (anexos
+ * arbitrários, upload async) continuam em useState — uploads são
+ * sequenciais no submit handler.
+ *
+ * Validação assíncrona de CPF duplicado (existeCpf API) fica no submit
+ * handler — não dá pra cobrir no Zod sync.
+ */
+import { useCallback, useEffect, useState } from "react";
+import { useForm, Controller } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
 import Button from "../../../components/ui/Button";
 import Input from "../../../components/ui/Input";
 import Select from "../../../components/ui/Select";
+import { useToast } from "../../../components/ui/Toast";
 import {
   formatarCpf,
   FUNCOES,
-  isCpfValido,
   type Funcionario,
   type FuncaoFuncionario,
   type FuncionarioDocumento,
@@ -20,6 +33,10 @@ import {
   uploadDocumento,
   uploadFoto,
 } from "../utils/apontamentoApi";
+import {
+  funcionarioRhFormSchema,
+  type FuncionarioRhFormValues,
+} from "../../../schemas/apontamento/funcionarioRh.schema";
 
 interface Props {
   initial?: Funcionario | null;
@@ -55,41 +72,33 @@ function readFileAsDataUrl(file: File): Promise<string> {
   });
 }
 
+function buildDefaults(initial: Funcionario | null | undefined): FuncionarioRhFormValues {
+  return {
+    nome: initial?.nome ?? "",
+    cpf: initial?.cpf ?? "",
+    rg: initial?.rg ?? "",
+    pis: initial?.pis ?? "",
+    ctps: initial?.ctps ?? "",
+    dataNascimento: initial?.dataNascimento ?? "",
+    funcao: initial?.funcao ?? "",
+    tipoVinculo: initial?.tipoVinculo ?? "CLT",
+    salarioBase: initial?.salarioBase ?? (undefined as unknown as number),
+    dataAdmissao: initial?.dataAdmissao ?? new Date().toISOString().slice(0, 10),
+    dataDemissao: initial?.dataDemissao ?? "",
+    status: initial?.status ?? "ativo",
+    contatoEmergencia: initial?.contatoEmergencia ?? "",
+  };
+}
+
 export default function FuncionarioForm({
   initial,
   onSaved,
   onCancel,
   onSubmit,
 }: Props) {
-  const [nome, setNome] = useState(initial?.nome ?? "");
-  const [cpf, setCpf] = useState(initial?.cpf ?? "");
-  const [rg, setRg] = useState(initial?.rg ?? "");
-  const [pis, setPis] = useState(initial?.pis ?? "");
-  const [ctps, setCtps] = useState(initial?.ctps ?? "");
-  const [dataNascimento, setDataNascimento] = useState(
-    initial?.dataNascimento ?? ""
-  );
-  const [funcao, setFuncao] = useState<FuncaoFuncionario>(
-    initial?.funcao ?? ""
-  );
-  const [tipoVinculo, setTipoVinculo] = useState<TipoVinculo>(
-    initial?.tipoVinculo ?? "CLT"
-  );
-  const [salarioBase, setSalarioBase] = useState<number | null>(
-    initial?.salarioBase ?? null
-  );
-  const [dataAdmissao, setDataAdmissao] = useState(
-    initial?.dataAdmissao ?? new Date().toISOString().slice(0, 10)
-  );
-  const [dataDemissao, setDataDemissao] = useState(initial?.dataDemissao ?? "");
-  const [status, setStatus] = useState<StatusFuncionario>(
-    initial?.status ?? "ativo"
-  );
-  const [contatoEmergencia, setContatoEmergencia] = useState(
-    initial?.contatoEmergencia ?? ""
-  );
-  // Galeria unificada: 1..5 fotos. A primeira é, automaticamente, a foto de
-  // perfil (avatar) e também uma das referências faciais usadas no match.
+  const { showToast } = useToast();
+
+  // ── Estado fora do RHF: fotos, documentos, errors locais, saving ────────
   const [fotos, setFotos] = useState<FotoState[]>(() => {
     const paths = new Set<string>();
     const initialPaths: string[] = [];
@@ -104,8 +113,6 @@ export default function FuncionarioForm({
     return initialPaths.map((path) => ({ path }));
   });
 
-  // Documentos: misturamos persistidos (com `path`) e os ainda não enviados
-  // (com `pendingFile`). Os enviados ganham um signed URL pra download.
   type DocState = {
     item: FuncionarioDocumento;
     pendingFile?: File;
@@ -115,10 +122,28 @@ export default function FuncionarioForm({
     (initial?.documentos ?? []).map((d) => ({ item: d }))
   );
 
-  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [errorFotos, setErrorFotos] = useState<string | null>(null);
+  const [errorCpfDup, setErrorCpfDup] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
-  // Hidrata previews das fotos já persistidas
+  // ── RHF + Zod ────────────────────────────────────────────────────────────
+  const {
+    register,
+    handleSubmit: rhfHandleSubmit,
+    reset,
+    control,
+    formState: { errors },
+  } = useForm<FuncionarioRhFormValues>({
+    resolver: zodResolver(funcionarioRhFormSchema),
+    mode: "onChange",
+    defaultValues: buildDefaults(initial),
+  });
+
+  useEffect(() => {
+    reset(buildDefaults(initial));
+  }, [initial, reset]);
+
+  // Hidrata previews das fotos persistidas
   useEffect(() => {
     const paths = fotos
       .filter((f) => f.path && !f.previewUrl)
@@ -139,7 +164,7 @@ export default function FuncionarioForm({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Hidrata signed URLs dos documentos persistidos.
+  // Hidrata signed URLs dos documentos persistidos
   useEffect(() => {
     const paths = documentos
       .filter((d) => !d.pendingFile && !d.downloadUrl)
@@ -160,44 +185,30 @@ export default function FuncionarioForm({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  function validate(): boolean {
-    const e: Record<string, string> = {};
-    // Único campo obrigatório: nome. Os demais são opcionais — quando o
-    // usuário decide preencher CPF, validamos o formato.
-    if (!nome.trim()) e.nome = "Obrigatório";
-    const cpfDigits = cpf.replace(/\D/g, "");
-    if (cpfDigits && !isCpfValido(cpfDigits)) e.cpf = "CPF inválido";
-    if (fotos.length > 5) e.fotos = "Máximo de 5 fotos";
-    if (salarioBase == null || salarioBase <= 0) {
-      e.salarioBase = "Obrigatório (> 0) — base pra cálculo de folha";
+  // ── Submit ───────────────────────────────────────────────────────────────
+  const onValidSubmit = useCallback(async (values: FuncionarioRhFormValues) => {
+    setErrorCpfDup(null);
+    setErrorFotos(null);
+    if (fotos.length > 5) {
+      setErrorFotos("Máximo de 5 fotos");
+      return;
     }
-    setErrors(e);
-    return Object.keys(e).length === 0;
-  }
-
-  async function handleSubmit(ev: React.FormEvent) {
-    ev.preventDefault();
-    if (!validate()) return;
-    const cpfDigits = cpf.replace(/\D/g, "");
+    const cpfDigits = (values.cpf ?? "").replace(/\D/g, "");
     setSaving(true);
     try {
       // CPF é opcional — só checa duplicidade se foi preenchido.
       if (cpfDigits) {
         const dup = await existeCpf(cpfDigits, initial?.id);
         if (dup) {
-          setErrors((e) => ({ ...e, cpf: "CPF já cadastrado" }));
+          setErrorCpfDup("CPF já cadastrado");
           setSaving(false);
           return;
         }
       }
 
-      // Pré-gera id pra novos cadastros: assim conseguimos subir as fotos
-      // antes do INSERT e gravar tudo numa transação só (evita corrida
-      // entre o thumb da lista e o segundo update).
       const funcionarioId = initial?.id ?? crypto.randomUUID();
 
-      // Sobe as fotos novas e monta a lista final preservando a ordem
-      // (a primeira continua sendo o avatar).
+      // Sobe fotos novas, preserva ordem (1ª = avatar)
       const finalPaths: string[] = [];
       for (let i = 0; i < fotos.length; i++) {
         const f = fotos[i];
@@ -209,7 +220,7 @@ export default function FuncionarioForm({
         }
       }
 
-      // Sobe documentos pendentes e monta a lista final.
+      // Sobe documentos pendentes
       const finalDocs: FuncionarioDocumento[] = [];
       for (const d of documentos) {
         if (d.pendingFile) {
@@ -222,26 +233,26 @@ export default function FuncionarioForm({
 
       const payload: Omit<Funcionario, "createdAt" | "updatedAt"> = {
         id: funcionarioId,
-        nome: nome.trim(),
+        nome: values.nome.trim(),
         cpf: cpfDigits,
-        rg: rg || null,
-        pis: pis || null,
-        ctps: ctps || null,
-        dataNascimento,
+        rg: values.rg || null,
+        pis: values.pis || null,
+        ctps: values.ctps || null,
+        dataNascimento: values.dataNascimento || "",
         fotoPerfil: finalPaths[0] ?? null,
         fotosReferenciaFacial: finalPaths,
-        funcao,
-        tipoVinculo,
-        salarioBase,
+        funcao: values.funcao as FuncaoFuncionario,
+        tipoVinculo: values.tipoVinculo,
+        salarioBase: values.salarioBase,
         valorDiaria: initial?.valorDiaria ?? null,
         valorHora: initial?.valorHora ?? null,
         obraId: initial?.obraId ?? null,
         equipeId: initial?.equipeId ?? null,
         encarregadoId: initial?.encarregadoId ?? null,
-        dataAdmissao,
-        dataDemissao: dataDemissao || null,
-        status,
-        contatoEmergencia: contatoEmergencia || null,
+        dataAdmissao: values.dataAdmissao,
+        dataDemissao: values.dataDemissao || null,
+        status: values.status,
+        contatoEmergencia: values.contatoEmergencia || null,
         permiteHorasExtras: false,
         documentos: finalDocs,
       };
@@ -249,14 +260,16 @@ export default function FuncionarioForm({
       onSaved();
     } catch (err) {
       console.error("Falha ao salvar funcionário:", err);
-      alert(
-        `Falha ao salvar: ${err instanceof Error ? err.message : String(err)}`
-      );
+      showToast({
+        kind: "error",
+        message: `Falha ao salvar: ${err instanceof Error ? err.message : String(err)}`,
+      });
     } finally {
       setSaving(false);
     }
-  }
+  }, [fotos, documentos, initial, onSubmit, onSaved, showToast]);
 
+  // ── Fotos / Documentos handlers ──────────────────────────────────────────
   async function handleAdicionarFotos(e: React.ChangeEvent<HTMLInputElement>) {
     const files = Array.from(e.target.files ?? []);
     if (files.length === 0) return;
@@ -292,7 +305,7 @@ export default function FuncionarioForm({
       item: {
         id: crypto.randomUUID(),
         nome: file.name,
-        path: "", // preenchido após upload no submit
+        path: "",
         size: file.size,
         mimeType: file.type || "application/octet-stream",
         uploadedAt: new Date().toISOString(),
@@ -305,7 +318,6 @@ export default function FuncionarioForm({
   async function removerDocumento(id: string) {
     const target = documentos.find((d) => d.item.id === id);
     if (!target) return;
-    // Se já estava no storage, apaga o arquivo também.
     if (!target.pendingFile && target.item.path) {
       try {
         await deleteDocumentos([target.item.path]);
@@ -324,36 +336,46 @@ export default function FuncionarioForm({
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-5">
+    <form onSubmit={rhfHandleSubmit(onValidSubmit)} className="space-y-5">
       <Section title="Identificação">
         <Grid cols={2}>
           <Input
             label="Nome completo"
-            value={nome}
-            onChange={(e) => setNome(e.target.value)}
             required
-            error={errors.nome}
+            error={errors.nome?.message}
+            {...register("nome")}
           />
-          <Input
-            label="CPF"
-            value={formatarCpf(cpf)}
-            onChange={(e) => setCpf(e.target.value.replace(/\D/g, ""))}
-            maxLength={14}
-            error={errors.cpf}
+          <Controller
+            control={control}
+            name="cpf"
+            render={({ field }) => (
+              <Input
+                label="CPF"
+                maxLength={14}
+                error={errorCpfDup ?? errors.cpf?.message}
+                value={formatarCpf(field.value ?? "")}
+                onChange={(e) => {
+                  setErrorCpfDup(null);
+                  field.onChange(e.target.value.replace(/\D/g, ""));
+                }}
+                onBlur={field.onBlur}
+                name={field.name}
+                ref={field.ref}
+              />
+            )}
           />
-          <Input label="RG" value={rg ?? ""} onChange={(e) => setRg(e.target.value)} />
-          <Input label="PIS" value={pis ?? ""} onChange={(e) => setPis(e.target.value)} />
+          <Input label="RG" error={errors.rg?.message} {...register("rg")} />
+          <Input label="PIS" error={errors.pis?.message} {...register("pis")} />
           <Input
             label="CTPS (número e série)"
-            value={ctps ?? ""}
-            onChange={(e) => setCtps(e.target.value)}
+            error={errors.ctps?.message}
+            {...register("ctps")}
           />
           <Input
             label="Data de nascimento"
             type="date"
-            value={dataNascimento}
-            onChange={(e) => setDataNascimento(e.target.value)}
-            error={errors.dataNascimento}
+            error={errors.dataNascimento?.message}
+            {...register("dataNascimento")}
           />
         </Grid>
       </Section>
@@ -363,28 +385,23 @@ export default function FuncionarioForm({
           <Select
             label="Função/cargo"
             options={FUNCOES.map((f) => ({ value: f, label: f }))}
-            value={funcao}
-            onChange={(e) => setFuncao(e.target.value as FuncaoFuncionario)}
-            error={errors.funcao}
+            error={errors.funcao?.message}
+            {...register("funcao")}
           />
           <Select
             label="Tipo de vínculo"
             options={VINCULO_OPTS}
-            value={tipoVinculo}
-            onChange={(e) => setTipoVinculo(e.target.value as TipoVinculo)}
-            error={errors.tipoVinculo}
+            error={errors.tipoVinculo?.message}
+            {...register("tipoVinculo")}
           />
           <Input
             label="Salário base (R$/mês)"
             type="number"
             step="0.01"
             min="0.01"
-            value={salarioBase ?? ""}
-            onChange={(e) =>
-              setSalarioBase(e.target.value ? Number(e.target.value) : null)
-            }
-            error={errors.salarioBase}
             placeholder="Ex.: 1518.00"
+            error={errors.salarioBase?.message}
+            {...register("salarioBase", { valueAsNumber: true })}
           />
         </Grid>
       </Section>
@@ -394,27 +411,27 @@ export default function FuncionarioForm({
           <Input
             label="Data de admissão"
             type="date"
-            value={dataAdmissao}
-            onChange={(e) => setDataAdmissao(e.target.value)}
-            error={errors.dataAdmissao}
+            required
+            error={errors.dataAdmissao?.message}
+            {...register("dataAdmissao")}
           />
           <Input
             label="Data de demissão"
             type="date"
-            value={dataDemissao ?? ""}
-            onChange={(e) => setDataDemissao(e.target.value)}
+            error={errors.dataDemissao?.message}
+            {...register("dataDemissao")}
           />
           <Select
             label="Status"
             options={STATUS_OPTS}
-            value={status}
-            onChange={(e) => setStatus(e.target.value as StatusFuncionario)}
+            error={errors.status?.message}
+            {...register("status")}
           />
           <Input
             label="Contato de emergência"
-            value={contatoEmergencia ?? ""}
-            onChange={(e) => setContatoEmergencia(e.target.value)}
             placeholder="Nome + telefone"
+            error={errors.contatoEmergencia?.message}
+            {...register("contatoEmergencia")}
           />
         </Grid>
       </Section>
@@ -448,7 +465,7 @@ export default function FuncionarioForm({
               )}
 
               {i === 0 && (
-                <span className="absolute top-1 left-1 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-[var(--color-accent)] text-[var(--color-fg-on-accent)]">
+                <span className="absolute top-1 left-1 px-1.5 py-0.5 rounded text-3xs font-semibold bg-[var(--color-accent)] text-[var(--color-fg-on-accent)]">
                   Principal
                 </span>
               )}
@@ -466,7 +483,7 @@ export default function FuncionarioForm({
                 <button
                   type="button"
                   onClick={() => definirComoPrincipal(i)}
-                  className="absolute bottom-0 inset-x-0 bg-black/55 text-white text-[10px] py-1 opacity-0 hover:opacity-100 transition-opacity"
+                  className="absolute bottom-0 inset-x-0 bg-black/55 text-white text-3xs py-1 opacity-0 hover:opacity-100 transition-opacity"
                 >
                   Tornar principal
                 </button>
@@ -491,9 +508,9 @@ export default function FuncionarioForm({
           )}
         </div>
 
-        {errors.fotos && (
+        {errorFotos && (
           <p className="text-[var(--color-danger)] text-xs mt-2">
-            {errors.fotos}
+            {errorFotos}
           </p>
         )}
       </Section>
@@ -541,7 +558,7 @@ export default function FuncionarioForm({
                   </svg>
                   <div className="flex-1 min-w-0">
                     <p className="text-sm text-[var(--color-fg)] truncate">{d.item.nome}</p>
-                    <p className="text-[11px] text-[var(--color-fg-subtle)]">
+                    <p className="text-2xs text-[var(--color-fg-subtle)]">
                       {formatBytes(d.item.size)}
                       {d.pendingFile && (
                         <span className="ml-2 text-[var(--color-warning-fg)]">
