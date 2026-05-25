@@ -845,13 +845,13 @@ function FrotaCombustivelContent() {
             >
               <TabsList variant="line">
                 <TabsTrigger value="todas">
-                  Todas <span className="ml-1 tabular-nums text-[var(--color-fg-subtle)]">({saidasCountByView.todas})</span>
+                  Todas <span className="ml-1 tabular-nums opacity-60">({saidasCountByView.todas})</span>
                 </TabsTrigger>
                 <TabsTrigger value="internas">
-                  Internas <span className="ml-1 tabular-nums text-[var(--color-fg-subtle)]">({saidasCountByView.internas})</span>
+                  Internas <span className="ml-1 tabular-nums opacity-60">({saidasCountByView.internas})</span>
                 </TabsTrigger>
                 <TabsTrigger value="externas">
-                  Externas <span className="ml-1 tabular-nums text-[var(--color-fg-subtle)]">({saidasCountByView.externas})</span>
+                  Externas <span className="ml-1 tabular-nums opacity-60">({saidasCountByView.externas})</span>
                 </TabsTrigger>
               </TabsList>
             </Tabs>
