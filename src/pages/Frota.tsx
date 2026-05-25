@@ -112,15 +112,23 @@ export default function Frota() {
   const alertasMap = useMemo(() => new Map<string, number>(), []);
 
   const handleAdicionarEquipamento = useCallback(async (eq: Equipamento) => {
-    await adicionarMutation.mutateAsync({ ...eq, criadoPor: usuario?.nome || '' });
-    setModalNovoOpen(false);
-  }, [adicionarMutation, usuario]);
+    try {
+      await adicionarMutation.mutateAsync({ ...eq, criadoPor: usuario?.nome || '' });
+      setModalNovoOpen(false);
+    } catch (e) {
+      showToast({ kind: 'error', message: e instanceof Error ? e.message : 'Erro ao adicionar equipamento' });
+    }
+  }, [adicionarMutation, usuario, showToast]);
 
   const handleEditarEquipamento = useCallback(async (eq: Equipamento) => {
-    await atualizarMutation.mutateAsync(eq);
-    setEditandoEquip(null);
-    setEquipamentoSelecionado(null);
-  }, [atualizarMutation]);
+    try {
+      await atualizarMutation.mutateAsync(eq);
+      setEditandoEquip(null);
+      setEquipamentoSelecionado(null);
+    } catch (e) {
+      showToast({ kind: 'error', message: e instanceof Error ? e.message : 'Erro ao atualizar equipamento' });
+    }
+  }, [atualizarMutation, showToast]);
 
   const equipamentosFiltrados = useMemo(() => {
     let lista = equipamentos;
@@ -531,10 +539,14 @@ export default function Frota() {
           empresas={empresas}
           equipamentosExistentes={equipamentos}
           onImportBatch={async (novos) => {
-            for (const eq of novos) {
-              await adicionarMutation.mutateAsync({ ...eq, criadoPor: usuario?.nome || '' });
+            try {
+              for (const eq of novos) {
+                await adicionarMutation.mutateAsync({ ...eq, criadoPor: usuario?.nome || '' });
+              }
+              setModalNovoOpen(false);
+            } catch (e) {
+              showToast({ kind: 'error', message: e instanceof Error ? e.message : 'Erro ao importar equipamentos' });
             }
-            setModalNovoOpen(false);
           }}
         />
       </Modal>
