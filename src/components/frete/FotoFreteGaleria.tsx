@@ -83,7 +83,7 @@ export default function FotoFreteGaleria({
                 </span>
               )}
 
-              <div className="absolute top-1 right-1 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+              <div className="absolute top-1 right-1 flex gap-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
                 {canDownload && (
                   <button
                     type="button"
