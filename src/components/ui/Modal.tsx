@@ -1,5 +1,27 @@
-import { useEffect, useRef, type ReactNode, type MouseEvent } from 'react';
-import { createPortal } from 'react-dom';
+/**
+ * Modal — wrapper sobre shadcn Dialog mantendo a API legada.
+ *
+ * Por que wrapper: 48+ callsites no app usam <Modal>; swap dos internals
+ * pra shadcn (Radix) dá trap-focus, escape, restoração de foco, portal,
+ * aria-* corretos e animação fade+zoom de graça — sem precisar tocar em
+ * nenhum callsite.
+ *
+ * API preservada (1:1 com a versão anterior):
+ *   open, onClose, title, children, size, confirmClose
+ *
+ * Diferenças sutis vs versão anterior (não-quebrantes):
+ *   - X aparece no canto mas usa estilo shadcn (ghost button icon-sm).
+ *   - Animação de entrada agora é fade+zoom (radix), não corte seco.
+ *   - Foco inicial: Radix coloca foco no primeiro elemento focusable do
+ *     content (antes era no body). Comportamento mais a11y-correct.
+ */
+import type { ReactNode } from 'react';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '../shadcn/dialog';
 
 interface ModalProps {
   open: boolean;
@@ -10,116 +32,62 @@ interface ModalProps {
   /**
    * Callback opcional executado antes de qualquer tentativa de fechar
    * (X, backdrop, Escape). Se retornar `false`, o fechamento é abortado.
-   * Útil para confirmar antes de descartar alterações.
+   * Útil pra confirmar antes de descartar alterações em forms.
    */
   confirmClose?: () => boolean;
 }
 
-const sizeClasses = {
+const sizeClasses: Record<NonNullable<ModalProps['size']>, string> = {
   default: 'sm:max-w-2xl',
-  lg: 'sm:max-w-4xl',
-  xl: 'sm:max-w-6xl',
+  lg:      'sm:max-w-4xl',
+  xl:      'sm:max-w-6xl',
 };
 
-export default function Modal({ open, onClose, title, children, size = 'default', confirmClose }: ModalProps) {
-  // Tenta fechar; respeita confirmClose se fornecido
-  const tryClose = () => {
+export default function Modal({
+  open,
+  onClose,
+  title,
+  children,
+  size = 'default',
+  confirmClose,
+}: ModalProps) {
+  const handleOpenChange = (next: boolean) => {
+    // Só interceptamos closes (Radix nunca chama com next=true sem trigger explícito).
+    if (next) return;
     if (confirmClose && !confirmClose()) return;
     onClose();
   };
-  // F6.B — A11y: dialog ganha role="dialog" + aria-modal="true" + aria-labelledby
-  // pra screen readers anunciarem corretamente. ESC fecha (faltava). useRef pro
-  // título permite linkar com aria-labelledby.
-  const titleId = useRef(`modal-title-${Math.random().toString(36).slice(2, 8)}`);
-  // Smoke-fix: só fecha o modal se o gesto COMEÇOU no backdrop. Antes, um
-  // mousedown dentro do form (texto selecionado, drag de scroll) que terminava
-  // no backdrop fechava o modal acidentalmente.
-  const mouseDownOnBackdrop = useRef(false);
 
-  useEffect(() => {
-    if (open) {
-      document.body.style.overflow = 'hidden';
-      const onKey = (e: KeyboardEvent) => {
-        // B1: se algum popup/dropdown interceptou e preventDefault, não fecha o modal.
-        if (e.key === 'Escape' && !e.defaultPrevented) tryClose();
-      };
-      window.addEventListener('keydown', onKey);
-      return () => {
-        document.body.style.overflow = '';
-        window.removeEventListener('keydown', onKey);
-      };
-    }
-    document.body.style.overflow = '';
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, onClose, confirmClose]);
-
-  if (!open) return null;
-
-  const handleBackdropMouseDown = (e: MouseEvent<HTMLDivElement>) => {
-    mouseDownOnBackdrop.current = e.target === e.currentTarget;
-  };
-  const handleBackdropClick = (e: MouseEvent<HTMLDivElement>) => {
-    if (e.target === e.currentTarget && mouseDownOnBackdrop.current) {
-      tryClose();
-    }
-    mouseDownOnBackdrop.current = false;
-  };
-
-  // Renderiza via portal direto no document.body para escapar de
-  // qualquer <form> ancestral. Sem isso, modais com <form> interno
-  // (como cadastros rápidos de insumo/peça dentro do form da OC)
-  // ficam com forms aninhados, que são HTML inválido — o navegador
-  // descarta o form interno e o submit acaba no form externo.
-  return createPortal(
-    <div className="fixed inset-0 z-50 flex items-center justify-center">
-      <div
-        className="fixed inset-0 bg-black/40 backdrop-blur-[2px] dark:bg-black/70"
-        onMouseDown={handleBackdropMouseDown}
-        onClick={handleBackdropClick}
-        aria-hidden="true"
-      />
-      <div
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby={titleId.current}
+  return (
+    <Dialog open={open} onOpenChange={handleOpenChange}>
+      <DialogContent
         className={
-          'relative bg-[var(--color-surface-1)] text-[var(--color-fg)] ' +
-          'sm:rounded-2xl shadow-[var(--shadow-xl)] ' +
-          'border border-[var(--color-border)] ' +
-          `w-full ${sizeClasses[size]} max-h-[100dvh] sm:max-h-[90vh] ` +
-          'overflow-y-auto sm:mx-4 elevate-top'
+          // Reseta o padding/max-width default do shadcn (p-4, sm:max-w-sm, gap-4)
+          // e aplica nosso visual: surface-1 bg, border, shadow-xl, sm:rounded-2xl,
+          // header sticky, max-height responsivo, padding 0 (header e body têm próprio).
+          'p-0 gap-0 max-h-[100dvh] sm:max-h-[90vh] overflow-y-auto ' +
+          'bg-[var(--color-surface-1)] text-[var(--color-fg)] ' +
+          'border border-[var(--color-border)] sm:rounded-2xl ' +
+          'shadow-[var(--shadow-xl)] elevate-top ' +
+          'w-full ' + sizeClasses[size]
         }
       >
-        <div
+        <DialogHeader
           className={
-            'flex items-center justify-between p-4 sm:p-5 ' +
+            'flex-row items-center justify-between gap-3 p-4 sm:p-5 ' +
             'border-b border-[var(--color-border)] ' +
             'sticky top-0 bg-[var(--color-surface-1)]/95 backdrop-blur-sm z-10'
           }
         >
-          <h2
-            id={titleId.current}
-            className="text-base sm:text-lg font-semibold text-[var(--color-fg)] tracking-tight"
-          >
+          <DialogTitle className="text-base sm:text-lg font-semibold text-[var(--color-fg)] tracking-tight">
             {title}
-          </h2>
-          <button
-            onClick={tryClose}
-            aria-label="Fechar"
-            className={
-              'w-9 h-9 inline-flex items-center justify-center rounded-lg ' +
-              'text-[var(--color-fg-subtle)] hover:text-[var(--color-fg)] ' +
-              'hover:bg-[var(--color-surface-2)] transition-colors'
-            }
-          >
-            <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M18 6L6 18M6 6l12 12" />
-            </svg>
-          </button>
-        </div>
+          </DialogTitle>
+          {/* X built-in do shadcn fica em absolute top-2 right-2 dentro do DialogContent.
+              Mantemos o slot no header (vazio) só pra preservar o alinhamento title/right. */}
+          <div className="w-9" aria-hidden />
+        </DialogHeader>
         <div className="p-4 sm:p-6">{children}</div>
-      </div>
-    </div>,
-    document.body
+      </DialogContent>
+    </Dialog>
   );
 }
