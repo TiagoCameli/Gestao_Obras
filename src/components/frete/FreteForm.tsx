@@ -555,7 +555,7 @@ export default function FreteForm({
           <span className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-emt-verde/20 text-emt-verde text-xs font-bold">📦</span>
           <div>
             <h3 className="text-sm font-semibold text-gray-800">Fotos da Chegada da Carga</h3>
-            <p className="text-xs text-gray-500">Até 8 fotos. A 1ª é a principal (registra GPS + horário da chegada).</p>
+            <p className="text-xs text-gray-500">Até 8 fotos. GPS + horário gravados ao usar "Tirar foto".</p>
           </div>
         </div>
         <AnexosUploader

@@ -75,7 +75,7 @@ export default function FreteFotoChegadaBlock({ frete, canEdit, variant = 'card'
           <p className="text-xs text-[var(--color-fg-muted)]">
             {fotosAtuais.length === 0
               ? 'Pendente — carga ainda não foi confirmada na chegada.'
-              : `${fotosAtuais.length} foto(s)${frete.dataChegada ? ` · registrada em ${fmtData(frete.dataChegada)}` : ''}. A 1ª é a principal.`}
+              : `${fotosAtuais.length} foto(s)${frete.dataChegada ? ` · registrada em ${fmtData(frete.dataChegada)}` : ''}`}
           </p>
         </div>
       </div>
