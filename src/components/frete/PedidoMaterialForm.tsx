@@ -1,4 +1,17 @@
-import { useState, useEffect, useCallback, type FormEvent } from 'react';
+/**
+ * PedidoMaterialForm — Onda 4.C: migrado pra react-hook-form + Zod (hybrid).
+ *
+ * Hybrid: RHF gerencia os campos top-level (data, fornecedorId, observacoes);
+ * array `itens` continua em useState porque tem UI local complexa (linhas
+ * dinâmicas com add/remove + subtotal computado) e o useFieldArray do RHF
+ * adicionaria mais complexidade que valor pra este caso.
+ *
+ * Validação de itens é manual no submit handler (e desabilita o botão se
+ * algum item incompleto).
+ */
+import { useState, useEffect, useCallback } from 'react';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
 import type { PedidoMaterial, ItemPedidoMaterial, Fornecedor, Insumo } from '../../types';
 import Input from '../ui/Input';
 import Select from '../ui/Select';
@@ -7,6 +20,10 @@ import Button from '../ui/Button';
 import ImportExcelModal, { parseStr, parseNumero, parseData, type ParsedRow } from '../ui/ImportExcelModal';
 import AnexosUploader from '../combustivel/AnexosUploader';
 import { useAuth } from '../../contexts/AuthContext';
+import {
+  pedidoMaterialFormSchema,
+  type PedidoMaterialFormValues,
+} from '../../schemas/frete/pedidoMaterial.schema';
 
 interface PedidoMaterialFormProps {
   initial?: PedidoMaterial | null;
@@ -28,6 +45,14 @@ const PEDIDO_TEMPLATE = [
   ['2024-01-15', 'Fornecedor ABC', 'Brita', '100', '25.00', ''],
 ];
 
+function buildDefaults(initial: PedidoMaterial | null | undefined): PedidoMaterialFormValues {
+  return {
+    data: initial?.data || '',
+    fornecedorId: initial?.fornecedorId || '',
+    observacoes: initial?.observacoes || '',
+  };
+}
+
 export default function PedidoMaterialForm({
   initial,
   onSubmit,
@@ -40,20 +65,49 @@ export default function PedidoMaterialForm({
   const canAct = initial
     ? temAcao('editar_pedido_material_frete')
     : temAcao('criar_pedido_material_frete');
-  const [data, setData] = useState(initial?.data || '');
-  const [fornecedorId, setFornecedorId] = useState(initial?.fornecedorId || '');
+
+  // ── Estado fora do RHF ──────────────────────────────────────────────────
   const [itens, setItens] = useState<ItemPedidoMaterial[]>(
-    initial?.itens?.length ? initial.itens : [{ ...EMPTY_ITEM }]
+    initial?.itens?.length ? initial.itens : [{ ...EMPTY_ITEM }],
   );
-  const [observacoes, setObservacoes] = useState(initial?.observacoes || '');
-  // FF.3 — Anexos universais (cotação, NF do fornecedor, proposta).
   const [fotoUrls, setFotoUrls] = useState<string[]>(initial?.fotoUrls ?? []);
   const [arquivoUrls, setArquivoUrls] = useState<string[]>(initial?.arquivoUrls ?? []);
-
-  // Import Excel
   const [importModalOpen, setImportModalOpen] = useState(false);
   const [toastMsg, setToastMsg] = useState('');
 
+  // ── RHF (top-level: data, fornecedorId, observacoes) ────────────────────
+  const {
+    register,
+    handleSubmit: rhfHandleSubmit,
+    reset,
+    formState: { errors, isValid: rhfIsValid },
+  } = useForm<PedidoMaterialFormValues>({
+    resolver: zodResolver(pedidoMaterialFormSchema),
+    mode: 'onChange',
+    defaultValues: buildDefaults(initial),
+  });
+
+  useEffect(() => {
+    reset(buildDefaults(initial));
+    setItens(initial?.itens?.length ? initial.itens : [{ ...EMPTY_ITEM }]);
+  }, [initial, reset]);
+
+  // ── Submit ───────────────────────────────────────────────────────────────
+  const onValidSubmit = useCallback((values: PedidoMaterialFormValues) => {
+    if (!canAct) return;
+    onSubmit({
+      id: initial?.id || gerarId(),
+      data: values.data,
+      fornecedorId: values.fornecedorId,
+      itens,
+      observacoes: values.observacoes || '',
+      criadoPor: initial?.criadoPor || '',
+      fotoUrls,
+      arquivoUrls,
+    });
+  }, [canAct, initial, itens, fotoUrls, arquivoUrls, onSubmit]);
+
+  // ── Import Excel parser/mapper ───────────────────────────────────────────
   const parseRow = useCallback(
     (row: unknown[], _index: number): ParsedRow => {
       const erros: string[] = [];
@@ -71,11 +125,8 @@ export default function PedidoMaterialForm({
         erros.push('Falta fornecedor');
       } else {
         const found = fornecedores.find((f) => f.nome.toLowerCase() === fornecedorNome.toLowerCase());
-        if (found) {
-          fornecedorIdVal = found.id;
-        } else {
-          erros.push(`Fornecedor "${fornecedorNome}" nao encontrado`);
-        }
+        if (found) fornecedorIdVal = found.id;
+        else erros.push(`Fornecedor "${fornecedorNome}" nao encontrado`);
       }
 
       let insumoIdVal = '';
@@ -83,11 +134,8 @@ export default function PedidoMaterialForm({
         erros.push('Falta material');
       } else {
         const found = insumos.find((i) => i.nome.toLowerCase() === materialNome.toLowerCase());
-        if (found) {
-          insumoIdVal = found.id;
-        } else {
-          erros.push(`Material "${materialNome}" nao encontrado`);
-        }
+        if (found) insumoIdVal = found.id;
+        else erros.push(`Material "${materialNome}" nao encontrado`);
       }
 
       if (qtd === null) erros.push('Falta quantidade');
@@ -102,7 +150,7 @@ export default function PedidoMaterialForm({
         dados: { data: dataVal, fornecedorId: fornecedorIdVal, insumoId: insumoIdVal, quantidade: qtd ?? 0, valorUnitario: vlrUnit ?? 0, observacoes: obs },
       };
     },
-    [fornecedores, insumos]
+    [fornecedores, insumos],
   );
 
   const toEntity = useCallback((row: ParsedRow): Record<string, unknown> => {
@@ -112,8 +160,6 @@ export default function PedidoMaterialForm({
   const handleImportBatch = useCallback(
     (items: Record<string, unknown>[]) => {
       if (!onImportBatch) return;
-
-      // Group by data|fornecedorId
       const groups = new Map<string, { data: string; fornecedorId: string; observacoes: string; itens: ItemPedidoMaterial[] }>();
       for (const item of items) {
         const key = `${item.data}|${item.fornecedorId}`;
@@ -131,7 +177,6 @@ export default function PedidoMaterialForm({
           valorUnitario: item.valorUnitario as number,
         });
       }
-
       const pedidos: PedidoMaterial[] = Array.from(groups.values()).map((g) => ({
         id: gerarId(),
         data: g.data,
@@ -140,23 +185,14 @@ export default function PedidoMaterialForm({
         observacoes: g.observacoes,
         criadoPor: '',
       }));
-
       onImportBatch(pedidos);
       setToastMsg(`${pedidos.length} pedido${pedidos.length !== 1 ? 's' : ''} importado${pedidos.length !== 1 ? 's' : ''} com sucesso (${items.length} ite${items.length !== 1 ? 'ns' : 'm'})`);
       setTimeout(() => setToastMsg(''), 4000);
     },
-    [onImportBatch]
+    [onImportBatch],
   );
 
-  useEffect(() => {
-    if (initial) {
-      setData(initial.data);
-      setFornecedorId(initial.fornecedorId);
-      setItens(initial.itens.length ? initial.itens : [{ ...EMPTY_ITEM }]);
-      setObservacoes(initial.observacoes);
-    }
-  }, [initial]);
-
+  // ── Itens helpers ────────────────────────────────────────────────────────
   const fornecedoresAtivos = fornecedores.filter((f) => f.ativo !== false);
   const insumosAtivos = insumos.filter((i) => i.ativo !== false);
 
@@ -180,31 +216,13 @@ export default function PedidoMaterialForm({
 
   const valorTotal = itens.reduce((sum, item) => sum + subtotal(item), 0);
 
-  const isValid =
-    data &&
-    fornecedorId &&
-    itens.length > 0 &&
+  const itensValidos = itens.length > 0 &&
     itens.every((item) => item.insumoId && item.quantidade > 0 && item.valorUnitario > 0);
 
-  function handleSubmit(e: FormEvent) {
-    if (!canAct) return;
-    e.preventDefault();
-    if (!isValid) return;
-    onSubmit({
-      id: initial?.id || gerarId(),
-      data,
-      fornecedorId,
-      itens,
-      observacoes,
-      criadoPor: initial?.criadoPor || '',
-      // FF.3 — anexos universais.
-      fotoUrls,
-      arquivoUrls,
-    });
-  }
+  const isValid = canAct && rhfIsValid && itensValidos;
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
+    <form onSubmit={rhfHandleSubmit(onValidSubmit)} className="space-y-4">
       {!initial && onImportBatch && (
         <div className="flex justify-end">
           <Button type="button" variant="secondary" className="text-xs px-3 py-1.5" onClick={() => setImportModalOpen(true)}>
@@ -217,28 +235,28 @@ export default function PedidoMaterialForm({
           label="Data do Pedido"
           id="pedidoMaterialData"
           type="date"
-          value={data}
-          onChange={(e) => setData(e.target.value)}
           required
+          error={errors.data?.message}
+          {...register('data')}
         />
         <Select
           label="Fornecedor"
           id="pedidoMaterialFornecedor"
-          value={fornecedorId}
-          onChange={(e) => setFornecedorId(e.target.value)}
           options={fornecedoresAtivos.map((f) => ({ value: f.id, label: f.nome }))}
           placeholder="Selecione o fornecedor"
           required
+          error={errors.fornecedorId?.message}
+          {...register('fornecedorId')}
         />
       </div>
 
       {/* Itens do Pedido */}
       <div>
         <div className="flex items-center justify-between mb-2">
-          <label className="block text-sm font-medium text-gray-700">Itens do Pedido</label>
+          <label className="block text-sm font-medium text-[var(--color-fg)]">Itens do Pedido</label>
           <button
             type="button"
-            className="text-xs text-emt-verde hover:text-emt-verde-escuro font-medium"
+            className="text-xs text-[var(--color-accent)] hover:text-[var(--color-accent-hover)] font-medium"
             onClick={addItem}
           >
             + Adicionar Material
@@ -255,10 +273,10 @@ export default function PedidoMaterialForm({
               >
                 <div>
                   {index === 0 && (
-                    <label className="block text-xs font-medium text-gray-500 mb-1">Material</label>
+                    <label className="block text-xs font-medium text-[var(--color-fg-muted)] mb-1">Material</label>
                   )}
                   <SmartSelect
-                    className="w-full h-[38px] border border-gray-300 rounded-lg px-3 py-2 text-sm text-left focus:outline-none focus:ring-2 focus:ring-emt-verde bg-white flex items-center"
+                    className="w-full h-[38px] border border-[var(--color-border)] rounded-lg px-3 py-2 text-sm text-left focus:outline-none focus:ring-2 focus:ring-[var(--color-ring)] bg-[var(--color-surface-1)] flex items-center"
                     value={item.insumoId}
                     onChange={(e) => updateItem(index, 'insumoId', e.target.value)}
                     required
@@ -273,21 +291,21 @@ export default function PedidoMaterialForm({
                 </div>
                 <div>
                   {index === 0 && (
-                    <label className="block text-xs font-medium text-gray-500 mb-1">Unidade</label>
+                    <label className="block text-xs font-medium text-[var(--color-fg-muted)] mb-1">Unidade</label>
                   )}
-                  <div className="w-full h-[38px] flex items-center justify-center border border-gray-200 bg-gray-50 rounded-lg px-2 text-sm text-gray-600">
+                  <div className="w-full h-[38px] flex items-center justify-center border border-[var(--color-border)] bg-[var(--color-surface-2)] rounded-lg px-2 text-sm text-[var(--color-fg-muted)]">
                     {insumoSelecionado?.unidade || '—'}
                   </div>
                 </div>
                 <div>
                   {index === 0 && (
-                    <label className="block text-xs font-medium text-gray-500 mb-1">Qtd</label>
+                    <label className="block text-xs font-medium text-[var(--color-fg-muted)] mb-1">Qtd</label>
                   )}
                   <input
                     type="number"
                     step="0.0001"
                     min="0"
-                    className="w-full h-[38px] border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emt-verde"
+                    className="w-full h-[38px] border border-[var(--color-border)] rounded-lg px-3 py-2 text-sm bg-[var(--color-surface-1)] text-[var(--color-fg)] focus:outline-none focus:ring-2 focus:ring-[var(--color-ring)]"
                     value={item.quantidade || ''}
                     onChange={(e) => updateItem(index, 'quantidade', parseFloat(e.target.value) || 0)}
                     required
@@ -295,13 +313,13 @@ export default function PedidoMaterialForm({
                 </div>
                 <div>
                   {index === 0 && (
-                    <label className="block text-xs font-medium text-gray-500 mb-1">Vlr Unit (R$)</label>
+                    <label className="block text-xs font-medium text-[var(--color-fg-muted)] mb-1">Vlr Unit (R$)</label>
                   )}
                   <input
                     type="number"
                     step="0.0001"
                     min="0"
-                    className="w-full h-[38px] border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emt-verde"
+                    className="w-full h-[38px] border border-[var(--color-border)] rounded-lg px-3 py-2 text-sm bg-[var(--color-surface-1)] text-[var(--color-fg)] focus:outline-none focus:ring-2 focus:ring-[var(--color-ring)]"
                     value={item.valorUnitario || ''}
                     onChange={(e) => updateItem(index, 'valorUnitario', parseFloat(e.target.value) || 0)}
                     required
@@ -309,9 +327,9 @@ export default function PedidoMaterialForm({
                 </div>
                 <div>
                   {index === 0 && (
-                    <label className="block text-xs font-medium text-gray-500 mb-1">Subtotal</label>
+                    <label className="block text-xs font-medium text-[var(--color-fg-muted)] mb-1">Subtotal</label>
                   )}
-                  <div className="w-full h-[38px] flex items-center justify-end border border-gray-200 bg-gray-50 rounded-lg px-3 text-sm font-medium text-emt-verde">
+                  <div className="w-full h-[38px] flex items-center justify-end border border-[var(--color-border)] bg-[var(--color-surface-2)] rounded-lg px-3 text-sm font-medium text-[var(--color-accent)] tabular-nums">
                     {subtotal(item).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
                   </div>
                 </div>
@@ -320,7 +338,7 @@ export default function PedidoMaterialForm({
                   {itens.length > 1 && (
                     <button
                       type="button"
-                      className="w-8 h-[38px] flex items-center justify-center text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                      className="w-8 h-[38px] flex items-center justify-center text-[var(--color-danger)] hover:bg-[var(--color-danger-soft)] rounded-lg transition-colors"
                       onClick={() => removeItem(index)}
                       title="Remover item"
                     >
@@ -337,10 +355,10 @@ export default function PedidoMaterialForm({
       {/* Valor Total */}
       <div className="flex justify-end">
         <div className="text-right">
-          <label className="block text-sm font-medium text-gray-700 mb-1">
+          <label className="block text-sm font-medium text-[var(--color-fg)] mb-1">
             Valor Total do Pedido
           </label>
-          <div className="border border-gray-200 bg-gray-50 rounded-lg px-4 py-2 text-lg font-bold text-emt-verde">
+          <div className="border border-[var(--color-border)] bg-[var(--color-surface-2)] rounded-lg px-4 py-2 text-lg font-bold text-[var(--color-accent)] tabular-nums">
             {valorTotal.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
           </div>
         </div>
@@ -349,18 +367,20 @@ export default function PedidoMaterialForm({
       <div>
         <label
           htmlFor="pedidoMaterialObs"
-          className="block text-sm font-medium text-gray-700 mb-1"
+          className="block text-sm font-medium text-[var(--color-fg)] mb-1"
         >
           Observações (opcional)
         </label>
         <textarea
           id="pedidoMaterialObs"
-          className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emt-verde"
+          className="w-full border border-[var(--color-border)] rounded-lg px-3 py-2 text-sm bg-[var(--color-surface-1)] text-[var(--color-fg)] focus:outline-none focus:ring-2 focus:ring-[var(--color-ring)]"
           rows={3}
-          value={observacoes}
-          onChange={(e) => setObservacoes(e.target.value)}
           placeholder="Alguma observação..."
+          {...register('observacoes')}
         />
+        {errors.observacoes && (
+          <p className="text-xs text-[var(--color-danger)] mt-1">{errors.observacoes.message}</p>
+        )}
       </div>
 
       {/* FF.3 — Anexos universais (cotação, NF do fornecedor, proposta). */}
@@ -399,7 +419,7 @@ export default function PedidoMaterialForm({
       />
 
       {toastMsg && (
-        <div className="fixed bottom-6 right-6 z-[60] bg-green-600 text-white px-5 py-3 rounded-lg shadow-lg text-sm font-medium animate-[fadeIn_0.2s_ease-out]">
+        <div className="fixed bottom-6 right-6 z-[var(--z-toast)] bg-[var(--color-success)] text-white px-5 py-3 rounded-lg shadow-[var(--shadow-lg)] text-sm font-medium animate-[fadeIn_0.2s_ease-out]">
           {toastMsg}
         </div>
       )}

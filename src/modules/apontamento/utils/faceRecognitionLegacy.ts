@@ -1,16 +1,19 @@
 import * as faceapi from "@vladmandic/face-api";
 
 /**
- * Reconhecimento facial via @vladmandic/face-api.
+ * Fallback técnico SÍNCRONO (main thread) pro reconhecimento facial.
+ * Usado automaticamente por `faceWorkerClient.ts` quando o browser não
+ * suporta Web Worker module — não exposto como flag pro usuário.
  *
- * Os modelos são baixados do CDN jsDelivr e ficam cacheados pelo browser.
- * Usamos `tinyFaceDetector` (~190 KB) ao invés do SSD MobileNet (~5 MB)
- * porque é 3-5x mais rápido e suficiente para uma única face de batida
- * de ponto. Os descritores das fotos de referência são memorizados por
- * URL para que comparações subsequentes só processem o frame do teste.
+ * Caso comum (Chrome/Firefox/Safari recentes): cliente delega ao worker
+ * e este arquivo nunca executa. Mantido em ~5% de cobertura.
+ *
+ * Modelos servidos pelo próprio Vercel (/face-models/), copiados via
+ * scripts/sync-face-models.mjs no postinstall. Sem dependência de CDN.
+ * Tiny detector (~190KB) ao invés de SSD MobileNet (~5MB) porque é 3-5x
+ * mais rápido e suficiente pra uma única face de batida de ponto.
  */
-const MODEL_URL =
-  "https://cdn.jsdelivr.net/npm/@vladmandic/face-api@1.7.15/model";
+const MODEL_URL = "/face-models";
 
 const TINY_OPTS = new faceapi.TinyFaceDetectorOptions({
   inputSize: 320,      // 320 é um bom equilíbrio (default é 416)

@@ -61,10 +61,14 @@ export async function setDescritor(url: string, descriptor: Float32Array): Promi
       const tx = db.transaction(STORE, 'readwrite')
       const row: Row = {
         url,
+        // Copia respeitando byteOffset/byteLength — funciona com Float32Array
+        // criado via subarray() de um buffer maior. Cast pra ArrayBuffer
+        // é seguro: descriptor.buffer só seria SharedArrayBuffer se o caller
+        // construísse Float32Array sobre SAB (não acontece aqui).
         descriptor: descriptor.buffer.slice(
           descriptor.byteOffset,
           descriptor.byteOffset + descriptor.byteLength,
-        ),
+        ) as ArrayBuffer,
         createdAt: Date.now(),
       }
       tx.objectStore(STORE).put(row)
