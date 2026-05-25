@@ -11,8 +11,6 @@ interface Props {
   canDelete: boolean
   canDownload: boolean
   onDelete?: (index: number) => void
-  /** Marca a 1ª foto como "Principal". Default true. */
-  showPrincipalBadge?: boolean
   /** Variante de tamanho do grid. Default 'normal'. */
   size?: 'normal' | 'compact'
 }
@@ -22,11 +20,13 @@ export default function FotoFreteGaleria({
   canDelete,
   canDownload,
   onDelete,
-  showPrincipalBadge = true,
   size = 'normal',
 }: Props) {
   const [indiceAmpliada, setIndiceAmpliada] = useState<number | null>(null)
-  const { data: thumbs } = useFreteThumbnails(fotoUrls)
+  const { data: fotoUrlsFrescas } = useFreteThumbnails(fotoUrls)
+
+  const urlFresca = (i: number, kind: 'thumb' | 'full'): string =>
+    fotoUrlsFrescas?.[i]?.[kind] ?? fotoUrls[i]
 
   useEffect(() => {
     if (indiceAmpliada === null) return
@@ -56,7 +56,6 @@ export default function FotoFreteGaleria({
     <>
       <div className={gridClass}>
         {fotoUrls.map((url, i) => {
-          const thumb = thumbs?.[i]?.thumb ?? url
           return (
             <div
               key={`${url}-${i}`}
@@ -69,7 +68,7 @@ export default function FotoFreteGaleria({
                 aria-label={`Foto ${i + 1} de ${fotoUrls.length} (ampliar)`}
               >
                 <img
-                  src={thumb}
+                  src={urlFresca(i, 'thumb')}
                   alt={`Foto ${i + 1}`}
                   loading="lazy"
                   decoding="async"
@@ -77,19 +76,13 @@ export default function FotoFreteGaleria({
                 />
               </button>
 
-              {i === 0 && showPrincipalBadge && (
-                <span className="absolute top-1 left-1 px-1.5 py-0.5 text-[9px] uppercase tracking-wide bg-[var(--color-accent)] text-[var(--color-fg-on-accent)] rounded-full font-bold pointer-events-none">
-                  Principal
-                </span>
-              )}
-
               <div className="absolute top-1 right-1 flex gap-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
                 {canDownload && (
                   <button
                     type="button"
                     onClick={(e) => {
                       e.stopPropagation()
-                      downloadSignedUrl(url, fileNameFromUrl(url))
+                      downloadSignedUrl(urlFresca(i, 'full'), fileNameFromUrl(url))
                     }}
                     aria-label={`Baixar foto ${i + 1}`}
                     className="w-7 h-7 rounded-full bg-black/60 text-white hover:bg-black/80 flex items-center justify-center"
@@ -138,8 +131,7 @@ export default function FotoFreteGaleria({
               type="button"
               onClick={(e) => {
                 e.stopPropagation()
-                const url = fotoUrls[indiceAmpliada]
-                downloadSignedUrl(url, fileNameFromUrl(url))
+                downloadSignedUrl(urlFresca(indiceAmpliada, 'full'), fileNameFromUrl(fotoUrls[indiceAmpliada]))
               }}
               className="absolute top-4 left-4 inline-flex items-center gap-2 px-3 h-10 rounded-full bg-black/40 text-white hover:bg-black/70 text-sm font-medium"
             >
@@ -176,7 +168,7 @@ export default function FotoFreteGaleria({
           )}
 
           <img
-            src={fotoUrls[indiceAmpliada]}
+            src={urlFresca(indiceAmpliada, 'full')}
             alt={`Foto ${indiceAmpliada + 1} ampliada`}
             className="max-h-full max-w-full object-contain rounded-lg shadow-2xl"
             onClick={(e) => e.stopPropagation()}
