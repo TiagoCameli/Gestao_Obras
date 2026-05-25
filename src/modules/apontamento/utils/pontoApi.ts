@@ -262,6 +262,8 @@ interface NovaBatidaInput {
   origem?: "automatico" | "manual";
   motivoManual?: string;
   statusAprovacao?: StatusAprovacao;
+  /** Distância euclidiana do match facial. NULL pra batidas manuais ou sem foto. */
+  distanciaFace?: number | null;
 }
 
 export async function registrarBatida(
@@ -293,6 +295,7 @@ export async function registrarBatida(
         input.statusAprovacao ??
         (input.origem === "manual" ? "pendente_aprovacao" : "aprovado"),
       registrado_por_id: userId,
+      distancia_face: input.distanciaFace ?? null,
     })
     .select("*")
     .single();
