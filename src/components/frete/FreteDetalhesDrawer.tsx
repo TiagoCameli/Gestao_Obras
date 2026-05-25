@@ -19,6 +19,7 @@ import HistoricoTimeline from '../combustivel/HistoricoTimeline';
 import FreteFotoChegadaBlock from './FreteFotoChegadaBlock';
 import { useAtualizarFrete } from '../../hooks/useFretes';
 import { useToast } from '../ui/Toast';
+import { fileNameFromUrl } from '../../utils/signedUrl';
 
 interface Props {
   frete: Frete | null;
@@ -41,13 +42,6 @@ function fmtData(iso: string): string {
   const m = iso.match(/^(\d{4})-(\d{2})-(\d{2})/);
   if (m) return `${m[3]}/${m[2]}/${m[1]}`;
   return iso;
-}
-function fileNameFromUrl(url: string): string {
-  const m = url.match(/\/object\/sign\/[^/]+\/([^?]+)/);
-  if (!m) return url;
-  const path = decodeURIComponent(m[1]);
-  const last = path.split('/').pop() || path;
-  return last.replace(/^\d+-/, '');
 }
 
 interface FieldProps {
@@ -308,28 +302,6 @@ export default function FreteDetalhesDrawer({
 
           {frete.observacoes && (
             <Field icon={FileText} label="Observações" value={<p className="whitespace-pre-wrap">{frete.observacoes}</p>} />
-          )}
-
-          {frete.fotoUrls && frete.fotoUrls.length > 0 && (
-            <div>
-              <div className="flex items-center gap-1.5 text-[10px] uppercase tracking-wide text-[var(--color-fg-muted)] font-semibold mb-2">
-                <Paperclip className="w-3 h-3" />
-                Fotos ({frete.fotoUrls.length})
-              </div>
-              <div className="grid grid-cols-3 gap-2">
-                {frete.fotoUrls.map((url, i) => (
-                  <a
-                    key={url + i}
-                    href={url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="block aspect-square rounded-lg overflow-hidden border border-[var(--color-border)] hover:border-[var(--color-accent)] transition-colors"
-                  >
-                    <img src={url} alt={`Foto ${i + 1}`} className="w-full h-full object-cover" loading="lazy" />
-                  </a>
-                ))}
-              </div>
-            </div>
           )}
 
           {frete.arquivoUrls && frete.arquivoUrls.length > 0 && (
