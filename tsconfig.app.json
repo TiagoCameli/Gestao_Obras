@@ -29,5 +29,10 @@
       "@/*": ["./src/*"]
     }
   },
-  "include": ["src"]
+  "include": ["src"],
+  "exclude": [
+    "src/pages/_premium-pilot",
+    "src/**/*.test.ts",
+    "src/**/*.test.tsx"
+  ]
 }
