@@ -1,4 +1,23 @@
-import { useCallback, useState, useEffect, type FormEvent } from 'react';
+/**
+ * FreteForm — Onda 4.A: migrado pra react-hook-form + Zod.
+ *
+ * Estado do componente:
+ *  - RHF gerencia os campos do schema (src/schemas/frete/frete.schema.ts).
+ *  - AnexosUploader (fotos + arquivos) fica em useState fora do RHF (uploads
+ *    são assíncronos via Storage; URLs entram no payload no submit).
+ *  - Inline "nova localidade" também em useState (mini-form local com mutation
+ *    própria; setValue() do RHF atualiza o select origem/destino ao salvar).
+ *  - ImportExcelModal preservado tal como antes.
+ *
+ * Comportamento preservado:
+ *  - Auto-fill de dataChegada quando 1ª foto é enviada (se ainda vazio)
+ *  - Reset do form quando `initial` muda (modo edit pra novo edit)
+ *  - Cálculos derivados (valorTotal = peso × km × tkm; valorMaterial = unit × peso)
+ *  - Bloqueio de submit por permissão (canAct) + isValid
+ */
+import { useCallback, useEffect, useState } from 'react';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
 import type { Frete, Obra, Insumo, Localidade } from '../../types';
 import Input from '../ui/Input';
 import Select from '../ui/Select';
@@ -7,6 +26,7 @@ import { useAdicionarLocalidade } from '../../hooks/useLocalidades';
 import ImportExcelModal, { parseStr, parseNumero, parseData, type ParsedRow } from '../ui/ImportExcelModal';
 import AnexosUploader from '../combustivel/AnexosUploader';
 import { useAuth } from '../../contexts/AuthContext';
+import { freteFormSchema, type FreteFormValues } from '../../schemas/frete/frete.schema';
 
 interface FreteFormProps {
   initial?: Frete | null;
@@ -28,6 +48,31 @@ const FRETE_TEMPLATE = [
   ['2024-01-15', '2024-01-16', 'Sao Paulo', 'Campinas', 'Transportes ABC', 'Joao Silva', 'Brita', '25', '100', '0.15', 'Obra XYZ', 'NF-001', 'ABC-1234', ''],
 ];
 
+/** Default values derivados do `initial` (modo edit) ou vazios (criação). */
+function buildDefaults(initial: Frete | null | undefined): FreteFormValues {
+  return {
+    data: initial?.data || '',
+    dataChegada: initial?.dataChegada || '',
+    obraId: initial?.obraId || '',
+    origem: initial?.origem || '',
+    destino: initial?.destino || '',
+    transportadora: initial?.transportadora || '',
+    motorista: initial?.motorista || '',
+    insumoId: initial?.insumoId || '',
+    pesoToneladas: initial?.pesoToneladas ?? (undefined as unknown as number),
+    kmRodados: initial?.kmRodados ?? (undefined as unknown as number),
+    valorTkm: initial?.valorTkm ?? (undefined as unknown as number),
+    valorUnitarioMaterial:
+      initial?.valorMaterial && initial?.pesoToneladas
+        ? initial.valorMaterial / initial.pesoToneladas
+        : undefined,
+    notaFiscal: initial?.notaFiscal || '',
+    notaFiscal2: initial?.notaFiscal2 || '',
+    placaCarreta: initial?.placaCarreta || '',
+    observacoes: initial?.observacoes || '',
+  };
+}
+
 export default function FreteForm({
   initial,
   onSubmit,
@@ -38,57 +83,107 @@ export default function FreteForm({
   transportadoras,
   onImportBatch,
 }: FreteFormProps) {
-  const [data, setData] = useState(initial?.data || '');
-  const [dataChegada, setDataChegada] = useState(initial?.dataChegada || '');
-  const [obraId, setObraId] = useState(initial?.obraId || '');
-  const [origem, setOrigem] = useState(initial?.origem || '');
-  const [destino, setDestino] = useState(initial?.destino || '');
-  const [transportadora, setTransportadora] = useState(initial?.transportadora || '');
-  const [insumoId, setInsumoId] = useState(initial?.insumoId || '');
-  const [pesoToneladas, setPesoToneladas] = useState(initial?.pesoToneladas?.toString() || '');
-  const [kmRodados, setKmRodados] = useState(initial?.kmRodados?.toString() || '');
-  const [valorTkm, setValorTkm] = useState(initial?.valorTkm?.toString() || '');
-  const [valorUnitarioMaterial, setValorUnitarioMaterial] = useState(
-    initial?.valorMaterial && initial?.pesoToneladas
-      ? (initial.valorMaterial / initial.pesoToneladas).toString()
-      : ''
-  );
-  const [notaFiscal, setNotaFiscal] = useState(initial?.notaFiscal || '');
-  const [notaFiscal2, setNotaFiscal2] = useState(initial?.notaFiscal2 || '');
-  const [placaCarreta, setPlacaCarreta] = useState(initial?.placaCarreta || '');
-  const [motorista, setMotorista] = useState(initial?.motorista || '');
-  const [observacoes, setObservacoes] = useState(initial?.observacoes || '');
-  // Fotos do frete unificadas: 1ª é a principal (vai pra fotoChegadaUrl no submit),
-  // resto vai pra fotoUrls. Limite 8 (vem do AnexosUploader).
+  // ── Anexos (fora do RHF; uploads são assíncronos) ────────────────────────
   const [fotosFrete, setFotosFrete] = useState<string[]>(() => {
-    const all: string[] = []
-    if (initial?.fotoChegadaUrl) all.push(initial.fotoChegadaUrl)
-    if (initial?.fotoUrls) all.push(...initial.fotoUrls)
-    return all
+    const all: string[] = [];
+    if (initial?.fotoChegadaUrl) all.push(initial.fotoChegadaUrl);
+    if (initial?.fotoUrls) all.push(...initial.fotoUrls);
+    return all;
   });
   const [arquivoUrls, setArquivoUrls] = useState<string[]>(initial?.arquivoUrls ?? []);
 
-  function handleFotosFreteChange(novas: string[]) {
-    // Auto-fill dataChegada na 1ª foto se ainda vazio
-    if (fotosFrete.length === 0 && novas.length > 0 && !dataChegada) {
-      setDataChegada(new Date().toISOString().slice(0, 10));
-    }
-    setFotosFrete(novas);
-  }
-
-  // Inline nova localidade
+  // ── Inline "nova localidade" (mini-forms fora do RHF) ────────────────────
   const [listaLocalidades, setListaLocalidades] = useState<Localidade[]>(localidades);
   const [novaOrigemAberta, setNovaOrigemAberta] = useState(false);
   const [novaOrigemNome, setNovaOrigemNome] = useState('');
   const [novaDestinoAberta, setNovaDestinoAberta] = useState(false);
   const [novaDestinoNome, setNovaDestinoNome] = useState('');
-
   const adicionarLocalidadeMutation = useAdicionarLocalidade();
 
-  // Import Excel
+  // ── Import Excel ─────────────────────────────────────────────────────────
   const [importModalOpen, setImportModalOpen] = useState(false);
   const [toastMsg, setToastMsg] = useState('');
 
+  // ── react-hook-form + Zod ────────────────────────────────────────────────
+  const {
+    register,
+    handleSubmit: rhfHandleSubmit,
+    watch,
+    setValue,
+    reset,
+    formState: { errors, isValid },
+  } = useForm<FreteFormValues>({
+    resolver: zodResolver(freteFormSchema),
+    mode: 'onChange',
+    defaultValues: buildDefaults(initial),
+  });
+
+  // Reset quando initial muda (e.g. trocar de "novo" pra "editar")
+  useEffect(() => {
+    reset(buildDefaults(initial));
+  }, [initial, reset]);
+
+  // Sync de localidades quando a prop muda (mutation invalidation no caller)
+  useEffect(() => {
+    setListaLocalidades(localidades);
+  }, [localidades]);
+
+  const localidadesAtivas = listaLocalidades.filter((l) => l.ativo !== false);
+
+  // ── Auto-fill dataChegada na 1ª foto ─────────────────────────────────────
+  function handleFotosFreteChange(novas: string[]) {
+    if (fotosFrete.length === 0 && novas.length > 0 && !watch('dataChegada')) {
+      setValue('dataChegada', new Date().toISOString().slice(0, 10), { shouldValidate: true });
+    }
+    setFotosFrete(novas);
+  }
+
+  // ── Cálculos derivados ───────────────────────────────────────────────────
+  const pesoWatch = watch('pesoToneladas');
+  const kmWatch = watch('kmRodados');
+  const tkmWatch = watch('valorTkm');
+  const valorUnitMatWatch = watch('valorUnitarioMaterial');
+  const peso = Number.isFinite(pesoWatch) ? (pesoWatch as number) : 0;
+  const km = Number.isFinite(kmWatch) ? (kmWatch as number) : 0;
+  const tkm = Number.isFinite(tkmWatch) ? (tkmWatch as number) : 0;
+  const valorUnitMat = Number.isFinite(valorUnitMatWatch) ? (valorUnitMatWatch as number) : 0;
+  const valorTotal = peso * km * tkm;
+  const valorMaterial = peso * valorUnitMat;
+
+  // ── Submit ───────────────────────────────────────────────────────────────
+  const { temAcao } = useAuth();
+  const canAct = initial ? temAcao('editar_frete') : temAcao('criar_frete');
+
+  const onValidSubmit = useCallback((values: FreteFormValues) => {
+    if (!canAct) return;
+    const payload: Frete = {
+      id: initial?.id || gerarId(),
+      data: values.data,
+      dataChegada: values.dataChegada || '',
+      obraId: values.obraId,
+      origem: values.origem,
+      destino: values.destino,
+      transportadora: values.transportadora,
+      insumoId: values.insumoId,
+      pesoToneladas: values.pesoToneladas,
+      kmRodados: values.kmRodados,
+      valorTkm: values.valorTkm,
+      valorTotal: values.pesoToneladas * values.kmRodados * values.valorTkm,
+      valorMaterial: (values.valorUnitarioMaterial ?? 0) * values.pesoToneladas,
+      notaFiscal: values.notaFiscal || '',
+      notaFiscal2: values.notaFiscal2 || '',
+      placaCarreta: values.placaCarreta || '',
+      motorista: values.motorista,
+      observacoes: values.observacoes || '',
+      criadoPor: initial?.criadoPor || '',
+      fotoChegadaUrl: fotosFrete[0] ?? null,
+      fotoUrls: fotosFrete.slice(1),
+      arquivoUrls,
+    };
+    onSubmit(payload);
+  }, [canAct, initial, fotosFrete, arquivoUrls, onSubmit]);
+
+  // ── Import Excel parser/mapper (preservados como antes) ──────────────────
   const parseRow = useCallback(
     (row: unknown[], _index: number): ParsedRow => {
       const erros: string[] = [];
@@ -144,7 +239,7 @@ export default function FreteForm({
         dados: { data, dataChegada, origem, destino, transportadora, motorista, insumoId, peso: peso ?? 0, km: km ?? 0, tkm: tkm ?? 0, obraId, notaFiscal, placaCarreta, observacoes },
       };
     },
-    [insumos, obras]
+    [insumos, obras],
   );
 
   const toEntity = useCallback((row: ParsedRow): Record<string, unknown> => {
@@ -183,84 +278,11 @@ export default function FreteForm({
         setTimeout(() => setToastMsg(''), 4000);
       }
     },
-    [onImportBatch]
+    [onImportBatch],
   );
 
-  // Sync when localidades prop changes (e.g. after mutation invalidation)
-  useEffect(() => {
-    setListaLocalidades(localidades);
-  }, [localidades]);
-
-  const localidadesAtivas = listaLocalidades.filter((l) => l.ativo !== false);
-
-  const peso = parseFloat(pesoToneladas) || 0;
-  const km = parseFloat(kmRodados) || 0;
-  const tkm = parseFloat(valorTkm) || 0;
-  const valorTotal = km * peso * tkm;
-  const valorUnitMat = parseFloat(valorUnitarioMaterial) || 0;
-  const valorMaterial = valorUnitMat * peso;
-
-  // Reset form when initial changes (edit mode)
-  useEffect(() => {
-    if (initial) {
-      setData(initial.data);
-      setDataChegada(initial.dataChegada || '');
-      setObraId(initial.obraId);
-      setOrigem(initial.origem);
-      setDestino(initial.destino);
-      setTransportadora(initial.transportadora);
-      setInsumoId(initial.insumoId);
-      setPesoToneladas(initial.pesoToneladas?.toString() || '');
-      setKmRodados(initial.kmRodados?.toString() || '');
-      setValorTkm(initial.valorTkm?.toString() || '');
-      setValorUnitarioMaterial(
-        initial.valorMaterial && initial.pesoToneladas
-          ? (initial.valorMaterial / initial.pesoToneladas).toString()
-          : ''
-      );
-      setNotaFiscal(initial.notaFiscal);
-      setNotaFiscal2(initial.notaFiscal2 || '');
-      setPlacaCarreta(initial.placaCarreta || '');
-      setMotorista(initial.motorista || '');
-      setObservacoes(initial.observacoes);
-    }
-  }, [initial]);
-
-  const { temAcao } = useAuth();
-  const canAct = initial ? temAcao('editar_frete') : temAcao('criar_frete');
-  function handleSubmit(e: FormEvent) {
-    e.preventDefault();
-    if (!canAct) return;
-    onSubmit({
-      id: initial?.id || gerarId(),
-      data,
-      dataChegada,
-      obraId,
-      origem,
-      destino,
-      transportadora,
-      insumoId,
-      pesoToneladas: peso,
-      kmRodados: km,
-      valorTkm: tkm,
-      valorTotal,
-      valorMaterial,
-      notaFiscal,
-      notaFiscal2,
-      placaCarreta,
-      motorista,
-      observacoes,
-      criadoPor: initial?.criadoPor || '',
-      fotoChegadaUrl: fotosFrete[0] ?? null,
-      fotoUrls: fotosFrete.slice(1),
-      arquivoUrls,
-    });
-  }
-
-  const isValid = data && origem && destino && transportadora && motorista && insumoId && pesoToneladas && kmRodados && valorTkm;
-
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
+    <form onSubmit={rhfHandleSubmit(onValidSubmit)} className="space-y-4">
       {!initial && onImportBatch && (
         <div className="flex justify-end">
           <Button type="button" variant="secondary" className="text-xs px-3 py-1.5" onClick={() => setImportModalOpen(true)}>
@@ -273,17 +295,17 @@ export default function FreteForm({
           label="Data de Saída"
           id="freteData"
           type="date"
-          value={data}
-          onChange={(e) => setData(e.target.value)}
           required
+          error={errors.data?.message}
+          {...register('data')}
         />
         <Select
           label="Obra (opcional)"
           id="freteObraId"
-          value={obraId}
-          onChange={(e) => setObraId(e.target.value)}
           options={obras.map((o) => ({ value: o.id, label: o.nome }))}
           placeholder="Selecione a obra"
+          error={errors.obraId?.message}
+          {...register('obraId')}
         />
 
         {/* Origem */}
@@ -291,16 +313,16 @@ export default function FreteForm({
           <Select
             label="Origem"
             id="freteOrigem"
-            value={origem}
-            onChange={(e) => setOrigem(e.target.value)}
             options={localidadesAtivas.map((l) => ({ value: l.nome, label: l.nome }))}
             placeholder="Selecione a origem"
             required
+            error={errors.origem?.message}
+            {...register('origem')}
           />
           {!novaOrigemAberta ? (
             <button
               type="button"
-              className="mt-1 text-xs text-emt-verde hover:text-emt-verde-escuro font-medium"
+              className="mt-1 text-xs text-[var(--color-accent)] hover:text-[var(--color-accent-hover)] font-medium"
               onClick={() => setNovaOrigemAberta(true)}
             >
               + Nova Localidade
@@ -310,7 +332,7 @@ export default function FreteForm({
               <div className="flex items-center gap-2">
                 <input
                   type="text"
-                  className="flex-1 border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-emt-verde"
+                  className="flex-1 border border-[var(--color-border)] rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-ring)]"
                   placeholder="Nome da localidade"
                   value={novaOrigemNome}
                   onChange={(e) => setNovaOrigemNome(e.target.value)}
@@ -332,7 +354,7 @@ export default function FreteForm({
                     };
                     adicionarLocalidadeMutation.mutate(nova);
                     setListaLocalidades((prev) => [...prev, nova]);
-                    setOrigem(nova.nome);
+                    setValue('origem', nova.nome, { shouldValidate: true });
                     setNovaOrigemNome('');
                     setNovaOrigemAberta(false);
                   }}
@@ -341,7 +363,7 @@ export default function FreteForm({
                 </Button>
                 <button
                   type="button"
-                  className="text-xs text-gray-500 hover:text-gray-700"
+                  className="text-xs text-[var(--color-fg-muted)] hover:text-[var(--color-fg)]"
                   onClick={() => {
                     setNovaOrigemAberta(false);
                     setNovaOrigemNome('');
@@ -359,16 +381,16 @@ export default function FreteForm({
           <Select
             label="Destino"
             id="freteDestino"
-            value={destino}
-            onChange={(e) => setDestino(e.target.value)}
             options={localidadesAtivas.map((l) => ({ value: l.nome, label: l.nome }))}
             placeholder="Selecione o destino"
             required
+            error={errors.destino?.message}
+            {...register('destino')}
           />
           {!novaDestinoAberta ? (
             <button
               type="button"
-              className="mt-1 text-xs text-emt-verde hover:text-emt-verde-escuro font-medium"
+              className="mt-1 text-xs text-[var(--color-accent)] hover:text-[var(--color-accent-hover)] font-medium"
               onClick={() => setNovaDestinoAberta(true)}
             >
               + Nova Localidade
@@ -378,7 +400,7 @@ export default function FreteForm({
               <div className="flex items-center gap-2">
                 <input
                   type="text"
-                  className="flex-1 border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-emt-verde"
+                  className="flex-1 border border-[var(--color-border)] rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-ring)]"
                   placeholder="Nome da localidade"
                   value={novaDestinoNome}
                   onChange={(e) => setNovaDestinoNome(e.target.value)}
@@ -400,7 +422,7 @@ export default function FreteForm({
                     };
                     adicionarLocalidadeMutation.mutate(nova);
                     setListaLocalidades((prev) => [...prev, nova]);
-                    setDestino(nova.nome);
+                    setValue('destino', nova.nome, { shouldValidate: true });
                     setNovaDestinoNome('');
                     setNovaDestinoAberta(false);
                   }}
@@ -409,7 +431,7 @@ export default function FreteForm({
                 </Button>
                 <button
                   type="button"
-                  className="text-xs text-gray-500 hover:text-gray-700"
+                  className="text-xs text-[var(--color-fg-muted)] hover:text-[var(--color-fg)]"
                   onClick={() => {
                     setNovaDestinoAberta(false);
                     setNovaDestinoNome('');
@@ -425,29 +447,29 @@ export default function FreteForm({
         <Select
           label="Transportadora"
           id="freteTransportadora"
-          value={transportadora}
-          onChange={(e) => setTransportadora(e.target.value)}
           options={transportadoras.map((t) => ({ value: t, label: t }))}
           placeholder="Selecione a transportadora"
           required
+          error={errors.transportadora?.message}
+          {...register('transportadora')}
         />
         <Input
           label="Motorista"
           id="freteMotorista"
           type="text"
-          value={motorista}
-          onChange={(e) => setMotorista(e.target.value)}
           placeholder="Nome do motorista"
           required
+          error={errors.motorista?.message}
+          {...register('motorista')}
         />
         <Select
           label="Material Transportado"
           id="freteInsumoId"
-          value={insumoId}
-          onChange={(e) => setInsumoId(e.target.value)}
           options={insumos.map((i) => ({ value: i.id, label: i.nome }))}
           placeholder="Selecione o material"
           required
+          error={errors.insumoId?.message}
+          {...register('insumoId')}
         />
         <Input
           label="Peso (toneladas)"
@@ -455,9 +477,9 @@ export default function FreteForm({
           type="number"
           step="0.0001"
           min="0"
-          value={pesoToneladas}
-          onChange={(e) => setPesoToneladas(e.target.value)}
           required
+          error={errors.pesoToneladas?.message}
+          {...register('pesoToneladas', { valueAsNumber: true })}
         />
         <Input
           label="KM Rodados"
@@ -465,9 +487,9 @@ export default function FreteForm({
           type="number"
           step="0.0001"
           min="0"
-          value={kmRodados}
-          onChange={(e) => setKmRodados(e.target.value)}
           required
+          error={errors.kmRodados?.message}
+          {...register('kmRodados', { valueAsNumber: true })}
         />
         <Input
           label="Valor por T×KM (R$)"
@@ -475,18 +497,18 @@ export default function FreteForm({
           type="number"
           step="0.0001"
           min="0"
-          value={valorTkm}
-          onChange={(e) => setValorTkm(e.target.value)}
           required
+          error={errors.valorTkm?.message}
+          {...register('valorTkm', { valueAsNumber: true })}
         />
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
+          <label className="block text-sm font-medium text-[var(--color-fg)] mb-1">
             Valor Total (R$)
           </label>
-          <div className="w-full border border-gray-200 bg-gray-50 rounded-lg px-3 py-2 text-sm font-semibold text-emt-verde">
+          <div className="w-full border border-[var(--color-border)] bg-[var(--color-surface-2)] rounded-lg px-3 py-2 text-sm font-semibold text-[var(--color-accent)] tabular-nums font-mono">
             {valorTotal.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
           </div>
-          <p className="text-xs text-gray-400 mt-1">KM × Peso × R$/TKM</p>
+          <p className="text-xs text-[var(--color-fg-subtle)] mt-1">KM × Peso × R$/TKM</p>
         </div>
         <Input
           label="Valor Unitário do Material (R$)"
@@ -494,68 +516,71 @@ export default function FreteForm({
           type="number"
           step="0.0001"
           min="0"
-          value={valorUnitarioMaterial}
-          onChange={(e) => setValorUnitarioMaterial(e.target.value)}
           placeholder="Ex: 45.0000"
+          error={errors.valorUnitarioMaterial?.message}
+          {...register('valorUnitarioMaterial', { valueAsNumber: true })}
         />
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
+          <label className="block text-sm font-medium text-[var(--color-fg)] mb-1">
             Preço do Material (R$)
           </label>
-          <div className="w-full border border-gray-200 bg-gray-50 rounded-lg px-3 py-2 text-sm font-semibold text-emt-verde">
+          <div className="w-full border border-[var(--color-border)] bg-[var(--color-surface-2)] rounded-lg px-3 py-2 text-sm font-semibold text-[var(--color-accent)] tabular-nums font-mono">
             {valorMaterial.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
           </div>
-          <p className="text-xs text-gray-400 mt-1">Valor Unitário × Peso</p>
+          <p className="text-xs text-[var(--color-fg-subtle)] mt-1">Valor Unitário × Peso</p>
         </div>
         <Input
           label="Nota Fiscal (opcional)"
           id="freteNF"
           type="text"
-          value={notaFiscal}
-          onChange={(e) => setNotaFiscal(e.target.value)}
           placeholder="Ex: NF-e 12345"
+          error={errors.notaFiscal?.message}
+          {...register('notaFiscal')}
         />
         <Input
           label="Nota Fiscal 2 (opcional)"
           id="freteNF2"
           type="text"
-          value={notaFiscal2}
-          onChange={(e) => setNotaFiscal2(e.target.value)}
           placeholder="Ex: NF-e 67890"
+          error={errors.notaFiscal2?.message}
+          {...register('notaFiscal2')}
         />
         <Input
           label="Placa da Carreta (opcional)"
           id="fretePlacaCarreta"
           type="text"
-          value={placaCarreta}
-          onChange={(e) => setPlacaCarreta(e.target.value)}
-          placeholder="Ex: ABC-1234"
+          placeholder="Ex: ABC-1D34"
+          className="uppercase font-mono"
+          error={errors.placaCarreta?.message}
+          {...register('placaCarreta')}
         />
       </div>
       <div>
         <label
           htmlFor="freteObs"
-          className="block text-sm font-medium text-gray-700 mb-1"
+          className="block text-sm font-medium text-[var(--color-fg)] mb-1"
         >
           Observações (opcional)
         </label>
         <textarea
           id="freteObs"
-          className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emt-verde"
+          className="w-full border border-[var(--color-border)] rounded-lg px-3 py-2 text-sm bg-[var(--color-surface-1)] text-[var(--color-fg)] focus:outline-none focus:ring-2 focus:ring-[var(--color-ring)]"
           rows={3}
-          value={observacoes}
-          onChange={(e) => setObservacoes(e.target.value)}
           placeholder="Alguma observação..."
+          {...register('observacoes')}
         />
+        {errors.observacoes && (
+          <p className="text-xs text-[var(--color-danger)] mt-1">{errors.observacoes.message}</p>
+        )}
       </div>
       {/* Bloco único de fotos: 1ª = foto principal de chegada; demais vão pra fotoUrls.
           Limite 8 (controlado pelo AnexosUploader). */}
-      <div className="rounded-lg border-2 border-dashed border-emt-verde/40 bg-emt-verde/5 p-4">
+      <div className="rounded-lg border-2 border-dashed border-[var(--color-accent)]/40 bg-[var(--color-accent-soft)] p-4">
         <div className="flex items-center gap-2 mb-3">
-          <span className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-emt-verde/20 text-emt-verde text-xs font-bold">📦</span>
+          <span className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-[var(--color-accent)]/20 text-[var(--color-accent-fg)] text-xs font-bold">📦</span>
           <div>
-            <h3 className="text-sm font-semibold text-gray-800">Fotos da Chegada da Carga</h3>
-            <p className="text-xs text-gray-500">Até 8 fotos. GPS + horário gravados ao usar "Tirar foto".</p>
+            <h3 className="text-sm font-semibold text-[var(--color-fg)]">Fotos da Chegada da Carga</h3>
+            <p className="text-xs text-[var(--color-fg-muted)]">Até 8 fotos. GPS + horário gravados ao usar "Tirar foto".</p>
           </div>
         </div>
         <AnexosUploader
@@ -582,7 +607,7 @@ export default function FreteForm({
         <Button variant="secondary" type="button" onClick={onCancel}>
           Cancelar
         </Button>
-        <Button type="submit" disabled={!isValid}>
+        <Button type="submit" disabled={!isValid || !canAct}>
           {initial ? 'Salvar Alterações' : 'Registrar Frete'}
         </Button>
       </div>
@@ -605,7 +630,7 @@ export default function FreteForm({
       />
 
       {toastMsg && (
-        <div className="fixed bottom-6 right-6 z-[60] bg-green-600 text-white px-5 py-3 rounded-lg shadow-lg text-sm font-medium animate-[fadeIn_0.2s_ease-out]">
+        <div className="fixed bottom-6 right-6 z-[var(--z-toast)] bg-[var(--color-success)] text-white px-5 py-3 rounded-lg shadow-[var(--shadow-lg)] text-sm font-medium animate-[fadeIn_0.2s_ease-out]">
           {toastMsg}
         </div>
       )}
