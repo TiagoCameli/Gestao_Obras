@@ -18,7 +18,11 @@
  *
  * Demo: form standalone. Submit faz alert(). Integrar com hooks reais em produção.
  */
-import { useForm, type FieldError } from 'react-hook-form';
+import { useForm } from 'react-hook-form';
+
+/** Tipo estrutural permissivo: aceita FieldError nativo OU Merge<FieldError, FieldErrorsImpl>
+ *  que RHF retorna pra campos com z.coerce. Componentes só leem `.message`. */
+type FormError = { message?: string } | undefined;
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import {
@@ -46,7 +50,10 @@ const schema = z.object({
   notaFiscal2: z.string().optional(),
   observacoes: z.string().max(500, 'Máximo 500 caracteres').optional(),
 });
-type FreteFormData = z.infer<typeof schema>;
+// Schemas com z.coerce.* exigem split input/output em RHF — input é o que vem
+// dos <input>, output é o que sai validado e tipado pro onSubmit.
+type FreteFormInput = z.input<typeof schema>;
+type FreteFormOutput = z.output<typeof schema>;
 
 /* ============================================================================
  * Stubs (em produção: ui/Button, ui/PageHeader, shadcn/form, shadcn/select)
@@ -101,7 +108,7 @@ function FormField({
 }: {
   label: string;
   required?: boolean;
-  error?: FieldError;
+  error?: FormError;
   hint?: string;
   id: string;
   children: React.ReactNode;
@@ -140,7 +147,7 @@ function FormField({
 
 function Input({
   id, error, valid, ...rest
-}: React.InputHTMLAttributes<HTMLInputElement> & { error?: FieldError; valid?: boolean }) {
+}: React.InputHTMLAttributes<HTMLInputElement> & { error?: FormError; valid?: boolean }) {
   return (
     <input
       id={id}
@@ -164,7 +171,7 @@ function Input({
 
 function Select({
   id, error, options, placeholder, ...rest
-}: React.SelectHTMLAttributes<HTMLSelectElement> & { error?: FieldError; options: { value: string; label: string }[]; placeholder?: string }) {
+}: React.SelectHTMLAttributes<HTMLSelectElement> & { error?: FormError; options: { value: string; label: string }[]; placeholder?: string }) {
   return (
     <select
       id={id}
@@ -188,7 +195,7 @@ function Select({
 
 function Textarea({
   id, error, ...rest
-}: React.TextareaHTMLAttributes<HTMLTextAreaElement> & { error?: FieldError }) {
+}: React.TextareaHTMLAttributes<HTMLTextAreaElement> & { error?: FormError }) {
   return (
     <textarea
       id={id}
@@ -242,7 +249,7 @@ const MOCK_INSUMOS = [
  * Página
  * ============================================================================ */
 export default function FreteFormPremium() {
-  const form = useForm<FreteFormData>({
+  const form = useForm<FreteFormInput, unknown, FreteFormOutput>({
     resolver: zodResolver(schema),
     mode: 'onBlur',
     defaultValues: {
@@ -260,15 +267,16 @@ export default function FreteFormPremium() {
 
   const { register, handleSubmit, watch, formState: { errors, isSubmitting, isValid, touchedFields } } = form;
 
-  // Cálculos derivados (mostrados como chips, não inputs)
-  const peso = watch('pesoToneladas') || 0;
-  const km = watch('kmRodados') || 0;
-  const tkm = watch('valorTkm') || 0;
-  const valorUnitMat = watch('valorUnitarioMaterial') || 0;
+  // Cálculos derivados (mostrados como chips, não inputs).
+  // watch() retorna o INPUT type (unknown pra campos coerce), coerço com Number().
+  const peso = Number(watch('pesoToneladas')) || 0;
+  const km = Number(watch('kmRodados')) || 0;
+  const tkm = Number(watch('valorTkm')) || 0;
+  const valorUnitMat = Number(watch('valorUnitarioMaterial')) || 0;
   const valorFrete = peso * km * tkm;
   const valorMaterial = peso * valorUnitMat;
 
-  const onSubmit = (data: FreteFormData) => {
+  const onSubmit = (data: FreteFormOutput) => {
     console.log('Frete submetido:', data);
     alert('Frete registrado! Veja o console pra payload.');
   };

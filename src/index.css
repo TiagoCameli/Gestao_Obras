@@ -2,142 +2,17 @@
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
 @import "@fontsource-variable/geist";
+@import "./styles/theme.css";
 
 @custom-variant dark (&:where(.dark, .dark *));
 
 /* ============================================================
-   DESIGN TOKENS — Tailwind v4 @theme
-   Semantic tokens inspired by Linear / Vercel / Supabase Studio.
-   Brand green #2D7F4F is preserved as accent.
-   ============================================================ */
-@theme {
-  /* Brand (legacy tokens kept for backward compatibility) */
-  --color-emt-verde: #2D7F4F;
-  --color-emt-verde-escuro: #1E5A38;
-  --color-emt-verde-claro: #E8F5E9;
-  --color-emt-amarelo: #FDB933;
-  --color-emt-cinza: #3E3E3E;
-  --color-emt-cinza-medio: #757575;
-  --color-emt-cinza-claro: #F5F5F5;
-
-  /* Semantic tokens (LIGHT) */
-  --color-bg:         #F7F8FA;
-  --color-surface-1:  #FFFFFF;
-  --color-surface-2:  #F2F4F7;
-  --color-surface-3:  #E7EAF0;
-  --color-border:     #E4E7EC;
-  --color-border-strong: #D0D5DD;
-  --color-fg:         #101828;
-  --color-fg-muted:   #475467;
-  --color-fg-subtle:  #667085;
-  --color-fg-on-accent: #FFFFFF;
-  --color-accent:       #2D7F4F;
-  --color-accent-hover: #246640;
-  --color-accent-soft:  #E8F5E9;
-  --color-accent-fg:    #1E5A38;
-  --color-danger:       #D92D20;
-  --color-danger-soft:  #FEF3F2;
-  --color-danger-fg:    #912018;
-  --color-warning:      #D97706;
-  --color-warning-soft: #FEF6E7;
-  --color-warning-fg:   #B54708;
-  --color-info:         #2563EB;
-  --color-info-soft:    #EFF4FF;
-  --color-info-fg:      #1849A9;
-  --color-success:      #15803D;
-  --color-success-soft: #ECFDF3;
-  --color-success-fg:   #067647;
-  --color-ring:         rgba(45, 127, 79, 0.45);
-
-  /* Elevation — premium & subtle */
-  --shadow-xs: 0 1px 2px rgba(16, 24, 40, 0.05);
-  --shadow-sm: 0 1px 3px rgba(16, 24, 40, 0.08), 0 1px 2px rgba(16, 24, 40, 0.04);
-  --shadow-md: 0 6px 16px -4px rgba(16, 24, 40, 0.08), 0 2px 6px rgba(16, 24, 40, 0.04);
-  --shadow-lg: 0 12px 24px -8px rgba(16, 24, 40, 0.12), 0 4px 10px rgba(16, 24, 40, 0.05);
-  --shadow-xl: 0 24px 48px -12px rgba(16, 24, 40, 0.18);
-
-  --font-sans: 'Inter', ui-sans-serif, system-ui, -apple-system, sans-serif;
-  --font-mono: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, monospace;
-
-  --radius-sm: 6px;
-  --radius-md: 8px;
-  --radius-lg: 12px;
-  --radius-xl: 16px;
-  --radius-2xl: 20px;
-
-  /* Motion — importados do DS do módulo Trechos pra uniformizar animações */
-  --ease-out:    cubic-bezier(0.16, 1, 0.3, 1);
-  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
-  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
-  --dur-fast: 140ms;
-  --dur-base: 220ms;
-  --dur-slow: 380ms;
-
-  /* Accent "âmbar" — opção adicional pro tom quente do Trechos. A marca
-     EMT continua sendo --color-accent (verde). Este aqui é pra acentos
-     de produto / estados de foco calorosos / CTAs secundários. */
-  --color-accent-amber:       #E89B17;
-  --color-accent-amber-hover: #C78412;
-  --color-accent-amber-soft:  rgba(232, 155, 23, 0.12);
-  --color-accent-amber-fg:    #B46B0E;
-  --color-accent-amber-glow:  rgba(232, 155, 23, 0.30);
-}
-
-/* ============================================================
-   DARK MODE — premium palette
-   Near-black base, elevated surfaces, brighter accent for AA.
+   DARK MODE — shadcn OKLCH layer
+   Semantic tokens (--color-bg, --color-fg, etc) e shadows do dark
+   moveram pra src/styles/theme.css (block .dark lá).
+   Aqui ficam só os mapas OKLCH que shadcn precisa.
    ============================================================ */
 .dark {
-  --color-emt-verde: #3AA368;
-  --color-emt-verde-escuro: #2D7F4F;
-  --color-emt-verde-claro: rgba(58, 163, 104, 0.14);
-  --color-emt-cinza: #0B0D12;
-  --color-emt-cinza-medio: #9BA3AF;
-  --color-emt-cinza-claro: #0B0D12;
-
-  --color-bg:         #0A0C10;
-  --color-surface-1:  #11141A;
-  --color-surface-2:  #161A21;
-  --color-surface-3:  #1E232C;
-  --color-border:     rgba(255, 255, 255, 0.10);
-  --color-border-strong: rgba(255, 255, 255, 0.18);
-  --color-fg:         #F2F4F8;
-  --color-fg-muted:   #B0B7C3;
-  --color-fg-subtle:  #858DA0;
-  --color-fg-on-accent: #FFFFFF;
-  --color-accent:       #3AA368;
-  --color-accent-hover: #46BE7B;
-  --color-accent-soft:  rgba(58, 163, 104, 0.14);
-  --color-accent-fg:    #7DDFA3;
-  --color-danger:       #F97066;
-  --color-danger-soft:  rgba(249, 112, 102, 0.12);
-  --color-danger-fg:    #FDA29B;
-  --color-warning:      #F7B155;
-  --color-warning-soft: rgba(247, 177, 85, 0.12);
-  --color-warning-fg:   #FEC84B;
-  --color-info:         #6AA2FF;
-  --color-info-soft:    rgba(106, 162, 255, 0.12);
-  --color-info-fg:      #93BCFF;
-  --color-success:      #3AA368;
-  --color-success-soft: rgba(58, 163, 104, 0.12);
-  --color-success-fg:   #7DDFA3;
-  --color-ring:         rgba(58, 163, 104, 0.55);
-
-  --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.4);
-  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.35), 0 1px 3px rgba(0, 0, 0, 0.25);
-  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.45), 0 2px 4px rgba(0, 0, 0, 0.3);
-  --shadow-lg: 0 10px 24px rgba(0, 0, 0, 0.5), 0 4px 10px rgba(0, 0, 0, 0.35);
-  --shadow-xl: 0 20px 40px rgba(0, 0, 0, 0.6);
-
-  /* Accent âmbar calibrado pro dark mode (mais luminoso pra AA) */
-  --color-accent-amber:       #FFB020;
-  --color-accent-amber-hover: #FFC04A;
-  --color-accent-amber-soft:  rgba(255, 176, 32, 0.14);
-  --color-accent-amber-fg:    #FFC04A;
-  --color-accent-amber-glow:  rgba(255, 176, 32, 0.35);
-
-  color-scheme: dark;
-
   --background: oklch(0.145 0 0);
 
   --foreground: oklch(0.985 0 0);

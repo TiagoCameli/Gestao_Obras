@@ -229,14 +229,11 @@ function fmtMes(s: string) {
  * ============================================================================ */
 
 export default function DashboardManutencaoPremium() {
-  const [isLoading, setIsLoading] = useState(false);
+  // Demo state — descomente as linhas abaixo pra ver loading / error states
+  const [isLoading] = useState(false);   // ou: useState(true) pra skeleton
   const [hasError, setHasError] = useState(false);
   const [hasData] = useState(true);
   const [exportando, setExportando] = useState<'idle' | 'mensal' | 'anual'>('idle');
-
-  // Mock — alterne pra ver os estados
-  // setIsLoading(true) → skeleton
-  // setHasError(true)  → error state
 
   return (
     <div className="px-4 sm:px-6 lg:px-10 py-6 max-w-[1400px] mx-auto">
