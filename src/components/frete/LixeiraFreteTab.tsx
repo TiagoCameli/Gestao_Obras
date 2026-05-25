@@ -13,6 +13,7 @@ import { usePagamentosFreteDeletados, useRestaurarPagamentoFrete } from '../../h
 import { usePedidosMaterialDeletados, useRestaurarPedidoMaterial } from '../../hooks/usePedidosMaterial';
 import type { Obra, Fornecedor, Insumo } from '../../types';
 import Button from '../ui/Button';
+import { useToast } from '../ui/Toast';
 import { useAuth } from '../../contexts/AuthContext';
 
 interface Props {
@@ -50,6 +51,7 @@ export default function LixeiraFreteTab({ obras, fornecedores, insumos }: Props)
   const restaurarFrete = useRestaurarFrete();
   const restaurarPagamento = useRestaurarPagamentoFrete();
   const restaurarPedido = useRestaurarPedidoMaterial();
+  const { showToast } = useToast();
 
   const obrasMap = useMemo(() => new Map(obras.map((o) => [o.id, o.nome])), [obras]);
   const fornecedoresMap = useMemo(() => new Map(fornecedores.map((f) => [f.id, f.nome])), [fornecedores]);
@@ -71,18 +73,19 @@ export default function LixeiraFreteTab({ obras, fornecedores, insumos }: Props)
     id: string,
   ) {
     if (!canRestaurar) {
-      alert('Sem permissão para restaurar itens da lixeira.');
+      showToast({ kind: 'error', message: 'Sem permissão para restaurar itens da lixeira.' });
       return;
     }
+    // TODO(Onda 7.C): substituir window.confirm por <ConfirmDialog> com state.
     if (!window.confirm('Restaurar este registro?')) return;
     try {
       if (tipo === 'frete') await restaurarFrete.mutateAsync(id);
       else if (tipo === 'pagamento') await restaurarPagamento.mutateAsync(id);
       else await restaurarPedido.mutateAsync(id);
-      alert('Registro restaurado.');
+      showToast({ kind: 'success', message: 'Registro restaurado.' });
     } catch (e) {
       console.error('[lixeira-frete] falha ao restaurar', e);
-      alert('Falha ao restaurar. Tente novamente.');
+      showToast({ kind: 'error', message: 'Falha ao restaurar. Tente novamente.' });
     }
   }
 

@@ -13,6 +13,7 @@ import SmartSelect from '../components/ui/SmartSelect';
 import ConfirmDialog from '../components/ui/ConfirmDialog';
 import PageHeader from '../components/ui/PageHeader';
 import LoadingState from '../components/ui/LoadingState';
+import { useToast } from '../components/ui/Toast';
 import FrotaStats from '../components/frota/FrotaStats';
 import MobileScanShortcut from '../components/MobileScanShortcut';
 import FrotaGrid from '../components/frota/FrotaGrid';
@@ -50,6 +51,7 @@ export default function Frota() {
   const atualizarMutation = useAtualizarEquipamento();
   const excluirMutation = useExcluirEquipamento();
   const changeStatusMutation = useChangeStatusEquipamento();
+  const { showToast } = useToast();
 
   const [busca, setBusca] = useUrlState('busca');
   const [buscaPatrimonio, setBuscaPatrimonio] = useUrlState('patrimonio');
@@ -92,7 +94,7 @@ export default function Frota() {
         usuarioNome: usuario?.nome ?? '',
       });
     } catch (e) {
-      alert(e instanceof Error ? e.message : 'Erro ao atualizar status');
+      showToast({ kind: 'error', message: e instanceof Error ? e.message : 'Erro ao atualizar status' });
     }
   }
 
@@ -103,7 +105,7 @@ export default function Frota() {
       setExcluindoEquip(null);
       setEquipamentoSelecionado(null);
     } catch (e) {
-      alert(e instanceof Error ? e.message : 'Erro ao excluir');
+      showToast({ kind: 'error', message: e instanceof Error ? e.message : 'Erro ao excluir' });
     }
   }
 

@@ -10,6 +10,7 @@ import { FileSpreadsheet, FileText } from 'lucide-react';
 import Modal from '../ui/Modal';
 import Button from '../ui/Button';
 import SmartSelect from '../ui/SmartSelect';
+import { useToast } from '../ui/Toast';
 import TransportadoraExtratoList from './TransportadoraExtratoList';
 import AjusteManualTransportadoraForm from './AjusteManualTransportadoraForm';
 import ExtratoFretesList from './extrato/ExtratoFretesList';
@@ -73,6 +74,7 @@ export default function TransportadoraExtratoModal({
   const [ajusteEditando, setAjusteEditando] = useState<TransportadoraMovimento | null>(null);
   const [ajusteExcluindo, setAjusteExcluindo] = useState<TransportadoraMovimento | null>(null);
   const excluirAjusteMut = useExcluirAjusteManualTransportadora();
+  const { showToast } = useToast();
   const [tab, setTab] = useState<TabId>('todos');
   const [filtroMes, setFiltroMes] = useState('');
 
@@ -302,7 +304,7 @@ export default function TransportadoraExtratoModal({
             await excluirAjusteMut.mutateAsync(ajusteExcluindo.id);
           } catch (err) {
             console.error('Falha ao excluir ajuste manual', err);
-            alert('Falha ao excluir ajuste manual. Veja o console.');
+            showToast({ kind: 'error', message: 'Falha ao excluir ajuste manual. Veja o console.' });
           } finally {
             setAjusteExcluindo(null);
           }

@@ -2,6 +2,7 @@ import { useState, type FormEvent } from 'react';
 import Button from '../ui/Button';
 import Input from '../ui/Input';
 import Select from '../ui/Select';
+import { useToast } from '../ui/Toast';
 import { useObras } from '../../hooks/useObras';
 import {
   useCriarAjusteManualTransportadora,
@@ -58,6 +59,7 @@ export default function AjusteManualTransportadoraForm({
   const { data: obras = [] } = useObras();
   const criarMut = useCriarAjusteManualTransportadora();
   const atualizarMut = useAtualizarAjusteManualTransportadora();
+  const { showToast } = useToast();
 
   const valorNum = parseFloat(valorStr.replace(',', '.')) || 0;
   const isValid = valorNum > 0 && data.length >= 16 && descricao.trim().length > 0;
@@ -91,7 +93,7 @@ export default function AjusteManualTransportadoraForm({
     } catch (err) {
       // eslint-disable-next-line no-console
       console.error('Falha ao salvar ajuste manual', err);
-      alert(`Falha ao ${editing ? 'atualizar' : 'criar'} ajuste manual. Veja o console.`);
+      showToast({ kind: 'error', message: `Falha ao ${editing ? 'atualizar' : 'criar'} ajuste manual. Veja o console.` });
     }
   }
 
