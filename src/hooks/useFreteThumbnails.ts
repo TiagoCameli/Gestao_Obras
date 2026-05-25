@@ -26,9 +26,10 @@ async function mintThumbnail(url: string): Promise<string> {
  */
 export function useFreteThumbnails(urls: string[]) {
   return useQuery({
-    queryKey: ['frete-thumbnails', ...urls],
+    queryKey: ['frete-thumbnails', urls],
     queryFn: () => Promise.all(urls.map(mintThumbnail)),
     staleTime: 1000 * 60 * 30,
+    gcTime: 1000 * 60 * 60,
     enabled: urls.length > 0,
   })
 }
