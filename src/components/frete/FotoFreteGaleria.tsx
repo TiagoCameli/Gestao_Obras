@@ -2,7 +2,7 @@
 // Delete opcional (só edit mode). Suporta navegação por teclado (Esc, ←, →).
 
 import { useEffect, useState } from 'react'
-import { Trash2, Download, X, ChevronLeft, ChevronRight, ImageOff } from 'lucide-react'
+import { Trash2, Download, X, ChevronLeft, ChevronRight, ImageOff, Loader2 } from 'lucide-react'
 import { useFreteThumbnails } from '../../hooks/useFreteThumbnails'
 import { downloadSignedUrl, fileNameFromUrl } from '../../utils/signedUrl'
 
@@ -23,10 +23,32 @@ export default function FotoFreteGaleria({
   size = 'normal',
 }: Props) {
   const [indiceAmpliada, setIndiceAmpliada] = useState<number | null>(null)
+  const [fullLoaded, setFullLoaded] = useState(false)
   const { data: fotoUrlsFrescas } = useFreteThumbnails(fotoUrls)
 
   const urlFresca = (i: number, kind: 'thumb' | 'full'): string =>
     fotoUrlsFrescas?.[i]?.[kind] ?? fotoUrls[i]
+
+  // Reset loading state whenever the ampliada index changes.
+  useEffect(() => {
+    setFullLoaded(false)
+  }, [indiceAmpliada])
+
+  // Preload neighbors (prev/next) full-res so sequential nav é instantâneo.
+  useEffect(() => {
+    if (indiceAmpliada === null || !fotoUrlsFrescas) return
+    const total = fotoUrls.length
+    if (total <= 1) return
+    const vizinhos = [
+      (indiceAmpliada + 1) % total,
+      (indiceAmpliada - 1 + total) % total,
+    ]
+    vizinhos.forEach((i) => {
+      if (i === indiceAmpliada) return
+      const img = new Image()
+      img.src = fotoUrlsFrescas[i].full
+    })
+  }, [indiceAmpliada, fotoUrlsFrescas, fotoUrls.length])
 
   useEffect(() => {
     if (indiceAmpliada === null) return
@@ -167,12 +189,20 @@ export default function FotoFreteGaleria({
             </>
           )}
 
-          <img
-            src={urlFresca(indiceAmpliada, 'full')}
-            alt={`Foto ${indiceAmpliada + 1} ampliada`}
-            className="max-h-full max-w-full object-contain rounded-lg shadow-2xl"
-            onClick={(e) => e.stopPropagation()}
-          />
+          <div className="relative flex items-center justify-center" onClick={(e) => e.stopPropagation()}>
+            {!fullLoaded && (
+              <Loader2 aria-hidden className="absolute w-10 h-10 text-white/80 animate-spin pointer-events-none" />
+            )}
+            <img
+              key={indiceAmpliada}
+              src={urlFresca(indiceAmpliada, 'full')}
+              alt={`Foto ${indiceAmpliada + 1} ampliada`}
+              onLoad={() => setFullLoaded(true)}
+              onError={() => setFullLoaded(true)}
+              className="max-h-[calc(100vh-2rem)] max-w-[calc(100vw-2rem)] object-contain rounded-lg shadow-2xl transition-opacity duration-150"
+              style={{ opacity: fullLoaded ? 1 : 0 }}
+            />
+          </div>
 
           {fotoUrls.length > 1 && (
             <div className="absolute bottom-4 left-1/2 -translate-x-1/2 px-3 py-1 rounded-full bg-black/40 text-white text-xs">
