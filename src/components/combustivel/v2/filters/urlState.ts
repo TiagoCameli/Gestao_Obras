@@ -9,7 +9,7 @@
 // fornecedores/operadores virgulados ficam truncados — improvável na
 // operação, mas se aparecer trato depois).
 
-import type { CombustivelFilterState, ConsumidorMode, PeriodoPreset } from './types';
+import type { CombustivelFilterState, ConsumidorMode, OrigemExterna, PeriodoPreset, SaidasView } from './types';
 
 const PRESETS: PeriodoPreset[] = [
   'hoje',
@@ -21,6 +21,17 @@ const PRESETS: PeriodoPreset[] = [
   'ano_atual',
   'custom',
 ];
+
+const SAIDAS_VIEWS: SaidasView[] = ['todas', 'internas', 'externas'];
+const ORIGENS_EXTERNA: OrigemExterna[] = ['dinheiro', 'requisicao', 'tanque_externo'];
+
+function parseOrigensExterna(s: string | null): OrigemExterna[] {
+  if (!s) return [];
+  return s
+    .split(',')
+    .map((x) => x.trim())
+    .filter((x): x is OrigemExterna => ORIGENS_EXTERNA.includes(x as OrigemExterna));
+}
 
 function todayIso(): string {
   return new Date().toISOString().slice(0, 10);
@@ -98,6 +109,8 @@ export function defaultFilterState(): CombustivelFilterState {
     tanqueOrigemIds: [],
     tanqueDestinoIds: [],
     apenasSentinel: false,
+    saidasView: 'todas',
+    origensExterna: [],
   };
 }
 
@@ -145,6 +158,10 @@ export function fromSearchParams(params: URLSearchParams): CombustivelFilterStat
     tanqueOrigemIds: parseList(params.get('tan_orig')),
     tanqueDestinoIds: parseList(params.get('tan_dest')),
     apenasSentinel: params.get('sentinel') === '1',
+    saidasView: SAIDAS_VIEWS.includes(params.get('sview') as SaidasView)
+      ? (params.get('sview') as SaidasView)
+      : 'todas',
+    origensExterna: parseOrigensExterna(params.get('sextorigens')),
   };
 }
 
@@ -168,6 +185,8 @@ export function toSearchParams(s: CombustivelFilterState): URLSearchParams {
   if (s.tanqueOrigemIds.length) p.set('tan_orig', listToParam(s.tanqueOrigemIds));
   if (s.tanqueDestinoIds.length) p.set('tan_dest', listToParam(s.tanqueDestinoIds));
   if (s.apenasSentinel) p.set('sentinel', '1');
+  if (s.saidasView !== 'todas') p.set('sview', s.saidasView);
+  if (s.origensExterna.length) p.set('sextorigens', listToParam(s.origensExterna));
   return p;
 }
 
@@ -186,5 +205,7 @@ export function hasActiveFilters(s: CombustivelFilterState): boolean {
     s.tanqueOrigemIds.length > 0 ||
     s.tanqueDestinoIds.length > 0 ||
     s.apenasSentinel
+    || s.saidasView !== 'todas'
+    || s.origensExterna.length > 0
   );
 }
