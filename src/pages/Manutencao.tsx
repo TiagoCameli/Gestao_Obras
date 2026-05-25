@@ -14,6 +14,9 @@ import type { StatusOS, TipoOS, PrioridadeOS } from '../types';
 import { STATUS_OS_LABEL, TIPO_OS_LABEL, PRIORIDADE_OS_LABEL } from '../types';
 import Button from '../components/ui/Button';
 import SmartSelect from '../components/ui/SmartSelect';
+import PageHeader from '../components/ui/PageHeader';
+import LoadingState from '../components/ui/LoadingState';
+import EmptyState from '../components/ui/EmptyState';
 import OSCard from '../components/manutencao/os/OSCard';
 import NovaOSModal from '../components/manutencao/os/NovaOSModal';
 import OSDetalhe from '../components/manutencao/os/OSDetalhe';
@@ -182,23 +185,16 @@ function OrdensServicoPage() {
 
   return (
     <div className="space-y-5">
-      {/* Header */}
-      <div className="flex items-end justify-between gap-3 flex-wrap">
-        <div>
-          <h1 className="text-2xl sm:text-3xl font-semibold text-[var(--color-fg)] tracking-tight">
-            Ordens de Serviço
-          </h1>
-          <p className="text-sm text-[var(--color-fg-muted)] mt-0.5">
-            Manutenção preventiva, corretiva, preditiva e melhorias da frota.
-          </p>
-        </div>
-        {canCreate && (
+      <PageHeader
+        title="Ordens de Serviço"
+        description="Manutenção preventiva, corretiva, preditiva e melhorias da frota."
+        actions={canCreate && (
           <Button onClick={() => setNovaOSOpen(true)}>
             <Plus aria-hidden className="w-4 h-4" />
             Nova OS
           </Button>
         )}
-      </div>
+      />
 
       {/* KPIs */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
@@ -286,22 +282,20 @@ function OrdensServicoPage() {
 
       {/* Lista */}
       {isLoading ? (
-        <p className="text-sm text-[var(--color-fg-muted)] py-8 text-center">Carregando OS…</p>
+        <LoadingState mode="list" count={5} />
       ) : ordensFiltradas.length === 0 ? (
-        <div className="rounded-xl border border-dashed border-[var(--color-border)] bg-[var(--color-surface-1)] p-8 text-center">
-          <ClipboardList aria-hidden className="w-8 h-8 text-[var(--color-fg-subtle)] mx-auto mb-2" />
-          <p className="text-sm font-medium text-[var(--color-fg)]">Nenhuma OS encontrada</p>
-          <p className="text-xs text-[var(--color-fg-muted)] mt-1 mb-4">
-            {ordens.length === 0
-              ? 'Comece criando a primeira ordem de serviço.'
-              : 'Ajuste os filtros ou limpe a busca.'}
-          </p>
-          {ordens.length === 0 && (
-            <Button onClick={() => setNovaOSOpen(true)} className="mx-auto">
+        <EmptyState
+          icon={ClipboardList}
+          title="Nenhuma OS encontrada"
+          description={ordens.length === 0
+            ? 'Comece criando a primeira ordem de serviço.'
+            : 'Ajuste os filtros ou limpe a busca.'}
+          action={ordens.length === 0 && canCreate && (
+            <Button onClick={() => setNovaOSOpen(true)}>
               <Plus className="w-4 h-4" /> Nova OS
             </Button>
           )}
-        </div>
+        />
       ) : (
         <div className="space-y-2">
           <p className="text-xs text-[var(--color-fg-muted)]">

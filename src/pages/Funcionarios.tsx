@@ -1,5 +1,4 @@
 import { useState, useCallback } from 'react';
-import { Link } from 'react-router-dom';
 import type { Funcionario } from '../types';
 import { useFuncionarios, useAdicionarFuncionario, useAtualizarFuncionario, useExcluirFuncionario, useSalvarPerfilPermissao } from '../hooks/useFuncionarios';
 import { perfilPadraoPorCargo } from '../utils/permissions';
@@ -7,6 +6,8 @@ import Button from '../components/ui/Button';
 import Modal from '../components/ui/Modal';
 import ConfirmDialog from '../components/ui/ConfirmDialog';
 import PasswordDialog from '../components/ui/PasswordDialog';
+import PageHeader from '../components/ui/PageHeader';
+import LoadingState from '../components/ui/LoadingState';
 import FuncionarioForm from '../components/funcionarios/FuncionarioForm';
 import FuncionarioList from '../components/funcionarios/FuncionarioList';
 import { useAuth } from '../contexts/AuthContext';
@@ -106,30 +107,27 @@ export default function Funcionarios() {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <p className="text-[var(--color-fg-subtle)]">Carregando...</p>
+      <div>
+        <PageHeader
+          breadcrumb={[{ label: 'Cadastros', href: '/cadastros' }, { label: 'Usuários' }]}
+          title="Usuários"
+        />
+        <LoadingState mode="list" count={6} />
       </div>
     );
   }
 
   return (
     <div>
-      {/* Breadcrumb */}
-      <nav className="flex items-center gap-1.5 text-xs text-[var(--color-fg-muted)] mb-3">
-        <Link to="/cadastros" className="hover:text-[var(--color-fg)] transition-colors">
-          Cadastros
-        </Link>
-        <span>/</span>
-        <span className="text-[var(--color-fg)]">Usuários</span>
-      </nav>
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
-        <h1 className="text-2xl sm:text-[28px] font-semibold tracking-tight text-[var(--color-fg)]">Usuários</h1>
-        {canCreate && (
+      <PageHeader
+        breadcrumb={[{ label: 'Cadastros', href: '/cadastros' }, { label: 'Usuários' }]}
+        title="Usuários"
+        actions={canCreate && (
           <Button onClick={() => { setEditando(null); setModalOpen(true); }}>
             Novo Usuário
           </Button>
         )}
-      </div>
+      />
 
       <FuncionarioList
         funcionarios={funcionarios}

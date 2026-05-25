@@ -10,7 +10,8 @@
  */
 import { useCallback, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Plus, Wallet } from 'lucide-react';
+import { Plus } from 'lucide-react';
+import PageHeader from '../components/ui/PageHeader';
 import CategoriasList from '../components/financeiro/CategoriasList';
 import LancamentosList from '../components/financeiro/LancamentosList';
 import VisaoGeralFinanceiro from '../components/financeiro/VisaoGeralFinanceiro';
@@ -114,25 +115,15 @@ export default function Financeiro() {
 
   return (
     <div>
-      <header className="flex items-start justify-between gap-4 mb-6">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight text-[var(--color-fg)] flex items-center gap-2.5">
-            <Wallet className="w-6 h-6 text-[var(--color-accent)]" />
-            Financeiro
-          </h1>
-          <p className="text-sm text-[var(--color-fg-muted)] mt-1">
-            Lançamentos a partir de OC ou avulsos · parcelas · pagamentos · rateio
-            de custos por obra/manutenção/sede
-          </p>
-        </div>
-        {podeCriar && (
+      <PageHeader
+        title="Financeiro"
+        description="Lançamentos a partir de OC ou avulsos · parcelas · pagamentos · rateio de custos por obra/manutenção/sede"
+        actions={podeCriar && (
           <Button onClick={() => setNovoModalOpen(true)}>
-            <span className="inline-flex items-center gap-1.5">
-              <Plus className="w-4 h-4" /> Novo lançamento
-            </span>
+            <Plus className="w-4 h-4" /> Novo lançamento
           </Button>
         )}
-      </header>
+      />
 
       <div className="mb-6 border-b border-[var(--color-border)]">
         <nav className="flex gap-1 -mb-px overflow-x-auto" aria-label="Financeiro tabs">

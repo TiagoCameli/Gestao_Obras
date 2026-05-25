@@ -30,6 +30,7 @@ import { useToast } from '../components/ui/Toast';
 import Button from '../components/ui/Button';
 import Modal from '../components/ui/Modal';
 import ConfirmDialog from '../components/ui/ConfirmDialog';
+import PageHeader from '../components/ui/PageHeader';
 import PedidoCompraFormV2 from '../components/compras/PedidoCompraFormV2';
 import PedidoCompraListV2 from '../components/compras/PedidoCompraListV2';
 import RejeitarPedidoModal from '../components/compras/RejeitarPedidoModal';
@@ -827,67 +828,59 @@ export default function Compras() {
 
   return (
     <div>
-      {/* ── Header premium ─────────────────────────────────────────────
-          Título + subtítulo discreto à esquerda; ações primárias à
-          direita, com separador visual antes dos ícones (sino/lixeira)
-          pra ficar claro que são utilitários. */}
-      <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between mb-6 gap-4">
-        <div>
-          <h1 className="text-2xl sm:text-[28px] font-semibold tracking-tight text-[var(--color-fg)] leading-none">
-            Compras
-          </h1>
-          <p className="mt-1.5 text-sm text-[var(--color-fg-subtle)]">
-            Pedidos → Cotações → Ordens de Compra · controle integrado
-          </p>
-        </div>
-        <div className="flex items-center gap-2 flex-wrap">
-          {canCreate && (
-            <>
-              <Button
-                variant="secondary"
-                onClick={() => { setEditandoPedido(null); setPedidoModalOpen(true); }}
+      <PageHeader
+        title="Compras"
+        description="Pedidos → Cotações → Ordens de Compra · controle integrado"
+        actions={
+          <>
+            {canCreate && (
+              <>
+                <Button
+                  variant="secondary"
+                  onClick={() => { setEditandoPedido(null); setPedidoModalOpen(true); }}
+                >
+                  + Pedido
+                </Button>
+                <Button
+                  variant="secondary"
+                  onClick={() => { setPedidoParaCotacao(null); setCotacaoModalOpen(true); }}
+                >
+                  + Cotação
+                </Button>
+                <Button onClick={() => { setEditandoOC(null); setOcModalOpen(true); }}>
+                  + Nova OC
+                </Button>
+              </>
+            )}
+            {/* Separador visual antes dos utilitários */}
+            <span className="hidden sm:block w-px h-6 bg-[var(--color-border)] mx-1" aria-hidden="true" />
+            {/* Sino de notificações */}
+            <NotificacoesSino
+              onNavigate={(link) => {
+                const m = link.match(/tab=([a-z]+)(?:&id=([^&]+))?/);
+                if (m) {
+                  const newTab = m[1];
+                  if (validTabs.includes(newTab as Tab)) setTab(newTab as Tab);
+                }
+              }}
+            />
+            {/* Lixeira */}
+            {temAcao('restaurar_lixeira_compras') && (
+              <button
+                type="button"
+                onClick={() => setLixeiraAberta(true)}
+                className="w-9 h-9 inline-flex items-center justify-center rounded-lg text-[var(--color-fg-muted)] hover:text-[var(--color-fg)] hover:bg-[var(--color-surface-2)] border border-[var(--color-border)] transition-colors"
+                title="Lixeira de Compras"
+                aria-label="Lixeira"
               >
-                + Pedido
-              </Button>
-              <Button
-                variant="secondary"
-                onClick={() => { setPedidoParaCotacao(null); setCotacaoModalOpen(true); }}
-              >
-                + Cotação
-              </Button>
-              <Button onClick={() => { setEditandoOC(null); setOcModalOpen(true); }}>
-                + Nova OC
-              </Button>
-            </>
-          )}
-          {/* Separador visual antes dos utilitários */}
-          <span className="hidden sm:block w-px h-6 bg-[var(--color-border)] mx-1" aria-hidden="true" />
-          {/* Sino de notificações */}
-          <NotificacoesSino
-            onNavigate={(link) => {
-              const m = link.match(/tab=([a-z]+)(?:&id=([^&]+))?/);
-              if (m) {
-                const newTab = m[1];
-                if (validTabs.includes(newTab as Tab)) setTab(newTab as Tab);
-              }
-            }}
-          />
-          {/* Lixeira */}
-          {temAcao('restaurar_lixeira_compras') && (
-            <button
-              type="button"
-              onClick={() => setLixeiraAberta(true)}
-              className="w-9 h-9 inline-flex items-center justify-center rounded-lg text-[var(--color-fg-muted)] hover:text-[var(--color-fg)] hover:bg-[var(--color-surface-2)] border border-[var(--color-border)] transition-colors"
-              title="Lixeira de Compras"
-              aria-label="Lixeira"
-            >
-              <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M3 6h18M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2m3 0v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6h14z" />
-              </svg>
-            </button>
-          )}
-        </div>
-      </div>
+                <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M3 6h18M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2m3 0v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6h14z" />
+                </svg>
+              </button>
+            )}
+          </>
+        }
+      />
 
       {/* ── Tabs com indicador inferior premium ───────────────────────
           Antes era um pill-tab — agora é um underline-tab que ocupa

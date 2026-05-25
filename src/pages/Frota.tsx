@@ -11,6 +11,8 @@ import Modal from '../components/ui/Modal';
 import Button from '../components/ui/Button';
 import SmartSelect from '../components/ui/SmartSelect';
 import ConfirmDialog from '../components/ui/ConfirmDialog';
+import PageHeader from '../components/ui/PageHeader';
+import LoadingState from '../components/ui/LoadingState';
 import FrotaStats from '../components/frota/FrotaStats';
 import MobileScanShortcut from '../components/MobileScanShortcut';
 import FrotaGrid from '../components/frota/FrotaGrid';
@@ -172,8 +174,10 @@ export default function Frota() {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center py-20">
-        <p className="text-[var(--color-fg-muted)] text-sm">Carregando frota...</p>
+      <div className="space-y-6">
+        <MobileScanShortcut />
+        <PageHeader title="Frota" description="Gestão de equipamentos próprios e alugados." />
+        <LoadingState mode="cards" count={9} cols={3} />
       </div>
     );
   }
@@ -193,18 +197,11 @@ export default function Frota() {
   return (
     <div className="space-y-6">
       <MobileScanShortcut />
-      {/* HERO HEADER */}
-      <header className="rounded-2xl border border-[var(--color-border)] bg-gradient-to-br from-[var(--color-surface-1)] to-[var(--color-surface-2)] p-5 sm:p-6">
-        <div className="flex items-start justify-between gap-4 flex-wrap">
-          <div className="min-w-0">
-            <h1 className="text-2xl sm:text-[28px] font-semibold tracking-tight text-[var(--color-fg)] leading-tight">
-              Frota
-            </h1>
-            <p className="text-sm text-[var(--color-fg-muted)] mt-1">
-              Gestão de equipamentos próprios e alugados.
-            </p>
-          </div>
-          <div className="flex items-center gap-2 flex-wrap">
+      <PageHeader
+        title="Frota"
+        description="Gestão de equipamentos próprios e alugados."
+        actions={
+          <>
             {canCreate && (
               <Button onClick={() => setModalNovoOpen(true)} variant="primary">
                 <Plus aria-hidden className="w-4 h-4" />
@@ -229,9 +226,9 @@ export default function Frota() {
               <QrCode aria-hidden className="w-4 h-4" />
               Etiquetas QR
             </Button>
-          </div>
-        </div>
-      </header>
+          </>
+        }
+      />
 
       {/* KPIs */}
       <FrotaStats equipamentos={equipamentos} />

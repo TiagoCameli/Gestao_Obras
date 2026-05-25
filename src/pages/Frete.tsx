@@ -20,6 +20,8 @@ import Input from '../components/ui/Input';
 import Modal from '../components/ui/Modal';
 import ConfirmDialog from '../components/ui/ConfirmDialog';
 import PasswordDialog from '../components/ui/PasswordDialog';
+import PageHeader from '../components/ui/PageHeader';
+import LoadingState from '../components/ui/LoadingState';
 import FreteForm from '../components/frete/FreteForm';
 import FreteListV2 from '../components/frete/FreteListV2';
 import FreteDetalhesDrawer from '../components/frete/FreteDetalhesDrawer';
@@ -39,7 +41,7 @@ import { exportarPedidosMaterialExcel, exportarPedidosMaterialPDF } from '../uti
 import FilterBar from '../components/frete/FilterBar';
 import FretePresets, { type PresetKey } from '../components/frete/FretePresets';
 import { presetEstaSemana, presetEsteMes, presetMesPassado } from '../utils/dateRangePresets';
-import { Truck, Sparkles, BarChart3, Wallet, Wallet2, PackageSearch, Trash2 } from 'lucide-react';
+import { Truck, BarChart3, Wallet, Wallet2, PackageSearch, Trash2 } from 'lucide-react';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '../components/shadcn/tabs';
 
 type Tab = 'dashboard' | 'fretes' | 'pagamentos' | 'conta_corrente' | 'pedidos' | 'lixeira';
@@ -370,8 +372,13 @@ export default function Frete() {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <p className="text-[var(--color-fg-subtle)]">Carregando...</p>
+      <div className="frete-premium ambient-bg -mx-3 sm:-mx-6 -my-6 sm:-my-8 px-3 sm:px-6 py-6 sm:py-8 min-h-[calc(100dvh-64px)]">
+        <PageHeader
+          eyebrow="Operations · Logística"
+          title="Frete & Logística"
+          description="Carregando dados de fretes, pagamentos e pedidos…"
+        />
+        <LoadingState mode="dashboard" />
       </div>
     );
   }
@@ -391,34 +398,12 @@ export default function Frete() {
         } as React.CSSProperties
       }
     >
-      {/* ── Hero header ─────────────────────────────────────────────── */}
-      <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-6 mb-8">
-        <div className="flex items-start gap-4">
-          <div
-            className="flex items-center justify-center shrink-0"
-            style={{
-              width: 48, height: 48, borderRadius: 14,
-              background: 'linear-gradient(135deg, var(--color-accent), var(--color-accent-hover))',
-              boxShadow: '0 10px 24px -8px var(--color-accent-amber-glow), inset 0 1px 0 rgba(255,255,255,0.2)',
-            }}
-          >
-            <Truck className="h-5 w-5" style={{ color: 'var(--color-fg-on-accent)' }} />
-          </div>
-          <div>
-            <div className="flex items-center gap-2 mb-1.5">
-              <Sparkles className="h-3 w-3" style={{ color: 'var(--color-accent)' }} />
-              <span className="label-eyebrow">Operations · Logística</span>
-            </div>
-            <h1 className="text-2xl sm:text-[30px] font-bold tracking-tight text-[var(--color-fg)] leading-tight">
-              Frete &amp; <span style={{ color: 'var(--color-accent)' }}>Logística</span>.
-            </h1>
-            <p className="text-sm text-[var(--color-fg-muted)] mt-1.5 max-w-[640px] leading-relaxed">
-              Fretes, pagamentos a transportadoras, abastecimentos de carreta e pedidos de material — tudo num painel unificado com controle granular de custos.
-            </p>
-          </div>
-        </div>
-        {canCreate && (
-          <div className="flex flex-wrap gap-2 shrink-0">
+      <PageHeader
+        eyebrow="Operations · Logística"
+        title="Frete & Logística"
+        description="Fretes, pagamentos a transportadoras, abastecimentos de carreta e pedidos de material — tudo num painel unificado com controle granular de custos."
+        actions={canCreate && (
+          <>
             <Button variant="secondary" onClick={() => setLocalidadeModalOpen(true)}>
               Nova Localidade
             </Button>
@@ -429,11 +414,14 @@ export default function Frete() {
               Novo Pagamento
             </Button>
             <Button onClick={() => { setEditando(null); setModalOpen(true); }}>
-              + Novo Frete
+              <Truck className="w-4 h-4" /> Novo Frete
             </Button>
-          </div>
+          </>
         )}
-      </div>
+      />
+      {/* Mantido: scoped accent override + ambient-bg envolvendo a página
+          (definidos no <div> mais externo desta rota) — preservam a
+          identidade visual "âmbar" do módulo Frete. */}
 
       {/* ── Tabs shadcn ─────────────────────────────────────────────── */}
       <Tabs value={tab} onValueChange={(v) => setTab(v as Tab)} className="w-full">
