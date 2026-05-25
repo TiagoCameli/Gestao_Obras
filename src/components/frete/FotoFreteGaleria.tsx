@@ -34,21 +34,16 @@ export default function FotoFreteGaleria({
     setFullLoaded(false)
   }, [indiceAmpliada])
 
-  // Preload neighbors (prev/next) full-res so sequential nav é instantâneo.
+  // Pré-carrega TODAS as fotos em full-res assim que o hook resolve as URLs.
+  // Assim qualquer click no lightbox (1ª foto ou qualquer próxima) é instantâneo
+  // — browser já tem o blob em cache.
   useEffect(() => {
-    if (indiceAmpliada === null || !fotoUrlsFrescas) return
-    const total = fotoUrls.length
-    if (total <= 1) return
-    const vizinhos = [
-      (indiceAmpliada + 1) % total,
-      (indiceAmpliada - 1 + total) % total,
-    ]
-    vizinhos.forEach((i) => {
-      if (i === indiceAmpliada) return
+    if (!fotoUrlsFrescas) return
+    fotoUrlsFrescas.forEach(({ full }) => {
       const img = new Image()
-      img.src = fotoUrlsFrescas[i].full
+      img.src = full
     })
-  }, [indiceAmpliada, fotoUrlsFrescas, fotoUrls.length])
+  }, [fotoUrlsFrescas])
 
   useEffect(() => {
     if (indiceAmpliada === null) return
