@@ -1,0 +1,305 @@
+/* ============================================================
+   GESTAO_OBRAS — DESIGN TOKENS (single source of truth)
+   ------------------------------------------------------------
+   Reference: Linear (density, monochrome) + Vercel (minimalism)
+              + Stripe (polished forms). 70/20/10 split.
+   ------------------------------------------------------------
+   Import order (in src/index.css):
+     1. tailwindcss
+     2. tw-animate-css
+     3. shadcn/tailwind.css
+     4. @fontsource-variable/geist
+     5. ./styles/theme.css         <- this file
+     6. (compat layer + base in index.css)
+   ------------------------------------------------------------
+   How to use:
+     - Semantic first:   bg-app, text-fg-muted, .surface-raised
+     - Tokens via var:   bg-[var(--color-accent)] only when no semantic helper
+     - Scale palette is documented but NOT meant for direct use.
+       Use semantic tokens (success/danger/...) so dark mode flips automatically.
+   ============================================================ */
+
+@theme {
+  /* ----------------------------------------------------------
+     1. PALETTE — full 50→950 scale (reference only)
+     Use semantic tokens below in components. The scale exists
+     so future tokens can pick consistent hues.
+     ---------------------------------------------------------- */
+
+  /* Neutrals — single family (Slate), kills the gray/slate/zinc/stone mix */
+  --color-neutral-50:  #F8FAFC;
+  --color-neutral-100: #F1F5F9;
+  --color-neutral-200: #E2E8F0;
+  --color-neutral-300: #CBD5E1;
+  --color-neutral-400: #94A3B8;
+  --color-neutral-500: #64748B;
+  --color-neutral-600: #475569;
+  --color-neutral-700: #334155;
+  --color-neutral-800: #1E293B;
+  --color-neutral-900: #0F172A;
+  --color-neutral-950: #020617;
+
+  /* Primary — Verde EMT (brand) */
+  --color-primary-50:  #ECFDF3;
+  --color-primary-100: #D1FAE0;
+  --color-primary-200: #A6F4C5;
+  --color-primary-300: #6CE9A6;
+  --color-primary-400: #32D583;
+  --color-primary-500: #12B76A;
+  --color-primary-600: #2D7F4F; /* brand anchor */
+  --color-primary-700: #1E5A38;
+  --color-primary-800: #15452A;
+  --color-primary-900: #102E1E;
+  --color-primary-950: #061A0F;
+
+  /* Success — same hue family as primary (read as "ok") */
+  --color-success-50:  #ECFDF3;
+  --color-success-100: #D1FADF;
+  --color-success-200: #A6F4C5;
+  --color-success-300: #6CE9A6;
+  --color-success-400: #32D583;
+  --color-success-500: #12B76A;
+  --color-success-600: #15803D;
+  --color-success-700: #067647;
+  --color-success-800: #074D31;
+  --color-success-900: #053321;
+
+  /* Danger — Red */
+  --color-danger-50:  #FEF3F2;
+  --color-danger-100: #FEE4E2;
+  --color-danger-200: #FECDCA;
+  --color-danger-300: #FDA29B;
+  --color-danger-400: #F97066;
+  --color-danger-500: #F04438;
+  --color-danger-600: #D92D20;
+  --color-danger-700: #B42318;
+  --color-danger-800: #912018;
+  --color-danger-900: #7A271A;
+
+  /* Warning — Amber (also reused as "amber accent" for Trechos) */
+  --color-warning-50:  #FFFAEB;
+  --color-warning-100: #FEF0C7;
+  --color-warning-200: #FEDF89;
+  --color-warning-300: #FEC84B;
+  --color-warning-400: #FDB022;
+  --color-warning-500: #F79009;
+  --color-warning-600: #DC6803;
+  --color-warning-700: #B54708;
+  --color-warning-800: #93370D;
+  --color-warning-900: #7A2E0E;
+
+  /* Info — Blue */
+  --color-info-50:  #EFF4FF;
+  --color-info-100: #D1E0FF;
+  --color-info-200: #B2CCFF;
+  --color-info-300: #84ADFF;
+  --color-info-400: #528BFF;
+  --color-info-500: #2563EB;
+  --color-info-600: #1849A9;
+  --color-info-700: #194185;
+  --color-info-800: #102A56;
+  --color-info-900: #0A1F44;
+
+  /* ----------------------------------------------------------
+     2. SEMANTIC TOKENS — LIGHT MODE (defaults)
+     These are what components actually read. Dark mode redefines.
+     ---------------------------------------------------------- */
+
+  /* Surfaces — z-axis hierarchy */
+  --color-bg:           #F7F8FA; /* page background */
+  --color-surface-1:    #FFFFFF; /* cards, modals, popovers */
+  --color-surface-2:    #F2F4F7; /* recessed (table headers, code) */
+  --color-surface-3:    #E7EAF0; /* nested recessed */
+
+  /* Borders */
+  --color-border:        #E4E7EC;
+  --color-border-strong: #D0D5DD;
+
+  /* Foreground (text) */
+  --color-fg:            #101828; /* primary text */
+  --color-fg-muted:      #475467; /* secondary text */
+  --color-fg-subtle:     #667085; /* tertiary / placeholder */
+  --color-fg-disabled:   #98A2B3; /* disabled label */
+  --color-fg-on-accent:  #FFFFFF; /* text on accent fill */
+
+  /* Brand accent (verde EMT) */
+  --color-accent:        var(--color-primary-600);
+  --color-accent-hover:  var(--color-primary-700);
+  --color-accent-active: #1B5232;
+  --color-accent-soft:   var(--color-primary-50);
+  --color-accent-fg:     var(--color-primary-700);
+
+  /* Secondary accent (âmbar) — Trechos / warm CTAs */
+  --color-accent-amber:        #E89B17;
+  --color-accent-amber-hover:  #C78412;
+  --color-accent-amber-soft:   rgba(232, 155, 23, 0.12);
+  --color-accent-amber-fg:     #B46B0E;
+  --color-accent-amber-glow:   rgba(232, 155, 23, 0.30);
+
+  /* Semantic states */
+  --color-danger:       var(--color-danger-600);
+  --color-danger-soft:  var(--color-danger-50);
+  --color-danger-fg:    var(--color-danger-800);
+  --color-warning:      var(--color-warning-600);
+  --color-warning-soft: var(--color-warning-50);
+  --color-warning-fg:   var(--color-warning-700);
+  --color-info:         var(--color-info-500);
+  --color-info-soft:    var(--color-info-50);
+  --color-info-fg:      var(--color-info-600);
+  --color-success:      var(--color-success-600);
+  --color-success-soft: var(--color-success-50);
+  --color-success-fg:   var(--color-success-700);
+
+  /* Focus ring */
+  --color-ring:         rgba(45, 127, 79, 0.45);
+
+  /* Legacy brand tokens (DO NOT use in new code — kept for compat) */
+  --color-emt-verde:         var(--color-accent);
+  --color-emt-verde-escuro:  var(--color-accent-hover);
+  --color-emt-verde-claro:   var(--color-accent-soft);
+  --color-emt-amarelo:       #FDB933;
+  --color-emt-cinza:         #3E3E3E;
+  --color-emt-cinza-medio:   #757575;
+  --color-emt-cinza-claro:   #F5F5F5;
+
+  /* ----------------------------------------------------------
+     3. TYPOGRAPHY
+     ---------------------------------------------------------- */
+  --font-sans: 'Geist Variable', 'Inter', ui-sans-serif, system-ui, -apple-system, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+
+  /* Type scale (rem-based, 16px root) */
+  --text-3xs:    0.625rem; /* 10px — micro-labels (frota plates, table footers) */
+  --text-2xs:    0.6875rem;/* 11px — eyebrow, badge, table micro */
+  --text-xs:     0.75rem;  /* 12px — captions */
+  --text-sm:     0.875rem; /* 14px — table body, secondary copy */
+  --text-base:   1rem;     /* 16px — body */
+  --text-lg:     1.125rem; /* 18px — sub-headers */
+  --text-xl:     1.25rem;  /* 20px — section heading */
+  --text-2xl:    1.5rem;   /* 24px — page title (mobile) */
+  --text-3xl:    1.875rem; /* 30px — page title (desktop) */
+  --text-4xl:    2.25rem;  /* 36px — hero numerals (KPIs) */
+
+  /* Line heights */
+  --leading-tight:   1.15;
+  --leading-snug:    1.3;
+  --leading-normal:  1.5;
+  --leading-relaxed: 1.65;
+
+  /* Letter spacing — premium feel */
+  --tracking-tight:  -0.02em;  /* h1, h2 */
+  --tracking-snug:   -0.01em;  /* h3, h4, big numbers */
+  --tracking-normal: 0;
+  --tracking-wide:   0.04em;
+  --tracking-wider:  0.08em;   /* eyebrow labels */
+  --tracking-widest: 0.14em;   /* uppercase micro-labels */
+
+  /* ----------------------------------------------------------
+     4. SPACING — Tailwind default scale (NOT redefined; documented usage)
+     Page padding:    px-6 lg:px-10
+     Section gap:     gap-8 (between blocks)  /  gap-3 (inside dense cards)
+     Card padding:    p-4 (compact) / p-6 (default)
+     Form column:     space-y-4 (between fields)
+     ---------------------------------------------------------- */
+
+  /* ----------------------------------------------------------
+     5. RADIUS
+     ---------------------------------------------------------- */
+  --radius-xs: 4px;   /* inputs inside a card row */
+  --radius-sm: 6px;   /* inputs, small buttons, chips */
+  --radius-md: 8px;   /* default buttons */
+  --radius-lg: 12px;  /* cards, dropdowns */
+  --radius-xl: 16px;  /* modals, sheets */
+  --radius-2xl: 20px; /* hero panels, drawers */
+  --radius-full: 9999px;
+
+  /* ----------------------------------------------------------
+     6. SHADOWS — subtle, layered, premium
+     ---------------------------------------------------------- */
+  --shadow-xs:  0 1px 2px rgba(16, 24, 40, 0.05);
+  --shadow-sm:  0 1px 3px rgba(16, 24, 40, 0.08), 0 1px 2px rgba(16, 24, 40, 0.04);
+  --shadow-md:  0 6px 16px -4px rgba(16, 24, 40, 0.08), 0 2px 6px rgba(16, 24, 40, 0.04);
+  --shadow-lg:  0 12px 24px -8px rgba(16, 24, 40, 0.12), 0 4px 10px rgba(16, 24, 40, 0.05);
+  --shadow-xl:  0 24px 48px -12px rgba(16, 24, 40, 0.18);
+
+  --shadow-focus-ring: 0 0 0 2px var(--color-bg), 0 0 0 4px var(--color-ring);
+
+  /* ----------------------------------------------------------
+     7. MOTION — Linear-style snap
+     ---------------------------------------------------------- */
+  --ease-out:    cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+
+  --dur-fast:   140ms;
+  --dur-base:   220ms;
+  --dur-slow:   380ms;
+
+  /* ----------------------------------------------------------
+     8. Z-INDEX scale (avoid hardcoding)
+     ---------------------------------------------------------- */
+  --z-base:        0;
+  --z-sticky:     10;
+  --z-dropdown:   30;
+  --z-overlay:    40;
+  --z-modal:      50;
+  --z-popover:    60;
+  --z-toast:      70;
+  --z-tooltip:    80;
+}
+
+/* ============================================================
+   DARK MODE — premium near-black palette
+   ------------------------------------------------------------
+   Reads: same component code; tokens flip here.
+   ============================================================ */
+.dark {
+  --color-bg:           #0A0C10;
+  --color-surface-1:    #11141A;
+  --color-surface-2:    #161A21;
+  --color-surface-3:    #1E232C;
+
+  --color-border:        rgba(255, 255, 255, 0.10);
+  --color-border-strong: rgba(255, 255, 255, 0.18);
+
+  --color-fg:            #F2F4F8;
+  --color-fg-muted:      #B0B7C3;
+  --color-fg-subtle:     #858DA0;
+  --color-fg-disabled:   #5C6577;
+  --color-fg-on-accent:  #FFFFFF;
+
+  --color-accent:        #3AA368; /* brighter for AA on dark */
+  --color-accent-hover:  #46BE7B;
+  --color-accent-active: #2D7F4F;
+  --color-accent-soft:   rgba(58, 163, 104, 0.14);
+  --color-accent-fg:     #7DDFA3;
+
+  --color-accent-amber:       #FFB020;
+  --color-accent-amber-hover: #FFC04A;
+  --color-accent-amber-soft:  rgba(255, 176, 32, 0.14);
+  --color-accent-amber-fg:    #FFC04A;
+  --color-accent-amber-glow:  rgba(255, 176, 32, 0.35);
+
+  --color-danger:       #F97066;
+  --color-danger-soft:  rgba(249, 112, 102, 0.12);
+  --color-danger-fg:    #FDA29B;
+  --color-warning:      #F7B155;
+  --color-warning-soft: rgba(247, 177, 85, 0.12);
+  --color-warning-fg:   #FEC84B;
+  --color-info:         #6AA2FF;
+  --color-info-soft:    rgba(106, 162, 255, 0.12);
+  --color-info-fg:      #93BCFF;
+  --color-success:      #3AA368;
+  --color-success-soft: rgba(58, 163, 104, 0.12);
+  --color-success-fg:   #7DDFA3;
+
+  --color-ring:         rgba(58, 163, 104, 0.55);
+
+  --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.35), 0 1px 3px rgba(0, 0, 0, 0.25);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.45), 0 2px 4px rgba(0, 0, 0, 0.3);
+  --shadow-lg: 0 10px 24px rgba(0, 0, 0, 0.5), 0 4px 10px rgba(0, 0, 0, 0.35);
+  --shadow-xl: 0 20px 40px rgba(0, 0, 0, 0.6);
+
+  color-scheme: dark;
+}
