@@ -51,6 +51,9 @@ import FornecedoresTab from '../../combustivel/v2/fornecedores/FornecedoresTab';
 import RelatoriosTab from '../../combustivel/v2/relatorios/RelatoriosTab';
 import AtribuirSentinelModal from '../../combustivel/v2/atribuicao/AtribuirSentinelModal';
 import ModeSwitch from '../../combustivel/v2/ModeSwitch';
+import { Tabs, TabsList, TabsTrigger } from '../../shadcn/tabs';
+import { filterSaidasByView } from '../../combustivel/v2/saidas/filterSaidasByView';
+import type { OrigemExterna, SaidasView } from '../../combustivel/v2/filters/types';
 import AnomaliasTab from '../../combustivel/v2/anomalias/AnomaliasTab';
 import type { Severidade } from '../../combustivel/v2/anomalias/detect';
 import {
@@ -105,7 +108,7 @@ function FrotaCombustivelContent() {
 
   // Filtros globais (URL state) — fonte única pras listas operacionais e
   // analíticas. Substitui o AbastecimentoFilters legado removido em F2.
-  const { state: filterState, setApenasSentinel } = useCombustivelFilter();
+  const { state: filterState, setApenasSentinel, setSaidasView, toggleOrigemExterna } = useCombustivelFilter();
 
   // Handler do banner sentinel + click no row "_naoid" do ranking.
   // Liga apenasSentinel + navega pra Saídas. SubTab fora da URL hoje
@@ -287,14 +290,18 @@ function FrotaCombustivelContent() {
 
   const tipoConsumidorAlvo = filterState.mode === 'proprios' ? 'equipamento_proprio' : 'carreta_transportadora';
 
-  const saidasFiltradas = useMemo(() => {
+  const tanquesExternosSet = useMemo(
+    () => new Set(depositosTodos.filter((d) => d.ehExterno).map((d) => d.id)),
+    [depositosTodos],
+  );
+
+  const saidasFiltradasGlobais = useMemo(() => {
     return todasSaidas.filter((s) => {
       if (s.tipoConsumidor !== tipoConsumidorAlvo) return false;
       if (!dentroPeriodo(s.data)) return false;
       if (filterState.obraIds.length > 0 && !(s.obraId && filterState.obraIds.includes(s.obraId))) return false;
       if (filterState.tipoCombustiveis.length > 0 && !filterState.tipoCombustiveis.includes(s.tipoCombustivel)) return false;
       if (filterState.tanqueIds.length > 0 && !(s.tanqueId && filterState.tanqueIds.includes(s.tanqueId))) return false;
-      // Sentinel mode: força sem-equipamento e ignora equipamentoIds.
       if (filterState.apenasSentinel) {
         if (s.equipamentoId !== 'desconhecido') return false;
       } else if (filterState.equipamentoIds.length > 0) {
@@ -315,6 +322,34 @@ function FrotaCombustivelContent() {
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [todasSaidas, tipoConsumidorAlvo, periodoFromTs, periodoToTs, filterState.obraIds, filterState.tipoCombustiveis, filterState.tanqueIds, filterState.equipamentoIds, filterState.transportadoraIds, filterState.placas, filterState.operadores, filterState.apenasSentinel]);
+
+  const saidasFiltradas = useMemo(
+    () =>
+      filterSaidasByView(
+        saidasFiltradasGlobais,
+        filterState.saidasView,
+        filterState.origensExterna,
+        tanquesExternosSet,
+      ),
+    [saidasFiltradasGlobais, filterState.saidasView, filterState.origensExterna, tanquesExternosSet],
+  );
+
+  const saidasCountByView = useMemo(() => {
+    let internas = 0;
+    let externas = 0;
+    for (const s of saidasFiltradasGlobais) {
+      if (s.origem === 'tanque' && !!s.tanqueId && !tanquesExternosSet.has(s.tanqueId)) {
+        internas++;
+      } else if (
+        s.origem === 'dinheiro' ||
+        s.origem === 'requisicao' ||
+        (s.origem === 'tanque' && !!s.tanqueId && tanquesExternosSet.has(s.tanqueId))
+      ) {
+        externas++;
+      }
+    }
+    return { todas: saidasFiltradasGlobais.length, internas, externas };
+  }, [saidasFiltradasGlobais, tanquesExternosSet]);
 
   const entradasFiltradas = useMemo(() => {
     return todasEntradas.filter((e) => {
@@ -803,6 +838,49 @@ function FrotaCombustivelContent() {
 
       {!isLoadingCore && subTab === 'saidas' && (
         <>
+          <div className="mb-3 flex flex-col gap-2">
+            <Tabs
+              value={filterState.saidasView}
+              onValueChange={(v) => setSaidasView(v as SaidasView)}
+            >
+              <TabsList variant="line">
+                <TabsTrigger value="todas">
+                  Todas <span className="ml-1 tabular-nums text-[var(--color-fg-subtle)]">({saidasCountByView.todas})</span>
+                </TabsTrigger>
+                <TabsTrigger value="internas">
+                  Internas <span className="ml-1 tabular-nums text-[var(--color-fg-subtle)]">({saidasCountByView.internas})</span>
+                </TabsTrigger>
+                <TabsTrigger value="externas">
+                  Externas <span className="ml-1 tabular-nums text-[var(--color-fg-subtle)]">({saidasCountByView.externas})</span>
+                </TabsTrigger>
+              </TabsList>
+            </Tabs>
+            {filterState.saidasView === 'externas' && (
+              <div className="flex flex-wrap items-center gap-1.5 text-xs">
+                <span className="text-[var(--color-fg-subtle)] mr-1">Origem:</span>
+                {(['dinheiro', 'requisicao', 'tanque_externo'] as OrigemExterna[]).map((o) => {
+                  const active = filterState.origensExterna.includes(o);
+                  const label =
+                    o === 'dinheiro' ? 'Dinheiro' : o === 'requisicao' ? 'Requisição' : 'Tanque Externo';
+                  return (
+                    <button
+                      key={o}
+                      type="button"
+                      onClick={() => toggleOrigemExterna(o)}
+                      className={`px-2.5 py-1 rounded-full border text-[11px] font-medium transition-colors ${
+                        active
+                          ? 'bg-[var(--color-accent-soft)] text-[var(--color-accent-fg)] border-[var(--color-accent)]/30'
+                          : 'bg-[var(--color-surface-1)] text-[var(--color-fg-muted)] border-[var(--color-border)] hover:bg-[var(--color-surface-2)]'
+                      }`}
+                      aria-pressed={active}
+                    >
+                      {label}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </div>
           {/* F2.B.2: toolbar inline pra atribuição retroativa em batch.
               Aparece só quando o usuário está olhando o subset sentinel
               (apenasSentinel=true) e em mode=proprios. */}
