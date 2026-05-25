@@ -5,7 +5,7 @@
 
 import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import type { CombustivelFilterState, ConsumidorMode, CrossHighlight, PeriodoPreset } from './types';
+import type { CombustivelFilterState, ConsumidorMode, CrossHighlight, OrigemExterna, PeriodoPreset, SaidasView } from './types';
 import { computePeriodoFromPreset, defaultFilterState, fromSearchParams, hasActiveFilters, toSearchParams } from './urlState';
 
 interface FilterContextValue {
@@ -49,6 +49,9 @@ interface FilterContextValue {
   /** Liga/desliga "apenas sem equipamento identificado". Combina com
    *  outros filtros (intersect). Ignora equipamentoIds quando true. */
   setApenasSentinel: (v: boolean) => void;
+  setSaidasView: (v: SaidasView) => void;
+  toggleOrigemExterna: (o: OrigemExterna) => void;
+  setOrigensExterna: (arr: OrigemExterna[]) => void;
 
   /** Remove um valor específico (clique no chip ✕). */
   removeFilter: (kind: ChipKind, value: string) => void;
@@ -75,7 +78,9 @@ export type ChipKind =
   | 'tanque'
   | 'tanque_origem'
   | 'tanque_destino'
-  | 'sentinel';
+  | 'sentinel'
+  | 'saidas_view'
+  | 'origem_externa';
 
 const Ctx = createContext<FilterContextValue | null>(null);
 
@@ -152,6 +157,18 @@ export function CombustivelFilterProvider({ children }: { children: ReactNode })
   const setTanqueDestinoIds = useCallback((ids: string[]) => apply({ ...state, tanqueDestinoIds: ids }), [state, apply]);
   const setApenasSentinel = useCallback((v: boolean) => apply({ ...state, apenasSentinel: v }), [state, apply]);
 
+  const setSaidasView = useCallback((v: SaidasView) => apply({ ...state, saidasView: v }), [state, apply]);
+  const toggleOrigemExterna = useCallback(
+    (o: OrigemExterna) => {
+      const arr = state.origensExterna.includes(o)
+        ? state.origensExterna.filter((x) => x !== o)
+        : [...state.origensExterna, o];
+      apply({ ...state, origensExterna: arr });
+    },
+    [state, apply],
+  );
+  const setOrigensExterna = useCallback((arr: OrigemExterna[]) => apply({ ...state, origensExterna: arr }), [state, apply]);
+
   const removeFilter = useCallback(
     (kind: ChipKind, value: string) => {
       switch (kind) {
@@ -191,6 +208,12 @@ export function CombustivelFilterProvider({ children }: { children: ReactNode })
         case 'sentinel':
           apply({ ...state, apenasSentinel: false });
           break;
+        case 'saidas_view':
+          apply({ ...state, saidasView: 'todas' });
+          break;
+        case 'origem_externa':
+          apply({ ...state, origensExterna: state.origensExterna.filter((x) => x !== value) });
+          break;
       }
     },
     [state, apply],
@@ -226,6 +249,9 @@ export function CombustivelFilterProvider({ children }: { children: ReactNode })
       setTanqueOrigemIds,
       setTanqueDestinoIds,
       setApenasSentinel,
+      setSaidasView,
+      toggleOrigemExterna,
+      setOrigensExterna,
       removeFilter,
       clearAll,
       hasActive: hasActiveFilters(state),
@@ -239,6 +265,7 @@ export function CombustivelFilterProvider({ children }: { children: ReactNode })
       setObraIds, setEquipamentoIds, setTipoCombustiveis, setFornecedores, setOperadores,
       setTransportadoraIds, setPlacas, setTanqueIds, setTanqueOrigemIds, setTanqueDestinoIds,
       setApenasSentinel,
+      setSaidasView, toggleOrigemExterna, setOrigensExterna,
       removeFilter, clearAll, hovered,
     ],
   );
