@@ -1,4 +1,22 @@
-import { useCallback, useMemo, useState, type FormEvent } from 'react';
+/**
+ * FuncionarioForm — Onda 5.B: migrado pra react-hook-form + Zod (hybrid).
+ *
+ * Hybrid: RHF cuida dos campos simples (dados pessoais + endereço + senhas
+ * + status + observações). `acoesPermitidas` (matriz dinâmica de checkboxes
+ * com cascade de dependências, toggle por grupo, salvaguardas de
+ * auto-edição) continua em useState — RHF não cobre bem esse caso e a
+ * lógica é estável.
+ *
+ * Validações cross-field manuais no submit handler (não no schema):
+ *  - E-mail já cadastrado
+ *  - Auto-protection do próprio Admin (remover permissões críticas, etc)
+ *  - Cargo Administrador só pode ser atribuído por Admin
+ *
+ * Schema cobre o resto (CPF, email format, idade >= 18, senhas conferem).
+ */
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useForm, Controller } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
 import type { CargoFuncionario, EnderecoFuncionario, Funcionario } from '../../types';
 import { useFuncionarios } from '../../hooks/useFuncionarios';
 import { useAuth } from '../../contexts/AuthContext';
@@ -18,26 +36,15 @@ import Input from '../ui/Input';
 import Select from '../ui/Select';
 import Button from '../ui/Button';
 import ImportExcelModal, { parseStr, parseData, type ParsedRow } from '../ui/ImportExcelModal';
+import {
+  funcionarioFormSchema,
+  type FuncionarioFormValues,
+} from '../../schemas/funcionarios/funcionario.schema';
 
 const UFS = [
   'AC','AL','AP','AM','BA','CE','DF','ES','GO','MA','MT','MS','MG','PA',
   'PB','PR','PE','PI','RJ','RN','RS','RO','RR','SC','SP','SE','TO',
 ];
-
-function validarCPF(cpf: string): boolean {
-  const digits = cpf.replace(/\D/g, '');
-  if (digits.length !== 11 || /^(\d)\1{10}$/.test(digits)) return false;
-  let soma = 0;
-  for (let i = 0; i < 9; i++) soma += parseInt(digits[i]) * (10 - i);
-  let resto = (soma * 10) % 11;
-  if (resto === 10) resto = 0;
-  if (resto !== parseInt(digits[9])) return false;
-  soma = 0;
-  for (let i = 0; i < 10; i++) soma += parseInt(digits[i]) * (11 - i);
-  resto = (soma * 10) % 11;
-  if (resto === 10) resto = 0;
-  return resto === parseInt(digits[10]);
-}
 
 function gerarId(): string {
   return Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
@@ -58,49 +65,75 @@ interface FuncionarioFormProps {
   onImportBatch?: (items: Funcionario[], senhas: Map<string, string>) => void;
 }
 
+function buildDefaults(initial: Funcionario | null): FuncionarioFormValues {
+  return {
+    nome: initial?.nome || '',
+    email: initial?.email || '',
+    cpf: initial?.cpf || '',
+    telefone: initial?.telefone || '',
+    dataNascimento: initial?.dataNascimento || '',
+    cargo: (initial?.cargo as string) || 'Operador',
+    dataAdmissao: initial?.dataAdmissao || '',
+    status: initial?.status || 'ativo',
+    observacoes: initial?.observacoes || '',
+    enderecoRua: initial?.endereco?.rua || '',
+    enderecoNumero: initial?.endereco?.numero || '',
+    enderecoComplemento: initial?.endereco?.complemento || '',
+    enderecoBairro: initial?.endereco?.bairro || '',
+    enderecoCidade: initial?.endereco?.cidade || '',
+    enderecoEstado: initial?.endereco?.estado || '',
+    enderecoCep: initial?.endereco?.cep || '',
+    senha: '',
+    confirmarSenha: '',
+  };
+}
+
 export default function FuncionarioForm({ initial, onSubmit, onCancel, onImportBatch }: FuncionarioFormProps) {
   const { data: funcionariosData } = useFuncionarios();
   const { usuario: usuarioLogado } = useAuth();
   const allFuncionarios = funcionariosData ?? [];
 
-  const [nome, setNome] = useState(initial?.nome || '');
-  const [email, setEmail] = useState(initial?.email || '');
-  const [cpf, setCpf] = useState(initial?.cpf || '');
-  const [telefone, setTelefone] = useState(initial?.telefone || '');
-  const [dataNascimento, setDataNascimento] = useState(initial?.dataNascimento || '');
-  const [cargo, setCargo] = useState<CargoFuncionario>(initial?.cargo || 'Operador');
-  const [dataAdmissao, setDataAdmissao] = useState(initial?.dataAdmissao || '');
-  const [observacoes, setObservacoes] = useState(initial?.observacoes || '');
-  const [status, setStatus] = useState<'ativo' | 'inativo'>(initial?.status || 'ativo');
-
-  // Endereco
-  const [rua, setRua] = useState(initial?.endereco.rua || '');
-  const [numero, setNumero] = useState(initial?.endereco.numero || '');
-  const [complemento, setComplemento] = useState(initial?.endereco.complemento || '');
-  const [bairro, setBairro] = useState(initial?.endereco.bairro || '');
-  const [cidade, setCidade] = useState(initial?.endereco.cidade || '');
-  const [estado, setEstado] = useState(initial?.endereco.estado || '');
-  const [cep, setCep] = useState(initial?.endereco.cep || '');
-
-  // Senha
+  // ── Estado fora do RHF ──────────────────────────────────────────────────
   const [alterarSenha, setAlterarSenha] = useState(!initial);
-  const [senha, setSenha] = useState('');
-  const [confirmarSenha, setConfirmarSenha] = useState('');
-
-  // Ações Permitidas
-  // - Novo usuário: começa com o template do cargo (least-privilege; admin marca extras)
-  // - Edição: respeita o que está salvo (pode ser array vazio = usuário sem nenhum acesso)
   const [acoesPermitidas, setAcoesPermitidas] = useState<string[]>(
-    initial?.acoesPermitidas ?? acoesPadraoDoCargo(cargo)
+    initial?.acoesPermitidas ?? acoesPadraoDoCargo((initial?.cargo || 'Operador') as CargoFuncionario)
   );
+  const [errosCustom, setErrosCustom] = useState<string[]>([]);
+  const [importModalOpen, setImportModalOpen] = useState(false);
+  const [toastMsg, setToastMsg] = useState('');
+
+  // ── RHF + Zod ────────────────────────────────────────────────────────────
+  const {
+    register,
+    handleSubmit: rhfHandleSubmit,
+    watch,
+    setValue,
+    reset,
+    control,
+    formState: { errors },
+  } = useForm<FuncionarioFormValues>({
+    resolver: zodResolver(funcionarioFormSchema),
+    mode: 'onChange',
+    defaultValues: buildDefaults(initial),
+  });
+
+  useEffect(() => {
+    reset(buildDefaults(initial));
+    setAcoesPermitidas(
+      initial?.acoesPermitidas ?? acoesPadraoDoCargo((initial?.cargo || 'Operador') as CargoFuncionario)
+    );
+    setAlterarSenha(!initial);
+  }, [initial, reset]);
+
+  const cargoWatch = watch('cargo') as CargoFuncionario;
+  const statusWatch = watch('status');
 
   /**
-   * Quando o cargo muda em CRIAÇÃO, reaplica o template do novo cargo
-   * automaticamente. Em EDIÇÃO, não mexemos — o admin usa o botão
-   * "Aplicar template do cargo" se quiser.
+   * Quando o cargo muda em CRIAÇÃO, reaplica o template do novo cargo.
+   * Em EDIÇÃO, não mexemos — admin usa botão "Aplicar template" se quiser.
    */
   function trocarCargo(novoCargo: CargoFuncionario) {
-    setCargo(novoCargo);
+    setValue('cargo', novoCargo, { shouldValidate: true });
     if (!initial) {
       setAcoesPermitidas(acoesPadraoDoCargo(novoCargo));
     }
@@ -109,39 +142,29 @@ export default function FuncionarioForm({ initial, onSubmit, onCancel, onImportB
   function aplicarTemplateDoCargo() {
     if (
       confirm(
-        `Aplicar o template padrão do cargo "${cargo}"?\n\n` +
+        `Aplicar o template padrão do cargo "${cargoWatch}"?\n\n` +
           'Isso substituirá as ações marcadas atualmente.'
       )
     ) {
-      setAcoesPermitidas(acoesPadraoDoCargo(cargo));
+      setAcoesPermitidas(acoesPadraoDoCargo(cargoWatch));
     }
   }
 
   /**
    * Liga/desliga uma ação. Ao LIGAR, também liga automaticamente
-   * suas dependências (ex: marcar "Excluir obras" marca "Visualizar obras"
-   * e "Editar obras"). Ao DESLIGAR uma "Visualizar X", desliga em cascata
-   * os filhos que dependem dela.
+   * suas dependências. Ao DESLIGAR, cascade pra filhos que dependem dela.
    */
   function toggleAcao(chave: string) {
     setAcoesPermitidas((prev) => {
       if (prev.includes(chave)) {
-        // desmarcar: remove tudo que depende desta
-        const dependentes = Object.entries({} as Record<string, string[]>)
-          .filter(([, deps]) => deps.includes(chave))
-          .map(([k]) => k);
         const cascade = new Set<string>([chave]);
-        // detectar dependentes via varredura: para cada ação marcada,
-        // se suas dependências incluem `chave`, ela também sai.
         for (const k of prev) {
           if (k === chave) continue;
           const deps = resolverDependencias(k);
           if (deps.includes(chave)) cascade.add(k);
         }
-        void dependentes;
         return prev.filter((a) => !cascade.has(a));
       }
-      // marcar: adiciona dependências
       const novas = new Set<string>(prev);
       novas.add(chave);
       for (const d of resolverDependencias(chave)) novas.add(d);
@@ -155,10 +178,8 @@ export default function FuncionarioForm({ initial, onSubmit, onCancel, onImportB
       .map((a) => a.chave);
     const todasMarcadas = chavesDoGrupo.every((c) => acoesPermitidas.includes(c));
     if (todasMarcadas) {
-      // Desmarca todo o grupo + dependentes externos
       setAcoesPermitidas((prev) => {
         const removidas = new Set(chavesDoGrupo);
-        // remove também ações que dependem de qualquer ação do grupo
         for (const k of prev) {
           if (removidas.has(k)) continue;
           const deps = resolverDependencias(k);
@@ -167,7 +188,6 @@ export default function FuncionarioForm({ initial, onSubmit, onCancel, onImportB
         return prev.filter((a) => !removidas.has(a));
       });
     } else {
-      // Marca todas do grupo + dependências
       setAcoesPermitidas((prev) => {
         const novas = new Set(prev);
         for (const c of chavesDoGrupo) {
@@ -179,54 +199,37 @@ export default function FuncionarioForm({ initial, onSubmit, onCancel, onImportB
     }
   }
 
-  // --- Avisos visuais ---
   const acoesPerigosasMarcadas = useMemo(() => {
-    if (!CARGOS_OPERACIONAIS.has(cargo)) return [];
+    if (!CARGOS_OPERACIONAIS.has(cargoWatch)) return [];
     return acoesPermitidas.filter((a) => ACOES_PERIGOSAS_OPERACIONAL.has(a));
-  }, [acoesPermitidas, cargo]);
+  }, [acoesPermitidas, cargoWatch]);
 
   const errosDependencia = useMemo(
     () => validarDependencias(acoesPermitidas),
     [acoesPermitidas]
   );
 
-  const [importModalOpen, setImportModalOpen] = useState(false);
-  const [toastMsg, setToastMsg] = useState('');
-
-  const [erros, setErros] = useState<string[]>([]);
-
-  function validar(): string[] {
+  /** Validações cross-field manuais (que o schema não consegue cobrir). */
+  function validarCrossField(values: FuncionarioFormValues): string[] {
     const e: string[] = [];
-    if (!nome.trim()) e.push('Nome e obrigatorio.');
-    if (!email.trim()) e.push('E-mail e obrigatorio.');
-    else {
-      const existente = allFuncionarios.find(
-        (f) => f.email.toLowerCase() === email.trim().toLowerCase()
-      );
-      if (existente && existente.id !== initial?.id) e.push('E-mail ja cadastrado.');
-    }
-    if (cpf && !validarCPF(cpf)) e.push('CPF invalido.');
-    if (dataNascimento) {
-      const nasc = new Date(dataNascimento);
-      const idade = (Date.now() - nasc.getTime()) / (365.25 * 24 * 60 * 60 * 1000);
-      if (idade < 18) e.push('Funcionario deve ter pelo menos 18 anos.');
-    }
+
+    // E-mail já cadastrado
+    const existente = allFuncionarios.find(
+      (f) => f.email.toLowerCase() === values.email.trim().toLowerCase()
+    );
+    if (existente && existente.id !== initial?.id) e.push('E-mail já cadastrado.');
+
+    // Senha obrigatória no modo create OU quando alterarSenha
     if (!initial || alterarSenha) {
-      if (!senha) e.push('A senha e obrigatoria.');
-      else if (senha.length < 6) e.push('A senha deve ter pelo menos 6 caracteres.');
-      if (senha !== confirmarSenha) e.push('As senhas nao conferem.');
+      if (!values.senha) e.push('A senha é obrigatória.');
     }
 
     // Dependências entre ações
     e.push(...errosDependencia);
 
-    // Auto-edição: o admin não pode remover a própria capacidade de
-    // gerenciar permissões / ver usuários / editar usuários. Sem essas,
-    // ele se tranca fora do controle de acesso. Como agora não tem mais
-    // bypass de Admin, isso é REAL — uma vez sem essas chaves, perde o
-    // acesso.
+    // Auto-edição: o admin não pode tirar a própria base de controle.
     if (initial && usuarioLogado && initial.id === usuarioLogado.funcionarioId) {
-      if (usuarioLogado.cargo === 'Administrador' && cargo !== 'Administrador') {
+      if (usuarioLogado.cargo === 'Administrador' && values.cargo !== 'Administrador') {
         e.push('Você não pode alterar o seu próprio cargo de Administrador.');
       }
       const ACOES_AUTOPROTECAO = [
@@ -241,8 +244,6 @@ export default function FuncionarioForm({ initial, onSubmit, onCancel, onImportB
           );
         }
       }
-      // Salvaguarda extra: Admin nunca pode salvar a si mesmo com
-      // menos de 10 permissões (sinal de marcação acidental).
       if (usuarioLogado.cargo === 'Administrador' && acoesPermitidas.length < 10) {
         e.push(
           'Você está prestes a salvar com pouquíssimas permissões. Clique em "Aplicar template do cargo" ou marque as ações que precisa.'
@@ -250,44 +251,54 @@ export default function FuncionarioForm({ initial, onSubmit, onCancel, onImportB
       }
     }
 
-    // Apenas Administrador pode atribuir o cargo Administrador
-    if (cargo === 'Administrador' && usuarioLogado?.cargo !== 'Administrador') {
+    if (values.cargo === 'Administrador' && usuarioLogado?.cargo !== 'Administrador') {
       e.push('Apenas um Administrador pode atribuir o cargo de Administrador.');
     }
 
     return e;
   }
 
-  function handleSubmit(ev: FormEvent) {
-    ev.preventDefault();
-    const errosVal = validar();
-    if (errosVal.length > 0) { setErros(errosVal); return; }
+  const onValidSubmit = useCallback((values: FuncionarioFormValues) => {
+    const errosVal = validarCrossField(values);
+    if (errosVal.length > 0) {
+      setErrosCustom(errosVal);
+      return;
+    }
+    setErrosCustom([]);
 
     const now = new Date().toISOString();
-    const endereco: EnderecoFuncionario = { rua, numero, complemento, bairro, cidade, estado, cep };
+    const endereco: EnderecoFuncionario = {
+      rua: values.enderecoRua || '',
+      numero: values.enderecoNumero || '',
+      complemento: values.enderecoComplemento || '',
+      bairro: values.enderecoBairro || '',
+      cidade: values.enderecoCidade || '',
+      estado: values.enderecoEstado || '',
+      cep: values.enderecoCep || '',
+    };
 
     const func: Funcionario = {
       id: initial?.id || gerarId(),
-      nome: nome.trim(),
-      email: email.trim().toLowerCase(),
-      cpf,
-      telefone,
-      dataNascimento,
+      nome: values.nome.trim(),
+      email: values.email.trim().toLowerCase(),
+      cpf: values.cpf || '',
+      telefone: values.telefone || '',
+      dataNascimento: values.dataNascimento || '',
       endereco,
       senha: initial?.senha || '',
-      status,
-      cargo,
-      dataAdmissao,
-      observacoes,
+      status: values.status,
+      cargo: values.cargo as CargoFuncionario,
+      dataAdmissao: values.dataAdmissao || '',
+      observacoes: values.observacoes || '',
       dataCriacao: initial?.dataCriacao || now,
       dataAtualizacao: now,
       acoesPermitidas,
     };
 
-    // Pass raw password to parent when creating or changing password
-    const rawSenha = (!initial || alterarSenha) ? senha : undefined;
-    onSubmit(func, rawSenha);
-  }
+    const rawSenha = (!initial || alterarSenha) ? values.senha : undefined;
+    onSubmit(func, rawSenha || undefined);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initial, alterarSenha, acoesPermitidas, errosDependencia, allFuncionarios, usuarioLogado, onSubmit]);
 
   const parseRowFunc = useCallback(
     (row: unknown[]): ParsedRow => {
@@ -322,7 +333,7 @@ export default function FuncionarioForm({ initial, onSubmit, onCancel, onImportB
         dados: { nome: nomeR, email: emailR, cargo: cargoR, senha: senhaR, cpf: cpfR, telefone: telefoneR, dataNascimento: dataNascR, dataAdmissao: dataAdmR, observacoes: obsR },
       };
     },
-    []
+    [],
   );
 
   const toEntityFunc = useCallback((row: ParsedRow): Record<string, unknown> => {
@@ -349,7 +360,7 @@ export default function FuncionarioForm({ initial, onSubmit, onCancel, onImportB
   }, []);
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6">
+    <form onSubmit={rhfHandleSubmit(onValidSubmit)} className="space-y-6">
       {!initial && onImportBatch && (
         <div className="flex justify-end">
           <Button type="button" variant="secondary" className="text-xs px-3 py-1.5" onClick={() => setImportModalOpen(true)}>
@@ -357,115 +368,211 @@ export default function FuncionarioForm({ initial, onSubmit, onCancel, onImportB
           </Button>
         </div>
       )}
+
       {/* Dados pessoais */}
       <div>
-        <h3 className="text-sm font-semibold text-gray-700 mb-3">Dados Pessoais</h3>
+        <h3 className="text-sm font-semibold text-[var(--color-fg)] mb-3">Dados Pessoais</h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <Input label="Nome Completo" id="funcNome" value={nome} onChange={(e) => setNome(e.target.value)} required />
-          <Input label="E-mail" id="funcEmail" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
-          <Input label="CPF" id="funcCpf" value={cpf} onChange={(e) => setCpf(formatCPF(e.target.value))} placeholder="000.000.000-00" />
-          <Input label="Telefone" id="funcTelefone" value={telefone} onChange={(e) => setTelefone(formatTelefone(e.target.value))} placeholder="(00) 00000-0000" />
-          <Input label="Data Nascimento" id="funcNasc" type="date" value={dataNascimento} onChange={(e) => setDataNascimento(e.target.value)} />
-          <Select
-            label="Cargo"
-            id="funcCargo"
-            value={cargo}
-            onChange={(e) => trocarCargo(e.target.value as CargoFuncionario)}
-            options={CARGOS.map((c) => ({ value: c.valor, label: c.label }))}
+          <Input
+            label="Nome Completo"
+            id="funcNome"
             required
+            error={errors.nome?.message}
+            {...register('nome')}
           />
-          <Input label="Data Admissão" id="funcAdmissao" type="date" value={dataAdmissao} onChange={(e) => setDataAdmissao(e.target.value)} />
+          <Input
+            label="E-mail"
+            id="funcEmail"
+            type="email"
+            required
+            error={errors.email?.message}
+            {...register('email')}
+          />
+          <Controller
+            control={control}
+            name="cpf"
+            render={({ field }) => (
+              <Input
+                label="CPF"
+                id="funcCpf"
+                placeholder="000.000.000-00"
+                error={errors.cpf?.message}
+                value={field.value ?? ''}
+                onChange={(e) => field.onChange(formatCPF(e.target.value))}
+                onBlur={field.onBlur}
+                name={field.name}
+                ref={field.ref}
+              />
+            )}
+          />
+          <Controller
+            control={control}
+            name="telefone"
+            render={({ field }) => (
+              <Input
+                label="Telefone"
+                id="funcTelefone"
+                placeholder="(00) 00000-0000"
+                error={errors.telefone?.message}
+                value={field.value ?? ''}
+                onChange={(e) => field.onChange(formatTelefone(e.target.value))}
+                onBlur={field.onBlur}
+                name={field.name}
+                ref={field.ref}
+              />
+            )}
+          />
+          <Input
+            label="Data Nascimento"
+            id="funcNasc"
+            type="date"
+            error={errors.dataNascimento?.message}
+            {...register('dataNascimento')}
+          />
+          <Controller
+            control={control}
+            name="cargo"
+            render={({ field }) => (
+              <Select
+                label="Cargo"
+                id="funcCargo"
+                value={field.value}
+                onChange={(e) => trocarCargo(e.target.value as CargoFuncionario)}
+                options={CARGOS.map((c) => ({ value: c.valor, label: c.label }))}
+                required
+                error={errors.cargo?.message}
+              />
+            )}
+          />
+          <Input
+            label="Data Admissão"
+            id="funcAdmissao"
+            type="date"
+            error={errors.dataAdmissao?.message}
+            {...register('dataAdmissao')}
+          />
         </div>
       </div>
 
-      {/* Endereco */}
+      {/* Endereço */}
       <div>
-        <h3 className="text-sm font-semibold text-gray-700 mb-3">Endereço</h3>
+        <h3 className="text-sm font-semibold text-[var(--color-fg)] mb-3">Endereço</h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <Input label="Rua" id="funcRua" value={rua} onChange={(e) => setRua(e.target.value)} />
-          <Input label="Número" id="funcNumero" value={numero} onChange={(e) => setNumero(e.target.value)} />
-          <Input label="Complemento" id="funcComplemento" value={complemento} onChange={(e) => setComplemento(e.target.value)} />
-          <Input label="Bairro" id="funcBairro" value={bairro} onChange={(e) => setBairro(e.target.value)} />
-          <Input label="Cidade" id="funcCidade" value={cidade} onChange={(e) => setCidade(e.target.value)} />
+          <Input label="Rua" id="funcRua" {...register('enderecoRua')} />
+          <Input label="Número" id="funcNumero" {...register('enderecoNumero')} />
+          <Input label="Complemento" id="funcComplemento" {...register('enderecoComplemento')} />
+          <Input label="Bairro" id="funcBairro" {...register('enderecoBairro')} />
+          <Input label="Cidade" id="funcCidade" {...register('enderecoCidade')} />
           <Select
             label="Estado"
             id="funcEstado"
-            value={estado}
-            onChange={(e) => setEstado(e.target.value)}
             options={UFS.map((uf) => ({ value: uf, label: uf }))}
             placeholder="Selecione"
+            {...register('enderecoEstado')}
           />
-          <Input label="CEP" id="funcCep" value={cep} onChange={(e) => setCep(formatCEP(e.target.value))} placeholder="00000-000" />
+          <Controller
+            control={control}
+            name="enderecoCep"
+            render={({ field }) => (
+              <Input
+                label="CEP"
+                id="funcCep"
+                placeholder="00000-000"
+                value={field.value ?? ''}
+                onChange={(e) => field.onChange(formatCEP(e.target.value))}
+                onBlur={field.onBlur}
+                name={field.name}
+                ref={field.ref}
+              />
+            )}
+          />
         </div>
       </div>
 
       {/* Senha */}
       <div>
-        <h3 className="text-sm font-semibold text-gray-700 mb-3">Senha</h3>
+        <h3 className="text-sm font-semibold text-[var(--color-fg)] mb-3">Senha</h3>
         {initial && (
           <div className="mb-3">
-            <label className="flex items-center gap-2 text-sm text-gray-600">
-              <input type="checkbox" checked={alterarSenha} onChange={(e) => setAlterarSenha(e.target.checked)} className="rounded border-gray-300" />
+            <label className="flex items-center gap-2 text-sm text-[var(--color-fg-muted)]">
+              <input type="checkbox" checked={alterarSenha} onChange={(e) => setAlterarSenha(e.target.checked)} className="rounded border-[var(--color-border-strong)]" />
               Alterar senha
             </label>
           </div>
         )}
         {alterarSenha && (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <Input label="Senha" id="funcSenha" type={initial ? 'password' : 'text'} value={senha} onChange={(e) => setSenha(e.target.value)} placeholder="Mínimo 6 caracteres" />
-            <Input label="Confirmar Senha" id="funcConfirmarSenha" type={initial ? 'password' : 'text'} value={confirmarSenha} onChange={(e) => setConfirmarSenha(e.target.value)} />
+            <Input
+              label="Senha"
+              id="funcSenha"
+              type={initial ? 'password' : 'text'}
+              placeholder="Mínimo 6 caracteres"
+              error={errors.senha?.message}
+              {...register('senha')}
+            />
+            <Input
+              label="Confirmar Senha"
+              id="funcConfirmarSenha"
+              type={initial ? 'password' : 'text'}
+              error={errors.confirmarSenha?.message}
+              {...register('confirmarSenha')}
+            />
           </div>
         )}
       </div>
 
       {/* Status */}
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">Status</label>
+        <label className="block text-sm font-medium text-[var(--color-fg)] mb-2">Status</label>
         <div className="flex gap-2">
           <button
             type="button"
             className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-              status === 'ativo' ? 'bg-green-600 text-white' : 'bg-gray-200 text-gray-600 hover:bg-gray-300'
+              statusWatch === 'ativo'
+                ? 'bg-[var(--color-success)] text-white'
+                : 'bg-[var(--color-surface-2)] text-[var(--color-fg-muted)] hover:bg-[var(--color-surface-3)]'
             }`}
-            onClick={() => setStatus('ativo')}
+            onClick={() => setValue('status', 'ativo')}
           >
             Ativo
           </button>
           <button
             type="button"
             className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-              status === 'inativo' ? 'bg-red-600 text-white' : 'bg-gray-200 text-gray-600 hover:bg-gray-300'
+              statusWatch === 'inativo'
+                ? 'bg-[var(--color-danger)] text-white'
+                : 'bg-[var(--color-surface-2)] text-[var(--color-fg-muted)] hover:bg-[var(--color-surface-3)]'
             }`}
-            onClick={() => setStatus('inativo')}
+            onClick={() => setValue('status', 'inativo')}
           >
             Inativo
           </button>
         </div>
       </div>
 
-      {/* Acoes Permitidas */}
+      {/* Ações Permitidas */}
       <div>
         <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
           <div>
-            <h3 className="text-sm font-semibold text-gray-700">Ações Permitidas</h3>
-            <p className="text-xs text-gray-500 mt-0.5">
+            <h3 className="text-sm font-semibold text-[var(--color-fg)]">Ações Permitidas</h3>
+            <p className="text-xs text-[var(--color-fg-muted)] mt-0.5">
               {acoesPermitidas.length} de {ACOES_PLATAFORMA_VISIVEIS.length} ações marcadas
-              {' · '}template padrão de <strong>{cargo}</strong>
+              {' · '}template padrão de <strong>{cargoWatch}</strong>
             </p>
           </div>
           <div className="flex gap-2 items-center">
             <button
               type="button"
-              className="text-xs text-emt-verde hover:text-emt-verde-escuro font-medium"
+              className="text-xs text-[var(--color-accent)] hover:text-[var(--color-accent-hover)] font-medium"
               onClick={aplicarTemplateDoCargo}
               title="Substituir as marcações atuais pelo template padrão do cargo selecionado"
             >
               Aplicar template do cargo
             </button>
-            <span className="text-gray-300">|</span>
+            <span className="text-[var(--color-fg-subtle)]">|</span>
             <button
               type="button"
-              className="text-xs text-red-600 hover:text-red-800 font-medium"
+              className="text-xs text-[var(--color-danger)] hover:opacity-80 font-medium"
               onClick={() => setAcoesPermitidas([])}
             >
               Limpar Todos
@@ -474,11 +581,11 @@ export default function FuncionarioForm({ initial, onSubmit, onCancel, onImportB
         </div>
 
         {acoesPerigosasMarcadas.length > 0 && (
-          <div className="mb-3 bg-amber-50 border border-amber-300 rounded-lg px-3 py-2">
-            <p className="text-xs font-semibold text-amber-800 mb-1">
-              ⚠️ Permissões destrutivas para um cargo operacional ({cargo})
+          <div className="mb-3 bg-[var(--color-warning-soft)] border border-[var(--color-warning)]/40 rounded-lg px-3 py-2">
+            <p className="text-xs font-semibold text-[var(--color-warning-fg)] mb-1">
+              ⚠️ Permissões destrutivas para um cargo operacional ({cargoWatch})
             </p>
-            <p className="text-xs text-amber-700">
+            <p className="text-xs text-[var(--color-warning-fg)]/85">
               Revise se este cargo realmente precisa de:&nbsp;
               {acoesPerigosasMarcadas
                 .map((c) => ACOES_PLATAFORMA_VISIVEIS.find((a) => a.chave === c)?.label ?? c)
@@ -494,16 +601,16 @@ export default function FuncionarioForm({ initial, onSubmit, onCancel, onImportB
             const todasMarcadas = acoesDoGrupo.every((a) => acoesPermitidas.includes(a.chave));
             const algumaMarcada = acoesDoGrupo.some((a) => acoesPermitidas.includes(a.chave));
             return (
-              <div key={grupo} className="bg-gray-50 rounded-lg p-3">
+              <div key={grupo} className="bg-[var(--color-surface-2)]/40 rounded-lg p-3">
                 <label className="flex items-center gap-2 mb-2 cursor-pointer">
                   <input
                     type="checkbox"
                     checked={todasMarcadas}
                     ref={(el) => { if (el) el.indeterminate = algumaMarcada && !todasMarcadas; }}
                     onChange={() => toggleGrupo(grupo)}
-                    className="w-4 h-4 text-emt-verde border-gray-300 rounded focus:ring-emt-verde"
+                    className="w-4 h-4 text-[var(--color-accent)] border-[var(--color-border-strong)] rounded focus:ring-[var(--color-ring)]"
                   />
-                  <span className="text-sm font-semibold text-gray-700">{grupo}</span>
+                  <span className="text-sm font-semibold text-[var(--color-fg)]">{grupo}</span>
                 </label>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-1 ml-6">
                   {acoesDoGrupo.map((acao) => {
@@ -514,10 +621,10 @@ export default function FuncionarioForm({ initial, onSubmit, onCancel, onImportB
                           type="checkbox"
                           checked={acoesPermitidas.includes(acao.chave)}
                           onChange={() => toggleAcao(acao.chave)}
-                          className="w-3.5 h-3.5 text-emt-verde border-gray-300 rounded focus:ring-emt-verde"
+                          className="w-3.5 h-3.5 text-[var(--color-accent)] border-[var(--color-border-strong)] rounded focus:ring-[var(--color-ring)]"
                         />
                         <span
-                          className={`text-sm ${destrutiva ? 'text-red-700 font-medium' : 'text-gray-600'}`}
+                          className={`text-sm ${destrutiva ? 'text-[var(--color-danger-fg)] font-medium' : 'text-[var(--color-fg-muted)]'}`}
                           title={destrutiva ? 'Ação destrutiva — atribua com cuidado' : undefined}
                         >
                           {acao.label}
@@ -532,21 +639,20 @@ export default function FuncionarioForm({ initial, onSubmit, onCancel, onImportB
         </div>
       </div>
 
-      {/* Observacoes */}
+      {/* Observações */}
       <div>
-        <label htmlFor="funcObs" className="block text-sm font-medium text-gray-700 mb-1">Observações</label>
+        <label htmlFor="funcObs" className="block text-sm font-medium text-[var(--color-fg)] mb-1">Observações</label>
         <textarea
           id="funcObs"
-          className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emt-verde"
+          className="w-full border border-[var(--color-border)] rounded-lg px-3 py-2 text-sm bg-[var(--color-surface-1)] text-[var(--color-fg)] focus:outline-none focus:ring-2 focus:ring-[var(--color-ring)]"
           rows={2}
-          value={observacoes}
-          onChange={(e) => setObservacoes(e.target.value)}
+          {...register('observacoes')}
         />
       </div>
 
-      {erros.length > 0 && (
-        <div className="bg-red-50 border border-red-200 rounded-lg px-4 py-3">
-          {erros.map((e, i) => <p key={i} className="text-sm text-red-600">{e}</p>)}
+      {errosCustom.length > 0 && (
+        <div className="bg-[var(--color-danger-soft)] border border-[var(--color-danger)]/30 rounded-lg px-4 py-3">
+          {errosCustom.map((e, i) => <p key={i} className="text-sm text-[var(--color-danger-fg)]">{e}</p>)}
         </div>
       )}
 
@@ -587,7 +693,7 @@ export default function FuncionarioForm({ initial, onSubmit, onCancel, onImportB
       )}
 
       {toastMsg && (
-        <div className="fixed bottom-6 right-6 z-[60] bg-green-600 text-white px-5 py-3 rounded-lg shadow-lg text-sm font-medium">
+        <div className="fixed bottom-6 right-6 z-[var(--z-toast)] bg-[var(--color-success)] text-white px-5 py-3 rounded-lg shadow-[var(--shadow-lg)] text-sm font-medium">
           {toastMsg}
         </div>
       )}
