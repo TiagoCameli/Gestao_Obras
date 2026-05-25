@@ -4,7 +4,22 @@
 import { useEffect, useState } from 'react'
 import { Trash2, Download, X, ChevronLeft, ChevronRight, ImageOff, Loader2 } from 'lucide-react'
 import { useFreteThumbnails } from '../../hooks/useFreteThumbnails'
-import { downloadSignedUrl, fileNameFromUrl } from '../../utils/signedUrl'
+import { downloadSignedUrl, fileNameFromUrl, pathFromSignedUrl } from '../../utils/signedUrl'
+import { supabase } from '../../lib/supabase'
+
+const BUCKET = 'abastecimento-fotos'
+
+/**
+ * Baixa a foto em qualidade ORIGINAL (sem transform). Mintra URL fresca
+ * on-demand pra não pré-carregar full-res no background — só quando o
+ * usuário pede download.
+ */
+async function baixarOriginal(urlBanco: string) {
+  const path = pathFromSignedUrl(urlBanco)
+  if (!path) return downloadSignedUrl(urlBanco, fileNameFromUrl(urlBanco))
+  const { data } = await supabase.storage.from(BUCKET).createSignedUrl(path, 60 * 60)
+  return downloadSignedUrl(data?.signedUrl ?? urlBanco, fileNameFromUrl(urlBanco))
+}
 
 interface Props {
   fotoUrls: string[]
@@ -26,7 +41,7 @@ export default function FotoFreteGaleria({
   const [fullLoaded, setFullLoaded] = useState(false)
   const { data: fotoUrlsFrescas } = useFreteThumbnails(fotoUrls)
 
-  const urlFresca = (i: number, kind: 'thumb' | 'full'): string =>
+  const urlFresca = (i: number, kind: 'thumb' | 'preview'): string =>
     fotoUrlsFrescas?.[i]?.[kind] ?? fotoUrls[i]
 
   // Reset loading state whenever the ampliada index changes.
@@ -34,14 +49,14 @@ export default function FotoFreteGaleria({
     setFullLoaded(false)
   }, [indiceAmpliada])
 
-  // Pré-carrega TODAS as fotos em full-res assim que o hook resolve as URLs.
-  // Assim qualquer click no lightbox (1ª foto ou qualquer próxima) é instantâneo
-  // — browser já tem o blob em cache.
+  // Pré-carrega TODAS as previews (1400x1400 q85, ~150KB cada) assim que o hook
+  // resolve as URLs. Total ~1.2MB pra 8 fotos — browser cacheia em paralelo,
+  // navegação no lightbox vira instantânea (lê do cache).
   useEffect(() => {
     if (!fotoUrlsFrescas) return
-    fotoUrlsFrescas.forEach(({ full }) => {
+    fotoUrlsFrescas.forEach(({ preview }) => {
       const img = new Image()
-      img.src = full
+      img.src = preview
     })
   }, [fotoUrlsFrescas])
 
@@ -99,7 +114,7 @@ export default function FotoFreteGaleria({
                     type="button"
                     onClick={(e) => {
                       e.stopPropagation()
-                      downloadSignedUrl(urlFresca(i, 'full'), fileNameFromUrl(url))
+                      baixarOriginal(url)
                     }}
                     aria-label={`Baixar foto ${i + 1}`}
                     className="w-7 h-7 rounded-full bg-black/60 text-white hover:bg-black/80 flex items-center justify-center"
@@ -148,7 +163,7 @@ export default function FotoFreteGaleria({
               type="button"
               onClick={(e) => {
                 e.stopPropagation()
-                downloadSignedUrl(urlFresca(indiceAmpliada, 'full'), fileNameFromUrl(fotoUrls[indiceAmpliada]))
+                baixarOriginal(fotoUrls[indiceAmpliada])
               }}
               className="absolute top-4 left-4 inline-flex items-center gap-2 px-3 h-10 rounded-full bg-black/40 text-white hover:bg-black/70 text-sm font-medium"
             >
@@ -190,7 +205,7 @@ export default function FotoFreteGaleria({
             )}
             <img
               key={indiceAmpliada}
-              src={urlFresca(indiceAmpliada, 'full')}
+              src={urlFresca(indiceAmpliada, 'preview')}
               alt={`Foto ${indiceAmpliada + 1} ampliada`}
               onLoad={() => setFullLoaded(true)}
               onError={() => setFullLoaded(true)}
