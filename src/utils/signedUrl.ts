@@ -24,13 +24,16 @@ export async function downloadSignedUrl(url: string, fileName: string): Promise<
     const res = await fetch(url)
     const blob = await res.blob()
     const objUrl = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = objUrl
-    a.download = fileName
-    document.body.appendChild(a)
-    a.click()
-    document.body.removeChild(a)
-    URL.revokeObjectURL(objUrl)
+    try {
+      const a = document.createElement('a')
+      a.href = objUrl
+      a.download = fileName
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+    } finally {
+      URL.revokeObjectURL(objUrl)
+    }
   } catch {
     window.open(url, '_blank', 'noopener,noreferrer')
   }
