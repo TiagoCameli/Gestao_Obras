@@ -3,6 +3,9 @@ import { useSearchParams } from "react-router-dom";
 import Button from "../../components/ui/Button";
 import Drawer from "../../components/ui/Drawer";
 import ConfirmDialog from "../../components/ui/ConfirmDialog";
+import PageHeader from "../../components/ui/PageHeader";
+import LoadingState from "../../components/ui/LoadingState";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "../../components/shadcn/tabs";
 import FuncionarioForm from "./components/FuncionarioForm";
 import FuncionarioList from "./components/FuncionarioList";
 import AlocacaoTab from "./components/AlocacaoTab";
@@ -77,87 +80,52 @@ export default function ApontamentoPage() {
 
   return (
     <div className="space-y-6">
-      <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl sm:text-[28px] font-semibold tracking-tight text-[var(--color-fg)]">
-            Apontamento
-          </h1>
-          <p className="text-sm text-[var(--color-fg-muted)]">
-            Cadastro de funcionários, registro de ponto e apontamento por serviço.
-          </p>
-        </div>
-        {tab === "funcionarios" && (
+      <PageHeader
+        title="Apontamento"
+        description="Cadastro de funcionários, registro de ponto e apontamento por serviço."
+        actions={tab === "funcionarios" && (
           <Button onClick={() => setModal({ open: true, edit: null })}>
             Novo funcionário
           </Button>
         )}
-      </header>
+      />
 
-      <nav className="flex gap-1 border-b border-[var(--color-border)] overflow-x-auto">
-        {canDashboard && (
-          <TabBtn active={tab === "dashboard"} onClick={() => setTab("dashboard")}>
-            Dashboard
-          </TabBtn>
-        )}
+      <Tabs value={tab} onValueChange={(v) => setTab(v as Tab)} className="w-full">
+        <TabsList
+          variant="line"
+          className="mb-6 w-full justify-start border-b border-[var(--color-border)] rounded-none px-0 h-auto overflow-x-auto [&_[data-slot=tabs-trigger]]:data-active:after:bg-[var(--color-accent)] [&_[data-slot=tabs-trigger]]:data-active:text-[var(--color-fg)] [&_[data-slot=tabs-trigger]]:data-active:font-semibold"
+        >
+          {canDashboard && <TabsTrigger value="dashboard">Dashboard</TabsTrigger>}
+          {canFuncionarios && <TabsTrigger value="funcionarios">Funcionários</TabsTrigger>}
+          {canAlocacao && <TabsTrigger value="alocacao">Alocação</TabsTrigger>}
+          {canPonto && <TabsTrigger value="ponto">Registro de Ponto</TabsTrigger>}
+          {canServico && <TabsTrigger value="servico">Apontamento por Serviço</TabsTrigger>}
+          {canAprovacao && <TabsTrigger value="aprovacao">Aprovação</TabsTrigger>}
+          {canHistorico && <TabsTrigger value="historico">Histórico</TabsTrigger>}
+        </TabsList>
+
+        {canDashboard && <TabsContent value="dashboard" className="mt-0"><DashboardTab /></TabsContent>}
+
         {canFuncionarios && (
-          <TabBtn active={tab === "funcionarios"} onClick={() => setTab("funcionarios")}>
-            Funcionários
-          </TabBtn>
+          <TabsContent value="funcionarios" className="mt-0">
+            {isLoading ? (
+              <LoadingState mode="list" count={6} />
+            ) : (
+              <FuncionarioList
+                funcionarios={funcionarios}
+                onEdit={(f) => setModal({ open: true, edit: f })}
+                onDelete={(id) => setDeleteId(id)}
+              />
+            )}
+          </TabsContent>
         )}
-        {canAlocacao && (
-          <TabBtn active={tab === "alocacao"} onClick={() => setTab("alocacao")}>
-            Alocação
-          </TabBtn>
-        )}
-        {canPonto && (
-          <TabBtn active={tab === "ponto"} onClick={() => setTab("ponto")}>
-            Registro de Ponto
-          </TabBtn>
-        )}
-        {canServico && (
-          <TabBtn active={tab === "servico"} onClick={() => setTab("servico")}>
-            Apontamento por Serviço
-          </TabBtn>
-        )}
-        {canAprovacao && (
-          <TabBtn active={tab === "aprovacao"} onClick={() => setTab("aprovacao")}>
-            Aprovação
-          </TabBtn>
-        )}
-        {canHistorico && (
-          <TabBtn active={tab === "historico"} onClick={() => setTab("historico")}>
-            Histórico
-          </TabBtn>
-        )}
-      </nav>
 
-      {tab === "dashboard" && <DashboardTab />}
-
-      {tab === "funcionarios" && (
-        <>
-          {isLoading ? (
-            <div className="py-12 text-center text-[var(--color-fg-subtle)]">
-              Carregando...
-            </div>
-          ) : (
-            <FuncionarioList
-              funcionarios={funcionarios}
-              onEdit={(f) => setModal({ open: true, edit: f })}
-              onDelete={(id) => setDeleteId(id)}
-            />
-          )}
-        </>
-      )}
-
-      {tab === "alocacao" && <AlocacaoTab />}
-
-      {tab === "ponto" && <RegistroPontoTab />}
-
-      {tab === "servico" && <ApontamentoServicoTab />}
-
-      {tab === "aprovacao" && canAprovacao && <AprovacaoTab />}
-
-      {tab === "historico" && <HistoricoTab />}
+        {canAlocacao && <TabsContent value="alocacao" className="mt-0"><AlocacaoTab /></TabsContent>}
+        {canPonto && <TabsContent value="ponto" className="mt-0"><RegistroPontoTab /></TabsContent>}
+        {canServico && <TabsContent value="servico" className="mt-0"><ApontamentoServicoTab /></TabsContent>}
+        {canAprovacao && <TabsContent value="aprovacao" className="mt-0"><AprovacaoTab /></TabsContent>}
+        {canHistorico && <TabsContent value="historico" className="mt-0"><HistoricoTab /></TabsContent>}
+      </Tabs>
 
       <Drawer
         open={modal.open}
@@ -167,6 +135,10 @@ export default function ApontamentoPage() {
         width="xl"
       >
         <FuncionarioForm
+          // Drawer mantém children montados sempre — sem `key` o useState
+          // do form preserva valores do funcionário anterior ao trocar de
+          // editar→novo ou editar→outro funcionário.
+          key={modal.edit?.id ?? "new"}
           initial={modal.edit}
           onSubmit={handleSubmit}
           onSaved={() => setModal({ open: false, edit: null })}
@@ -186,33 +158,5 @@ export default function ApontamentoPage() {
         requirePassword={false}
       />
     </div>
-  );
-}
-
-function TabBtn({
-  active,
-  disabled,
-  onClick,
-  children,
-}: {
-  active: boolean;
-  disabled?: boolean;
-  onClick: () => void;
-  children: React.ReactNode;
-}) {
-  return (
-    <button
-      onClick={onClick}
-      disabled={disabled}
-      className={
-        "px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors " +
-        (active
-          ? "border-[var(--color-accent)] text-[var(--color-fg)]"
-          : "border-transparent text-[var(--color-fg-muted)] hover:text-[var(--color-fg)]") +
-        (disabled ? " opacity-50 cursor-not-allowed" : "")
-      }
-    >
-      {children}
-    </button>
   );
 }
