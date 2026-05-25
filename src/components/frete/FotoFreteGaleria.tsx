@@ -56,7 +56,7 @@ export default function FotoFreteGaleria({
     <>
       <div className={gridClass}>
         {fotoUrls.map((url, i) => {
-          const thumb = thumbs?.[i] ?? url
+          const thumb = thumbs?.[i]?.thumb ?? url
           return (
             <div
               key={`${url}-${i}`}
