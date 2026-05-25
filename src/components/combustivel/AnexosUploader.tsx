@@ -14,6 +14,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Camera, ImagePlus, Trash2, AlertCircle, Loader2, MapPin, FileText, Paperclip } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
+import { pathFromSignedUrl, fileNameFromUrl } from '../../utils/signedUrl';
 
 const BUCKET = 'abastecimento-fotos';
 const SIGNED_URL_TTL_SECS = 60 * 60; // 1 hora (re-mint on demand)
@@ -326,18 +327,6 @@ function formatarBytes(b: number): string {
   return `${(b / (1024 * 1024)).toFixed(1)} MB`;
 }
 
-function pathFromSignedUrl(url: string): string | null {
-  const m = url.match(/\/object\/sign\/[^/]+\/([^?]+)/);
-  return m ? decodeURIComponent(m[1]) : null;
-}
-
-function fileNameFromUrl(url: string): string {
-  const path = pathFromSignedUrl(url);
-  if (!path) return url;
-  const last = path.split('/').pop() || path;
-  // Remove timestamp prefix "1234567890-" se existir
-  return last.replace(/^\d+-/, '');
-}
 
 export default function AnexosUploader({
   fotoUrls,
