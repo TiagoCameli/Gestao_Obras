@@ -130,6 +130,171 @@ async function stampImage(file: File, geo: GeoData | null, time: Date): Promise<
 }
 
 // ────────────────────────────────────────────────────────────────────
+// Hook reutilizável: upload de fotos pra Supabase (com stamp opcional)
+// ────────────────────────────────────────────────────────────────────
+
+interface UseUploadFotosOpts {
+  fotoUrls: string[]
+  onChange: (urls: string[]) => void
+  pastaId: string
+}
+
+export function useUploadFotos({ fotoUrls, onChange, pastaId }: UseUploadFotosOpts) {
+  const [erros, setErros] = useState<string[]>([])
+  const [uploading, setUploading] = useState(false)
+  const [stamping, setStamping] = useState(false)
+
+  useEffect(() => {
+    if (erros.length === 0) return
+    const t = setTimeout(() => setErros([]), 6000)
+    return () => clearTimeout(t)
+  }, [erros])
+
+  async function handleFotos(files: FileList | File[], fromCamera: boolean) {
+    const arr = Array.from(files)
+    const novosErros: string[] = []
+    const validos: File[] = []
+    const espacoLivre = QTD_MAX_FOTOS - fotoUrls.length
+    if (arr.length > espacoLivre) {
+      novosErros.push(`Limite de ${QTD_MAX_FOTOS} fotos. Tentou adicionar ${arr.length}, restam ${espacoLivre}.`)
+    }
+    for (const f of arr.slice(0, espacoLivre)) {
+      if (!MIME_FOTOS.includes(f.type)) {
+        novosErros.push(`${f.name}: tipo "${f.type || 'desconhecido'}" não é foto válida (use JPEG/PNG/WebP)`)
+        continue
+      }
+      if (f.size > TAMANHO_MAX_BYTES) {
+        novosErros.push(`${f.name}: ${formatarBytes(f.size)} excede limite 10 MB`)
+        continue
+      }
+      validos.push(f)
+    }
+    setErros(novosErros)
+    if (validos.length === 0) return
+
+    let toUpload: File[] = validos
+    if (fromCamera) {
+      setStamping(true)
+      try {
+        const geo = await getGeoOrNull()
+        const now = new Date()
+        toUpload = await Promise.all(validos.map((f) => stampImage(f, geo, now)))
+      } finally {
+        setStamping(false)
+      }
+    }
+
+    setUploading(true)
+    try {
+      const novasUrls: string[] = []
+      for (const file of toUpload) {
+        const ts = Date.now()
+        const path = `${pastaId}/${ts}-${sanitizeNome(file.name)}`
+        const { error: upErr } = await supabase.storage.from(BUCKET).upload(path, file, {
+          contentType: file.type,
+          upsert: false,
+        })
+        if (upErr) {
+          setErros((p) => [...p, `Falha no upload de ${file.name}: ${upErr.message}`])
+          continue
+        }
+        const { data: signed, error: signErr } = await supabase.storage
+          .from(BUCKET)
+          .createSignedUrl(path, SIGNED_URL_TTL_SECS)
+        if (signErr) {
+          setErros((p) => [...p, `Falha ao assinar URL: ${signErr.message}`])
+          continue
+        }
+        novasUrls.push(signed.signedUrl)
+      }
+      if (novasUrls.length > 0) onChange([...fotoUrls, ...novasUrls])
+    } finally {
+      setUploading(false)
+    }
+  }
+
+  return { handleFotos, erros, uploading, stamping }
+}
+
+interface UploadFotosButtonsProps {
+  fotoUrls: string[]
+  onChange: (urls: string[]) => void
+  pastaId: string
+  className?: string
+}
+
+/**
+ * Sub-componente que renderiza só os botões "Tirar foto" + "Da galeria"
+ * (sem o grid de display). Usado quando o display é responsabilidade de outro componente
+ * (ex: FotoFreteGaleria com lightbox próprio).
+ */
+export function UploadFotosButtons({ fotoUrls, onChange, pastaId, className = '' }: UploadFotosButtonsProps) {
+  const cameraRef = useRef<HTMLInputElement>(null)
+  const galeriaRef = useRef<HTMLInputElement>(null)
+  const { handleFotos, erros, uploading, stamping } = useUploadFotos({ fotoUrls, onChange, pastaId })
+  const isBusy = uploading || stamping
+  const cheio = fotoUrls.length >= QTD_MAX_FOTOS
+
+  return (
+    <div className={'flex flex-col gap-2 ' + className}>
+      {erros.length > 0 && (
+        <div role="alert" className="flex flex-col gap-1 px-3 py-2 rounded-lg bg-[var(--color-danger-soft)] border border-[var(--color-danger)]/30">
+          {erros.map((e, i) => (
+            <div key={i} className="flex items-start gap-2 text-xs text-[var(--color-danger-fg)]">
+              <AlertCircle aria-hidden className="w-3.5 h-3.5 shrink-0 mt-0.5" />
+              {e}
+            </div>
+          ))}
+        </div>
+      )}
+      <div className="flex flex-wrap gap-2 items-center">
+        <input
+          ref={cameraRef}
+          type="file"
+          accept="image/*"
+          capture="environment"
+          className="hidden"
+          onChange={(e) => { if (e.target.files) handleFotos(e.target.files, true); e.target.value = '' }}
+        />
+        <input
+          ref={galeriaRef}
+          type="file"
+          accept={MIME_FOTOS.join(',')}
+          multiple
+          className="hidden"
+          onChange={(e) => { if (e.target.files) handleFotos(e.target.files, false); e.target.value = '' }}
+        />
+        <button
+          type="button"
+          onClick={() => cameraRef.current?.click()}
+          disabled={isBusy || cheio}
+          className="inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium rounded-lg bg-[var(--color-accent)] text-[var(--color-fg-on-accent)] hover:bg-[var(--color-accent-hover)] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+        >
+          {(uploading || stamping) ? <Loader2 aria-hidden className="w-4 h-4 animate-spin" /> : <Camera aria-hidden className="w-4 h-4" />}
+          {stamping ? 'Marcando local...' : uploading ? 'Enviando...' : 'Tirar foto'}
+        </button>
+        <button
+          type="button"
+          onClick={() => galeriaRef.current?.click()}
+          disabled={isBusy || cheio}
+          className="inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium rounded-lg border border-[var(--color-border)] hover:bg-[var(--color-surface-2)] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+        >
+          <ImagePlus aria-hidden className="w-4 h-4" />
+          Da galeria
+        </button>
+        <span className="text-xs text-[var(--color-fg-muted)] tabular-nums ml-1">
+          {fotoUrls.length}/{QTD_MAX_FOTOS}
+        </span>
+      </div>
+      <div className="flex items-start gap-1.5 text-[11px] text-[var(--color-fg-muted)] leading-tight">
+        <MapPin aria-hidden className="w-3 h-3 shrink-0 mt-0.5" />
+        <span>"Tirar foto" carimba data/hora e GPS no rodapé. Galeria preserva o original.</span>
+      </div>
+    </div>
+  )
+}
+
+// ────────────────────────────────────────────────────────────────────
 
 interface Props {
   /** URLs já existentes — lado fotos (imagens). */
