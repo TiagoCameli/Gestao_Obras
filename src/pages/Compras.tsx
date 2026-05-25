@@ -31,6 +31,7 @@ import Button from '../components/ui/Button';
 import Modal from '../components/ui/Modal';
 import ConfirmDialog from '../components/ui/ConfirmDialog';
 import PageHeader from '../components/ui/PageHeader';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '../components/shadcn/tabs';
 import PedidoCompraFormV2 from '../components/compras/PedidoCompraFormV2';
 import PedidoCompraListV2 from '../components/compras/PedidoCompraListV2';
 import RejeitarPedidoModal from '../components/compras/RejeitarPedidoModal';
@@ -882,34 +883,18 @@ export default function Compras() {
         }
       />
 
-      {/* ── Tabs com indicador inferior premium ───────────────────────
-          Antes era um pill-tab — agora é um underline-tab que ocupa
-          a largura completa e fica menos "miúdo" visualmente. */}
-      <div className="mb-6 border-b border-[var(--color-border)]">
-        <nav className="flex gap-1 -mb-px overflow-x-auto" aria-label="Compras tabs">
-          {tabs.map((t) => {
-            const ativo = tab === t.key;
-            return (
-              <button
-                key={t.key}
-                onClick={() => setTab(t.key)}
-                className={
-                  'px-4 py-2.5 text-sm font-medium transition-colors border-b-2 whitespace-nowrap ' +
-                  (ativo
-                    ? 'border-[var(--color-accent)] text-[var(--color-fg)]'
-                    : 'border-transparent text-[var(--color-fg-muted)] hover:text-[var(--color-fg)] hover:border-[var(--color-border-strong)]')
-                }
-                aria-current={ativo ? 'page' : undefined}
-              >
-                {t.label}
-              </button>
-            );
-          })}
-        </nav>
-      </div>
+      <Tabs value={tab} onValueChange={(v) => setTab(v as Tab)} className="w-full">
+        <TabsList
+          variant="line"
+          aria-label="Compras tabs"
+          className="mb-6 w-full justify-start border-b border-[var(--color-border)] rounded-none px-0 h-auto overflow-x-auto [&_[data-slot=tabs-trigger]]:data-active:after:bg-[var(--color-accent)] [&_[data-slot=tabs-trigger]]:data-active:text-[var(--color-fg)] [&_[data-slot=tabs-trigger]]:data-active:font-semibold"
+        >
+          {tabs.map((t) => (
+            <TabsTrigger key={t.key} value={t.key}>{t.label}</TabsTrigger>
+          ))}
+        </TabsList>
 
-      {/* ── Visão Geral Tab (V2 premium — Dashboard) ── */}
-      {tab === 'visao' && (
+      <TabsContent value="visao" className="mt-0">
         <VisaoGeralCompras
           pedidos={pedidos}
           cotacoes={cotacoes}
@@ -926,119 +911,109 @@ export default function Compras() {
           }}
           onGerarLancamento={(oc) => setGerarLancamentoOC(oc)}
         />
-      )}
+      </TabsContent>
 
-      {/* ── Pedidos Tab (V2 premium) ── */}
-      {tab === 'pedidos' && (
-        <>
-          <div className="mb-4 relative max-w-md">
-            <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--color-fg-subtle)]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <circle cx="11" cy="11" r="7" />
-              <path d="M21 21l-4.35-4.35" />
-            </svg>
-            <input
-              id="busca-compras-pedidos"
-              className="w-full pl-9 pr-3 py-2 text-sm rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-1)] text-[var(--color-fg)] placeholder:text-[var(--color-fg-subtle)] focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]/40 focus:border-[var(--color-accent)]"
-              placeholder="Buscar… (atalho: /)"
-              value={buscaPedido}
-              onChange={(e) => setBuscaPedido(e.target.value)}
-            />
-          </div>
-          <PedidoCompraListV2
-            pedidos={pedidos}
-            obras={obras}
-            cotacoes={cotacoes}
-            ordens={ordens}
-            busca={buscaPedido}
-            categorias={categoriasOptions}
-            onAprovar={handleAprovar}
-            onReprovar={handleAbrirReprovar}
-            onDesaprovar={handleDesaprovar}
-            onExcluir={(p) => setDeletePedidoId(p.id)}
-            onEnviarCotacao={handleEnviarCotacao}
-            onGerarOC={handleGerarOCDireto}
-            onEditar={(p) => { setEditandoPedido(p); setPedidoModalOpen(true); }}
-            onVerDetalhes={(p) => setDetalhePedido(p)}
-            canApprove={canApprove}
-            canCreate={canCreate}
+      <TabsContent value="pedidos" className="mt-0">
+        <div className="mb-4 relative max-w-md">
+          <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--color-fg-subtle)]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="11" cy="11" r="7" />
+            <path d="M21 21l-4.35-4.35" />
+          </svg>
+          <input
+            id="busca-compras-pedidos"
+            className="w-full pl-9 pr-3 py-2 text-sm rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-1)] text-[var(--color-fg)] placeholder:text-[var(--color-fg-subtle)] focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]/40 focus:border-[var(--color-accent)]"
+            placeholder="Buscar… (atalho: /)"
+            value={buscaPedido}
+            onChange={(e) => setBuscaPedido(e.target.value)}
           />
-        </>
-      )}
+        </div>
+        <PedidoCompraListV2
+          pedidos={pedidos}
+          obras={obras}
+          cotacoes={cotacoes}
+          ordens={ordens}
+          busca={buscaPedido}
+          categorias={categoriasOptions}
+          onAprovar={handleAprovar}
+          onReprovar={handleAbrirReprovar}
+          onDesaprovar={handleDesaprovar}
+          onExcluir={(p) => setDeletePedidoId(p.id)}
+          onEnviarCotacao={handleEnviarCotacao}
+          onGerarOC={handleGerarOCDireto}
+          onEditar={(p) => { setEditandoPedido(p); setPedidoModalOpen(true); }}
+          onVerDetalhes={(p) => setDetalhePedido(p)}
+          canApprove={canApprove}
+          canCreate={canCreate}
+        />
+      </TabsContent>
 
-      {/* ── Cotações Tab (V2 premium) ── */}
-      {tab === 'cotacoes' && (
-        <>
-          <div className="mb-4 relative max-w-md">
-            <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--color-fg-subtle)]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <circle cx="11" cy="11" r="7" />
-              <path d="M21 21l-4.35-4.35" />
-            </svg>
-            <input
-              id="busca-compras-cotacoes"
-              className="w-full pl-9 pr-3 py-2 text-sm rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-1)] text-[var(--color-fg)] placeholder:text-[var(--color-fg-subtle)] focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]/40 focus:border-[var(--color-accent)]"
-              placeholder="Buscar… (atalho: /)"
-              value={buscaCotacao}
-              onChange={(e) => setBuscaCotacao(e.target.value)}
-            />
-          </div>
-          <CotacaoListV2
-            cotacoes={cotacoes}
-            fornecedores={fornecedores}
-            pedidos={pedidos}
-            busca={buscaCotacao}
-            onEditar={(cot) => {
-              setEditandoCotacao(cot);
-              setPedidoParaCotacao(null);
-              setCotacaoModalOpen(true);
-            }}
-            onEnviar={(cot) => setEnviarCotacao(cot)}
-            onExcluir={(cot) => setDeleteCotacaoId(cot.id)}
-            onReabrir={handleReabrirCotacao}
-            onVerDetalhes={(cot) => setDetalheCotacao(cot)}
-            canEdit={canEdit}
-            canCreate={canCreate}
+      <TabsContent value="cotacoes" className="mt-0">
+        <div className="mb-4 relative max-w-md">
+          <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--color-fg-subtle)]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="11" cy="11" r="7" />
+            <path d="M21 21l-4.35-4.35" />
+          </svg>
+          <input
+            id="busca-compras-cotacoes"
+            className="w-full pl-9 pr-3 py-2 text-sm rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-1)] text-[var(--color-fg)] placeholder:text-[var(--color-fg-subtle)] focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]/40 focus:border-[var(--color-accent)]"
+            placeholder="Buscar… (atalho: /)"
+            value={buscaCotacao}
+            onChange={(e) => setBuscaCotacao(e.target.value)}
           />
-        </>
-      )}
+        </div>
+        <CotacaoListV2
+          cotacoes={cotacoes}
+          fornecedores={fornecedores}
+          pedidos={pedidos}
+          busca={buscaCotacao}
+          onEditar={(cot) => {
+            setEditandoCotacao(cot);
+            setPedidoParaCotacao(null);
+            setCotacaoModalOpen(true);
+          }}
+          onEnviar={(cot) => setEnviarCotacao(cot)}
+          onExcluir={(cot) => setDeleteCotacaoId(cot.id)}
+          onReabrir={handleReabrirCotacao}
+          onVerDetalhes={(cot) => setDetalheCotacao(cot)}
+          canEdit={canEdit}
+          canCreate={canCreate}
+        />
+      </TabsContent>
 
-      {/* ── Ordens de Compra Tab (V2 premium) ── */}
-      {tab === 'ordens' && (
-        <>
-          <div className="mb-4 relative max-w-md">
-            <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--color-fg-subtle)]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <circle cx="11" cy="11" r="7" />
-              <path d="M21 21l-4.35-4.35" />
-            </svg>
-            <input
-              id="busca-compras-ordens"
-              className="w-full pl-9 pr-3 py-2 text-sm rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-1)] text-[var(--color-fg)] placeholder:text-[var(--color-fg-subtle)] focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]/40 focus:border-[var(--color-accent)]"
-              placeholder="Buscar… (atalho: /)"
-              value={buscaOC}
-              onChange={(e) => setBuscaOC(e.target.value)}
-            />
-          </div>
-          <OrdemCompraListV2
-            ordens={ordens}
-            obras={obras}
-            etapas={etapas}
-            fornecedores={fornecedores}
-            busca={buscaOC}
-            onEditar={(oc) => { setEditandoOC(oc); setOcModalOpen(true); }}
-            onAprovar={handleAprovarOCv2}
-            onGerarLancamento={(oc) => setGerarLancamentoOC(oc)}
-            onExcluir={handleExcluirOC}
-            onVerDetalhes={(oc) => setDetalheOC(oc)}
-            onReceber={(oc) => setRecebendoOC(oc)}
-            onDesaprovar={handleDesaprovarOC}
-            recebimentos={recebimentosOC}
-            canEdit={canEdit}
-            canCreate={canCreate}
+      <TabsContent value="ordens" className="mt-0">
+        <div className="mb-4 relative max-w-md">
+          <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--color-fg-subtle)]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="11" cy="11" r="7" />
+            <path d="M21 21l-4.35-4.35" />
+          </svg>
+          <input
+            id="busca-compras-ordens"
+            className="w-full pl-9 pr-3 py-2 text-sm rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-1)] text-[var(--color-fg)] placeholder:text-[var(--color-fg-subtle)] focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]/40 focus:border-[var(--color-accent)]"
+            placeholder="Buscar… (atalho: /)"
+            value={buscaOC}
+            onChange={(e) => setBuscaOC(e.target.value)}
           />
-        </>
-      )}
+        </div>
+        <OrdemCompraListV2
+          ordens={ordens}
+          obras={obras}
+          etapas={etapas}
+          fornecedores={fornecedores}
+          busca={buscaOC}
+          onEditar={(oc) => { setEditandoOC(oc); setOcModalOpen(true); }}
+          onAprovar={handleAprovarOCv2}
+          onGerarLancamento={(oc) => setGerarLancamentoOC(oc)}
+          onExcluir={handleExcluirOC}
+          onVerDetalhes={(oc) => setDetalheOC(oc)}
+          onReceber={(oc) => setRecebendoOC(oc)}
+          onDesaprovar={handleDesaprovarOC}
+          recebimentos={recebimentosOC}
+          canEdit={canEdit}
+          canCreate={canCreate}
+        />
+      </TabsContent>
 
-      {/* ── Recebimentos Tab (lista global de remessas) ── */}
-      {tab === 'recebimentos' && (
+      <TabsContent value="recebimentos" className="mt-0">
         <RecebimentosListV2
           recebimentos={recebimentosOC}
           ordens={ordens}
@@ -1047,7 +1022,8 @@ export default function Compras() {
           depositosMaterial={depositosMaterial}
           tanquesCombustivel={depositosCombustivel}
         />
-      )}
+      </TabsContent>
+      </Tabs>
 
 
       {/* Modal Pedido (V2 premium — empilhado com itens + descrição + anexos) */}

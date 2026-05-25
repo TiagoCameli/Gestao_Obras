@@ -12,6 +12,7 @@ import { useCallback, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Plus } from 'lucide-react';
 import PageHeader from '../components/ui/PageHeader';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '../components/shadcn/tabs';
 import CategoriasList from '../components/financeiro/CategoriasList';
 import LancamentosList from '../components/financeiro/LancamentosList';
 import VisaoGeralFinanceiro from '../components/financeiro/VisaoGeralFinanceiro';
@@ -125,55 +126,49 @@ export default function Financeiro() {
         )}
       />
 
-      <div className="mb-6 border-b border-[var(--color-border)]">
-        <nav className="flex gap-1 -mb-px overflow-x-auto" aria-label="Financeiro tabs">
-          {tabs.map((t) => {
-            const ativo = tab === t.key;
-            return (
-              <button
-                key={t.key}
-                onClick={() => setTab(t.key)}
-                className={
-                  'px-4 py-2.5 text-sm font-medium transition-colors border-b-2 whitespace-nowrap ' +
-                  (ativo
-                    ? 'border-[var(--color-accent)] text-[var(--color-fg)]'
-                    : 'border-transparent text-[var(--color-fg-muted)] hover:text-[var(--color-fg)] hover:border-[var(--color-border-strong)]')
-                }
-                aria-current={ativo ? 'page' : undefined}
-              >
-                {t.label}
-              </button>
-            );
-          })}
-        </nav>
-      </div>
+      <Tabs value={tab} onValueChange={(v) => setTab(v as Tab)} className="w-full">
+        <TabsList
+          variant="line"
+          aria-label="Financeiro tabs"
+          className="mb-6 w-full justify-start border-b border-[var(--color-border)] rounded-none px-0 h-auto overflow-x-auto [&_[data-slot=tabs-trigger]]:data-active:after:bg-[var(--color-accent)] [&_[data-slot=tabs-trigger]]:data-active:text-[var(--color-fg)] [&_[data-slot=tabs-trigger]]:data-active:font-semibold"
+        >
+          {tabs.map((t) => (
+            <TabsTrigger key={t.key} value={t.key}>{t.label}</TabsTrigger>
+          ))}
+        </TabsList>
 
-      {tab === 'visao' && (
-        <VisaoGeralFinanceiro lancamentos={lancamentos} fornecedores={fornecedores} />
-      )}
-      {tab === 'lancamentos' && (
-        <LancamentosList
-          lancamentos={lancamentos}
-          fornecedores={fornecedores}
-          empresas={empresas}
-          categorias={categorias}
-          modo="todos"
-          onEditar={(l) => { setEditandoLanc(l); setNovoModalOpen(true); }}
-          onVerDetalhes={(l) => setDetalheLanc(l)}
-        />
-      )}
-      {tab === 'contas' && (
-        <LancamentosList
-          lancamentos={lancamentos}
-          fornecedores={fornecedores}
-          empresas={empresas}
-          categorias={categorias}
-          modo="contas_pagar"
-          onEditar={(l) => { setEditandoLanc(l); setNovoModalOpen(true); }}
-          onVerDetalhes={(l) => setDetalheLanc(l)}
-        />
-      )}
-      {tab === 'categorias' && <CategoriasList />}
+        <TabsContent value="visao" className="mt-0">
+          <VisaoGeralFinanceiro lancamentos={lancamentos} fornecedores={fornecedores} />
+        </TabsContent>
+
+        <TabsContent value="lancamentos" className="mt-0">
+          <LancamentosList
+            lancamentos={lancamentos}
+            fornecedores={fornecedores}
+            empresas={empresas}
+            categorias={categorias}
+            modo="todos"
+            onEditar={(l) => { setEditandoLanc(l); setNovoModalOpen(true); }}
+            onVerDetalhes={(l) => setDetalheLanc(l)}
+          />
+        </TabsContent>
+
+        <TabsContent value="contas" className="mt-0">
+          <LancamentosList
+            lancamentos={lancamentos}
+            fornecedores={fornecedores}
+            empresas={empresas}
+            categorias={categorias}
+            modo="contas_pagar"
+            onEditar={(l) => { setEditandoLanc(l); setNovoModalOpen(true); }}
+            onVerDetalhes={(l) => setDetalheLanc(l)}
+          />
+        </TabsContent>
+
+        <TabsContent value="categorias" className="mt-0">
+          <CategoriasList />
+        </TabsContent>
+      </Tabs>
 
       {/* Modal Novo/Editar Lançamento — reusa o mesmo form. Quando `editandoLanc`
           é null, é criação avulsa; quando preenchido, é edição. Lançamento
