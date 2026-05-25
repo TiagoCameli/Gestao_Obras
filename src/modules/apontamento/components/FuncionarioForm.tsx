@@ -75,6 +75,9 @@ export default function FuncionarioForm({
   const [tipoVinculo, setTipoVinculo] = useState<TipoVinculo>(
     initial?.tipoVinculo ?? "CLT"
   );
+  const [salarioBase, setSalarioBase] = useState<number | null>(
+    initial?.salarioBase ?? null
+  );
   const [dataAdmissao, setDataAdmissao] = useState(
     initial?.dataAdmissao ?? new Date().toISOString().slice(0, 10)
   );
@@ -165,6 +168,9 @@ export default function FuncionarioForm({
     const cpfDigits = cpf.replace(/\D/g, "");
     if (cpfDigits && !isCpfValido(cpfDigits)) e.cpf = "CPF inválido";
     if (fotos.length > 5) e.fotos = "Máximo de 5 fotos";
+    if (salarioBase == null || salarioBase <= 0) {
+      e.salarioBase = "Obrigatório (> 0) — base pra cálculo de folha";
+    }
     setErrors(e);
     return Object.keys(e).length === 0;
   }
@@ -226,7 +232,7 @@ export default function FuncionarioForm({
         fotosReferenciaFacial: finalPaths,
         funcao,
         tipoVinculo,
-        salarioBase: initial?.salarioBase ?? null,
+        salarioBase,
         valorDiaria: initial?.valorDiaria ?? null,
         valorHora: initial?.valorHora ?? null,
         obraId: initial?.obraId ?? null,
@@ -353,7 +359,7 @@ export default function FuncionarioForm({
       </Section>
 
       <Section title="Cargo e vínculo">
-        <Grid cols={2}>
+        <Grid cols={3}>
           <Select
             label="Função/cargo"
             options={FUNCOES.map((f) => ({ value: f, label: f }))}
@@ -367,6 +373,18 @@ export default function FuncionarioForm({
             value={tipoVinculo}
             onChange={(e) => setTipoVinculo(e.target.value as TipoVinculo)}
             error={errors.tipoVinculo}
+          />
+          <Input
+            label="Salário base (R$/mês)"
+            type="number"
+            step="0.01"
+            min="0.01"
+            value={salarioBase ?? ""}
+            onChange={(e) =>
+              setSalarioBase(e.target.value ? Number(e.target.value) : null)
+            }
+            error={errors.salarioBase}
+            placeholder="Ex.: 1518.00"
           />
         </Grid>
       </Section>

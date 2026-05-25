@@ -350,10 +350,23 @@ export default function RegistroPontoTab() {
 
   async function validarFace(dataUrl: string) {
     if (!capturando) return { match: false, distancia: 1, threshold: 0.55 };
-    const refs = capturando.funcionario.fotosReferenciaFacial ?? [];
+    // Junta refs faciais + foto perfil como fallback. Cadastros antigos
+    // podem ter `fotoPerfil` sem nada em `fotosReferenciaFacial[]` —
+    // sem esse merge, o `validarFace` recebia refs=[] e liberava
+    // silencioso com {match:true} (fix #10 do apontamento-rh-audit.md).
+    const refsSet = new Set<string>();
+    for (const p of capturando.funcionario.fotosReferenciaFacial ?? []) {
+      refsSet.add(p);
+    }
+    if (capturando.funcionario.fotoPerfil) {
+      refsSet.add(capturando.funcionario.fotoPerfil);
+    }
+    const refs = [...refsSet];
     if (refs.length === 0) {
-      // Sem referência cadastrada: deixa passar mas alerta
-      return { match: true, distancia: 0, threshold: 0.55 };
+      // Defensive: `iniciarBatida` só abre este modal quando há foto, então
+      // este caminho não deve disparar. Se disparar, bloqueia em vez de
+      // liberar — nunca aprovar batida sem referência cadastrada.
+      return { match: false, distancia: 1, threshold: 0.55 };
     }
     const refsUrls = await getFotoUrls(refs);
     return compararFace(dataUrl, Object.values(refsUrls));
