@@ -105,9 +105,3 @@ export interface SavedView {
   filtros: CombustivelFilterState;
   createdAt: string;
 }
-
-/** View da aba de Saídas — separa abastecimentos por origem do combustível. */
-export type SaidasView = 'todas' | 'internas' | 'externas';
-
-/** Origem de uma saída classificada como "externa" (fora do tanque interno). */
-export type OrigemExterna = 'dinheiro' | 'requisicao' | 'tanque_externo';
