@@ -17,13 +17,6 @@ const THRESHOLD = 0.55
 // por stubs de teste após o módulo carregar, e em SSR `Worker` simplesmente
 // não existe. Custo é desprezível (typeof check).
 function supportsWorker(): boolean {
-  // TEMP: forçando legacy (main-thread) enquanto investigamos por que a
-  // detecção falha silenciosa no worker em prod (face-api retorna null
-  // pra ImageBitmap, possivelmente TFJS backend não inicia, possivelmente
-  // outro). Legacy usa <Image> + main thread — mesma stack que funcionava
-  // antes desta feature.
-  return false
-  // eslint-disable-next-line no-unreachable
   return typeof Worker !== 'undefined' && typeof createImageBitmap !== 'undefined'
 }
 
