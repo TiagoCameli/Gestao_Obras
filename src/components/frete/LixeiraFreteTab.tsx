@@ -13,6 +13,7 @@ import { usePagamentosFreteDeletados, useRestaurarPagamentoFrete } from '../../h
 import { usePedidosMaterialDeletados, useRestaurarPedidoMaterial } from '../../hooks/usePedidosMaterial';
 import type { Obra, Fornecedor, Insumo } from '../../types';
 import Button from '../ui/Button';
+import ConfirmDialog from '../ui/ConfirmDialog';
 import { useToast } from '../ui/Toast';
 import { useAuth } from '../../contexts/AuthContext';
 
@@ -68,16 +69,20 @@ export default function LixeiraFreteTab({ obras, fornecedores, insumos }: Props)
   const [openPagamentos, setOpenPagamentos] = useState(true);
   const [openPedidos, setOpenPedidos] = useState(true);
 
-  async function handleRestaurar(
-    tipo: 'frete' | 'pagamento' | 'pedido',
-    id: string,
-  ) {
+  // ConfirmDialog state — substitui window.confirm. Action diferida via onConfirm.
+  const [restaurando, setRestaurando] = useState<{ tipo: 'frete' | 'pagamento' | 'pedido'; id: string } | null>(null);
+
+  function handleRestaurar(tipo: 'frete' | 'pagamento' | 'pedido', id: string) {
     if (!canRestaurar) {
       showToast({ kind: 'error', message: 'Sem permissão para restaurar itens da lixeira.' });
       return;
     }
-    // TODO(Onda 7.C): substituir window.confirm por <ConfirmDialog> com state.
-    if (!window.confirm('Restaurar este registro?')) return;
+    setRestaurando({ tipo, id });
+  }
+
+  async function executeRestaurar() {
+    if (!restaurando) return;
+    const { tipo, id } = restaurando;
     try {
       if (tipo === 'frete') await restaurarFrete.mutateAsync(id);
       else if (tipo === 'pagamento') await restaurarPagamento.mutateAsync(id);
@@ -86,6 +91,8 @@ export default function LixeiraFreteTab({ obras, fornecedores, insumos }: Props)
     } catch (e) {
       console.error('[lixeira-frete] falha ao restaurar', e);
       showToast({ kind: 'error', message: 'Falha ao restaurar. Tente novamente.' });
+    } finally {
+      setRestaurando(null);
     }
   }
 
@@ -197,6 +204,15 @@ export default function LixeiraFreteTab({ obras, fornecedores, insumos }: Props)
           })
         )}
       </Section>
+
+      <ConfirmDialog
+        open={restaurando !== null}
+        onClose={() => setRestaurando(null)}
+        onConfirm={executeRestaurar}
+        title="Restaurar registro"
+        message="Restaurar este registro pra fora da lixeira?"
+        requirePassword={false}
+      />
     </div>
   );
 }

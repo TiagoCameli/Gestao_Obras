@@ -162,8 +162,10 @@ export default function LancamentosList({
   );
   const totalEmAberto = totalFiltrado - totalPagoFiltrado;
 
-  // ── Confirmação de exclusão ──────────────────────────────────────────
+  // ── Confirmação de exclusão / fechar / reabrir ──────────────────────
   const [excluirRef, setExcluirRef] = useState<LancamentoFinanceiro | null>(null);
+  const [fecharRef, setFecharRef] = useState<LancamentoFinanceiro | null>(null);
+  const [reabrirRef, setReabrirRef] = useState<LancamentoFinanceiro | null>(null);
 
   async function handleExcluirConfirm() {
     if (!excluirRef) return;
@@ -173,6 +175,28 @@ export default function LancamentosList({
       setExcluirRef(null);
     } catch (err) {
       showToast({ kind: 'error', message: err instanceof Error ? err.message : 'Erro ao excluir.' });
+    }
+  }
+
+  async function handleFecharConfirm() {
+    if (!fecharRef) return;
+    try {
+      await fecharMut.mutateAsync(fecharRef.id);
+      showToast({ kind: 'success', message: `Lançamento ${fecharRef.numero} fechado.` });
+      setFecharRef(null);
+    } catch (err) {
+      showToast({ kind: 'error', message: err instanceof Error ? err.message : 'Erro.' });
+    }
+  }
+
+  async function handleReabrirConfirm() {
+    if (!reabrirRef) return;
+    try {
+      await reabrirMut.mutateAsync(reabrirRef.id);
+      showToast({ kind: 'success', message: `Lançamento ${reabrirRef.numero} reaberto.` });
+      setReabrirRef(null);
+    } catch (err) {
+      showToast({ kind: 'error', message: err instanceof Error ? err.message : 'Erro.' });
     }
   }
 
@@ -397,16 +421,7 @@ export default function LancamentosList({
               {podeFechar && !l.fechado && (
                 <button
                   type="button"
-                  onClick={async () => {
-                    // TODO(Onda 7.C): substituir window.confirm por ConfirmDialog
-                    if (!window.confirm(`Fechar lançamento ${l.numero}? Depois de fechado, valores, parcelas e rateio não podem mais ser editados. Pagamentos seguem permitidos.`)) return;
-                    try {
-                      await fecharMut.mutateAsync(l.id);
-                      showToast({ kind: 'success', message: `Lançamento ${l.numero} fechado.` });
-                    } catch (err) {
-                      showToast({ kind: 'error', message: err instanceof Error ? err.message : 'Erro.' });
-                    }
-                  }}
+                  onClick={() => setFecharRef(l)}
                   className="inline-flex items-center justify-center w-7 h-7 rounded-md text-[var(--color-fg-muted)] hover:bg-amber-50 hover:text-amber-700 dark:hover:bg-amber-500/15"
                   title="Fechar lançamento (trava edição)"
                   aria-label="Fechar lançamento"
@@ -417,15 +432,7 @@ export default function LancamentosList({
               {podeReabrir && l.fechado && (
                 <button
                   type="button"
-                  onClick={async () => {
-                    if (!window.confirm(`Reabrir lançamento ${l.numero}? Edição volta a ficar liberada.`)) return;
-                    try {
-                      await reabrirMut.mutateAsync(l.id);
-                      showToast({ kind: 'success', message: `Lançamento ${l.numero} reaberto.` });
-                    } catch (err) {
-                      showToast({ kind: 'error', message: err instanceof Error ? err.message : 'Erro.' });
-                    }
-                  }}
+                  onClick={() => setReabrirRef(l)}
                   className="inline-flex items-center justify-center w-7 h-7 rounded-md text-[var(--color-success-fg)] hover:bg-[var(--color-success-soft)]"
                   title="Reabrir lançamento (destrava edição)"
                   aria-label="Reabrir lançamento"
@@ -566,6 +573,24 @@ export default function LancamentosList({
         }
         requirePassword={false}
         onConfirm={handleExcluirConfirm}
+      />
+
+      <ConfirmDialog
+        open={fecharRef !== null}
+        onClose={() => setFecharRef(null)}
+        title={`Fechar lançamento ${fecharRef?.numero ?? ''}`}
+        message="Depois de fechado, valores, parcelas e rateio não podem mais ser editados. Pagamentos seguem permitidos."
+        requirePassword={false}
+        onConfirm={handleFecharConfirm}
+      />
+
+      <ConfirmDialog
+        open={reabrirRef !== null}
+        onClose={() => setReabrirRef(null)}
+        title={`Reabrir lançamento ${reabrirRef?.numero ?? ''}`}
+        message="Edição volta a ficar liberada."
+        requirePassword={false}
+        onConfirm={handleReabrirConfirm}
       />
     </div>
   );

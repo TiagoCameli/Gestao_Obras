@@ -26,6 +26,7 @@ import type {
 } from '../../types';
 import Drawer from '../ui/Drawer';
 import Button from '../ui/Button';
+import ConfirmDialog from '../ui/ConfirmDialog';
 import RegistrarPagamentoModal from './RegistrarPagamentoModal';
 import { useEstornarPagamentoFinanceiro } from '../../hooks/usePagamentosFinanceiros';
 import { useAtualizarAnexosLancamento } from '../../hooks/useLancamentosFinanceiros';
@@ -92,6 +93,9 @@ export default function LancamentoDetalheDrawer({
   const atualizarAnexosMut = useAtualizarAnexosLancamento();
   const [pagarParcela, setPagarParcela] = useState<ParcelaLancamento | null>(null);
   const [uploadingAnexo, setUploadingAnexo] = useState(false);
+  // ConfirmDialog state (substitui window.confirm)
+  const [estornarRef, setEstornarRef] = useState<ParcelaLancamento | null>(null);
+  const [removerAnexoRef, setRemoverAnexoRef] = useState<string | null>(null);
   const signedAnexosUrls = useAnexosFinanceiroUrls(lancamento?.anexosUrls);
 
   if (!lancamento) {
@@ -109,9 +113,14 @@ export default function LancamentoDetalheDrawer({
   const totalPago = l.parcelas.reduce((s, p) => s + (p.valorPago ?? 0), 0);
   const totalAberto = l.valorTotal - totalPago;
 
-  async function handleEstornar(p: ParcelaLancamento) {
+  function handleEstornar(p: ParcelaLancamento) {
     if (!l) return;
-    if (!window.confirm(`Estornar pagamento da parcela ${p.numero}/${l.parcelas.length}? A parcela volta pra "em aberto".`)) return;
+    setEstornarRef(p);
+  }
+
+  async function executeEstornar() {
+    if (!l || !estornarRef) return;
+    const p = estornarRef;
     try {
       const { data, error } = await supabase
         .from('financeiro_pagamentos')
@@ -122,6 +131,7 @@ export default function LancamentoDetalheDrawer({
       if (error) throw error;
       if (!data?.[0]) {
         showToast({ kind: 'error', message: 'Pagamento não encontrado pra estornar.' });
+        setEstornarRef(null);
         return;
       }
       const pag = dbToPagamentoLancamento(data[0]);
@@ -132,6 +142,8 @@ export default function LancamentoDetalheDrawer({
         kind: 'error',
         message: err instanceof Error ? err.message : 'Erro ao estornar.',
       });
+    } finally {
+      setEstornarRef(null);
     }
   }
 
@@ -161,11 +173,15 @@ export default function LancamentoDetalheDrawer({
     }
   }
 
-  async function handleRemoveAnexo(url: string) {
+  function handleRemoveAnexo(url: string) {
     if (!l) return;
-    if (!window.confirm('Remover este anexo do lançamento? O arquivo continua no Storage; só o vínculo é removido.')) return;
+    setRemoverAnexoRef(url);
+  }
+
+  async function executeRemoveAnexo() {
+    if (!l || !removerAnexoRef) return;
     try {
-      const novosAnexos = (l.anexosUrls ?? []).filter((u) => u !== url);
+      const novosAnexos = (l.anexosUrls ?? []).filter((u) => u !== removerAnexoRef);
       await atualizarAnexosMut.mutateAsync({ id: l.id, anexosUrls: novosAnexos });
       showToast({ kind: 'success', message: 'Anexo removido.' });
     } catch (err) {
@@ -173,6 +189,8 @@ export default function LancamentoDetalheDrawer({
         kind: 'error',
         message: err instanceof Error ? err.message : 'Falha ao remover anexo.',
       });
+    } finally {
+      setRemoverAnexoRef(null);
     }
   }
 
@@ -577,6 +595,24 @@ export default function LancamentoDetalheDrawer({
         onClose={() => setPagarParcela(null)}
         lancamento={lancamento}
         parcela={pagarParcela}
+      />
+
+      <ConfirmDialog
+        open={estornarRef !== null}
+        onClose={() => setEstornarRef(null)}
+        onConfirm={executeEstornar}
+        title={`Estornar parcela ${estornarRef?.numero ?? ''}/${l.parcelas.length}`}
+        message='A parcela volta pra "em aberto" e o pagamento é desfeito.'
+        requirePassword={false}
+      />
+
+      <ConfirmDialog
+        open={removerAnexoRef !== null}
+        onClose={() => setRemoverAnexoRef(null)}
+        onConfirm={executeRemoveAnexo}
+        title="Remover anexo"
+        message="Só o vínculo é removido do lançamento — o arquivo continua no Storage."
+        requirePassword={false}
       />
     </>
   );

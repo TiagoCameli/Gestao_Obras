@@ -16,6 +16,7 @@ import {
 import Button from '../ui/Button';
 import Input from '../ui/Input';
 import SmartSelect from '../ui/SmartSelect';
+import ConfirmDialog from '../ui/ConfirmDialog';
 import { useToast } from '../ui/Toast';
 import { useAuth } from '../../contexts/AuthContext';
 import type { CategoriaFinanceira } from '../../types';
@@ -37,6 +38,8 @@ export default function CategoriasList() {
   // recém-adicionada que ainda não foi salva).
   const [editandoId, setEditandoId] = useState<string | null>(null);
   const [rascunho, setRascunho] = useState<CategoriaFinanceira | null>(null);
+  // ConfirmDialog state pra exclusão (substitui window.confirm)
+  const [excluindo, setExcluindo] = useState<CategoriaFinanceira | null>(null);
 
   function iniciarEdicao(cat: CategoriaFinanceira) {
     setEditandoId(cat.id);
@@ -99,11 +102,16 @@ export default function CategoriasList() {
     }
   }
 
-  async function excluir(cat: CategoriaFinanceira) {
-    if (!window.confirm(`Excluir "${cat.nome}"? Lançamentos antigos com essa categoria continuarão mostrando o nome.`)) return;
+  function excluir(cat: CategoriaFinanceira) {
+    setExcluindo(cat);
+  }
+
+  async function executeExcluir() {
+    if (!excluindo) return;
     try {
-      await delMut.mutateAsync(cat.id);
-      showToast({ kind: 'success', message: `"${cat.nome}" excluída.` });
+      await delMut.mutateAsync(excluindo.id);
+      showToast({ kind: 'success', message: `"${excluindo.nome}" excluída.` });
+      setExcluindo(null);
     } catch (err) {
       showToast({
         kind: 'error',
@@ -284,6 +292,15 @@ export default function CategoriasList() {
           </table>
         </div>
       )}
+
+      <ConfirmDialog
+        open={excluindo !== null}
+        onClose={() => setExcluindo(null)}
+        onConfirm={executeExcluir}
+        title={`Excluir "${excluindo?.nome ?? ''}"`}
+        message="Lançamentos antigos com essa categoria continuarão mostrando o nome — só não vai mais aparecer pra novas seleções."
+        requirePassword={false}
+      />
     </div>
   );
 }

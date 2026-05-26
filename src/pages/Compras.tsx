@@ -140,6 +140,8 @@ export default function Compras() {
   // V2 (Fase 3): busca OC + modal de lançamento financeiro
   const [buscaOC, setBuscaOC] = useState('');
   const [gerarLancamentoOC, setGerarLancamentoOC] = useState<OrdemCompra | null>(null);
+  // ConfirmDialog: mover OC pra lixeira (substitui window.confirm)
+  const [excluindoOC, setExcluindoOC] = useState<OrdemCompra | null>(null);
 
   // V2 (Fase 5): modal de Lixeira
   const [lixeiraAberta, setLixeiraAberta] = useState(false);
@@ -696,24 +698,33 @@ export default function Compras() {
   // useAdicionarLancamentoFinanceiro grava + atualiza
   // lancamento_financeiro_status='lancada' na OC.
 
-  const handleExcluirOC = useCallback(async (oc: OrdemCompra) => {
+  const handleExcluirOC = useCallback((oc: OrdemCompra) => {
     if (oc.entradaGerada || oc.lancamentoFinanceiroStatus === 'lancada') {
       showToast({ kind: 'error', message: 'OC com entrada de estoque ou lançamento financeiro não pode ser excluída.' });
       return;
     }
-    if (!window.confirm(`Mover OC ${oc.numero} para a lixeira (30 dias)?`)) return;
+    setExcluindoOC(oc);
+  }, [showToast]);
+
+  const executeExcluirOC = useCallback(async () => {
+    if (!excluindoOC) return;
+    const oc = excluindoOC;
     const nomeUsuario = usuario?.nome || '';
     const agora = new Date().toISOString();
-    await atualizarOCMut.mutateAsync({ ...oc, deletadoEm: agora, deletadoPor: nomeUsuario });
-    const { supabase } = await import('../lib/supabase');
-    await supabase.from('compras_lixeira').insert({
-      id: oc.id, entidade: 'oc', entidade_id: oc.id,
-      payload: oc as unknown as Record<string, unknown>,
-      deletado_por: nomeUsuario,
-    }).then(({ error }) => { if (error) console.warn('[lixeira]', error.message); });
-    await auditar({ entidade: 'oc', entidadeId: oc.id, acao: 'deleted', usuarioNome: nomeUsuario });
-    showToast({ kind: 'info', message: `OC ${oc.numero} movida para a lixeira.` });
-  }, [atualizarOCMut, usuario, showToast]);
+    try {
+      await atualizarOCMut.mutateAsync({ ...oc, deletadoEm: agora, deletadoPor: nomeUsuario });
+      const { supabase } = await import('../lib/supabase');
+      await supabase.from('compras_lixeira').insert({
+        id: oc.id, entidade: 'oc', entidade_id: oc.id,
+        payload: oc as unknown as Record<string, unknown>,
+        deletado_por: nomeUsuario,
+      }).then(({ error }) => { if (error) console.warn('[lixeira]', error.message); });
+      await auditar({ entidade: 'oc', entidadeId: oc.id, acao: 'deleted', usuarioNome: nomeUsuario });
+      showToast({ kind: 'info', message: `OC ${oc.numero} movida para a lixeira.` });
+    } finally {
+      setExcluindoOC(null);
+    }
+  }, [excluindoOC, atualizarOCMut, usuario, showToast]);
 
   void excluirOCMut; // mantido para uso futuro (hard delete da lixeira)
   // Hooks de geração de entrada de material/combustível ficam preservados — vamos
@@ -1301,6 +1312,16 @@ export default function Compras() {
         message="Esta cotação será movida para a lixeira (30 dias)."
         onConfirm={handleExcluirCotacao}
         onClose={() => setDeleteCotacaoId(null)}
+      />
+
+      {/* Confirmação mover OC pra lixeira */}
+      <ConfirmDialog
+        open={excluindoOC !== null}
+        title={`Mover OC ${excluindoOC?.numero ?? ''} pra lixeira`}
+        message="A OC fica 30 dias na lixeira antes de ser excluída de vez. Restauração possível durante esse período."
+        requirePassword={false}
+        onConfirm={executeExcluirOC}
+        onClose={() => setExcluindoOC(null)}
       />
 
       {/* Lixeira (V2 Fase 5) */}
