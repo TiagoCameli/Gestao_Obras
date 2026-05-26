@@ -21,6 +21,7 @@ import LancamentoDetalheDrawer from '../components/financeiro/LancamentoDetalheD
 import Modal from '../components/ui/Modal';
 import Button from '../components/ui/Button';
 import ConfirmDialog from '../components/ui/ConfirmDialog';
+import { useDirtyFormGuard } from '../components/ui/DirtyFormGuard';
 import { useToast } from '../components/ui/Toast';
 import { useFornecedores } from '../hooks/useFornecedores';
 import { useEmpresas } from '../hooks/useEmpresas';
@@ -93,6 +94,14 @@ export default function Financeiro() {
   const [fecharRef, setFecharRef] = useState<LancamentoFinanceiro | null>(null);
   const [reabrirRef, setReabrirRef] = useState<LancamentoFinanceiro | null>(null);
   const [excluirRef, setExcluirRef] = useState<LancamentoFinanceiro | null>(null);
+  // Guard pra "alterações não salvas" no Modal de novo/editar lançamento.
+  const doCloseLancModal = useCallback(() => {
+    setNovoModalOpen(false);
+    setEditandoLanc(null);
+    setFormDirty(false);
+  }, []);
+  const lancGuard = useDirtyFormGuard({ dirty: formDirty, onClose: doCloseLancModal });
+
   // Mantém referência fresca quando a query do React Query reidrata o array
   const detalheLancFresco = detalheLanc
     ? (lancamentos.find((x) => x.id === detalheLanc.id) ?? detalheLanc)
@@ -180,13 +189,8 @@ export default function Financeiro() {
           vindo de OC mantém modo='oc' (travado). */}
       <Modal
         open={novoModalOpen}
-        onClose={() => { setNovoModalOpen(false); setEditandoLanc(null); setFormDirty(false); }}
-        confirmClose={() => {
-          if (formDirty) {
-            return window.confirm('Você tem alterações não salvas. Sair mesmo assim?');
-          }
-          return true;
-        }}
+        onClose={doCloseLancModal}
+        onClosePending={lancGuard.onClosePending}
         title={editandoLanc ? `Editar lançamento ${editandoLanc.numero}` : 'Novo lançamento financeiro'}
         size="xl"
       >
@@ -202,12 +206,7 @@ export default function Financeiro() {
           categorias={categorias}
           proximoNumero={editandoLanc?.numero ?? proxNumero}
           onSubmit={handleSubmitForm}
-          onCancel={() => {
-            if (formDirty && !window.confirm('Você tem alterações não salvas. Sair mesmo assim?')) return;
-            setNovoModalOpen(false);
-            setEditandoLanc(null);
-            setFormDirty(false);
-          }}
+          onCancel={lancGuard.tryClose}
           onCreateFornecedor={async () => {
             showToast({ kind: 'info', message: 'Cadastre o fornecedor em Cadastros > Fornecedores antes.' });
             return '';
@@ -215,6 +214,7 @@ export default function Financeiro() {
           onDirtyChange={setFormDirty}
         />
       </Modal>
+      {lancGuard.dialog}
 
       {/* Drawer de detalhes do lançamento (abre ao clicar numa linha da lista) */}
       <LancamentoDetalheDrawer

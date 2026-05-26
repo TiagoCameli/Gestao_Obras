@@ -30,11 +30,26 @@ interface ModalProps {
   children: ReactNode;
   size?: 'default' | 'lg' | 'xl';
   /**
-   * Callback opcional executado antes de qualquer tentativa de fechar
-   * (X, backdrop, Escape). Se retornar `false`, o fechamento é abortado.
-   * Útil pra confirmar antes de descartar alterações em forms.
+   * Callback SÍNCRONO executado antes de qualquer tentativa de fechar
+   * (X, backdrop, Escape). Retornando `false`, o fechamento é abortado.
+   * Útil pra confirmar inline (sem dialog assíncrono).
+   *
+   * Deprecated em favor de `onClosePending` quando você precisa de
+   * confirmação visual com ConfirmDialog (assíncrono). Mantido por compat.
    */
   confirmClose?: () => boolean;
+  /**
+   * Callback opcional disparado quando o usuário tenta fechar o modal
+   * (X, backdrop, Escape). Quando set, SUBSTITUI o caminho de close
+   * default — o componente pai vira responsável por decidir entre:
+   *   - chamar onClose() pra fechar de verdade
+   *   - não chamar pra manter o modal aberto
+   *
+   * Usado pra abrir um ConfirmDialog assíncrono (ex: "alterações não
+   * salvas"). Use junto com o hook useDirtyFormGuard que cuida do state
+   * e do render do dialog.
+   */
+  onClosePending?: () => void;
 }
 
 const sizeClasses: Record<NonNullable<ModalProps['size']>, string> = {
@@ -50,10 +65,16 @@ export default function Modal({
   children,
   size = 'default',
   confirmClose,
+  onClosePending,
 }: ModalProps) {
   const handleOpenChange = (next: boolean) => {
     // Só interceptamos closes (Radix nunca chama com next=true sem trigger explícito).
     if (next) return;
+    // onClosePending tem prioridade — pai decide o que fazer (abrir ConfirmDialog etc).
+    if (onClosePending) {
+      onClosePending();
+      return;
+    }
     if (confirmClose && !confirmClose()) return;
     onClose();
   };

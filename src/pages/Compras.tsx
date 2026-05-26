@@ -30,6 +30,7 @@ import { useToast } from '../components/ui/Toast';
 import Button from '../components/ui/Button';
 import Modal from '../components/ui/Modal';
 import ConfirmDialog from '../components/ui/ConfirmDialog';
+import { useDirtyFormGuard } from '../components/ui/DirtyFormGuard';
 import PageHeader from '../components/ui/PageHeader';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '../components/shadcn/tabs';
 import PedidoCompraFormV2 from '../components/compras/PedidoCompraFormV2';
@@ -127,6 +128,30 @@ export default function Compras() {
   const [ocModalOpen, setOcModalOpen] = useState(false);
   const [editandoOC, setEditandoOC] = useState<OrdemCompra | null>(null);
   const [importOCOpen, setImportOCOpen] = useState(false);
+
+  // doClose helpers + DirtyFormGuard hooks pros 3 modals com pattern "alterações
+  // não salvas". Declarados DEPOIS dos setters que usam (no-hoist de const).
+  const doClosePedidoModal = () => {
+    setPedidoModalOpen(false);
+    setEditandoPedido(null);
+    setPedidoFormDirty(false);
+  };
+  const pedidoGuard = useDirtyFormGuard({ dirty: pedidoFormDirty, onClose: doClosePedidoModal });
+
+  const doCloseCotacaoModal = () => {
+    setCotacaoModalOpen(false);
+    setPedidoParaCotacao(null);
+    setEditandoCotacao(null);
+    setCotacaoFormDirty(false);
+  };
+  const cotacaoGuard = useDirtyFormGuard({ dirty: cotacaoFormDirty, onClose: doCloseCotacaoModal });
+
+  const doCloseOCModal = () => {
+    setOcModalOpen(false);
+    setEditandoOC(null);
+    setOcFormDirty(false);
+  };
+  const ocGuard = useDirtyFormGuard({ dirty: ocFormDirty, onClose: doCloseOCModal });
 
   // V2: modal pra rejeitar pedido com motivo obrigatório
   const [rejeitarPedido, setRejeitarPedido] = useState<PedidoCompra | null>(null);
@@ -1040,13 +1065,8 @@ export default function Compras() {
       {/* Modal Pedido (V2 premium — empilhado com itens + descrição + anexos) */}
       <Modal
         open={pedidoModalOpen}
-        onClose={() => { setPedidoModalOpen(false); setEditandoPedido(null); setPedidoFormDirty(false); }}
-        confirmClose={() => {
-          if (pedidoFormDirty) {
-            return window.confirm('Você tem alterações não salvas. Sair mesmo assim?');
-          }
-          return true;
-        }}
+        onClose={doClosePedidoModal}
+        onClosePending={pedidoGuard.onClosePending}
         title={editandoPedido ? `Editar pedido ${editandoPedido.numero}` : 'Novo pedido de compra'}
         size="xl"
       >
@@ -1058,12 +1078,7 @@ export default function Compras() {
           unidades={unidades}
           categorias={categoriasOptions}
           onSubmit={handlePedidoSubmit}
-          onCancel={() => {
-            if (pedidoFormDirty && !window.confirm('Você tem alterações não salvas. Sair mesmo assim?')) return;
-            setPedidoModalOpen(false);
-            setEditandoPedido(null);
-            setPedidoFormDirty(false);
-          }}
+          onCancel={pedidoGuard.tryClose}
           onDirtyChange={setPedidoFormDirty}
           proximoNumero={proxPedido}
           nomeUsuario={usuario?.nome}
@@ -1081,13 +1096,8 @@ export default function Compras() {
       {/* Modal Cotação (V2 premium — com mapa comparativo embutido) */}
       <Modal
         open={cotacaoModalOpen}
-        onClose={() => { setCotacaoModalOpen(false); setPedidoParaCotacao(null); setEditandoCotacao(null); setCotacaoFormDirty(false); }}
-        confirmClose={() => {
-          if (cotacaoFormDirty) {
-            return window.confirm('Você tem alterações não salvas. Sair mesmo assim?');
-          }
-          return true;
-        }}
+        onClose={doCloseCotacaoModal}
+        onClosePending={cotacaoGuard.onClosePending}
         title={editandoCotacao ? `Editar cotação ${editandoCotacao.numero}` : 'Nova cotação'}
         size="xl"
       >
@@ -1104,13 +1114,7 @@ export default function Compras() {
           depositosMaterial={depositosMaterial}
           tanquesCombustivel={depositosCombustivel}
           onSubmit={handleCotacaoSubmit}
-          onCancel={() => {
-            if (cotacaoFormDirty && !window.confirm('Você tem alterações não salvas. Sair mesmo assim?')) return;
-            setCotacaoModalOpen(false);
-            setPedidoParaCotacao(null);
-            setEditandoCotacao(null);
-            setCotacaoFormDirty(false);
-          }}
+          onCancel={cotacaoGuard.tryClose}
           onDirtyChange={setCotacaoFormDirty}
           proximoNumero={proxCotacao}
           pedidoPreSelecionado={pedidoParaCotacao}
@@ -1143,13 +1147,8 @@ export default function Compras() {
       {/* Modal OC (V2 — destinos múltiplos + workflow de aprovação) */}
       <Modal
         open={ocModalOpen}
-        onClose={() => { setOcModalOpen(false); setEditandoOC(null); setOcFormDirty(false); }}
-        confirmClose={() => {
-          if (ocFormDirty) {
-            return window.confirm('Você tem alterações não salvas. Sair mesmo assim?');
-          }
-          return true;
-        }}
+        onClose={doCloseOCModal}
+        onClosePending={ocGuard.onClosePending}
         title={editandoOC?.id ? `Editar OC ${editandoOC.numero}` : 'Nova Ordem de Compra'}
         size="xl"
       >
@@ -1167,12 +1166,7 @@ export default function Compras() {
           tanquesCombustivel={depositosCombustivel}
           proximoNumero={proxOC}
           onSubmit={handleOCSubmit}
-          onCancel={() => {
-            if (ocFormDirty && !window.confirm('Você tem alterações não salvas. Sair mesmo assim?')) return;
-            setOcModalOpen(false);
-            setEditandoOC(null);
-            setOcFormDirty(false);
-          }}
+          onCancel={ocGuard.tryClose}
           onDirtyChange={setOcFormDirty}
           onAprovar={handleAprovarOCv2}
           onGerarLancamento={(oc) => setGerarLancamentoOC(oc)}
@@ -1326,6 +1320,11 @@ export default function Compras() {
 
       {/* Lixeira (V2 Fase 5) */}
       <LixeiraCompras open={lixeiraAberta} onClose={() => setLixeiraAberta(false)} />
+
+      {/* DirtyFormGuard dialogs (substituem window.confirm "alterações não salvas") */}
+      {pedidoGuard.dialog}
+      {cotacaoGuard.dialog}
+      {ocGuard.dialog}
     </div>
   );
 }

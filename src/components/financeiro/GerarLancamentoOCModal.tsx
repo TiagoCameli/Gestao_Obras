@@ -9,6 +9,7 @@
  */
 import { useMemo, useState } from 'react';
 import Modal from '../ui/Modal';
+import { useDirtyFormGuard } from '../ui/DirtyFormGuard';
 import LancamentoFinanceiroForm from './LancamentoFinanceiroForm';
 import { useFornecedores } from '../../hooks/useFornecedores';
 import { useEmpresas } from '../../hooks/useEmpresas';
@@ -46,6 +47,8 @@ export default function GerarLancamentoOCModal({ open, oc, onClose, onGerado }: 
   const { data: lancamentos = [] } = useLancamentosFinanceiros();
   const addMut = useAdicionarLancamentoFinanceiro();
   const [dirty, setDirty] = useState(false);
+  const doClose = () => { setDirty(false); onClose(); };
+  const guard = useDirtyFormGuard({ dirty, onClose: doClose });
 
   // Constrói o lançamento pré-preenchido a partir da OC (memoizado pelo id).
   const initial = useMemo<LancamentoFinanceiro | null>(() => {
@@ -80,41 +83,37 @@ export default function GerarLancamentoOCModal({ open, oc, onClose, onGerado }: 
   }
 
   return (
-    <Modal
-      open={open}
-      onClose={() => { setDirty(false); onClose(); }}
-      confirmClose={() => {
-        if (dirty) return window.confirm('Você tem alterações não salvas. Sair mesmo assim?');
-        return true;
-      }}
-      title={`Gerar lançamento financeiro · OC ${oc.numero}`}
-      size="xl"
-    >
-      {initial && (
-        <LancamentoFinanceiroForm
-          initial={initial}
-          modo="oc"
-          fornecedores={fornecedores}
-          empresas={empresas}
-          obras={obras}
-          etapas={etapas}
-          ordensServico={ordensServico}
-          equipamentos={equipamentos}
-          categorias={categorias}
-          proximoNumero={initial.numero}
-          onSubmit={handleSubmit}
-          onCancel={() => {
-            if (dirty && !window.confirm('Você tem alterações não salvas. Sair mesmo assim?')) return;
-            setDirty(false);
-            onClose();
-          }}
-          onCreateFornecedor={async () => {
-            showToast({ kind: 'info', message: 'Fornecedor da OC já está vinculado.' });
-            return '';
-          }}
-          onDirtyChange={setDirty}
-        />
-      )}
-    </Modal>
+    <>
+      <Modal
+        open={open}
+        onClose={doClose}
+        onClosePending={guard.onClosePending}
+        title={`Gerar lançamento financeiro · OC ${oc.numero}`}
+        size="xl"
+      >
+        {initial && (
+          <LancamentoFinanceiroForm
+            initial={initial}
+            modo="oc"
+            fornecedores={fornecedores}
+            empresas={empresas}
+            obras={obras}
+            etapas={etapas}
+            ordensServico={ordensServico}
+            equipamentos={equipamentos}
+            categorias={categorias}
+            proximoNumero={initial.numero}
+            onSubmit={handleSubmit}
+            onCancel={guard.tryClose}
+            onCreateFornecedor={async () => {
+              showToast({ kind: 'info', message: 'Fornecedor da OC já está vinculado.' });
+              return '';
+            }}
+            onDirtyChange={setDirty}
+          />
+        )}
+      </Modal>
+      {guard.dialog}
+    </>
   );
 }
