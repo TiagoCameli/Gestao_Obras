@@ -37,7 +37,7 @@ export async function capturar3(
   videoEl: HTMLVideoElement,
   computeDistance: (dataUrl: string) => Promise<number>,
   opts: { overlay?: (ctx: CanvasRenderingContext2D, c: HTMLCanvasElement) => void } = {}
-): Promise<{ frames: Frame[]; melhor: MelhorMatch }> {
+): Promise<{ frames: Frame[]; melhor: MelhorMatch; erros: string[] }> {
   const canvas = document.createElement('canvas')
   canvas.width = videoEl.videoWidth || 640
   canvas.height = videoEl.videoHeight || 480
@@ -53,6 +53,7 @@ export async function capturar3(
   const frames: Frame[] = []
   const promises: Promise<void>[] = []
 
+  const erros: string[] = []
   for (let i = 0; i < 3; i++) {
     if (i > 0) await wait(250)
     const dataUrl = tirar()
@@ -61,11 +62,15 @@ export async function capturar3(
     promises.push(
       computeDistance(dataUrl)
         .then((d) => { frames[idx].distancia = d })
-        .catch(() => { /* deixa Infinity */ })
+        .catch((e: unknown) => {
+          // Captura o erro real pra surface no caller — antes era engolido
+          // em silêncio, dando "distância 1.00" sem motivo.
+          erros.push(e instanceof Error ? e.message : String(e))
+        })
     )
   }
 
   await Promise.all(promises)
   const melhor = melhorDe3(frames.map((f) => f.distancia))
-  return { frames, melhor }
+  return { frames, melhor, erros }
 }

@@ -141,7 +141,7 @@ export default function CapturaFotoModal({
     try {
       // capturar3 tira 3 frames com 250ms entre cada e chama computeDistance
       // (que aqui é o próprio validarFace, retornando distância via match).
-      const { frames, melhor } = await capturar3(
+      const { frames, melhor, erros } = await capturar3(
         videoRef.current,
         async (dataUrl) => {
           const res = await validarFace(dataUrl);
@@ -151,7 +151,16 @@ export default function CapturaFotoModal({
       );
 
       if (melhor.indice < 0) {
-        setMatchInfo({ match: false, distancia: 1 });
+        // Antes mostrava "distância 1.00" silencioso. Agora surface o erro
+        // real (ex: "Failed to fetch /face-models/...", "Cannot read property
+        // X of undefined") pra debugar prod.
+        if (erros.length > 0) {
+          setError(
+            `Falha no reconhecimento (${erros.length}/3 frames): ${erros[0]}`
+          );
+        } else {
+          setMatchInfo({ match: false, distancia: 1 });
+        }
         setVerificando(false);
         return;
       }
