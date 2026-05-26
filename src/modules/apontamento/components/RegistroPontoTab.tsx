@@ -35,7 +35,7 @@ import {
   identifyFace,
   precomputeReferences,
   preloadFaceModels,
-} from "../utils/faceWorkerClient";
+} from "../utils/faceRecognition";
 import { getFotoUrls } from "../utils/apontamentoApi";
 import CapturaFotoModal from "./CapturaFotoModal";
 import MarcarFaltaModal from "./MarcarFaltaModal";
@@ -194,7 +194,6 @@ export default function RegistroPontoTab() {
   const [quickOpen, setQuickOpen] = useState(false);
   const [quickTipo, setQuickTipo] = useState<TipoBatida | null>(null);
   const matchedRef = useRef<{ funcionario: Funcionario; tipo: TipoBatida } | null>(null);
-  const matchResultRef = useRef<{ distancia: number; threshold: number } | null>(null);
 
   // Modal de captura
   const [capturando, setCapturando] = useState<{
@@ -279,9 +278,7 @@ export default function RegistroPontoTab() {
         longitude: pos?.longitude ?? null,
         fotoDataUrl: dataUrl,
         origem: "automatico",
-        distanciaFace: matchResultRef.current?.distancia ?? null,
       });
-      matchResultRef.current = null;
       qc.invalidateQueries({ queryKey: registrosKey });
       qc.invalidateQueries({ queryKey: pendenciasKey });
       setCapturando(null);
@@ -454,9 +451,7 @@ export default function RegistroPontoTab() {
         longitude: pos?.longitude ?? null,
         fotoDataUrl: dataUrl,
         origem: "automatico",
-        distanciaFace: matchResultRef.current?.distancia ?? null,
       });
-      matchResultRef.current = null;
       qc.invalidateQueries({ queryKey: registrosKey });
       qc.invalidateQueries({ queryKey: pendenciasKey });
       showToast({
@@ -776,7 +771,6 @@ export default function RegistroPontoTab() {
         onCancel={() => setCapturando(null)}
         onCapture={handleCapture}
         validarFace={capturando ? validarFace : undefined}
-        onMatchResult={(info) => { matchResultRef.current = info }}
       />
 
       <CapturaFotoModal
@@ -793,7 +787,6 @@ export default function RegistroPontoTab() {
         }}
         onCapture={quickHandleCapture}
         validarFace={quickValidarFace}
-        onMatchResult={(info) => { matchResultRef.current = info }}
       />
 
       <LancamentoManualModal

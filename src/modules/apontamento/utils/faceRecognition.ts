@@ -1,17 +1,20 @@
 import * as faceapi from "@vladmandic/face-api";
 
 /**
- * Fallback técnico SÍNCRONO (main thread) pro reconhecimento facial.
- * Usado automaticamente por `faceWorkerClient.ts` quando o browser não
- * suporta Web Worker module — não exposto como flag pro usuário.
+ * Reconhecimento facial via @vladmandic/face-api (main thread).
  *
- * Caso comum (Chrome/Firefox/Safari recentes): cliente delega ao worker
- * e este arquivo nunca executa. Mantido em ~5% de cobertura.
+ * Implementação simples e direta — sem Web Worker, sem cache IndexedDB,
+ * sem multi-frame. A tentativa anterior com worker quebrou iOS Safari
+ * (loop de reload na rota /apontamento?tab=ponto). Versão atual é a que
+ * comprovadamente roda em campo.
  *
- * Modelos servidos pelo próprio Vercel (/face-models/), copiados via
- * scripts/sync-face-models.mjs no postinstall. Sem dependência de CDN.
+ * Modelos servidos pelo próprio Vercel (/face-models/), commitados no repo
+ * em public/face-models/. Sem dependência de CDN externo.
  * Tiny detector (~190KB) ao invés de SSD MobileNet (~5MB) porque é 3-5x
  * mais rápido e suficiente pra uma única face de batida de ponto.
+ *
+ * Descritores das fotos de referência são memorizados em memória por URL
+ * (REF_CACHE) — comparações subsequentes só processam o frame do teste.
  */
 const MODEL_URL = "/face-models";
 

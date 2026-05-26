@@ -1,8 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import Button from "../../../components/ui/Button";
 import Modal from "../../../components/ui/Modal";
-import { preloadFaceModels } from "../utils/faceWorkerClient";
-import { capturar3 } from "../utils/faceCaptureMultiFrame";
+import { preloadFaceModels } from "../utils/faceRecognition";
 import { useAuth } from "../../../contexts/AuthContext";
 
 interface Props {
@@ -16,9 +15,6 @@ interface Props {
     distancia: number;
     threshold: number;
   }>;
-  /** Chamado após match positivo, antes do onCapture. Permite ao caller
-   *  registrar a distância na batida. */
-  onMatchResult?: (info: { distancia: number; threshold: number }) => void;
 }
 
 export default function CapturaFotoModal({
@@ -27,7 +23,6 @@ export default function CapturaFotoModal({
   onCancel,
   onCapture,
   validarFace,
-  onMatchResult,
 }: Props) {
   const { temAcao } = useAuth();
   const canCapturar = temAcao("captura_facial_ponto") || temAcao("registrar_ponto");
@@ -105,86 +100,51 @@ export default function CapturaFotoModal({
   }, [open, facing]);
 
   async function tirarFoto() {
-    if (!videoRef.current) return;
+    if (!videoRef.current || !canvasRef.current) return;
+    const v = videoRef.current;
+    const c = canvasRef.current;
+    c.width = v.videoWidth || 640;
+    c.height = v.videoHeight || 480;
+    const ctx = c.getContext("2d")!;
+    ctx.drawImage(v, 0, 0, c.width, c.height);
 
-    // Overlay com data/hora/GPS — fica idêntico ao atual, só extraído pra função
-    const overlay = (ctx: CanvasRenderingContext2D, c: HTMLCanvasElement) => {
-      const now = new Date();
-      const stamp = now.toLocaleString("pt-BR");
-      const coordStr = coords
-        ? `${coords.latitude.toFixed(5)}, ${coords.longitude.toFixed(5)}`
-        : "GPS indisponível";
-      ctx.fillStyle = "rgba(0,0,0,0.55)";
-      ctx.fillRect(0, c.height - 60, c.width, 60);
-      ctx.fillStyle = "#fff";
-      ctx.font = "16px sans-serif";
-      ctx.fillText(stamp, 12, c.height - 36);
-      ctx.fillText(coordStr, 12, c.height - 14);
-    };
+    // Overlay: data, hora, GPS (padrão fotos de pesagem da spec)
+    const now = new Date();
+    const stamp = now.toLocaleString("pt-BR");
+    const coordStr = coords
+      ? `${coords.latitude.toFixed(5)}, ${coords.longitude.toFixed(5)}`
+      : "GPS indisponível";
+    ctx.fillStyle = "rgba(0,0,0,0.55)";
+    ctx.fillRect(0, c.height - 60, c.width, 60);
+    ctx.fillStyle = "#fff";
+    ctx.font = "16px sans-serif";
+    ctx.fillText(stamp, 12, c.height - 36);
+    ctx.fillText(coordStr, 12, c.height - 14);
 
-    // Sem validarFace: fluxo antigo (1 frame)
-    if (!validarFace) {
-      const c = canvasRef.current!;
-      const v = videoRef.current;
-      c.width = v.videoWidth || 640;
-      c.height = v.videoHeight || 480;
-      const ctx = c.getContext("2d")!;
-      ctx.drawImage(v, 0, 0, c.width, c.height);
-      overlay(ctx, c);
-      const dataUrl = c.toDataURL("image/jpeg", 0.85);
-      if (!canCapturar) return;
-      onCapture(dataUrl, coords);
-      return;
-    }
+    const dataUrl = c.toDataURL("image/jpeg", 0.85);
 
-    setVerificando(true);
-    try {
-      // capturar3 tira 3 frames com 250ms entre cada e chama computeDistance
-      // (que aqui é o próprio validarFace, retornando distância via match).
-      const { frames, melhor, erros } = await capturar3(
-        videoRef.current,
-        async (dataUrl) => {
-          const res = await validarFace(dataUrl);
-          return res.distancia;
-        },
-        { overlay }
-      );
-
-      if (melhor.indice < 0) {
-        // Antes mostrava "distância 1.00" silencioso. Agora surface o erro
-        // real (ex: "Failed to fetch /face-models/...", "Cannot read property
-        // X of undefined") pra debugar prod.
-        if (erros.length > 0) {
-          setError(
-            `Falha no reconhecimento (${erros.length}/3 frames): ${erros[0]}`
-          );
-        } else {
-          setMatchInfo({ match: false, distancia: 1 });
+    if (validarFace) {
+      setVerificando(true);
+      try {
+        const res = await validarFace(dataUrl);
+        setMatchInfo({ match: res.match, distancia: res.distancia });
+        if (!res.match) {
+          setVerificando(false);
+          return;
         }
+      } catch (e) {
+        setError(
+          "Falha no reconhecimento facial: " +
+            (e instanceof Error ? e.message : String(e))
+        );
         setVerificando(false);
         return;
       }
-
-      const threshold = 0.55;
-      const match = melhor.distancia < threshold;
-      setMatchInfo({ match, distancia: melhor.distancia });
-      if (!match) {
-        setVerificando(false);
-        return;
-      }
-
-      onMatchResult?.({ distancia: melhor.distancia, threshold });
-
-      if (!canCapturar) return;
-      onCapture(frames[melhor.indice].dataUrl, coords);
-    } catch (e) {
-      setError(
-        "Falha no reconhecimento facial: " +
-          (e instanceof Error ? e.message : String(e))
-      );
-    } finally {
       setVerificando(false);
     }
+
+    if (!canCapturar) return;
+    onCapture(dataUrl, coords);
   }
 
   return (
