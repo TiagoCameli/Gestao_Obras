@@ -20,6 +20,7 @@ import LancamentoFinanceiroForm from '../components/financeiro/LancamentoFinance
 import LancamentoDetalheDrawer from '../components/financeiro/LancamentoDetalheDrawer';
 import Modal from '../components/ui/Modal';
 import Button from '../components/ui/Button';
+import ConfirmDialog from '../components/ui/ConfirmDialog';
 import { useToast } from '../components/ui/Toast';
 import { useFornecedores } from '../hooks/useFornecedores';
 import { useEmpresas } from '../hooks/useEmpresas';
@@ -88,6 +89,10 @@ export default function Financeiro() {
   const [formDirty, setFormDirty] = useState(false);
   // Drawer de detalhes (visualização) — abre ao clicar numa linha da lista
   const [detalheLanc, setDetalheLanc] = useState<LancamentoFinanceiro | null>(null);
+  // ConfirmDialog state pras ações do drawer (substituem window.confirm)
+  const [fecharRef, setFecharRef] = useState<LancamentoFinanceiro | null>(null);
+  const [reabrirRef, setReabrirRef] = useState<LancamentoFinanceiro | null>(null);
+  const [excluirRef, setExcluirRef] = useState<LancamentoFinanceiro | null>(null);
   // Mantém referência fresca quando a query do React Query reidrata o array
   const detalheLancFresco = detalheLanc
     ? (lancamentos.find((x) => x.id === detalheLanc.id) ?? detalheLanc)
@@ -231,42 +236,72 @@ export default function Financeiro() {
             }
           : undefined}
         onFechar={podeFechar && detalheLancFresco && !detalheLancFresco.fechado
-          ? async () => {
-              if (!detalheLancFresco) return;
-              if (!window.confirm(`Fechar lançamento ${detalheLancFresco.numero}? Edição fica travada — pagamentos continuam permitidos.`)) return;
-              try {
-                await fecharMut.mutateAsync(detalheLancFresco.id);
-                showToast({ kind: 'success', message: `Lançamento fechado.` });
-              } catch (err) {
-                showToast({ kind: 'error', message: err instanceof Error ? err.message : 'Erro.' });
-              }
-            }
+          ? () => setFecharRef(detalheLancFresco)
           : undefined}
         onReabrir={podeReabrir && detalheLancFresco?.fechado
-          ? async () => {
-              if (!detalheLancFresco) return;
-              if (!window.confirm(`Reabrir lançamento ${detalheLancFresco.numero}? Edição volta a ficar liberada.`)) return;
-              try {
-                await reabrirMut.mutateAsync(detalheLancFresco.id);
-                showToast({ kind: 'success', message: `Lançamento reaberto.` });
-              } catch (err) {
-                showToast({ kind: 'error', message: err instanceof Error ? err.message : 'Erro.' });
-              }
-            }
+          ? () => setReabrirRef(detalheLancFresco)
           : undefined}
         onExcluir={podeExcluir && detalheLancFresco && !detalheLancFresco.fechado
-          ? async () => {
-              if (!detalheLancFresco) return;
-              if (!window.confirm(`Excluir lançamento ${detalheLancFresco.numero}? Esta ação é soft-delete e pode ser revertida via banco.`)) return;
-              try {
-                await excluirMut.mutateAsync(detalheLancFresco);
-                showToast({ kind: 'success', message: `Lançamento excluído.` });
-                setDetalheLanc(null);
-              } catch (err) {
-                showToast({ kind: 'error', message: err instanceof Error ? err.message : 'Erro.' });
-              }
-            }
+          ? () => setExcluirRef(detalheLancFresco)
           : undefined}
+      />
+
+      <ConfirmDialog
+        open={fecharRef !== null}
+        onClose={() => setFecharRef(null)}
+        title={`Fechar lançamento ${fecharRef?.numero ?? ''}`}
+        message="Edição fica travada — pagamentos continuam permitidos."
+        requirePassword={false}
+        onConfirm={async () => {
+          if (!fecharRef) return;
+          try {
+            await fecharMut.mutateAsync(fecharRef.id);
+            showToast({ kind: 'success', message: 'Lançamento fechado.' });
+          } catch (err) {
+            showToast({ kind: 'error', message: err instanceof Error ? err.message : 'Erro.' });
+          } finally {
+            setFecharRef(null);
+          }
+        }}
+      />
+
+      <ConfirmDialog
+        open={reabrirRef !== null}
+        onClose={() => setReabrirRef(null)}
+        title={`Reabrir lançamento ${reabrirRef?.numero ?? ''}`}
+        message="Edição volta a ficar liberada."
+        requirePassword={false}
+        onConfirm={async () => {
+          if (!reabrirRef) return;
+          try {
+            await reabrirMut.mutateAsync(reabrirRef.id);
+            showToast({ kind: 'success', message: 'Lançamento reaberto.' });
+          } catch (err) {
+            showToast({ kind: 'error', message: err instanceof Error ? err.message : 'Erro.' });
+          } finally {
+            setReabrirRef(null);
+          }
+        }}
+      />
+
+      <ConfirmDialog
+        open={excluirRef !== null}
+        onClose={() => setExcluirRef(null)}
+        title={`Excluir lançamento ${excluirRef?.numero ?? ''}`}
+        message="Soft-delete — pode ser revertida via banco se necessário."
+        requirePassword={false}
+        onConfirm={async () => {
+          if (!excluirRef) return;
+          try {
+            await excluirMut.mutateAsync(excluirRef);
+            showToast({ kind: 'success', message: 'Lançamento excluído.' });
+            setDetalheLanc(null);
+          } catch (err) {
+            showToast({ kind: 'error', message: err instanceof Error ? err.message : 'Erro.' });
+          } finally {
+            setExcluirRef(null);
+          }
+        }}
       />
     </div>
   );

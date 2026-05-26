@@ -80,6 +80,7 @@ export default function HistoricoTab() {
   const [pendingDelete, setPendingDelete] = useState<
     | { kind: "ponto"; id: string; resumo: string }
     | { kind: "servico"; id: string; resumo: string }
+    | { kind: "ausencia"; id: string; resumo: string }
     | null
   >(null);
 
@@ -102,8 +103,11 @@ export default function HistoricoTab() {
     if (!pendingDelete) return;
     if (pendingDelete.kind === "ponto") {
       await deletePontoM.mutateAsync(pendingDelete.id);
-    } else {
+    } else if (pendingDelete.kind === "servico") {
       await deleteServM.mutateAsync(pendingDelete.id);
+    } else {
+      // kind === "ausencia"
+      await removerAus.mutateAsync(pendingDelete.id);
     }
     setPendingDelete(null);
   }
@@ -472,13 +476,11 @@ export default function HistoricoTab() {
                 a.dataInicio === a.dataFim
                   ? fmtData(a.dataInicio)
                   : `${fmtData(a.dataInicio)} → ${fmtData(a.dataFim)}`;
-              if (
-                window.confirm(
-                  `Remover: ${tipoLabel} de ${f?.nome ?? "—"} (${periodo})?`
-                )
-              ) {
-                removerAus.mutate(a.id);
-              }
+              setPendingDelete({
+                kind: "ausencia",
+                id: a.id,
+                resumo: `${tipoLabel} de ${f?.nome ?? "—"} (${periodo})`,
+              });
             }}
           />
         )}
@@ -488,7 +490,13 @@ export default function HistoricoTab() {
         open={pendingDelete !== null}
         onClose={() => setPendingDelete(null)}
         onConfirm={confirmDelete}
-        title={pendingDelete?.kind === "ponto" ? "Excluir batida" : "Excluir apontamento"}
+        title={
+          pendingDelete?.kind === "ponto"
+            ? "Excluir batida"
+            : pendingDelete?.kind === "ausencia"
+              ? "Remover ausência"
+              : "Excluir apontamento"
+        }
         message={
           pendingDelete
             ? `Deseja excluir: ${pendingDelete.resumo}? Esta ação não pode ser desfeita.`
