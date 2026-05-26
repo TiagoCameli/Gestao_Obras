@@ -39,6 +39,7 @@ import {
 } from '../../../types';
 import type { OrdemServico, StatusOS } from '../../../types';
 import Button from '../../ui/Button';
+import ConfirmDialog from '../../ui/ConfirmDialog';
 import { STATUS_COLOR, PRIORIDADE_COLOR, TIPO_COLOR } from './styles';
 import MudarStatusOSModal from './MudarStatusOSModal';
 import EditarDiagnosticoOSModal from './EditarDiagnosticoOSModal';
@@ -552,6 +553,38 @@ export default function OSDetalhe() {
           usuarioNome={usuario?.nome ?? ''}
         />
       )}
+
+      <ConfirmDialog
+        open={excluirPecaId !== null}
+        onClose={() => setExcluirPecaId(null)}
+        onConfirm={async () => {
+          if (!excluirPecaId) return;
+          try {
+            await excluirPecaMut.mutateAsync({ pecaId: excluirPecaId, osId: os.id });
+          } finally {
+            setExcluirPecaId(null);
+          }
+        }}
+        title="Excluir peça"
+        message="Confirma a exclusão desta peça da OS?"
+        requirePassword={false}
+      />
+
+      <ConfirmDialog
+        open={excluirMoId !== null}
+        onClose={() => setExcluirMoId(null)}
+        onConfirm={async () => {
+          if (!excluirMoId) return;
+          try {
+            await excluirMOMut.mutateAsync({ moId: excluirMoId, osId: os.id });
+          } finally {
+            setExcluirMoId(null);
+          }
+        }}
+        title="Excluir mão de obra"
+        message="Confirma a exclusão deste lançamento de mão de obra?"
+        requirePassword={false}
+      />
     </div>
   );
 }
