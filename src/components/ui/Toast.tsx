@@ -5,7 +5,7 @@
 //   2. Em qualquer componente, chame `const { showToast } = useToast();`.
 //   3. showToast({ kind: 'success', message: 'Frete criado!' });
 //
-// Tipos: 'success' (verde), 'error' (vermelho), 'info' (cinza).
+// Tipos: 'success' (verde), 'error' (vermelho), 'warning' (amarelo), 'info' (cinza).
 // Cada toast some sozinho em 4s; usuário pode fechar antes no X.
 //
 // Decisão de design: provider próprio em vez de lib externa para manter o bundle
@@ -15,7 +15,7 @@ import { createContext, useCallback, useContext, useEffect, useRef, useState } f
 import type { ReactNode } from 'react';
 import { CheckCircle2, AlertCircle, Info, X } from 'lucide-react';
 
-export type ToastKind = 'success' | 'error' | 'info';
+export type ToastKind = 'success' | 'error' | 'warning' | 'info';
 
 export interface ToastInput {
   kind?: ToastKind;
@@ -103,6 +103,13 @@ function ToastItemView({ toast, onDismiss }: { toast: ToastItem; onDismiss: () =
       border: 'border-red-200 dark:border-red-800',
       icon: 'text-red-600 dark:text-red-400',
       text: 'text-red-900 dark:text-red-100',
+    },
+    warning: {
+      Icon: AlertCircle,
+      bg: 'bg-amber-50 dark:bg-amber-950/60',
+      border: 'border-amber-200 dark:border-amber-800',
+      icon: 'text-amber-600 dark:text-amber-400',
+      text: 'text-amber-900 dark:text-amber-100',
     },
     info: {
       Icon: Info,

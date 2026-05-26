@@ -1074,7 +1074,7 @@ export default function RegistroPontoTab() {
                   ? " — Motivos: " + erroRegrasPorFunc.join("; ")
                   : "";
                 // Lote tem mix de sucesso e falhas; usa kind apropriado.
-                const kind = fail > 0 ? 'warning' : (sucesso + enfileirados > 0 ? 'success' : 'info');
+                const kind = fail > 0 ? 'warning' : (ok + enfileirados > 0 ? 'success' : 'info');
                 showToast({ kind, message: resumo + detalheRegras });
               }}
             >
