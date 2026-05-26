@@ -303,3 +303,23 @@
 
   color-scheme: dark;
 }
+
+/* ============================================================================
+ * prefers-reduced-motion — respeita a preferência do SO/browser.
+ *
+ * Tailwind + shadcn aplicam transitions e animations em muitos lugares
+ * (Modal/Drawer entrance, Tabs slide, hover fades). Usuários com sensibilidade
+ * vestibular pedem ao OS que reduza motion — devemos honrar isso global.
+ *
+ * Estratégia: quase-zero (1ms) ao invés de zero literal, pra que ainda
+ * dispare onTransitionEnd/onAnimationEnd (alguns componentes dependem).
+ * Scroll behavior também vira auto pra não interpolar.
+ * ============================================================================ */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 1ms !important;
+    scroll-behavior: auto !important;
+  }
+}
