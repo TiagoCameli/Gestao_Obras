@@ -51,6 +51,10 @@ interface SmartSelectProps {
   title?: string;
   /** Para uso em testes ou refs externas. */
   'aria-label'?: string;
+  /** Sinaliza ao SR que o valor é inválido (ex: erro de validação). */
+  'aria-invalid'?: boolean;
+  /** Vincula o botão a um elemento descritor (ex: id do <p> de erro). */
+  'aria-describedby'?: string;
   /**
    * Renderiza o popup via React Portal (position: fixed) — evita clipping
    * quando o componente está dentro de containers com `overflow: hidden`,
@@ -271,6 +275,8 @@ export default function SmartSelect({
         aria-haspopup="listbox"
         aria-expanded={open}
         aria-label={rest['aria-label']}
+        aria-invalid={rest['aria-invalid']}
+        aria-describedby={rest['aria-describedby']}
         disabled={disabled}
         className={`${btnClassName} flex items-center justify-between gap-2 ${disabled ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer'}`}
         onClick={() => {

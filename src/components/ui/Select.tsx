@@ -1,4 +1,4 @@
-import type { SelectHTMLAttributes } from 'react';
+import { useId, type SelectHTMLAttributes } from 'react';
 import SmartSelect from './SmartSelect';
 
 interface Option {
@@ -30,14 +30,22 @@ export default function Select({
   disabled,
   required,
   title,
+  'aria-describedby': ariaDescribedBy,
   ...rest
 }: SelectProps) {
   void rest; // ignora atributos extras incompatíveis (size, multiple, etc.)
+  const autoId = useId();
+  const selectId = id ?? autoId;
+  const errorId = `${selectId}-error`;
+  const describedBy = [ariaDescribedBy, error ? errorId : undefined]
+    .filter(Boolean)
+    .join(' ') || undefined;
+
   return (
     <div>
       {label !== undefined && (
         <label
-          htmlFor={id}
+          htmlFor={selectId}
           className="block text-xs font-medium text-[var(--color-fg-muted)] mb-1.5 tracking-wide"
         >
           {label}
@@ -47,7 +55,7 @@ export default function Select({
         </label>
       )}
       <SmartSelect
-        id={id}
+        id={selectId}
         name={name}
         value={typeof value === 'string' || typeof value === 'number' ? value : ''}
         onChange={onChange}
@@ -55,6 +63,8 @@ export default function Select({
         required={required}
         placeholder={placeholder}
         title={title}
+        aria-invalid={error ? true : undefined}
+        aria-describedby={describedBy}
         className={
           'w-full h-[42px] rounded-lg px-3 py-2 text-sm text-left ' +
           'bg-[var(--color-surface-1)] text-[var(--color-fg)] ' +
@@ -73,7 +83,9 @@ export default function Select({
         ))}
       </SmartSelect>
       {error && (
-        <p className="text-[var(--color-danger)] text-xs mt-1">{error}</p>
+        <p id={errorId} className="text-[var(--color-danger)] text-xs mt-1">
+          {error}
+        </p>
       )}
     </div>
   );

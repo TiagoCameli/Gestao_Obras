@@ -1,4 +1,4 @@
-import { forwardRef, type InputHTMLAttributes } from 'react';
+import { forwardRef, useId, type InputHTMLAttributes } from 'react';
 
 interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
   /** Label opcional. Quando omitido, o Input não renderiza o <label> próprio —
@@ -8,9 +8,19 @@ interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
 }
 
 const Input = forwardRef<HTMLInputElement, InputProps>(function Input(
-  { label, error, id, className = '', ...props },
+  { label, error, id, className = '', 'aria-describedby': ariaDescribedBy, ...props },
   ref,
 ) {
+  // Gera id estável pra ligar erro/label ↔ input via aria. Usa o `id` do
+  // caller se passado; senão cria via useId() pra não conflitar entre instances.
+  const autoId = useId();
+  const inputId = id ?? autoId;
+  const errorId = `${inputId}-error`;
+  // Merge aria-describedby do caller com o id do erro (quando há erro).
+  const describedBy = [ariaDescribedBy, error ? errorId : undefined]
+    .filter(Boolean)
+    .join(' ') || undefined;
+
   const base =
     'w-full h-[42px] rounded-lg px-3 py-2 text-sm ' +
     'bg-[var(--color-surface-1)] text-[var(--color-fg)] ' +
@@ -27,7 +37,7 @@ const Input = forwardRef<HTMLInputElement, InputProps>(function Input(
     <div>
       {label !== undefined && (
         <label
-          htmlFor={id}
+          htmlFor={inputId}
           className="block text-xs font-medium text-[var(--color-fg-muted)] mb-1.5 tracking-wide"
         >
           {label}
@@ -36,11 +46,17 @@ const Input = forwardRef<HTMLInputElement, InputProps>(function Input(
       )}
       <input
         ref={ref}
-        id={id}
+        id={inputId}
+        aria-invalid={error ? true : undefined}
+        aria-describedby={describedBy}
         className={`${base} ${errorCls} ${readOnlyCls} ${className}`}
         {...props}
       />
-      {error && <p className="text-[var(--color-danger)] text-xs mt-1">{error}</p>}
+      {error && (
+        <p id={errorId} className="text-[var(--color-danger)] text-xs mt-1">
+          {error}
+        </p>
+      )}
     </div>
   );
 });
