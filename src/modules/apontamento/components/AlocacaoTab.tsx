@@ -6,6 +6,7 @@ import Select from "../../../components/ui/Select";
 import SmartSelect from "../../../components/ui/SmartSelect";
 import Modal from "../../../components/ui/Modal";
 import ConfirmDialog from "../../../components/ui/ConfirmDialog";
+import { useToast } from "../../../components/ui/Toast";
 import {
   useAlocarFuncionarios,
   useCreateEquipe,
@@ -469,6 +470,7 @@ function EquipeForm({
   const [nome, setNome] = useState(initial?.nome ?? "");
   const [obraIds, setObraIds] = useState<string[]>(initial?.obraIds ?? []);
   const [saving, setSaving] = useState(false);
+  const { showToast } = useToast();
 
   function toggleObra(id: string) {
     setObraIds((prev) =>
@@ -489,7 +491,7 @@ function EquipeForm({
             encarregadoId: initial?.encarregadoId ?? null,
           });
         } catch (err) {
-          alert(`Falha: ${err instanceof Error ? err.message : String(err)}`);
+          showToast({ kind: 'error', message: `Falha: ${err instanceof Error ? err.message : String(err)}` });
         } finally {
           setSaving(false);
         }

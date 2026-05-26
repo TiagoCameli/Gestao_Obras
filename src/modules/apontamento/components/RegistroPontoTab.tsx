@@ -5,6 +5,7 @@ import Select from "../../../components/ui/Select";
 import Input from "../../../components/ui/Input";
 import Modal from "../../../components/ui/Modal";
 import ConfirmDialog from "../../../components/ui/ConfirmDialog";
+import { useToast } from "../../../components/ui/Toast";
 import { useAuth } from "../../../contexts/AuthContext";
 import { useOfflineSync } from "../../../hooks/useOfflineSync";
 import { enqueueBatidaPonto } from "../../../lib/offlineQueue";
@@ -85,6 +86,7 @@ function hojeIso() {
 
 export default function RegistroPontoTab() {
   const qc = useQueryClient();
+  const { showToast } = useToast();
   const { usuario, temAcao } = useAuth();
   const canRegistrar = temAcao("registrar_ponto");
   const canRegistrarLote = temAcao("registrar_ponto_lote");
@@ -284,7 +286,7 @@ export default function RegistroPontoTab() {
       qc.invalidateQueries({ queryKey: pendenciasKey });
       setCapturando(null);
     } catch (e) {
-      alert(mensagemErroBatida(e));
+      showToast({ kind: 'error', message: mensagemErroBatida(e) });
     }
   }
 
@@ -347,7 +349,7 @@ export default function RegistroPontoTab() {
       qc.invalidateQueries({ queryKey: registrosKey });
       qc.invalidateQueries({ queryKey: pendenciasKey });
     } catch (e) {
-      alert(mensagemErroBatida(e));
+      showToast({ kind: 'error', message: mensagemErroBatida(e) });
     }
   }
 
@@ -430,7 +432,7 @@ export default function RegistroPontoTab() {
         .map((r) => r.tipoBatida)
     );
     if (jaBatidos.has(quickTipo)) {
-      alert(`${func.nome} já registrou ${TIPO_BATIDA_LABEL[quickTipo]} hoje.`);
+      showToast({ kind: 'warning', message: `${func.nome} já registrou ${TIPO_BATIDA_LABEL[quickTipo]} hoje.` });
       return { match: false, distancia: res.distancia, threshold: res.threshold };
     }
     matchedRef.current = { funcionario: func, tipo: quickTipo };
@@ -457,14 +459,15 @@ export default function RegistroPontoTab() {
       matchResultRef.current = null;
       qc.invalidateQueries({ queryKey: registrosKey });
       qc.invalidateQueries({ queryKey: pendenciasKey });
-      alert(
-        `✅ ${m.funcionario.nome} — ${TIPO_BATIDA_LABEL[m.tipo]} registrada.`
-      );
+      showToast({
+        kind: 'success',
+        message: `${m.funcionario.nome} — ${TIPO_BATIDA_LABEL[m.tipo]} registrada.`,
+      });
       matchedRef.current = null;
       setQuickOpen(false);
       setQuickTipo(null);
     } catch (e) {
-      alert(mensagemErroBatida(e));
+      showToast({ kind: 'error', message: mensagemErroBatida(e) });
     }
   }
 
@@ -1068,9 +1071,11 @@ export default function RegistroPontoTab() {
                 if (fail > 0) partes.push(`${fail} falha${fail !== 1 ? "s" : ""}`);
                 const resumo = partes.join(" · ") || "Nada para registrar";
                 const detalheRegras = erroRegrasPorFunc.length > 0
-                  ? "\n\nMotivos:\n" + erroRegrasPorFunc.join("\n")
+                  ? " — Motivos: " + erroRegrasPorFunc.join("; ")
                   : "";
-                alert(resumo + detalheRegras);
+                // Lote tem mix de sucesso e falhas; usa kind apropriado.
+                const kind = fail > 0 ? 'warning' : (sucesso + enfileirados > 0 ? 'success' : 'info');
+                showToast({ kind, message: resumo + detalheRegras });
               }}
             >
               {loteSalvando ? "Registrando…" : `Registrar para ${loteIds.size}`}
@@ -1287,6 +1292,7 @@ function EditarHoraModal({
   onSaved: () => void;
 }) {
   const { temAcao } = useAuth();
+  const { showToast } = useToast();
   const canEditar = temAcao("editar_batida_ponto");
   const [hora, setHora] = useState("");
   const [saving, setSaving] = useState(false);
@@ -1322,7 +1328,7 @@ function EditarHoraModal({
               await atualizarHoraBatida(registro.id, novaIso);
               onSaved();
             } catch (err) {
-              alert(mensagemErroBatida(err));
+              showToast({ kind: 'error', message: mensagemErroBatida(err) });
             } finally {
               setSaving(false);
             }
@@ -1543,6 +1549,7 @@ function LancamentoManualModal({
   onClose: () => void;
   onSaved: () => void;
 }) {
+  const { showToast } = useToast();
   const [tipo, setTipo] = useState<TipoBatida>("saida_final");
   const [hora, setHora] = useState<string>("17:30");
   const [motivo, setMotivo] = useState<string>("");
@@ -1567,7 +1574,7 @@ function LancamentoManualModal({
           onSubmit={async (e) => {
             e.preventDefault();
             if (!motivo.trim()) {
-              alert("Justificativa é obrigatória.");
+              showToast({ kind: 'error', message: 'Justificativa é obrigatória.' });
               return;
             }
             setSaving(true);
@@ -1586,7 +1593,7 @@ function LancamentoManualModal({
               });
               onSaved();
             } catch (err) {
-              alert(mensagemErroBatida(err));
+              showToast({ kind: 'error', message: mensagemErroBatida(err) });
             } finally {
               setSaving(false);
             }
