@@ -92,6 +92,9 @@ export default function OSDetalhe() {
 
   const [statusModalOpen, setStatusModalOpen] = useState(false);
   const [diagModalOpen, setDiagModalOpen] = useState(false);
+  // ConfirmDialog state pra exclusão de peças e mão de obra
+  const [excluirPecaId, setExcluirPecaId] = useState<string | null>(null);
+  const [excluirMoId, setExcluirMoId] = useState<string | null>(null);
   const [pecaModalOpen, setPecaModalOpen] = useState(false);
   const [moModalOpen, setMOModalOpen] = useState(false);
 
@@ -157,18 +160,16 @@ export default function OSDetalhe() {
     await adicionarMOMut.mutateAsync(mo);
   }
 
-  async function handleExcluirPeca(pecaId: string) {
+  function handleExcluirPeca(pecaId: string) {
     if (!os) return;
     if (!canAddPeca) return;
-    if (!window.confirm('Remover esta peça da OS? O custo será recalculado.')) return;
-    await excluirPecaMut.mutateAsync({ pecaId, osId: os.id });
+    setExcluirPecaId(pecaId);
   }
 
-  async function handleExcluirMO(moId: string) {
+  function handleExcluirMO(moId: string) {
     if (!os) return;
     if (!canAddMO) return;
-    if (!window.confirm('Remover este apontamento de horas?')) return;
-    await excluirMOMut.mutateAsync({ moId, osId: os.id });
+    setExcluirMoId(moId);
   }
 
   const insumoNome = (id: string) => insumos.find((i) => i.id === id)?.nome ?? id;
