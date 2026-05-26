@@ -81,7 +81,9 @@ function buildDefaults(initial: Funcionario | null | undefined): FuncionarioRhFo
     ctps: initial?.ctps ?? "",
     dataNascimento: initial?.dataNascimento ?? "",
     funcao: initial?.funcao ?? "",
-    tipoVinculo: initial?.tipoVinculo ?? "CLT",
+    // Schema do form não aceita 'diarista' (já migrado pra prestador_servico —
+    // ver fix #12 do audit). Funcionários antigos com 'diarista' → mapear.
+    tipoVinculo: (initial?.tipoVinculo === "diarista" ? "prestador_servico" : initial?.tipoVinculo) ?? "CLT",
     salarioBase: initial?.salarioBase ?? (undefined as unknown as number),
     dataAdmissao: initial?.dataAdmissao ?? new Date().toISOString().slice(0, 10),
     dataDemissao: initial?.dataDemissao ?? "",

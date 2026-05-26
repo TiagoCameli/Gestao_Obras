@@ -1,4 +1,4 @@
-import type { InputHTMLAttributes } from 'react';
+import { forwardRef, type InputHTMLAttributes } from 'react';
 
 interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
   /** Label opcional. Quando omitido, o Input não renderiza o <label> próprio —
@@ -7,7 +7,10 @@ interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
   error?: string;
 }
 
-export default function Input({ label, error, id, className = '', ...props }: InputProps) {
+const Input = forwardRef<HTMLInputElement, InputProps>(function Input(
+  { label, error, id, className = '', ...props },
+  ref,
+) {
   const base =
     'w-full h-[42px] rounded-lg px-3 py-2 text-sm ' +
     'bg-[var(--color-surface-1)] text-[var(--color-fg)] ' +
@@ -32,6 +35,7 @@ export default function Input({ label, error, id, className = '', ...props }: In
         </label>
       )}
       <input
+        ref={ref}
         id={id}
         className={`${base} ${errorCls} ${readOnlyCls} ${className}`}
         {...props}
@@ -39,4 +43,6 @@ export default function Input({ label, error, id, className = '', ...props }: In
       {error && <p className="text-[var(--color-danger)] text-xs mt-1">{error}</p>}
     </div>
   );
-}
+});
+
+export default Input;

@@ -13,7 +13,7 @@
 import { useState, useMemo, useCallback, useEffect } from 'react';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import type { Equipamento, Empresa, TipoMedicao } from '../../types';
+import type { Equipamento, Empresa } from '../../types';
 import { getCategoriaFrota, registrarCategoriaDinamica } from '../../lib/frotaConstants';
 import { useTiposEquipamento, useAdicionarTipoEquipamento } from '../../hooks/useTiposEquipamento';
 import Input from '../ui/Input';
@@ -70,7 +70,9 @@ function buildDefaults(initial: Equipamento | null | undefined): EquipamentoFrot
     modelo: initial?.modelo || '',
     propriedade: initial?.propriedade || 'propria',
     status: initial?.status || 'ativa',
-    tipoMedicao: initial?.tipoMedicao || 'horimetro',
+    // Schema do form aceita só 'horimetro' | 'odometro'. Equipamentos antigos
+    // podem ter 'km' — mapear pra 'odometro' (semanticamente equivalente).
+    tipoMedicao: (initial?.tipoMedicao === 'km' ? 'odometro' : initial?.tipoMedicao) || 'horimetro',
     medicaoInicial: initial?.medicaoInicial ?? 0,
     ativo: initial?.ativo !== false,
     dataAquisicao: initial?.dataAquisicao || '',
