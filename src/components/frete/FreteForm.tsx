@@ -16,7 +16,7 @@
  *  - Bloqueio de submit por permissão (canAct) + isValid
  */
 import { useCallback, useEffect, useState } from 'react';
-import { useForm } from 'react-hook-form';
+import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import type { Frete, Obra, Insumo, Localidade } from '../../types';
 import Input from '../ui/Input';
@@ -107,6 +107,7 @@ export default function FreteForm({
   // ── react-hook-form + Zod ────────────────────────────────────────────────
   const {
     register,
+    control,
     handleSubmit: rhfHandleSubmit,
     watch,
     setValue,
@@ -299,25 +300,39 @@ export default function FreteForm({
           error={errors.data?.message}
           {...register('data')}
         />
-        <Select
-          label="Obra (opcional)"
-          id="freteObraId"
-          options={obras.map((o) => ({ value: o.id, label: o.nome }))}
-          placeholder="Selecione a obra"
-          error={errors.obraId?.message}
-          {...register('obraId')}
+        <Controller
+          name="obraId"
+          control={control}
+          render={({ field }) => (
+            <Select
+              label="Obra (opcional)"
+              id="freteObraId"
+              value={field.value}
+              onChange={(e) => field.onChange(e.target.value)}
+              options={obras.map((o) => ({ value: o.id, label: o.nome }))}
+              placeholder="Selecione a obra"
+              error={errors.obraId?.message}
+            />
+          )}
         />
 
         {/* Origem */}
         <div>
-          <Select
-            label="Origem"
-            id="freteOrigem"
-            options={localidadesAtivas.map((l) => ({ value: l.nome, label: l.nome }))}
-            placeholder="Selecione a origem"
-            required
-            error={errors.origem?.message}
-            {...register('origem')}
+          <Controller
+            name="origem"
+            control={control}
+            render={({ field }) => (
+              <Select
+                label="Origem"
+                id="freteOrigem"
+                value={field.value}
+                onChange={(e) => field.onChange(e.target.value)}
+                options={localidadesAtivas.map((l) => ({ value: l.nome, label: l.nome }))}
+                placeholder="Selecione a origem"
+                required
+                error={errors.origem?.message}
+              />
+            )}
           />
           {!novaOrigemAberta ? (
             <button
@@ -378,14 +393,21 @@ export default function FreteForm({
 
         {/* Destino */}
         <div>
-          <Select
-            label="Destino"
-            id="freteDestino"
-            options={localidadesAtivas.map((l) => ({ value: l.nome, label: l.nome }))}
-            placeholder="Selecione o destino"
-            required
-            error={errors.destino?.message}
-            {...register('destino')}
+          <Controller
+            name="destino"
+            control={control}
+            render={({ field }) => (
+              <Select
+                label="Destino"
+                id="freteDestino"
+                value={field.value}
+                onChange={(e) => field.onChange(e.target.value)}
+                options={localidadesAtivas.map((l) => ({ value: l.nome, label: l.nome }))}
+                placeholder="Selecione o destino"
+                required
+                error={errors.destino?.message}
+              />
+            )}
           />
           {!novaDestinoAberta ? (
             <button
@@ -444,14 +466,21 @@ export default function FreteForm({
           )}
         </div>
 
-        <Select
-          label="Transportadora"
-          id="freteTransportadora"
-          options={transportadoras.map((t) => ({ value: t, label: t }))}
-          placeholder="Selecione a transportadora"
-          required
-          error={errors.transportadora?.message}
-          {...register('transportadora')}
+        <Controller
+          name="transportadora"
+          control={control}
+          render={({ field }) => (
+            <Select
+              label="Transportadora"
+              id="freteTransportadora"
+              value={field.value}
+              onChange={(e) => field.onChange(e.target.value)}
+              options={transportadoras.map((t) => ({ value: t, label: t }))}
+              placeholder="Selecione a transportadora"
+              required
+              error={errors.transportadora?.message}
+            />
+          )}
         />
         <Input
           label="Motorista"
@@ -462,14 +491,21 @@ export default function FreteForm({
           error={errors.motorista?.message}
           {...register('motorista')}
         />
-        <Select
-          label="Material Transportado"
-          id="freteInsumoId"
-          options={insumos.map((i) => ({ value: i.id, label: i.nome }))}
-          placeholder="Selecione o material"
-          required
-          error={errors.insumoId?.message}
-          {...register('insumoId')}
+        <Controller
+          name="insumoId"
+          control={control}
+          render={({ field }) => (
+            <Select
+              label="Material Transportado"
+              id="freteInsumoId"
+              value={field.value}
+              onChange={(e) => field.onChange(e.target.value)}
+              options={insumos.map((i) => ({ value: i.id, label: i.nome }))}
+              placeholder="Selecione o material"
+              required
+              error={errors.insumoId?.message}
+            />
+          )}
         />
         <Input
           label="Peso (toneladas)"
