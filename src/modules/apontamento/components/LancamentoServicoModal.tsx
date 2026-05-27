@@ -395,7 +395,16 @@ export default function LancamentoServicoModal({
                   <FilterCombobox
                     value={l.servicoId}
                     onChange={(v) => patchLinha(l.uid, { servicoId: v })}
-                    options={servicoOpts}
+                    options={servicoOpts.filter(
+                      (o) =>
+                        o.value === l.servicoId ||
+                        !linhas.some(
+                          (other) =>
+                            other.uid !== l.uid &&
+                            other.tipo === "produtivo" &&
+                            other.servicoId === o.value,
+                        ),
+                    )}
                     placeholder={
                       servicos.length === 0
                         ? "Nenhum item nesta obra"
