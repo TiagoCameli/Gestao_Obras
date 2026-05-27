@@ -120,3 +120,80 @@ D-2 (SECDEF), D-3 (obra deletada → pasta avulsa), D-4 revisada (lock pessimist
 
 - **Playwright E2E** — sem UI ainda. E2E real fica para a Onda 3 (UI de pastas + drop zone de upload).
 - **Cron de limpeza de bytes soft-deletados** — tarefa futura (após 30 dias do `deleted_at`).
+
+---
+
+## Onda 3 — UI de Pastas (2026-05-27)
+
+### Banco
+
+- **1 trigger SECDEF**: `engenharia_pastas_check_no_cycle()` — BEFORE UPDATE of `parent_id` em `engenharia_pastas`.
+  - Rejeita `new.parent_id = NEW.id` (self-parent).
+  - Rejeita se `new.parent_id` está nos descendentes de `NEW.id` (ciclo) via CTE recursiva.
+  - Permite `new.parent_id = NULL` (pasta vira raiz).
+  - REVOKE EXECUTE de anon/authenticated/public — só roda via trigger.
+
+### shadcn components adicionados
+
+- `context-menu` — right-click em FolderCard.
+- `skeleton` — loading states em listings.
+- `breadcrumb` — navegação Engenharia / Pasta atual.
+
+### Frontend (`src/modules/engenharia/`)
+
+- `types/pasta.ts` — `EngenhariaPasta` (camelCase) + `EngenhariaPastaRow` (snake_case) + `dbToEngenhariaPasta()` mapper.
+- `hooks/useEngenhariaPastas.ts` — 7 queries/mutators com `@tanstack/react-query`:
+  - `useEngenhariaPastasRaizes()` — home `/engenharia`.
+  - `useEngenhariaPastasFilhas(parentId)` — sidebar tree lazy + listing.
+  - `useEngenhariaPasta(id)` — detalhe da pasta atual.
+  - `useCriarPasta()` — calcula caminho via parent.
+  - `useRenomearPasta()`.
+  - `useMoverPasta()` — auto-ajusta tipo (subpasta/avulsa).
+  - `useSoftDeletePasta()` — set `deleted_at`.
+- `components/`:
+  - `FolderCard.tsx` — Card + ContextMenu (Abrir/Renomear/Mover/Excluir) com gates por permissão e AlertDialog pro soft-delete.
+  - `FolderTree.tsx` — sidebar recursivo com lazy-load por expansão.
+  - `FolderBreadcrumb.tsx` — Engenharia / atual.
+  - `FileDropZone.tsx` — drag-and-drop + botão "Selecionar arquivos" (consome `arquivosService` da Onda 2).
+  - `CriarPastaDialog.tsx`, `RenomearPastaDialog.tsx`, `MoverPastaDialog.tsx` — RHF+Zod, shadcn Dialog.
+- `pages/`:
+  - `EngenhariaPage.tsx` — home com 2 seções (Obras + Avulsas) + botão "Nova pasta avulsa".
+  - `PastaPage.tsx` — sidebar tree + breadcrumb + listing + dropzone + dropdown "Novo" (subpasta agora; nota/cálculo desabilitados aguardando Ondas 4/5).
+
+### Rotas
+
+- `/engenharia` (lazy) — gateada por `ProtectedRoute acao="ver_engenharia"`.
+- `/engenharia/pasta/:id` (lazy) — idem.
+- Link em `Header.tsx` entre Obras e Cadastros, active-match prefix.
+- Entrada em `PAGINAS_FALLBACK`: `{ acao: 'ver_engenharia', rota: '/engenharia' }`.
+
+### Migrations (1 par fix+rollback)
+
+| Timestamp | Conteúdo |
+|---|---|
+| `20260527120000` | Trigger anti-ciclo + REVOKE EXECUTE |
+
+### Testes
+
+- 1 Vitest existente (23 da Onda 2) continua verde.
+- Playwright E2E `tests/engenharia-pastas.spec.ts` — 5 cenários:
+  1. Home `/engenharia` mostra seções Obras e Avulsas.
+  2. Criar pasta avulsa via dialog.
+  3. Navegar para pasta e criar subpasta via dropdown "Novo".
+  4. Soft-delete via context-menu + AlertDialog.
+  5. Renomear pasta de obra mostra item disabled com tag "via Obras".
+
+### Verificação
+
+- Smoke test SQL do trigger: 3 cenários OK (ciclo bloqueado, self-parent bloqueado, move válido aceito).
+- `npx tsc -b`: 0 erros em `engenharia/`, `App.tsx`, `Header.tsx` (erros em rodotracker são de trabalho concorrente).
+- 6+1 commits do módulo Engenharia nesta onda (subagent fez 5, mais 1 wrap-up de context-menu).
+
+### Limitações conhecidas v1
+
+- **Breadcrumb mostra só "Engenharia / Pasta Atual"** — render completo da cadeia exige parsing do `caminho` ou query recursiva. Refinamento (~30 min) fica para Onda 8 (polish).
+- **DnD para mover pastas** — não nesta onda. Move via dialog basta MVP. DnD com @dnd-kit é refinamento Onda 8.
+
+### Onda 3.2 (refinamento incluído)
+
+- Subagent original deixou rename/delete acessíveis apenas via Dialog (sem entry-point). Wave 3.2 wirou `ContextMenu` dentro do `FolderCard` com `Renomear / Mover / Excluir` e destravou os 2 Playwright tests correspondentes.

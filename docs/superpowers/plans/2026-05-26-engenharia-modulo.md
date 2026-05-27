@@ -484,9 +484,13 @@ erDiagram
 
 ---
 
-### Onda 3 — UI de pastas (FolderTree + Breadcrumb + CRUD) (8–10h)
+### Onda 3 — UI de pastas (FolderTree + Breadcrumb + CRUD) (8–10h) ✅ CONCLUÍDA 2026-05-27
 
-**Plano TDD próprio:** `2026-XX-XX-engenharia-onda-3-pastas-ui.md`.
+**Plano TDD próprio:** [`2026-05-27-engenharia-onda-3-pastas-ui.md`](2026-05-27-engenharia-onda-3-pastas-ui.md) — 10 tasks executadas (Tasks 1-4 inline, Tasks 5-9 via subagent, Task 10 + refinamento context-menu inline).
+
+**CHANGELOG:** [`docs/modulos/engenharia/CHANGELOG.md`](../../modulos/engenharia/CHANGELOG.md#onda-3--ui-de-pastas-2026-05-27).
+
+**Resultado:** Trigger anti-ciclo + 3 shadcn (context-menu/skeleton/breadcrumb) + 7 hooks + 7 components + 2 pages + 2 rotas + link Header + 5 Playwright tests. ~16 commits.
 
 **Entregas:**
 - Rotas `/engenharia` e `/engenharia/pasta/:id` no `App.tsx`.
