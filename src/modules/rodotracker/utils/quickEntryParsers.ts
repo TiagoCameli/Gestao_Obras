@@ -14,3 +14,17 @@ export function parseKm(input: string): number | null {
   const n = parseFloat(cleaned);
   return Number.isFinite(n) ? n : null;
 }
+
+/** Parseia "620-635", "620–635", "620,1-635,5", "KM 620 a 635". Erro se kmFinal ≤ kmInicial. */
+export function parseTrecho(input: string): { kmInicial: number; kmFinal: number } | null {
+  const s = String(input ?? "").trim();
+  if (!s) return null;
+  const matches = s.match(/\d+(?:[.,]\d+)?/g);
+  if (!matches || matches.length < 2) return null;
+  const kmInicial = parseFloat(matches[0].replace(",", "."));
+  const kmFinal = parseFloat(matches[1].replace(",", "."));
+  if (!Number.isFinite(kmInicial) || !Number.isFinite(kmFinal)) return null;
+  if (kmFinal <= kmInicial) return null;
+  return { kmInicial, kmFinal };
+}
+

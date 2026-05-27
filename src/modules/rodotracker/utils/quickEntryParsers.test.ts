@@ -12,3 +12,15 @@ describe("parseKm", () => {
   it("vazio → null", () => expect(parseKm("")).toBeNull());
   it("trim espaços", () => expect(parseKm("  620  ")).toBe(620));
 });
+
+import { parseTrecho } from "./quickEntryParsers";
+
+describe("parseTrecho", () => {
+  it("hífen", () => expect(parseTrecho("620-635")).toEqual({ kmInicial: 620, kmFinal: 635 }));
+  it("en-dash", () => expect(parseTrecho("620–635")).toEqual({ kmInicial: 620, kmFinal: 635 }));
+  it("decimais com vírgula", () => expect(parseTrecho("620,1-635,5")).toEqual({ kmInicial: 620.1, kmFinal: 635.5 }));
+  it("formato 'KM 620 a 635'", () => expect(parseTrecho("KM 620 a 635")).toEqual({ kmInicial: 620, kmFinal: 635 }));
+  it("kmFinal ≤ kmInicial → null", () => expect(parseTrecho("635-620")).toBeNull());
+  it("um número só → null", () => expect(parseTrecho("620")).toBeNull());
+  it("vazio → null", () => expect(parseTrecho("")).toBeNull());
+});
