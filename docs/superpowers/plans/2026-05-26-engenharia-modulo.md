@@ -455,9 +455,13 @@ erDiagram
 
 ---
 
-### Onda 2 — Storage de arquivos + serviço de upload (6–8h)
+### Onda 2 — Storage de arquivos + serviço de upload (6–8h) ✅ CONCLUÍDA 2026-05-26
 
-**Plano TDD próprio:** `2026-XX-XX-engenharia-onda-2-storage.md`.
+**Plano TDD próprio:** [`2026-05-26-engenharia-onda-2-storage.md`](2026-05-26-engenharia-onda-2-storage.md) — 6 tasks executadas inline + Onda 2.2 (security fix) extra.
+
+**CHANGELOG:** [`docs/modulos/engenharia/CHANGELOG.md`](../../modulos/engenharia/CHANGELOG.md#onda-2--storage-de-arquivos-2026-05-26).
+
+**Resultado:** Bucket privado `engenharia-arquivos` + 4 policies storage.objects + service completo (3 arquivos: path/mime/service) + REVOKE EXECUTE security hardening em 5 funções SECDEF. 23 testes Vitest, dep `file-type@^22.0.1`. 6 commits.
 
 **Entregas:**
 - Bucket `engenharia-arquivos` (privado) criado via Supabase Skill.
