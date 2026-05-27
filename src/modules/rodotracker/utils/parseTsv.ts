@@ -16,7 +16,7 @@ export interface CellPos {
  * (anchor). Retorna NOVA lista (não muta). Cria linhas extras se paste excede
  * — usando `makeEmptyRow` (caller deve passar quando precisar de novas linhas).
  */
-export function distributePaste<TRow extends Record<string, unknown>, TKey extends keyof TRow>(
+export function distributePaste<TRow, TKey extends keyof TRow>(
   rows: TRow[],
   cols: TKey[],
   paste: string[][],
@@ -34,7 +34,7 @@ export function distributePaste<TRow extends Record<string, unknown>, TKey exten
       const targetColIdx = anchor.col + j;
       if (targetColIdx >= cols.length) break;
       const colKey = cols[targetColIdx];
-      (targetRow as Record<string, unknown>)[colKey as string] = paste[i][j];
+      (targetRow as Record<keyof TRow, string>)[colKey] = paste[i][j];
     }
   }
   return out;
