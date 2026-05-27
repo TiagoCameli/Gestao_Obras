@@ -136,6 +136,10 @@ export function HistoricoVersoesDrawer({
                     </span>
                   </div>
 
+                  <div className="mt-2">
+                    <VersaoPreview conteudoJson={versao.conteudoJson} />
+                  </div>
+
                   <div className="mt-2 flex items-center gap-2">
                     <Button
                       type="button"
@@ -202,6 +206,20 @@ export function HistoricoVersoesDrawer({
         </AlertDialogContent>
       </AlertDialog>
     </>
+  );
+}
+
+function VersaoPreview({ conteudoJson }: { conteudoJson: unknown }) {
+  const preview = useMemo(() => {
+    const texto = extrairTextoPlain(conteudoJson);
+    return texto.length > 120 ? `${texto.slice(0, 120).trimEnd()}…` : texto;
+  }, [conteudoJson]);
+
+  if (!preview) return null;
+  return (
+    <p className="text-xs text-muted-foreground line-clamp-2 whitespace-pre-wrap">
+      {preview}
+    </p>
   );
 }
 
