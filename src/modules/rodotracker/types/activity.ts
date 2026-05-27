@@ -124,6 +124,7 @@ export interface CbuqCarga {
   placa: string;
   hora?: string;     // HH:mm
   pesoT: number;     // peso líquido em toneladas
+  descricao?: string; // descrição livre da carga (ex: tipo de mistura aplicada)
 }
 
 /**
@@ -216,6 +217,12 @@ export interface Activity {
   photoIds: string[];           // kept for backward compat
   photoFolders: PhotoFolder[];  // new: named folders
   pdfs?: PdfFile[];             // document attachments (binaries in IndexedDB)
+  /** Posição topográfica (estaca de levantamento) — usada em TS/Dreno. */
+  estaca?: string;
+  /** Distância em metros do início da estaca — usada em TS/Dreno. */
+  fracao?: string;
+  /** Identificador do trecho (ex: "TS15/07"), agrupador de TS+drenos. */
+  nomenclatura?: string;
   createdAt: number;
   updatedAt: number;
 }
