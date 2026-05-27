@@ -407,6 +407,24 @@ export default function SaidaCombustivelForm({
     !tanqueSelecionado.ehExterno &&
     litros > saldoTanqueNaData;
 
+  // Bloqueia salvar quando o tipo de combustível da saída diverge do que está
+  // atualmente no tanque (situação que ocorre ao editar saída antiga depois
+  // que o tanque foi esvaziado e reabastecido com outro tipo).
+  const tipoCombustivelForm = watch('tipoCombustivel');
+  const tipoIncompativel =
+    origem === 'tanque' &&
+    !!tanqueSelecionado &&
+    !tanqueSelecionado.ehExterno &&
+    !!tipoCombustivelDoTanque &&
+    !!tipoCombustivelForm &&
+    tipoCombustivelForm !== tipoCombustivelDoTanque;
+  const tipoCombustivelSaidaNome = tipoIncompativel
+    ? (listaCombustiveis.find((c) => c.id === tipoCombustivelForm)?.nome ?? '—')
+    : '';
+  const tipoCombustivelTanqueNome = tipoIncompativel
+    ? (listaCombustiveis.find((c) => c.id === tipoCombustivelDoTanque)?.nome ?? '—')
+    : '';
+
   // Tanque com proprietária externa (Transterra/Areacre): split de preço.
   const tanqueExterno = !!tanqueSelecionado?.transportadoraProprietariaId;
   const proprietariaNomeAtual = tanqueExterno
@@ -523,7 +541,7 @@ export default function SaidaCombustivelForm({
     return faltam;
   }, [data, obraId, litros, precoUnitario, origem, tipoConsumidor, equipamentoId, tanqueId]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const isValid = rhfIsValid && !saldoInsuficiente;
+  const isValid = rhfIsValid && !saldoInsuficiente && !tipoIncompativel;
 
   // ── Auth ──
   const { temAcao } = useAuth();
@@ -537,6 +555,12 @@ export default function SaidaCombustivelForm({
   // ── Submit ──
   const onSubmitForm = async (formData: SaidaCombustivelFormValues) => {
     if (!canAct) return;
+    if (tipoIncompativel) {
+      setErro(
+        `Combustível incompatível: a saída é de ${tipoCombustivelSaidaNome}, mas o tanque hoje tem ${tipoCombustivelTanqueNome}.`
+      );
+      return;
+    }
     setSubmitting(true);
     setErro(null);
     try {
@@ -1032,6 +1056,14 @@ export default function SaidaCombustivelForm({
                 <div className="px-3 py-2 rounded-lg bg-gray-100 dark:bg-slate-700 text-gray-800 dark:text-slate-200 text-sm">
                   {listaCombustiveis.find((c) => c.id === tipoCombustivelDoTanque)?.nome ?? '—'}
                 </div>
+                {tipoIncompativel && (
+                  <div className="mt-2 px-3 py-2 rounded-lg bg-red-50 dark:bg-red-900/20 text-red-800 dark:text-red-300 text-sm border border-red-200 dark:border-red-800">
+                    Esta saída foi lançada como <strong>{tipoCombustivelSaidaNome}</strong>,
+                    mas o tanque hoje contém <strong>{tipoCombustivelTanqueNome}</strong>.
+                    Editar aqui descontaria do estoque atual ({tipoCombustivelTanqueNome}).
+                    Mude o tanque ou estorne esta saída.
+                  </div>
+                )}
               </div>
             ) : (
               <div>
