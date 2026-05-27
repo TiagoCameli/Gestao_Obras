@@ -9,6 +9,7 @@ export interface Servico {
   nome: string;
   codigo: string | null;
   unidade: string | null;
+  obraId: string | null;
 }
 
 export type LadoServico = "direito" | "esquerdo" | "ambos";
@@ -82,12 +83,12 @@ export async function listServicosDaObra(
   if (!obraId) return [];
   const { data, error } = await supabase
     .from("rodotracker_contract_items")
-    .select("id, code, name, unit")
+    .select("id, code, name, unit, obra_id")
     .eq("obra_id", obraId)
     .order("code", { ascending: true });
   throwIfError(error, "listServicosDaObra");
-  return ((data ?? []) as { id: string; code: string | null; name: string; unit: string | null }[]).map(
-    (r) => ({ id: r.id, nome: r.name, codigo: r.code, unidade: r.unit })
+  return ((data ?? []) as { id: string; code: string | null; name: string; unit: string | null; obra_id: string | null }[]).map(
+    (r) => ({ id: r.id, nome: r.name, codigo: r.code, unidade: r.unit, obraId: r.obra_id })
   );
 }
 
@@ -173,10 +174,10 @@ export async function listApontamentosServicoRange(
 export async function listTodosServicos(): Promise<Servico[]> {
   const { data, error } = await supabase
     .from("rodotracker_contract_items")
-    .select("id, code, name, unit");
+    .select("id, code, name, unit, obra_id");
   throwIfError(error, "listTodosServicos");
-  return ((data ?? []) as { id: string; code: string | null; name: string; unit: string | null }[]).map(
-    (r) => ({ id: r.id, nome: r.name, codigo: r.code, unidade: r.unit })
+  return ((data ?? []) as { id: string; code: string | null; name: string; unit: string | null; obra_id: string | null }[]).map(
+    (r) => ({ id: r.id, nome: r.name, codigo: r.code, unidade: r.unit, obraId: r.obra_id })
   );
 }
 
