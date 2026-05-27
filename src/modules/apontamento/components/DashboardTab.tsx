@@ -13,9 +13,19 @@ import {
 } from "../utils/apontamentoServicoApi";
 import { useFuncionarios, useObrasApont, useEquipesApont } from "../hooks/useApontamentoData";
 import SmartSelect from "../../../components/ui/SmartSelect";
+import DataTable from "../../../components/ui/DataTable";
+import type { ColumnDef } from "@tanstack/react-table";
+import { ChevronRight } from "lucide-react";
+import {
+  agregarHorasPorFuncionario,
+  type LinhaFunc,
+} from "../utils/dashboardHorasFuncionario";
 
 function todayIso() {
   return new Date().toISOString().slice(0, 10);
+}
+function formatHoras(n: number): string {
+  return n.toFixed(1).replace(".", ",");
 }
 function isoDaysAgo(days: number) {
   const d = new Date();
@@ -89,6 +99,10 @@ export default function DashboardTab() {
   const servicosById = useMemo(
     () => new Map((servicos as Servico[]).map((s) => [s.id, s])),
     [servicos]
+  );
+  const obrasById = useMemo(
+    () => new Map(obras.map((o) => [o.id, o])),
+    [obras]
   );
 
   // ─── KPIs ───────────────────────────────────────────────────────────
@@ -188,6 +202,66 @@ export default function DashboardTab() {
       .sort((a, b) => b.horas - a.horas)
       .slice(0, 8);
   }, [apontamentos, servicosById]);
+
+  // ─── Horas por funcionário (tabela detalhada) ───────────────────────
+  const horasPorFuncionario = useMemo(
+    () => agregarHorasPorFuncionario(apontamentos, funcsById, servicosById, obrasById),
+    [apontamentos, funcsById, servicosById, obrasById]
+  );
+
+  const horasColumns: ColumnDef<LinhaFunc>[] = [
+    {
+      id: "expander",
+      header: () => null,
+      cell: ({ row }) => (
+        <button
+          type="button"
+          aria-label={row.getIsExpanded() ? "Recolher detalhes" : "Expandir detalhes"}
+          aria-expanded={row.getIsExpanded()}
+          onClick={(e) => { e.stopPropagation(); row.toggleExpanded(); }}
+          className="inline-flex items-center justify-center w-6 h-6 rounded hover:bg-[var(--color-surface-2)] transition-colors"
+        >
+          <ChevronRight
+            aria-hidden
+            className={
+              "w-4 h-4 text-[var(--color-fg-muted)] transition-transform " +
+              (row.getIsExpanded() ? "rotate-90" : "")
+            }
+          />
+        </button>
+      ),
+      size: 32,
+      enableSorting: false,
+    },
+    {
+      accessorKey: "funcionarioNome",
+      header: "Funcionário",
+      cell: ({ getValue }) => (
+        <span className="font-medium text-[var(--color-fg)]">{getValue() as string}</span>
+      ),
+    },
+    {
+      accessorKey: "horasProd",
+      header: () => <span className="block text-right">Horas</span>,
+      cell: ({ getValue }) => (
+        <span className="block text-right tabular-nums">{formatHoras(getValue() as number)}</span>
+      ),
+    },
+    {
+      accessorKey: "obrasCount",
+      header: () => <span className="block text-right">Obras</span>,
+      cell: ({ getValue }) => (
+        <span className="block text-right tabular-nums">{getValue() as number}</span>
+      ),
+    },
+    {
+      accessorKey: "servicosCount",
+      header: () => <span className="block text-right">Serviços</span>,
+      cell: ({ getValue }) => (
+        <span className="block text-right tabular-nums">{getValue() as number}</span>
+      ),
+    },
+  ];
 
   return (
     <div className="space-y-6">
@@ -363,6 +437,75 @@ export default function DashboardTab() {
           </ResponsiveContainer>
         )}
       </ChartCard>
+
+      {/* ─── Tabela: Horas por funcionário (detalhado) ───────────────────── */}
+      <section className="space-y-3">
+        <div>
+          <h2 className="text-base font-semibold text-[var(--color-fg)]">
+            Horas por funcionário (detalhado)
+          </h2>
+          <p className="text-xs text-[var(--color-fg-muted)] mt-0.5">
+            Clique no chevron pra ver obras e serviços.
+          </p>
+        </div>
+
+        <DataTable<LinhaFunc>
+          columns={horasColumns}
+          data={horasPorFuncionario}
+          isLoading={isLoading}
+          defaultSorting={[{ id: "horasProd", desc: true }]}
+          getRowId={(r) => r.funcionarioId}
+          enableExpanding
+          renderExpanded={(linha) => <HorasExpanded linha={linha} />}
+          empty={{
+            title: "Sem horas apontadas neste período",
+            description: "Ajuste o intervalo no topo do dashboard ou aguarde novos apontamentos.",
+          }}
+          pageSize={25}
+          persistPageSizeKey="apont-dash-horas-func-pagesize"
+          renderFooter={(rows) => {
+            const totalH = rows.reduce((acc, r) => acc + r.horasProd, 0);
+            return (
+              <span className="text-xs text-[var(--color-fg-muted)]">
+                {rows.length} {rows.length === 1 ? "funcionário" : "funcionários"}
+                {" · "}{formatHoras(totalH)} horas
+              </span>
+            );
+          }}
+        />
+      </section>
+    </div>
+  );
+}
+
+function HorasExpanded({ linha }: { linha: LinhaFunc }) {
+  return (
+    <div className="px-4 py-3 bg-[var(--color-surface-2)]">
+      <table className="w-full text-sm" role="region" aria-label={`Detalhes de ${linha.funcionarioNome}`}>
+        <thead>
+          <tr className="text-xs text-[var(--color-fg-muted)] border-b border-[var(--color-border)]">
+            <th className="text-left py-2 font-medium">Obra</th>
+            <th className="text-left py-2 font-medium">Serviço</th>
+            <th className="text-right py-2 font-medium">Horas</th>
+            <th className="text-right py-2 font-medium pr-2">%</th>
+          </tr>
+        </thead>
+        <tbody>
+          {linha.detalhes.map((d, i) => (
+            <tr key={i} className="border-b border-[var(--color-border)]/40">
+              <td className="py-1.5">{d.obraNome}</td>
+              <td className="py-1.5">{d.servicoNome}</td>
+              <td className="py-1.5 text-right tabular-nums">{formatHoras(d.horas)}</td>
+              <td className="py-1.5 text-right tabular-nums pr-2">{d.percentual.toFixed(1)}%</td>
+            </tr>
+          ))}
+          <tr className="font-semibold">
+            <td className="pt-2" colSpan={2}>Total</td>
+            <td className="pt-2 text-right tabular-nums">{formatHoras(linha.horasProd)}</td>
+            <td className="pt-2 text-right tabular-nums pr-2">100,0%</td>
+          </tr>
+        </tbody>
+      </table>
     </div>
   );
 }
