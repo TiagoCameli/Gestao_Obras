@@ -60,3 +60,63 @@ D-2 (SECDEF), D-3 (obra deletada → pasta avulsa), D-4 revisada (lock pessimist
 - `npx tsc -b`: 0 erros.
 - `npx vitest run src/utils/permissions.test.ts`: 14/14 passing.
 - 5 commits do módulo Engenharia + 1 commit do schema.sql.
+
+---
+
+## Onda 2 — Storage de arquivos (2026-05-26)
+
+### Banco
+
+- Bucket privado `engenharia-arquivos` (50 MB limite, 20 MIME types: PDF/Office/Excel/imagens/DWG/CSV/ZIP).
+- 4 policies em `storage.objects` (per-command), gated por chaves Engenharia:
+  - SELECT: `ver_engenharia`
+  - INSERT: `upload_engenharia_arquivo`
+  - UPDATE: `upload_engenharia_arquivo`
+  - DELETE: `excluir_engenharia_arquivo` OR `excluir_permanente_engenharia`
+- **Security hardening (Onda 2.2):** REVOKE EXECUTE das 5 funções SECDEF de:
+  - `engenharia_after_insert_obra`, `engenharia_after_update_obra_nome`, `engenharia_before_delete_obra` — bloqueado de TODOS (anon/authenticated/public). São triggers, não devem ser chamadas via RPC.
+  - `engenharia_acquire_lock`, `engenharia_release_lock` — bloqueado de anon/public (mantém grant para authenticated).
+  - Elimina 8 dos 10 WARNs "SECDEF callable" do advisor; 2 remanescentes (authenticated x lock) são comportamento esperado.
+
+### Frontend
+
+- `src/modules/engenharia/services/` (novo diretório do módulo):
+  - `arquivosPath.ts` — helpers puros: `slugify`, `extractExtension`, `buildStoragePath`.
+  - `arquivosMime.ts` — constantes: `TAMANHO_MAX_BYTES` (50 MB), `MIME_PERMITIDOS` (20), `EXTENSOES_BLOQUEADAS` (26).
+  - `arquivosService.ts` — 3 funções: `uploadArquivo`, `getSignedUrl`, `softDeleteArquivo`.
+
+### Validação de upload (4 camadas)
+
+1. Tamanho > 0 e ≤ 50 MB.
+2. Extensão NÃO está na lista de 26 bloqueadas (`.exe`, `.bat`, `.sh`, `.scr`, `.dll`, `.jar`, `.app`, `.vbs`, `.js`, `.lnk`, etc.).
+3. MIME real (bytes via `file-type`) está em `MIME_PERMITIDOS`.
+4. Cleanup best-effort: se INSERT no DB falhar após upload, deleta o objeto do storage.
+
+### Lib nova
+
+- `file-type@^22.0.1` (~30 KB gzip).
+
+### Migrations (3 pares fix+rollback)
+
+| Timestamp | Conteúdo |
+|---|---|
+| `20260527100000` | Bucket privado + 4 policies em `storage.objects` |
+| `20260527110000` | REVOKE EXECUTE nas 5 funções SECDEF (security hardening) |
+
+### Testes
+
+- 12 Vitest em `arquivosPath.test.ts` (helpers puros: slugify/extractExtension/buildStoragePath).
+- 11 Vitest em `arquivosService.test.ts` (mock supabase + file-type; cobre validações + cleanup + signed URL + soft-delete).
+- Total: **23 testes verdes**.
+
+### Verificação
+
+- `mcp get_advisors security`: 8 WARNs corrigidos (SECDEF revoke); 2 remanescentes são esperados.
+- `npx tsc -b`: 0 erros.
+- Bucket + 4 policies confirmados via `execute_sql`.
+- 6 commits do módulo Engenharia nesta onda.
+
+### Não feitos nesta onda (intencional)
+
+- **Playwright E2E** — sem UI ainda. E2E real fica para a Onda 3 (UI de pastas + drop zone de upload).
+- **Cron de limpeza de bytes soft-deletados** — tarefa futura (após 30 dias do `deleted_at`).
