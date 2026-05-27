@@ -28,3 +28,32 @@ export function parseTrecho(input: string): { kmInicial: number; kmFinal: number
   return { kmInicial, kmFinal };
 }
 
+/**
+ * Parseia data em "dd/mm/aaaa", "dd-mm-aaaa" ou "aaaa-mm-dd". Retorna ISO
+ * "yyyy-mm-dd" (wall-clock, sem TZ). Null se inválido.
+ */
+export function parseData(input: string): string | null {
+  const s = String(input ?? "").trim();
+  if (!s) return null;
+  let day: number, month: number, year: number;
+  const iso = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+  if (iso) {
+    year = parseInt(iso[1], 10);
+    month = parseInt(iso[2], 10);
+    day = parseInt(iso[3], 10);
+  } else {
+    const br = s.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/);
+    if (!br) return null;
+    day = parseInt(br[1], 10);
+    month = parseInt(br[2], 10);
+    year = parseInt(br[3], 10);
+  }
+  if (month < 1 || month > 12) return null;
+  if (day < 1 || day > 31) return null;
+  const dt = new Date(Date.UTC(year, month - 1, day));
+  if (dt.getUTCDate() !== day || dt.getUTCMonth() !== month - 1) return null;
+  const mm = String(month).padStart(2, "0");
+  const dd = String(day).padStart(2, "0");
+  return `${year}-${mm}-${dd}`;
+}
+

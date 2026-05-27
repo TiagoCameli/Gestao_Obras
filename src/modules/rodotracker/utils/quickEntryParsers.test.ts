@@ -24,3 +24,17 @@ describe("parseTrecho", () => {
   it("um número só → null", () => expect(parseTrecho("620")).toBeNull());
   it("vazio → null", () => expect(parseTrecho("")).toBeNull());
 });
+
+import { parseData } from "./quickEntryParsers";
+
+describe("parseData", () => {
+  it("dd/mm/aaaa", () => expect(parseData("21/05/2026")).toBe("2026-05-21"));
+  it("dd-mm-aaaa", () => expect(parseData("21-05-2026")).toBe("2026-05-21"));
+  it("aaaa-mm-dd (ISO já)", () => expect(parseData("2026-05-21")).toBe("2026-05-21"));
+  it("um dígito de dia/mês", () => expect(parseData("3/5/2026")).toBe("2026-05-03"));
+  it("trim espaços", () => expect(parseData("  21/05/2026  ")).toBe("2026-05-21"));
+  it("texto inválido → null", () => expect(parseData("21 de maio")).toBeNull());
+  it("vazio → null", () => expect(parseData("")).toBeNull());
+  it("data inexistente (32/05) → null", () => expect(parseData("32/05/2026")).toBeNull());
+  it("mês inválido → null", () => expect(parseData("21/13/2026")).toBeNull());
+});
