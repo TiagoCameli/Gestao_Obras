@@ -135,6 +135,9 @@ type ActivityRow = {
   photo_ids: string[] | null;
   photo_folders: Activity["photoFolders"] | null;
   pdfs: Activity["pdfs"] | null;
+  estaca: string | null;
+  fracao: string | null;
+  nomenclatura: string | null;
   created_at: number;
   updated_at: number;
 };
@@ -165,6 +168,9 @@ function rowToActivity(r: ActivityRow): Activity {
     photoIds: r.photo_ids ?? [],
     photoFolders: r.photo_folders ?? [],
     pdfs: r.pdfs ?? undefined,
+    estaca: r.estaca ?? undefined,
+    fracao: r.fracao ?? undefined,
+    nomenclatura: r.nomenclatura ?? undefined,
     createdAt: r.created_at,
     updatedAt: r.updated_at,
   };
@@ -202,6 +208,9 @@ function activityToRow(
     photo_ids: a.photoIds ?? [],
     photo_folders: a.photoFolders ?? [],
     pdfs: a.pdfs ?? null,
+    estaca: a.estaca ?? null,
+    fracao: a.fracao ?? null,
+    nomenclatura: a.nomenclatura ?? null,
     created_at: a.createdAt,
     updated_at: a.updatedAt,
   };
