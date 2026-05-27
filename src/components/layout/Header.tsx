@@ -8,6 +8,7 @@ const links: { to: string; label: string; acao?: string }[] = [
   { to: '/cadastros', label: 'Cadastros', acao: 'ver_cadastros' },
   { to: '/', label: 'Dashboard', acao: 'ver_dashboard' },
   { to: '/obras', label: 'Obras', acao: 'ver_obras' },
+  { to: '/engenharia', label: 'Engenharia', acao: 'ver_engenharia' },
   { to: '/compras', label: 'Compras', acao: 'ver_compras' },
   { to: '/financeiro', label: 'Financeiro', acao: 'ver_financeiro' },
   { to: '/frete', label: 'Frete', acao: 'ver_frete' },
@@ -26,6 +27,7 @@ function isActive(pathname: string, to: string): boolean {
   if (to === '/compras') return pathname === '/compras' || pathname.startsWith('/compras/');
   if (to === '/depositos') return pathname === '/depositos' || pathname.startsWith('/depositos/');
   if (to === '/manutencao') return pathname === '/manutencao' || pathname.startsWith('/manutencao/');
+  if (to === '/engenharia') return pathname === '/engenharia' || pathname.startsWith('/engenharia/');
   return pathname === to;
 }
 
