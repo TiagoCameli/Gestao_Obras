@@ -629,3 +629,89 @@ INSERT INTO unidades_medida (id, nome, sigla, ativo) VALUES
   ('seed_unidade_6', 'Saco', 'saco', true),
   ('seed_unidade_7', 'Tonelada (t)', 'tonelada', true)
 ON CONFLICT (id) DO NOTHING;
+
+-- ============================================================
+-- ── N. Engenharia (módulo workspace de obras)
+--    Espelha migrations 20260526150000–20260526180000 (Onda 1).
+--    Spec: docs/superpowers/plans/2026-05-26-engenharia-modulo.md
+-- ============================================================
+
+-- Tabelas (índices, RLS policies, triggers e funções estão nas migrations específicas).
+CREATE TABLE IF NOT EXISTS engenharia_pastas (
+  id              uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  parent_id       uuid NULL REFERENCES engenharia_pastas(id) ON DELETE CASCADE,
+  obra_id         text NULL REFERENCES obras(id) ON DELETE SET NULL,
+  nome            text NOT NULL,
+  tipo            text NOT NULL CHECK (tipo IN ('obra','avulsa','subpasta')),
+  caminho         text NOT NULL,
+  criado_por      uuid REFERENCES auth.users(id),
+  criado_em       timestamptz NOT NULL DEFAULT now(),
+  atualizado_em   timestamptz NOT NULL DEFAULT now(),
+  deleted_at      timestamptz NULL
+);
+
+CREATE TABLE IF NOT EXISTS engenharia_notas (
+  id              uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  pasta_id        uuid NOT NULL REFERENCES engenharia_pastas(id) ON DELETE CASCADE,
+  titulo          text NOT NULL,
+  conteudo_json   jsonb NOT NULL DEFAULT '{}'::jsonb,
+  versao          int NOT NULL DEFAULT 1,
+  criado_por      uuid REFERENCES auth.users(id),
+  criado_em       timestamptz NOT NULL DEFAULT now(),
+  atualizado_em   timestamptz NOT NULL DEFAULT now(),
+  deleted_at      timestamptz NULL
+);
+
+CREATE TABLE IF NOT EXISTS engenharia_notas_versoes (
+  id              uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  nota_id         uuid NOT NULL REFERENCES engenharia_notas(id) ON DELETE CASCADE,
+  versao          int NOT NULL,
+  conteudo_json   jsonb NOT NULL,
+  autor_id        uuid REFERENCES auth.users(id),
+  criado_em       timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS engenharia_calculos (
+  id              uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  pasta_id        uuid NOT NULL REFERENCES engenharia_pastas(id) ON DELETE CASCADE,
+  titulo          text NOT NULL,
+  documento_json  jsonb NOT NULL DEFAULT '{}'::jsonb,
+  alerta_ativo    boolean NOT NULL DEFAULT true,
+  versao          int NOT NULL DEFAULT 1,
+  criado_por      uuid REFERENCES auth.users(id),
+  criado_em       timestamptz NOT NULL DEFAULT now(),
+  atualizado_em   timestamptz NOT NULL DEFAULT now(),
+  deleted_at      timestamptz NULL
+);
+
+CREATE TABLE IF NOT EXISTS engenharia_calculos_versoes (
+  id              uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  calculo_id      uuid NOT NULL REFERENCES engenharia_calculos(id) ON DELETE CASCADE,
+  versao          int NOT NULL,
+  documento_json  jsonb NOT NULL,
+  autor_id        uuid REFERENCES auth.users(id),
+  criado_em       timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS engenharia_arquivos (
+  id              uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  pasta_id        uuid NOT NULL REFERENCES engenharia_pastas(id) ON DELETE CASCADE,
+  nome_original   text NOT NULL,
+  extensao        text NOT NULL,
+  mime_type       text NOT NULL,
+  tamanho_bytes   bigint NOT NULL CHECK (tamanho_bytes > 0 AND tamanho_bytes <= 52428800),
+  storage_path    text NOT NULL UNIQUE,
+  checksum_sha256 text,
+  criado_por      uuid REFERENCES auth.users(id),
+  criado_em       timestamptz NOT NULL DEFAULT now(),
+  deleted_at      timestamptz NULL
+);
+
+CREATE TABLE IF NOT EXISTS engenharia_locks (
+  id              uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  recurso_tipo    text NOT NULL CHECK (recurso_tipo IN ('nota','calculo')),
+  recurso_id      uuid NOT NULL,
+  usuario_id      uuid NOT NULL REFERENCES auth.users(id),
+  expira_em       timestamptz NOT NULL,
+  criado_em       timestamptz NOT NULL DEFAULT now()
+);
