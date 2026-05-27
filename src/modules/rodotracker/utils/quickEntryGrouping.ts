@@ -1,9 +1,10 @@
-import type { Activity, Obra, CbuqCarga } from "../types/activity";
-import type { CbuqRow } from "./quickEntryValidators";
-import { parseData, parseTrecho } from "./quickEntryParsers";
+import type { Activity, Obra, CbuqCarga, LadoPista, TrocaSoloData } from "../types/activity";
+import type { CbuqRow, TsRow } from "./quickEntryValidators";
+import { parseData, parseTrecho, parseKm } from "./quickEntryParsers";
 import { parseNumber } from "./parseNumber";
 import { latLngFromKm } from "./latLngFromKm";
 import { calcCbuq } from "./cbuqCalc";
+import { calcTrocaSolo } from "./trocaSoloCalc";
 import { generateId } from "./format";
 
 function isBlankCbuq(r: CbuqRow): boolean {
@@ -66,6 +67,80 @@ export function groupCbuqRowsToActivities(
         cargas,
         contributions: calcCbuq(cargas).quantidades,
       },
+      createdAt: now,
+      updatedAt: now,
+    };
+    activities.push(activity);
+  }
+  return activities;
+}
+
+function ladoFromCode(code: TsRow["lado"]): LadoPista {
+  if (code === "D") return "Direito";
+  if (code === "E") return "Esquerdo";
+  return "Pista Toda";
+}
+
+export function groupTsRowsToActivities(
+  rows: TsRow[],
+  obra: Obra,
+  medicao: number,
+  categoria: "rotineira" | "passivo"
+): Activity[] {
+  const byNomenclatura = new Map<string, TsRow[]>();
+  for (const r of rows) {
+    const n = r.nomenclatura.trim();
+    if (!n) continue;
+    if (!byNomenclatura.has(n)) byNomenclatura.set(n, []);
+    byNomenclatura.get(n)!.push(r);
+  }
+  const now = Date.now();
+  const activities: Activity[] = [];
+  for (const [nomenclatura, group] of byNomenclatura) {
+    const tsRow = group.find((r) => r.tipo === "TS");
+    if (!tsRow) continue; // grupos só com drenos são ignorados
+    const drenoRows = group.filter((r) => r.tipo === "Dreno");
+    const data = parseData(tsRow.data);
+    const km = parseKm(tsRow.km);
+    if (!data || km == null) continue;
+    const pt = latLngFromKm(km, obra) ?? { lat: obra.centerLat, lng: obra.centerLng };
+    const drenos = drenoRows.map((d) => ({
+      comprimento: parseNumber(d.comprimento),
+      largura: parseNumber(d.largura),
+      espessura: parseNumber(d.espessura),
+    }));
+    const tsMedidas = {
+      comprimento: parseNumber(tsRow.comprimento),
+      largura: parseNumber(tsRow.largura),
+      espessura: parseNumber(tsRow.espessura),
+    };
+    const trocaSolo: TrocaSoloData = {
+      categoria,
+      medicaoNumber: medicao,
+      comprimento: tsMedidas.comprimento,
+      largura: tsMedidas.largura,
+      espessura: tsMedidas.espessura,
+      drenos,
+      contributions: calcTrocaSolo(categoria, tsMedidas, drenos).quantidades,
+    };
+    const activity: Activity = {
+      id: generateId(),
+      lat: pt.lat,
+      lng: pt.lng,
+      service: "Troca de Solo",
+      date: data,
+      medicao,
+      km: String(km),
+      lado: ladoFromCode(tsRow.lado),
+      areaRect: null,
+      description: "",
+      quantities: [],
+      photoIds: [],
+      photoFolders: [],
+      trocaSolo,
+      estaca: tsRow.estaca.trim() || undefined,
+      fracao: tsRow.fracao.trim() || undefined,
+      nomenclatura,
       createdAt: now,
       updatedAt: now,
     };

@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { groupCbuqRowsToActivities } from "./quickEntryGrouping";
-import type { CbuqRow } from "./quickEntryValidators";
+import { groupCbuqRowsToActivities, groupTsRowsToActivities } from "./quickEntryGrouping";
+import type { CbuqRow, TsRow } from "./quickEntryValidators";
 import type { Obra } from "../types/activity";
 
 const obra = {
@@ -65,5 +65,64 @@ describe("groupCbuqRowsToActivities", () => {
     const result = groupCbuqRowsToActivities(rows, obra, 1);
     expect(result).toHaveLength(1);
     expect(result[0].cbuq?.cargas).toHaveLength(1);
+  });
+});
+
+const baseTs = (over: Partial<TsRow> = {}): TsRow => ({
+  id: "r" + Math.random(),
+  data: "21/05/2026",
+  tipo: "TS",
+  nomenclatura: "TS15/07",
+  estaca: "380",
+  fracao: "10",
+  km: "620.5",
+  lado: "D",
+  comprimento: "26",
+  largura: "4.8",
+  espessura: "0.4",
+  ...over,
+});
+
+describe("groupTsRowsToActivities", () => {
+  it("TS + 2 drenos com mesma nomenclatura viram 1 Activity", () => {
+    const rows = [
+      baseTs(),
+      baseTs({ tipo: "Dreno", comprimento: "30", largura: "0.6", espessura: "0.5" }),
+      baseTs({ tipo: "Dreno", comprimento: "25", largura: "0.6", espessura: "0.5" }),
+    ];
+    const result = groupTsRowsToActivities(rows, obra, 1, "rotineira");
+    expect(result).toHaveLength(1);
+    expect(result[0].trocaSolo?.drenos).toHaveLength(2);
+    expect(result[0].nomenclatura).toBe("TS15/07");
+    expect(result[0].estaca).toBe("380");
+    expect(result[0].lado).toBe("Direito");
+    expect(result[0].trocaSolo?.categoria).toBe("rotineira");
+  });
+
+  it("2 nomenclaturas diferentes viram 2 Activities", () => {
+    const rows = [baseTs({ nomenclatura: "TS15/07" }), baseTs({ nomenclatura: "TS16/07" })];
+    const result = groupTsRowsToActivities(rows, obra, 1, "rotineira");
+    expect(result).toHaveLength(2);
+  });
+
+  it("lado D vira 'Direito', E vira 'Esquerdo', PT vira 'Pista Toda'", () => {
+    const r1 = groupTsRowsToActivities([baseTs({ lado: "D", nomenclatura: "A" })], obra, 1, "rotineira");
+    const r2 = groupTsRowsToActivities([baseTs({ lado: "E", nomenclatura: "B" })], obra, 1, "rotineira");
+    const r3 = groupTsRowsToActivities([baseTs({ lado: "PT", nomenclatura: "C" })], obra, 1, "rotineira");
+    expect(r1[0].lado).toBe("Direito");
+    expect(r2[0].lado).toBe("Esquerdo");
+    expect(r3[0].lado).toBe("Pista Toda");
+  });
+
+  it("ignora linhas sem nomenclatura", () => {
+    const rows = [baseTs(), baseTs({ nomenclatura: "" })];
+    const result = groupTsRowsToActivities(rows, obra, 1, "rotineira");
+    expect(result).toHaveLength(1);
+  });
+
+  it("grupo só com drenos (sem TS principal) é ignorado", () => {
+    const rows = [baseTs({ tipo: "Dreno", nomenclatura: "X" })];
+    const result = groupTsRowsToActivities(rows, obra, 1, "rotineira");
+    expect(result).toHaveLength(0);
   });
 });
