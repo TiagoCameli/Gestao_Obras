@@ -80,6 +80,8 @@ export default function PedidoMaterialForm({
     register,
     handleSubmit: rhfHandleSubmit,
     reset,
+    watch,
+    setValue,
     formState: { errors, isValid: rhfIsValid },
   } = useForm<PedidoMaterialFormValues>({
     resolver: zodResolver(pedidoMaterialFormSchema),
@@ -246,7 +248,12 @@ export default function PedidoMaterialForm({
           placeholder="Selecione o fornecedor"
           required
           error={errors.fornecedorId?.message}
-          {...register('fornecedorId')}
+          // Custom select (SmartSelect) precisa de value explícito —
+          // register sozinho não popula o display, só anexa onChange/ref.
+          value={watch('fornecedorId') ?? ''}
+          onChange={(e) =>
+            setValue('fornecedorId', e.target.value, { shouldValidate: true, shouldDirty: true })
+          }
         />
       </div>
 
