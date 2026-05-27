@@ -1,5 +1,5 @@
 import { useMemo, useState, useRef, useEffect } from "react";
-import { X, Plus, Ruler, Sparkles, Trash2, Search, FileSpreadsheet, FileDown, Pencil, Check } from "lucide-react";
+import { X, Plus, Ruler, Sparkles, Trash2, Search, FileSpreadsheet, FileDown, Pencil, Check, Zap } from "lucide-react";
 import type { Activity, Obra, ContractItem } from "../../types/activity";
 import { generateId } from "../../utils/format";
 import { useContractItems } from "../../hooks/useContractItems";
@@ -21,6 +21,7 @@ import {
   isAdminLocal,
 } from "../../utils/contractTree";
 import { ImportExcelModal } from "./ImportExcelModal";
+import { QuickEntrySheet } from "./QuickEntrySheet";
 import { useAuth } from "../../../../contexts/AuthContext";
 
 interface MeasurementViewProps {
@@ -53,6 +54,7 @@ export function MeasurementView({ obra, onClose }: MeasurementViewProps) {
   const { items, addItems, replaceAll } = useContractItems(obra.id);
   const [query, setQuery] = useState("");
   const [showImport, setShowImport] = useState(false);
+  const [showQuickEntry, setShowQuickEntry] = useState(false);
   const listRef = useRef<HTMLDivElement>(null);
   // Edit mode: read-only by default; on Editar we work on a draft copy
   // and only commit to localStorage when the user clicks Salvar.
@@ -342,6 +344,17 @@ export function MeasurementView({ obra, onClose }: MeasurementViewProps) {
             >
               <FileDown className="h-4 w-4" />
               Modelo
+            </button>
+          )}
+          {canEditItens && (
+            <button
+              onClick={() => setShowQuickEntry(true)}
+              className="btn btn-ghost"
+              style={{ padding: "9px 14px", fontSize: 12 }}
+              title="Lançamento rápido de atividades em planilha"
+            >
+              <Zap className="h-4 w-4" />
+              Lançamento rápido
             </button>
           )}
           {canImportContrato && (
@@ -638,6 +651,15 @@ export function MeasurementView({ obra, onClose }: MeasurementViewProps) {
             }
             setShowImport(false);
           }}
+        />
+      )}
+
+      {showQuickEntry && (
+        <QuickEntrySheet
+          open={showQuickEntry}
+          onClose={() => setShowQuickEntry(false)}
+          obra={obra}
+          medicao={currentMedicao}
         />
       )}
     </div>
