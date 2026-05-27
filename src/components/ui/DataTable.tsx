@@ -352,18 +352,22 @@ export default function DataTable<T>({
                   const canSort = h.column.getCanSort();
                   const sortDir = h.column.getIsSorted();
                   const SortIcon = !sortDir ? ArrowUpDown : sortDir === 'asc' ? ArrowUp : ArrowDown;
+                  // Suporte a alignment via columnDef.meta.align (default 'left')
+                  const align = (h.column.columnDef.meta as { align?: 'left' | 'right' | 'center' } | undefined)?.align ?? 'left';
+                  const alignCls = align === 'right' ? 'text-right' : align === 'center' ? 'text-center' : 'text-left';
+                  const flexAlignCls = align === 'right' ? 'justify-end' : align === 'center' ? 'justify-center' : '';
                   return (
                     <th
                       key={h.id}
                       onClick={canSort ? h.column.getToggleSortingHandler() : undefined}
                       className={
-                        'px-3 py-2.5 text-left text-2xs uppercase tracking-wider font-semibold text-[var(--color-fg-muted)] ' +
+                        `px-3 py-2.5 ${alignCls} text-2xs uppercase tracking-wider font-semibold text-[var(--color-fg-muted)] ` +
                         (canSort ? 'cursor-pointer hover:text-[var(--color-fg)] select-none ' : '')
                       }
                       style={{ width: h.getSize() !== 150 ? h.getSize() : undefined }}
                     >
                       {h.isPlaceholder ? null : (
-                        <span className="inline-flex items-center gap-1">
+                        <span className={`inline-flex items-center gap-1 ${flexAlignCls}`}>
                           {flexRender(h.column.columnDef.header, h.getContext())}
                           {canSort && (
                             <SortIcon
@@ -440,11 +444,15 @@ function RowItem<T>({
           (row.getIsSelected() ? 'bg-[var(--color-accent-soft)]/40 ' : '')
         }
       >
-        {row.getVisibleCells().map((cell) => (
-          <td key={cell.id} className={`px-3 ${densityPad[density]} align-middle`}>
-            {flexRender(cell.column.columnDef.cell, cell.getContext())}
-          </td>
-        ))}
+        {row.getVisibleCells().map((cell) => {
+          const align = (cell.column.columnDef.meta as { align?: 'left' | 'right' | 'center' } | undefined)?.align ?? 'left';
+          const alignCls = align === 'right' ? 'text-right' : align === 'center' ? 'text-center' : '';
+          return (
+            <td key={cell.id} className={`px-3 ${densityPad[density]} align-middle ${alignCls}`}>
+              {flexRender(cell.column.columnDef.cell, cell.getContext())}
+            </td>
+          );
+        })}
       </tr>
       {enableExpanding && row.getIsExpanded() && renderExpanded && (
         <tr className="bg-[var(--color-surface-2)]/30">

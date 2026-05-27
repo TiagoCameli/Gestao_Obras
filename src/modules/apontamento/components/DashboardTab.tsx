@@ -242,24 +242,27 @@ export default function DashboardTab() {
     },
     {
       accessorKey: "horasProd",
-      header: () => <span className="block text-right">Horas</span>,
+      header: "Horas",
       cell: ({ getValue }) => (
-        <span className="block text-right tabular-nums">{formatHoras(getValue() as number)}</span>
+        <span className="tabular-nums">{formatHoras(getValue() as number)}</span>
       ),
+      meta: { align: "right" },
     },
     {
       accessorKey: "obrasCount",
-      header: () => <span className="block text-right">Obras</span>,
+      header: "Obras",
       cell: ({ getValue }) => (
-        <span className="block text-right tabular-nums">{getValue() as number}</span>
+        <span className="tabular-nums">{getValue() as number}</span>
       ),
+      meta: { align: "right" },
     },
     {
       accessorKey: "servicosCount",
-      header: () => <span className="block text-right">Serviços</span>,
+      header: "Serviços",
       cell: ({ getValue }) => (
-        <span className="block text-right tabular-nums">{getValue() as number}</span>
+        <span className="tabular-nums">{getValue() as number}</span>
       ),
+      meta: { align: "right" },
     },
   ];
 
