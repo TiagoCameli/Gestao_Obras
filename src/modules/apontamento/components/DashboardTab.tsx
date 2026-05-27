@@ -494,7 +494,18 @@ function HorasExpanded({ linha }: { linha: LinhaFunc }) {
           {linha.detalhes.map((d, i) => (
             <tr key={i} className="border-b border-[var(--color-border)]/40">
               <td className="py-1.5">{d.obraNome}</td>
-              <td className="py-1.5">{d.servicoNome}</td>
+              <td className="py-1.5">
+                {d.servicoCodigo ? (
+                  <>
+                    <span className="font-mono text-xs text-[var(--color-fg-muted)] mr-2">
+                      {d.servicoCodigo}
+                    </span>
+                    {d.servicoNome}
+                  </>
+                ) : (
+                  d.servicoNome
+                )}
+              </td>
               <td className="py-1.5 text-right tabular-nums">{formatHoras(d.horas)}</td>
               <td className="py-1.5 text-right tabular-nums pr-2">{d.percentual.toFixed(1)}%</td>
             </tr>

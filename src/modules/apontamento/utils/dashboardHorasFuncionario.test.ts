@@ -18,8 +18,8 @@ const F2: Funcionario = { ...F, id: 'f2', nome: 'Maria Santos' }
 const O1: Obra = { id: 'o1', nome: 'BR-364 (Lote 9)' }
 const O2: Obra = { id: 'o2', nome: 'MT-208' }
 
-const S1: Servico = { id: 's1', nome: 'CBUQ', codigo: null, unidade: 'm³', obraId: 'o1' }
-const S2: Servico = { id: 's2', nome: 'Solo', codigo: null, unidade: 'm³', obraId: 'o1' }
+const S1: Servico = { id: 's1', nome: 'CBUQ', codigo: '2.1.05', unidade: 'm³', obraId: 'o1' }
+const S2: Servico = { id: 's2', nome: 'Solo', codigo: '3.4.10', unidade: 'm³', obraId: 'o1' }
 const S3: Servico = { id: 's3', nome: 'Pintura', codigo: null, unidade: 'm²', obraId: 'o2' }
 const S4: Servico = { id: 's4', nome: 'Órfão', codigo: null, unidade: null, obraId: 'inexistente' }
 
@@ -55,6 +55,7 @@ describe('agregarHorasPorFuncionario', () => {
     expect(result[0].detalhes).toHaveLength(1)
     expect(result[0].detalhes[0]).toMatchObject({
       obraNome: 'BR-364 (Lote 9)',
+      servicoCodigo: '2.1.05',
       servicoNome: 'CBUQ',
       horas: 8,
       percentual: 100,
@@ -113,6 +114,7 @@ describe('agregarHorasPorFuncionario', () => {
     )
     expect(linha.detalhes[0]).toMatchObject({
       obraNome: '—',
+      servicoCodigo: null,
       servicoNome: '— Sem serviço vinculado —',
       obraId: null,
       servicoId: null,

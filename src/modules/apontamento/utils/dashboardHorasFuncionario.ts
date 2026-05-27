@@ -9,6 +9,7 @@ export interface DetalheServico {
   obraId: string | null
   obraNome: string
   servicoId: string | null
+  servicoCodigo: string | null
   servicoNome: string
   horas: number
   percentual: number
@@ -68,6 +69,7 @@ export function agregarHorasPorFuncionario(
       obraId,
       obraNome,
       servicoId: item.servicoId,
+      servicoCodigo: servico?.codigo ?? null,
       servicoNome: servico?.nome ?? '— Sem serviço vinculado —',
       horas: item.horas,
       percentual: 0, // calculado em (4)
