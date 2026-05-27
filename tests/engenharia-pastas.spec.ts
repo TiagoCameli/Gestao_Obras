@@ -5,13 +5,8 @@
  *  1. Home /engenharia mostra seções "Obras" e "Avulsas".
  *  2. Criar pasta avulsa via dialog.
  *  3. Navegar para uma pasta e criar subpasta via menu "Novo".
- *  4. Soft-delete de pasta avulsa (context-menu — TODO: wiring na Onda 8).
- *  5. Renomear pasta de obra é bloqueado (mostra mensagem de erro).
- *
- * Os cenários 4 e 5 dependem de context-menu/rename UI ainda não wirado na
- * UI principal (a Onda 3 entregou os Dialogs, mas o gatilho de "Renomear" /
- * "Excluir" pelo botão direito ficou para refinamento). Marcados como
- * `test.skip` com TODO para destravar na próxima onda.
+ *  4. Soft-delete de pasta avulsa (via context-menu).
+ *  5. Renomear pasta de obra é BLOQUEADO (item disabled no context-menu).
  */
 import { test, expect } from '@playwright/test';
 import { hasCredentials, login } from './_fixtures';
@@ -60,24 +55,23 @@ test.describe('Engenharia — Pastas', () => {
     await expect(page.getByText(subUnica)).toBeVisible({ timeout: 10_000 });
   });
 
-  // TODO: requires context-menu wiring on FolderCard (Onda 8 / refinamento).
-  test.skip('soft-delete pasta avulsa com confirmação', async ({ page }) => {
+  test('soft-delete pasta avulsa com confirmação', async ({ page }) => {
     await page.goto('/engenharia');
     const nomeUnico = `A Excluir ${Date.now()}`;
     await page.getByRole('button', { name: /Nova pasta avulsa/i }).click();
     await page.getByLabel('Nome').fill(nomeUnico);
     await page.getByRole('button', { name: /^Criar$/i }).click();
-    await expect(page.getByText(nomeUnico)).toBeVisible();
+    await expect(page.getByText(nomeUnico)).toBeVisible({ timeout: 10_000 });
 
-    // Context menu via clique direito → "Excluir" → ConfirmDialog.
-    await page.getByText(nomeUnico).click({ button: 'right' });
+    // Context menu via clique direito → "Excluir" → AlertDialog.
+    await page.getByRole('button', { name: new RegExp(`Abrir pasta ${nomeUnico}`, 'i') }).click({ button: 'right' });
     await page.getByRole('menuitem', { name: /Excluir/i }).click();
-    await page.getByRole('button', { name: /Confirmar/i }).click();
-    await expect(page.getByText(nomeUnico)).not.toBeVisible();
+    // AlertDialog action button (não cancel)
+    await page.getByRole('button', { name: /^Excluir$/i }).click();
+    await expect(page.getByText(nomeUnico)).not.toBeVisible({ timeout: 10_000 });
   });
 
-  // TODO: requires "Renomear" entry point on context-menu (Onda 8 / refinamento).
-  test.skip('renomear pasta de obra é BLOQUEADO', async ({ page }) => {
+  test('renomear pasta de obra é BLOQUEADO (item disabled)', async ({ page }) => {
     await page.goto('/engenharia');
     const obrasSection = page
       .locator('section')
@@ -85,8 +79,9 @@ test.describe('Engenharia — Pastas', () => {
     const primeiroCardObra = obrasSection.getByRole('button', { name: /Abrir pasta/i }).first();
     await primeiroCardObra.click({ button: 'right' });
     const renomearItem = page.getByRole('menuitem', { name: /Renomear/i });
-    await renomearItem.click();
-    // Dialog mostra mensagem de bloqueio em vez do form.
-    await expect(page.getByText(/renomeadas via cadastro de obras/i)).toBeVisible();
+    // Item está visível mas desabilitado (aria-disabled="true")
+    await expect(renomearItem).toHaveAttribute('aria-disabled', 'true');
+    // E mostra a tag "via Obras" como pista visual
+    await expect(page.getByText(/via Obras/i)).toBeVisible();
   });
 });
