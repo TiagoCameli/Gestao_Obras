@@ -49,3 +49,54 @@ export function validateRowTs(row: TsRow): RowErrors {
   if (!(parseNumber(row.espessura) > 0)) errors.espessura = "Espessura > 0.";
   return errors;
 }
+
+export interface CrossRowError {
+  rowIds: string[];
+  field?: string;
+  message: string;
+}
+
+/**
+ * Valida regras cross-row do TS:
+ *  - cada nomenclatura deve ter exatamente 1 linha TS principal
+ *  - nomenclatura não pode conflitar com Activity já existente na medição
+ *    (passar Set de nomenclaturas existentes)
+ */
+export function validateCrossRowTs(
+  rows: TsRow[],
+  existingNomenclaturas: Set<string>
+): CrossRowError[] {
+  const errors: CrossRowError[] = [];
+  const byNomenclatura = new Map<string, TsRow[]>();
+  for (const r of rows) {
+    const n = r.nomenclatura.trim();
+    if (!n) continue;
+    if (!byNomenclatura.has(n)) byNomenclatura.set(n, []);
+    byNomenclatura.get(n)!.push(r);
+  }
+  for (const [n, group] of byNomenclatura) {
+    if (existingNomenclaturas.has(n)) {
+      errors.push({
+        rowIds: group.map((r) => r.id),
+        field: "nomenclatura",
+        message: `Nomenclatura "${n}" já existe na medição — use o formulário rico pra editar.`,
+      });
+      continue;
+    }
+    const tsCount = group.filter((r) => r.tipo === "TS").length;
+    if (tsCount === 0) {
+      errors.push({
+        rowIds: group.map((r) => r.id),
+        field: "tipo",
+        message: `Nomenclatura "${n}" não tem trecho TS principal — adicione uma linha com Tipo=TS.`,
+      });
+    } else if (tsCount > 1) {
+      errors.push({
+        rowIds: group.filter((r) => r.tipo === "TS").map((r) => r.id),
+        field: "tipo",
+        message: `Duas ou mais linhas TS com nomenclatura "${n}" — só pode ter 1 trecho principal.`,
+      });
+    }
+  }
+  return errors;
+}
