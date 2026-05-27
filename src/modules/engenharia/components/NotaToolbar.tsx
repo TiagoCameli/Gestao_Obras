@@ -131,25 +131,25 @@ export function NotaToolbar({
     );
   }
 
-  function handleInserirLink() {
+  const handleInserirLink = () => {
     const href = window.prompt('URL do link:');
     if (!href) return;
-    editor!.chain().focus().extendMarkRange('link').setLink({ href }).run();
-  }
+    editor.chain().focus().extendMarkRange('link').setLink({ href }).run();
+  };
 
-  function handleInserirImagem() {
+  const handleInserirImagem = () => {
     const src = window.prompt('URL da imagem:');
     if (!src) return;
-    editor!.chain().focus().setImage({ src }).run();
-  }
+    editor.chain().focus().setImage({ src }).run();
+  };
 
-  function handleInserirTabela() {
-    editor!
+  const handleInserirTabela = () => {
+    editor
       .chain()
       .focus()
       .insertTable({ rows: 3, cols: 3, withHeaderRow: true })
       .run();
-  }
+  };
 
   const conteudo = (
     <>

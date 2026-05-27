@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { diffWords } from 'diff';
 import {
   Sheet,
@@ -20,9 +20,11 @@ import {
 import { Badge } from '@/components/shadcn/badge';
 import { Button } from '@/components/shadcn/button';
 import { Skeleton } from '@/components/shadcn/skeleton';
+import { useToast } from '@/components/ui/Toast';
 import { useFuncionarios } from '@/hooks/useFuncionarios';
 import type { EngenhariaNota, EngenhariaNotaVersao } from '../types/nota';
 import { useNotaVersoes, useRestaurarVersao } from '../hooks/useNotaVersoes';
+import { extrairTextoPlain } from '../utils/prosemirrorText';
 
 interface HistoricoVersoesDrawerProps {
   open: boolean;
@@ -50,6 +52,7 @@ export function HistoricoVersoesDrawer({
   const versoesQuery = useNotaVersoes(notaId);
   const funcionariosQuery = useFuncionarios();
   const restaurarMutation = useRestaurarVersao();
+  const { showToast } = useToast();
 
   const [diffAberto, setDiffAberto] = useState<string | null>(null);
   const [confirmarAlvo, setConfirmarAlvo] = useState<EngenhariaNotaVersao | null>(null);
@@ -62,21 +65,31 @@ export function HistoricoVersoesDrawer({
 
   async function confirmarRestauracao() {
     if (!confirmarAlvo) return;
+    const alvo = confirmarAlvo;
     try {
       await restaurarMutation.mutateAsync({
         notaId,
-        versaoAlvo: confirmarAlvo,
+        versaoAlvo: alvo,
         versaoAtual: notaAtual.versao,
         tituloAtual: notaAtual.titulo,
       });
+      showToast({
+        kind: 'success',
+        message: `Versão v${alvo.versao} restaurada como v${notaAtual.versao + 1}.`,
+      });
       setConfirmarAlvo(null);
       onOpenChange(false);
-    } catch {
-      // Mantém o dialog aberto; UX simples — erro fica visível no botão.
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : 'erro desconhecido';
+      showToast({ kind: 'error', message: `Falha ao restaurar: ${msg}` });
+      // Mantém o dialog aberto para o usuário tentar de novo
     }
   }
 
-  const textoAtual = extrairTextoPlain(notaAtual.conteudoJson);
+  const textoAtual = useMemo(
+    () => extrairTextoPlain(notaAtual.conteudoJson),
+    [notaAtual.conteudoJson],
+  );
 
   return (
     <>
@@ -107,8 +120,6 @@ export function HistoricoVersoesDrawer({
             )}
 
             {versoesQuery.data?.map((versao) => {
-              const textoVersao = extrairTextoPlain(versao.conteudoJson);
-              const preview = textoVersao.slice(0, 120);
               const podeRestaurar = !ehReadOnly && versao.versao !== notaAtual.versao;
               const diffEsteAberto = diffAberto === versao.id;
 
@@ -124,13 +135,6 @@ export function HistoricoVersoesDrawer({
                       {new Date(versao.criadoEm).toLocaleString('pt-BR')}
                     </span>
                   </div>
-
-                  {preview && (
-                    <p className="mt-2 text-xs text-muted-foreground line-clamp-2">
-                      {preview}
-                      {textoVersao.length > 120 ? '…' : ''}
-                    </p>
-                  )}
 
                   <div className="mt-2 flex items-center gap-2">
                     <Button
@@ -157,7 +161,7 @@ export function HistoricoVersoesDrawer({
                   {diffEsteAberto && (
                     <DiffInline
                       textoAtual={textoAtual}
-                      textoVersao={textoVersao}
+                      conteudoJsonVersao={versao.conteudoJson}
                       numeroVersao={versao.versao}
                     />
                   )}
@@ -203,12 +207,17 @@ export function HistoricoVersoesDrawer({
 
 interface DiffInlineProps {
   textoAtual: string;
-  textoVersao: string;
+  conteudoJsonVersao: unknown;
   numeroVersao: number;
 }
 
-function DiffInline({ textoAtual, textoVersao, numeroVersao }: DiffInlineProps) {
-  const partes = diffWords(textoAtual, textoVersao);
+function DiffInline({ textoAtual, conteudoJsonVersao, numeroVersao }: DiffInlineProps) {
+  // Lazy: extrai o texto da versão apenas quando o diff é aberto (componente monta).
+  const textoVersao = useMemo(
+    () => extrairTextoPlain(conteudoJsonVersao),
+    [conteudoJsonVersao],
+  );
+  const partes = useMemo(() => diffWords(textoAtual, textoVersao), [textoAtual, textoVersao]);
 
   return (
     <div className="mt-3 grid grid-cols-2 gap-2 rounded border border-border bg-muted/30 p-2 text-xs">
@@ -262,28 +271,3 @@ function DiffInline({ textoAtual, textoVersao, numeroVersao }: DiffInlineProps) 
   );
 }
 
-/**
- * Extrai texto puro de um documento ProseMirror (Tiptap JSON).
- * Walk recursivo coletando `text` de nodes folha.
- */
-function extrairTextoPlain(json: unknown): string {
-  const partes: string[] = [];
-
-  function walk(node: unknown) {
-    if (!node || typeof node !== 'object') return;
-    const n = node as { type?: string; text?: string; content?: unknown[] };
-    if (typeof n.text === 'string') {
-      partes.push(n.text);
-    }
-    if (Array.isArray(n.content)) {
-      n.content.forEach(walk);
-      // Adiciona separador entre blocos para diff legível
-      if (n.type && n.type !== 'text') {
-        partes.push(' ');
-      }
-    }
-  }
-
-  walk(json);
-  return partes.join('').replace(/\s+/g, ' ').trim();
-}
