@@ -4,6 +4,7 @@ import * as XLSX from "xlsx";
 import type { ContractItem } from "../../types/activity";
 import { generateId } from "../../utils/format";
 import { downloadContractTemplate } from "../../utils/contractTemplate";
+import { parseNumber } from "../../utils/parseNumber";
 import { useAuth } from "../../../../contexts/AuthContext";
 import SmartSelect from "../../../../components/ui/SmartSelect";
 
@@ -58,18 +59,6 @@ type Row = (string | number | null | undefined)[];
 
 const QTY_FMT = new Intl.NumberFormat("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 4 });
 const CURRENCY = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
-
-function parseNumber(value: unknown): number {
-  if (typeof value === "number") return Number.isFinite(value) ? value : 0;
-  if (typeof value !== "string") return 0;
-  // Brazilian format: 1.234,56 — strip thousand dots, swap decimal comma
-  const cleaned = value
-    .replace(/[^\d,.\-]/g, "")
-    .replace(/\.(?=\d{3}(\D|$))/g, "") // remove thousand separators
-    .replace(",", ".");
-  const parsed = parseFloat(cleaned);
-  return Number.isFinite(parsed) ? parsed : 0;
-}
 
 function normalizeHeader(s: unknown): string {
   return String(s ?? "")
