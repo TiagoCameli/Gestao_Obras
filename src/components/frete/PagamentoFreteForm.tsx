@@ -333,25 +333,41 @@ export default function PagamentoFreteForm({
           error={errors.data?.message}
           {...register('data')}
         />
-        <Select
-          label="Transportadora"
-          id="pagFreteTransportadora"
-          options={transportadoras.map((t) => ({ value: t, label: t }))}
-          placeholder="Selecione a transportadora"
-          required
-          error={errors.transportadora?.message}
-          {...register('transportadora')}
+        <Controller
+          control={control}
+          name="transportadora"
+          render={({ field }) => (
+            <Select
+              label="Transportadora"
+              id="pagFreteTransportadora"
+              options={transportadoras.map((t) => ({ value: t, label: t }))}
+              placeholder="Selecione a transportadora"
+              required
+              error={errors.transportadora?.message}
+              name={field.name}
+              value={field.value}
+              onChange={(e) => field.onChange(e.target.value)}
+            />
+          )}
         />
         {!(dividir && !initial) && (
           <>
-            <Select
-              label="Mês Referência"
-              id="pagFreteMesRef"
-              options={mesesOptions}
-              placeholder="Selecione o mês"
-              required
-              error={errors.mesReferencia?.message}
-              {...register('mesReferencia')}
+            <Controller
+              control={control}
+              name="mesReferencia"
+              render={({ field }) => (
+                <Select
+                  label="Mês Referência"
+                  id="pagFreteMesRef"
+                  options={mesesOptions}
+                  placeholder="Selecione o mês"
+                  required
+                  error={errors.mesReferencia?.message}
+                  name={field.name}
+                  value={field.value}
+                  onChange={(e) => field.onChange(e.target.value)}
+                />
+              )}
             />
             <Input
               label="Valor (R$)"
@@ -365,13 +381,21 @@ export default function PagamentoFreteForm({
             />
           </>
         )}
-        <Select
-          label="Método de Pagamento"
-          id="pagFreteMetodo"
-          options={METODOS}
-          required
-          error={errors.metodo?.message}
-          {...register('metodo')}
+        <Controller
+          control={control}
+          name="metodo"
+          render={({ field }) => (
+            <Select
+              label="Método de Pagamento"
+              id="pagFreteMetodo"
+              options={METODOS}
+              required
+              error={errors.metodo?.message}
+              name={field.name}
+              value={field.value}
+              onChange={(e) => field.onChange(e.target.value)}
+            />
+          )}
         />
         {metodoWatch === 'combustivel' && (
           <Input
