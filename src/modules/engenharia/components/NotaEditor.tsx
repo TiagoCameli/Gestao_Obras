@@ -1,5 +1,6 @@
 import { useEditor, EditorContent } from '@tiptap/react';
 import { StarterKit } from '@tiptap/starter-kit';
+import { Underline } from '@tiptap/extension-underline';
 import { Image } from '@tiptap/extension-image';
 import { Link } from '@tiptap/extension-link';
 import { Table } from '@tiptap/extension-table';
@@ -51,6 +52,7 @@ export function NotaEditor({
   const editor = useEditor({
     extensions: [
       StarterKit,
+      Underline,
       Image.configure({ inline: false, allowBase64: false }),
       Link.configure({ openOnClick: false }),
       Table.configure({ resizable: true }),

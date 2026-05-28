@@ -2,6 +2,7 @@ import type { Editor } from '@tiptap/react';
 // Side-effect imports para augmentation do tipo `ChainedCommands` (toggleBold, setLink, etc.).
 // O NotaEditor monta o editor com estas extensões — aqui só carregamos os .d.ts.
 import type {} from '@tiptap/starter-kit';
+import type {} from '@tiptap/extension-underline';
 import type {} from '@tiptap/extension-link';
 import type {} from '@tiptap/extension-image';
 import type {} from '@tiptap/extension-table';
