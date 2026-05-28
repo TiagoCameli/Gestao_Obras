@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { ArrowLeft } from 'lucide-react';
@@ -14,6 +14,7 @@ import { LinhaCalculo as LinhaCalculoComp } from '../components/LinhaCalculo';
 import { CalculoToolbar } from '../components/CalculoToolbar';
 import { LockBanner } from '../components/LockBanner';
 import { HistoricoCalculoDrawer } from '../components/HistoricoCalculoDrawer';
+import { recalcularDocumento } from '../services/calcDocumento';
 import { novaLinhaVazia, type DocumentoCalculo, type EngenhariaCalculo, type LinhaCalculo } from '../types/calculo';
 
 const AUTO_SAVE_DEBOUNCE_MS = 5_000;
@@ -27,6 +28,11 @@ export default function CalculoPage() {
 
   const [titulo, setTitulo] = useState('');
   const [linhas, setLinhas] = useState<LinhaCalculo[]>([]);
+  const avaliadas = useMemo(() => recalcularDocumento(linhas), [linhas]);
+  const avaliadaPorId = useMemo(
+    () => new Map(avaliadas.map((a) => [a.id, a])),
+    [avaliadas],
+  );
   const [alertaAtivo, setAlertaAtivo] = useState(true);
   const [historicoOpen, setHistoricoOpen] = useState(false);
   const [salvando, setSalvando] = useState(false);
@@ -61,7 +67,16 @@ export default function CalculoPage() {
     setErroSalvar(null);
     setErroEhConflito(false);
     try {
-      const documento: DocumentoCalculo = { linhas };
+      const linhasPersistir = linhas.map((l) => {
+        const a = avaliadaPorId.get(l.id);
+        const ehRevisada = revisadas.has(l.id) || l.alerta === 'revisado';
+        return {
+          ...l,
+          resultado: a?.resultado ?? null,
+          alerta: ehRevisada ? ('revisado' as const) : ((a?.alerta ?? 'vazio') as LinhaCalculo['alerta']),
+        };
+      });
+      const documento: DocumentoCalculo = { linhas: linhasPersistir };
       const result = await salvarMutation.mutateAsync({
         id: calculo.id,
         titulo,
@@ -217,17 +232,21 @@ export default function CalculoPage() {
       />
 
       <main className="flex-1 overflow-y-auto max-w-4xl mx-auto w-full p-4 space-y-1">
-        {linhas.map((l) => (
-          <LinhaCalculoComp
-            key={l.id}
-            linha={l}
-            alertaAtivo={alertaAtivo}
-            readOnly={readOnly}
-            onChange={handleLinhaChange}
-            onRevisado={handleRevisado}
-            marcadaRevisada={revisadas.has(l.id) || l.alerta === 'revisado'}
-          />
-        ))}
+        {linhas.map((l) => {
+          const avaliada = avaliadaPorId.get(l.id)!;
+          return (
+            <LinhaCalculoComp
+              key={l.id}
+              linha={l}
+              avaliada={avaliada}
+              alertaAtivo={alertaAtivo}
+              readOnly={readOnly}
+              onChange={handleLinhaChange}
+              onRevisado={handleRevisado}
+              marcadaRevisada={revisadas.has(l.id) || l.alerta === 'revisado'}
+            />
+          );
+        })}
       </main>
 
       {temAcao('ver_historico_engenharia') && (
