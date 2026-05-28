@@ -516,9 +516,11 @@ erDiagram
 
 ---
 
-### Onda 4 — Bloco de Nota (Tiptap + lock pessimista) (12–15h, +2h vs original pela UX de lock)
+### Onda 4 — Bloco de Nota (Tiptap + lock pessimista) (12–15h, +2h vs original pela UX de lock) ✅ CONCLUÍDA 2026-05-27
 
-**Plano TDD próprio:** `2026-XX-XX-engenharia-onda-4-bloco-nota.md`.
+**Plano TDD próprio:** [`2026-05-27-engenharia-onda-4-bloco-nota.md`](2026-05-27-engenharia-onda-4-bloco-nota.md) — 10 tasks (Tasks 1-5 inline, Tasks 6-9 via subagent com 2-stage review, Task 10 inline).
+
+**CHANGELOG:** [`docs/modulos/engenharia/CHANGELOG.md`](../../modulos/engenharia/CHANGELOG.md#onda-4--bloco-de-nota-tiptap--lock-pessimista-2026-05-27).
 
 **Entregas:**
 - Libs novas (já aprovadas em bloco):

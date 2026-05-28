@@ -197,3 +197,66 @@ D-2 (SECDEF), D-3 (obra deletada → pasta avulsa), D-4 revisada (lock pessimist
 ### Onda 3.2 (refinamento incluído)
 
 - Subagent original deixou rename/delete acessíveis apenas via Dialog (sem entry-point). Wave 3.2 wirou `ContextMenu` dentro do `FolderCard` com `Renomear / Mover / Excluir` e destravou os 2 Playwright tests correspondentes.
+
+---
+
+## Onda 4 — Bloco de Nota (Tiptap + lock pessimista) (2026-05-27)
+
+### Banco de dados
+
+- **1 função SECDEF nova:** `engenharia_salvar_nota_com_versao(uuid, text, jsonb, int)` — atomiza snapshot da versão + UPDATE da nota numa única transação plpgsql. Optimistic concurrency via `p_versao_atual` (rejeita `conflito_versao` se DB já avançou). Cap de 50 versões por nota (D-9). GRANT EXECUTE só pra authenticated; REVOKE de anon/public.
+
+### Frontend
+
+- `src/modules/engenharia/types/nota.ts` — `EngenhariaNota`, `EngenhariaNotaVersao` + mappers `dbToEngenhariaNota` / `dbToEngenhariaNotaVersao`.
+- `src/modules/engenharia/hooks/`:
+  - `useLockRecurso.ts` (genérico, será reusado em cálculo na Onda 6). Estados: carregando/meu/outro/erro. Heartbeat 60s quando dono, polling 15s quando bloqueado, release no unmount.
+  - `useEngenhariaNotas.ts` — `useEngenhariaNota`, `useNotasDaPasta`, `useCriarNota`, `useSalvarNota` (via RPC), `useSoftDeleteNota`.
+  - `useNotaVersoes.ts` — `useNotaVersoes` + `useRestaurarVersao` (restaurar = chamar `engenharia_salvar_nota_com_versao` com conteúdo da versão alvo).
+- `src/modules/engenharia/utils/prosemirrorText.ts` — `extrairTextoPlain` que caminha o JSON do ProseMirror preservando hardBreak (\n) e quebras de bloco (paragraph/heading/codeBlock/blockquote/tableRow).
+- `src/modules/engenharia/components/`:
+  - `LockBanner.tsx` — banner amarelo "Em uso por X" com countdown mm:ss + botão "Forçar liberação" (gate por `gerenciar_locks_engenharia`).
+  - `NotaToolbar.tsx` — 18 botões de formatação (marks/headings/listas/inserts/aligns/blocks) + Salvar (Cmd+S hint) + Histórico (gate por `ver_historico_engenharia`).
+  - `NotaEditor.tsx` — Tiptap com StarterKit + Underline + Image + Link + Table + TextAlign + Highlight + TaskList. Paste de imagem do clipboard via `arquivosService.uploadArquivo` + `getSignedUrl` (com `editorRef` para evitar orphan blob na janela do mount).
+  - `HistoricoVersoesDrawer.tsx` — Sheet right com lista de versões (badge + autor via funcionarios + timestamp + preview 120 chars memoizado por versão) + "Ver diff" inline 2-pane (diffWords) + "Restaurar" com AlertDialog confirm (gate `!ehReadOnly`).
+- `src/modules/engenharia/pages/NotaPage.tsx` — compõe LockBanner + Toolbar + Editor + Historico. Auto-save debounce 5s + Cmd/Ctrl+S manual (gated por readOnly). Mensagem dedicada para `conflito_versao` com botão "Recarregar" que invalida + refetch + resync local. Status "Salvando…/Salvo" com `aria-live="polite"`.
+- `src/App.tsx` — rota `/engenharia/nota/:id` lazy + `ProtectedRoute acao="ver_engenharia"`.
+- `src/modules/engenharia/pages/PastaPage.tsx` — dropdown "Novo > Nota" agora cria + navega (era disabled). Item escondido quando `!temAcao('criar_engenharia_nota')`.
+
+### Libs novas
+
+- `@tiptap/react@^3.23.6` + `@tiptap/starter-kit@^3.23.6` + 10 extensões (`image`, `link`, `table`, `table-row`, `table-header`, `table-cell`, `text-align`, `highlight`, `task-list`, `task-item`).
+- `@tiptap/extension-underline@^3.23.6` — gap do plano original que assumia Underline em StarterKit; é package separado em Tiptap 3.x.
+- `diff@^9.0.0` — histórico textual side-by-side.
+- `@tailwindcss/typography@^0.5.19` (dev) — habilita classes `prose`/`prose-sm`/`dark:prose-invert` no editor; gap do plano original que assumia o plugin configurado.
+
+### Migrations (1 par fix+rollback)
+
+| Timestamp | Conteúdo |
+|---|---|
+| `20260528100000` | function SECDEF `engenharia_salvar_nota_com_versao` (atomico + optimistic concurrency + cap 50 versões) |
+
+### Testes
+
+- 5 Vitest novos em `useLockRecurso.test.ts` (acquire/release/poll/heartbeat/null-id).
+- 6 Vitest novos em `prosemirrorText.test.ts` (text simples, hardBreak, parágrafos, listas aninhadas, vazio/null, tabelas).
+- 1 spec Playwright novo em `tests/engenharia-notas.spec.ts` (4 cenários ativos: criar+abrir editor / auto-save / Cmd+S / abrir histórico; 1 cenário **skipped** aguardando fixture de 2 usuários na Onda 8).
+- Total Vitest novos: **11**. Total Vitest do módulo: 34 verdes.
+
+### Decisões aplicadas
+
+D-4 revisada (lock pessimista, sem Yjs/CRDT), D-8 (libs aprovadas em bloco), D-9 (cap 50 versões).
+
+### Não feitos nesta onda (intencional)
+
+- Slash menu Tiptap (fica pra Onda 8, ~1h).
+- Lock E2E 2-usuários (skipped no Playwright; depende de fixture criada na Onda 8).
+- Diff visual lado-a-lado renderizando o JSON do ProseMirror (atual usa `diffWords` textual; v1 OK, refinamento futuro).
+
+### Verificação
+
+- `mcp get_advisors security`: 1 WARN esperado em `engenharia_salvar_nota_com_versao` ("Signed-In Users Can Execute SECURITY DEFINER") — função é pra ser chamada por authenticated, é o comportamento esperado. Sem regressões em outros lints.
+- `npx tsc -b`: 0 erros.
+- `npx vitest run src/modules/engenharia/`: 34/34 passing.
+- `npm run build`: lazy chunk separado para `/engenharia/nota/:id` (~146 KB gzip).
+- 14 commits do módulo Engenharia nesta onda (incluindo 4 commits de code review fixes).
