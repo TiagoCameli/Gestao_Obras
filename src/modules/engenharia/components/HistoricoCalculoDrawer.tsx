@@ -41,7 +41,7 @@ interface HistoricoCalculoDrawerProps {
 
 /** Texto plano de um documento de cálculo: uma expressão por linha. */
 function extrairTextoCalculo(doc: DocumentoCalculo): string {
-  return (doc?.linhas ?? []).map((l) => l.expressao).join('\n');
+  return (doc?.linhas ?? []).map((l) => l.expressao ?? '').join('\n');
 }
 
 /**
