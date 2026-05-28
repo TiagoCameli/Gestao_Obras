@@ -100,7 +100,7 @@ export default function CalculoPage() {
     } finally {
       setSalvando(false);
     }
-  }, [calculo, readOnly, salvando, salvarMutation, titulo, linhas, alertaAtivo]);
+  }, [calculo, readOnly, salvando, salvarMutation, titulo, linhas, alertaAtivo, avaliadaPorId, revisadas]);
 
   useEffect(() => {
     if (!dirtyRef.current || readOnly) return;
