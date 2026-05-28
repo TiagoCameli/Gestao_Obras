@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { useQueryClient } from '@tanstack/react-query';
 import { ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/shadcn/button';
 import { Skeleton } from '@/components/shadcn/skeleton';
@@ -13,6 +14,7 @@ import { NotaEditor } from '../components/NotaEditor';
 import { NotaToolbar } from '../components/NotaToolbar';
 import { LockBanner } from '../components/LockBanner';
 import { HistoricoVersoesDrawer } from '../components/HistoricoVersoesDrawer';
+import type { EngenhariaNota } from '../types/nota';
 import type { Editor } from '@tiptap/react';
 
 const AUTO_SAVE_DEBOUNCE_MS = 5_000;  // 5 segundos de inatividade
@@ -35,6 +37,7 @@ export default function NotaPage() {
   const navigate = useNavigate();
   const { temAcao } = useAuth();
   const { showToast } = useToast();
+  const qc = useQueryClient();
 
   const [titulo, setTitulo] = useState<string>('');
   const [conteudo, setConteudo] = useState<unknown>(null);
@@ -42,6 +45,7 @@ export default function NotaPage() {
   const [historicoOpen, setHistoricoOpen] = useState(false);
   const [salvando, setSalvando] = useState(false);
   const [erroSalvar, setErroSalvar] = useState<string | null>(null);
+  const [erroEhConflito, setErroEhConflito] = useState(false);
 
   const dirtyRef = useRef<boolean>(false);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -67,6 +71,7 @@ export default function NotaPage() {
     if (!nota || readOnly || salvando) return;
     setSalvando(true);
     setErroSalvar(null);
+    setErroEhConflito(false);
     try {
       const result = await salvarMutation.mutateAsync({
         id: nota.id,
@@ -75,13 +80,17 @@ export default function NotaPage() {
         versaoAtual: nota.versao,
       });
       if (!result.ok) {
-        if (result.motivo === 'conflito_versao') {
-          setErroSalvar('Outro usuário salvou no meio. Recarregue para ver as mudanças.');
-        } else {
-          setErroSalvar(`Falha ao salvar: ${result.motivo}`);
-        }
+        const ehConflito = result.motivo === 'conflito_versao';
+        setErroEhConflito(ehConflito);
+        setErroSalvar(
+          ehConflito
+            ? 'Outro usuário salvou no meio. Recarregue para ver as mudanças.'
+            : `Falha ao salvar: ${result.motivo}`,
+        );
       } else {
         dirtyRef.current = false;
+        setErroEhConflito(false);
+        setErroSalvar(null);
       }
     } finally {
       setSalvando(false);
@@ -104,13 +113,14 @@ export default function NotaPage() {
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 's') {
+        if (readOnly) return; // deixa o navegador lidar com Cmd+S quando read-only
         e.preventDefault();
         void salvar();
       }
     }
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [salvar]);
+  }, [salvar, readOnly]);
 
   // Força liberação de lock (gated por gerenciar_locks_engenharia)
   const onForcarLiberacao = temAcao('gerenciar_locks_engenharia') && id
@@ -155,7 +165,11 @@ export default function NotaPage() {
           className="text-lg font-medium border-none shadow-none focus-visible:ring-0 px-2"
           placeholder="Título da nota"
         />
-        <span className="text-xs text-muted-foreground whitespace-nowrap">
+        <span
+          aria-live="polite"
+          aria-atomic="true"
+          className="text-xs text-muted-foreground whitespace-nowrap min-w-[60px] text-right"
+        >
           {salvando ? 'Salvando…' : !dirtyRef.current ? 'Salvo' : ''}
         </span>
       </header>
@@ -163,7 +177,33 @@ export default function NotaPage() {
       <LockBanner estado={lock} onForcarLiberacao={onForcarLiberacao} />
 
       {erroSalvar && (
-        <div className="bg-destructive/10 text-destructive px-4 py-2 text-sm">{erroSalvar}</div>
+        <div className="flex items-center gap-3 bg-destructive/10 text-destructive px-4 py-2 text-sm">
+          <span className="flex-1">{erroSalvar}</span>
+          {erroEhConflito && (
+            <Button
+              size="xs"
+              variant="outline"
+              onClick={async () => {
+                await qc.refetchQueries({ queryKey: ['engenharia', 'notas', 'item', id] });
+                const freshNota = qc.getQueryData<EngenhariaNota>([
+                  'engenharia',
+                  'notas',
+                  'item',
+                  id,
+                ]);
+                if (freshNota) {
+                  setTitulo(freshNota.titulo);
+                  setConteudo(freshNota.conteudoJson);
+                  dirtyRef.current = false;
+                }
+                setErroSalvar(null);
+                setErroEhConflito(false);
+              }}
+            >
+              Recarregar
+            </Button>
+          )}
+        </div>
       )}
 
       <NotaToolbar
