@@ -27,16 +27,15 @@ export function LinhaCalculo({
   const parsed = useMemo(() => parseLinha(linha.expressao), [linha.expressao]);
   const alertaEfetivo = marcadaRevisada ? 'revisado' : parsed.alerta;
 
-  // Texto exibido no input: se houver `=` mas RHS vazio, MOSTRA o resultado calculado
-  // (UX Soulver). O documento persiste a expressao original — preenchemos no onChange.
-  const exibirTexto = (() => {
-    if (parsed.alerta === 'ok' && parsed.rhsUsuario === null && parsed.resultado !== null) {
-      return `${parsed.lhs}=${parsed.resultado}`;
-    }
-    return linha.expressao;
-  })();
-
   const mostrarErro = alertaAtivo && alertaEfetivo === 'erro';
+
+  // Resultado pendente de uma linha `1+1=` (RHS vazio): exibido como ghost text à
+  // direita do input, SEM hijack do value (input é puro controlado em linha.expressao).
+  const mostrarGhostResultado =
+    parsed.alerta === 'ok' &&
+    parsed.rhsUsuario === null &&
+    parsed.resultado !== null &&
+    !mostrarErro;
 
   function handleChange(novoTexto: string) {
     const novoParsed = parseLinha(novoTexto);
@@ -49,11 +48,13 @@ export function LinhaCalculo({
   }
 
   function handleBlurAutoFill() {
-    // Quando user sai do input e a linha tipo `1+1=`, persiste o resultado preenchido
-    if (parsed.alerta === 'ok' && parsed.rhsUsuario === null && parsed.resultado !== null) {
-      const completo = `${parsed.lhs}=${parsed.resultado}`;
+    // Quando user sai do input e a linha tipo `1+1=`, persiste o resultado preenchido.
+    // Re-parseia fresh a partir de linha.expressao (evita stale closure do render).
+    const atual = parseLinha(linha.expressao);
+    if (atual.alerta === 'ok' && atual.rhsUsuario === null && atual.resultado !== null) {
+      const completo = `${atual.lhs}=${atual.resultado}`;
       if (linha.expressao !== completo) {
-        onChange({ ...linha, expressao: completo, resultado: parsed.resultado, alerta: 'ok' });
+        onChange({ ...linha, expressao: completo, resultado: atual.resultado, alerta: 'ok' });
       }
     }
   }
@@ -69,7 +70,7 @@ export function LinhaCalculo({
       ].join(' ')}
     >
       <Input
-        value={exibirTexto}
+        value={linha.expressao}
         onChange={(e) => handleChange(e.target.value)}
         onBlur={handleBlurAutoFill}
         disabled={readOnly}
@@ -77,6 +78,11 @@ export function LinhaCalculo({
         placeholder="Digite uma expressão (ex: 1+1=)"
         aria-invalid={mostrarErro || undefined}
       />
+      {mostrarGhostResultado && (
+        <span className="text-xs text-muted-foreground whitespace-nowrap" aria-hidden>
+          = {parsed.resultado}
+        </span>
+      )}
       {mostrarErro && (
         <>
           <AlertTriangle className="h-4 w-4 text-destructive shrink-0" aria-hidden />
