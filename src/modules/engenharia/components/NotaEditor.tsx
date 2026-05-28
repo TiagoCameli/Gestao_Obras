@@ -11,7 +11,7 @@ import { TextAlign } from '@tiptap/extension-text-align';
 import { Highlight } from '@tiptap/extension-highlight';
 import { TaskList } from '@tiptap/extension-task-list';
 import { TaskItem } from '@tiptap/extension-task-item';
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { uploadArquivo, getSignedUrl } from '../services/arquivosService';
 
 interface NotaEditorProps {
@@ -49,6 +49,14 @@ export function NotaEditor({
   onReadyEditor,
   onPasteError,
 }: NotaEditorProps) {
+  const editorRef = useRef<ReturnType<typeof useEditor>>(null);
+  const reportError =
+    onPasteError ??
+    ((mensagem: string) => {
+      // eslint-disable-next-line no-console
+      console.error(mensagem);
+    });
+
   const editor = useEditor({
     extensions: [
       StarterKit,
@@ -85,34 +93,32 @@ export function NotaEditor({
         void (async () => {
           const result = await uploadArquivo({ pastaId, file });
           if (!result.ok) {
-            const msg = `Upload de imagem colada falhou: ${result.motivo}`;
-            if (onPasteError) {
-              onPasteError(msg);
-            } else {
-              // eslint-disable-next-line no-console
-              console.error(msg);
-            }
+            reportError(`Upload de imagem colada falhou: ${result.motivo}`);
             return;
           }
-          const url = await getSignedUrl(result.arquivoId).catch(() => null);
-          if (!url) {
-            const msg = 'Imagem enviada, mas falha ao gerar URL assinada.';
-            if (onPasteError) {
-              onPasteError(msg);
-            } else {
-              // eslint-disable-next-line no-console
-              console.error(msg);
-            }
+          const url = await getSignedUrl(result.arquivoId).catch((err) => {
+            reportError(
+              `Falha ao obter URL da imagem: ${err instanceof Error ? err.message : 'erro desconhecido'}`,
+            );
+            return null;
+          });
+          if (!url) return;
+          const currentEditor = editorRef.current;
+          if (!currentEditor) {
+            reportError('Editor não inicializado — imagem subiu mas não foi inserida.');
             return;
           }
-          if (editor) {
-            editor.chain().focus().setImage({ src: url, alt: file.name }).run();
-          }
+          currentEditor.chain().focus().setImage({ src: url, alt: file.name }).run();
         })();
         return true;
       },
     },
   });
+
+  // Mantém ref sincronizado com a instância mais recente do editor
+  useEffect(() => {
+    editorRef.current = editor;
+  }, [editor]);
 
   useEffect(() => {
     if (editor && onReadyEditor) onReadyEditor(editor);
