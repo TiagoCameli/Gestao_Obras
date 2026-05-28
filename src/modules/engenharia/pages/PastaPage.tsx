@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useParams, Navigate } from 'react-router-dom';
+import { useParams, Navigate, useNavigate } from 'react-router-dom';
 import { Plus, FilePlus, FolderPlus, Calculator } from 'lucide-react';
 import { Button } from '@/components/shadcn/button';
 import { Skeleton } from '@/components/shadcn/skeleton';
@@ -10,11 +10,13 @@ import {
   DropdownMenuTrigger,
 } from '@/components/shadcn/dropdown-menu';
 import { useAuth } from '@/contexts/AuthContext';
+import { useToast } from '@/components/ui/Toast';
 import {
   useEngenhariaPasta,
   useEngenhariaPastasFilhas,
   useEngenhariaPastasRaizes,
 } from '../hooks/useEngenhariaPastas';
+import { useCriarNota } from '../hooks/useEngenhariaNotas';
 import { FolderBreadcrumb } from '../components/FolderBreadcrumb';
 import { FolderTree } from '../components/FolderTree';
 import { FolderCard } from '../components/FolderCard';
@@ -25,6 +27,9 @@ import type { EngenhariaPasta } from '../types/pasta';
 export default function PastaPage() {
   const { id } = useParams<{ id: string }>();
   const { temAcao } = useAuth();
+  const navigate = useNavigate();
+  const criarNota = useCriarNota();
+  const { showToast } = useToast();
   const [criarOpen, setCriarOpen] = useState(false);
 
   const { data: pasta, isLoading: loadingPasta } = useEngenhariaPasta(id ?? '');
@@ -79,9 +84,22 @@ export default function PastaPage() {
                 <DropdownMenuItem onClick={() => setCriarOpen(true)}>
                   <FolderPlus className="mr-2 h-4 w-4" /> Subpasta
                 </DropdownMenuItem>
-                <DropdownMenuItem disabled>
-                  <FilePlus className="mr-2 h-4 w-4" /> Nota (Onda 4)
-                </DropdownMenuItem>
+                {temAcao('criar_engenharia_nota') && (
+                  <DropdownMenuItem
+                    disabled={criarNota.isPending}
+                    onClick={async () => {
+                      try {
+                        const nota = await criarNota.mutateAsync({ pastaId: pasta.id, titulo: 'Nova nota' });
+                        navigate(`/engenharia/nota/${nota.id}`);
+                      } catch (e) {
+                        const msg = e instanceof Error ? e.message : 'erro desconhecido';
+                        showToast({ kind: 'error', message: `Falha ao criar nota: ${msg}` });
+                      }
+                    }}
+                  >
+                    <FilePlus className="mr-2 h-4 w-4" /> Nota
+                  </DropdownMenuItem>
+                )}
                 <DropdownMenuItem disabled>
                   <Calculator className="mr-2 h-4 w-4" /> Cálculo (Onda 5)
                 </DropdownMenuItem>
