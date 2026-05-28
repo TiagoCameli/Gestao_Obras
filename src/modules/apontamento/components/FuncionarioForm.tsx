@@ -403,7 +403,10 @@ export default function FuncionarioForm({
             min="0.01"
             placeholder="Ex.: 1518.00"
             error={errors.salarioBase?.message}
-            {...register("salarioBase", { valueAsNumber: true })}
+            {...register("salarioBase", {
+              setValueAs: (v) =>
+                v === "" || v === null || v === undefined ? undefined : Number(v),
+            })}
           />
         </Grid>
       </Section>
