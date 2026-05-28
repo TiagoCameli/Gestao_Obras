@@ -556,9 +556,11 @@ erDiagram
 
 ---
 
-### Onda 5 — Bloco de Cálculo, parte 1: parser, linhas, alerta (10–16h)
+### Onda 5 — Bloco de Cálculo, parte 1: parser, linhas, alerta (10–16h) ✅ CONCLUÍDA 2026-05-28
 
-**Plano TDD próprio:** `2026-XX-XX-engenharia-onda-5-calculo-parser.md`.
+**Plano TDD próprio:** [`2026-05-27-engenharia-onda-5-calculo-parser.md`](2026-05-27-engenharia-onda-5-calculo-parser.md) — 10 tasks (Tasks 1-5 inline, Tasks 6-9 via subagent com 2-stage review, Task 10 inline).
+
+**CHANGELOG:** [`docs/modulos/engenharia/CHANGELOG.md`](../../modulos/engenharia/CHANGELOG.md#onda-5--bloco-de-calculo-parte-1-parser-linhas-alerta-2026-05-28).
 
 **Entregas:**
 - Lib nova: `mathjs` com sandbox (aprovar antes — ~150 KB):

@@ -260,3 +260,58 @@ D-4 revisada (lock pessimista, sem Yjs/CRDT), D-8 (libs aprovadas em bloco), D-9
 - `npx vitest run src/modules/engenharia/`: 34/34 passing.
 - `npm run build`: lazy chunk separado para `/engenharia/nota/:id` (~146 KB gzip).
 - 14 commits do módulo Engenharia nesta onda (incluindo 4 commits de code review fixes).
+
+---
+
+## Onda 5 — Bloco de Cálculo, parte 1: parser, linhas, alerta (2026-05-28)
+
+### Banco de dados
+
+- **1 função SECDEF nova:** `engenharia_salvar_calculo_com_versao(uuid, text, jsonb, boolean, int)` — atomiza snapshot da versão + UPDATE do cálculo. Optimistic concurrency via `p_versao_atual` (rejeita `conflito_versao`). Cap 50 versões (D-9). Inclui `p_alerta_ativo` (coluna do row, não do JSON). GRANT só authenticated; REVOKE anon/public.
+
+### Frontend
+
+- `src/modules/engenharia/services/calcEngine.ts` — `evalSafe` (math.js sandboxed) + `parseLinha` (separa `lhs=rhs`, avalia, compara). 13 testes Vitest.
+- `src/modules/engenharia/types/calculo.ts` — `LinhaCalculo`, `DocumentoCalculo`, `EngenhariaCalculo`, `EngenhariaCalculoVersao` + mappers + `novaLinhaVazia`.
+- `src/modules/engenharia/hooks/useEngenhariaCalculos.ts` — `useEngenhariaCalculo`, `useCalculosDaPasta`, `useCriarCalculo`, `useSalvarCalculo` (RPC), `useSoftDeleteCalculo`.
+- `src/modules/engenharia/hooks/useCalculoVersoes.ts` — `useCalculoVersoes` + `useRestaurarVersaoCalculo`.
+- `src/modules/engenharia/components/LinhaCalculo.tsx` — linha do canvas: input puro controlado + resultado como ghost text + alerta vermelho/⚠ quando RHS errado + botão "Alerta revisado".
+- `src/modules/engenharia/components/CalculoToolbar.tsx` — switch "Verificação automática" + adicionar linha + Salvar + Histórico.
+- `src/modules/engenharia/components/HistoricoCalculoDrawer.tsx` — espelha o HistoricoVersoesDrawer da Onda 4 (Sheet + lista + diff textual + restaurar), preview via `extrairTextoCalculo`.
+- `src/modules/engenharia/pages/CalculoPage.tsx` — canvas com lock pessimista (`useLockRecurso('calculo', id)`) + auto-save debounce 5s + Cmd/Ctrl+S + recarregar em conflito.
+- `src/App.tsx` — rota `/engenharia/calculo/:id` lazy + `ProtectedRoute acao="ver_engenharia"`.
+- `src/modules/engenharia/pages/PastaPage.tsx` — dropdown "Novo > Cálculo" agora cria + navega (era disabled); hidden quando `!temAcao('criar_engenharia_calculo')`.
+
+### Libs novas
+
+- `mathjs@14.9.1` (~150 KB) — sandbox via `calcEngine`. Cai só no chunk lazy `/engenharia/calculo/:id` (~195 KB gzip total do chunk, mathjs incluso).
+
+### Migrations (1 par fix+rollback)
+
+| Timestamp | Conteúdo |
+|---|---|
+| `20260528200000` | function SECDEF `engenharia_salvar_calculo_com_versao` (atômico + optimistic concurrency + cap 50) |
+
+### Testes
+
+- 13 Vitest em `calcEngine.test.ts` (4 sandbox incl. `import`/`createUnit` throws; 9 parser).
+- 1 spec Playwright `tests/engenharia-calculos.spec.ts` (5 ativos: cria+abre / `1+1=` preenche no blur / `2*5=11` alerta vermelho calculado=10 / "Alerta revisado" limpa / desligar switch tira o vermelho; 1 skipped lock 2-usuários — Onda 8).
+- Total Vitest do módulo: 47 verdes.
+
+### Divergências do plano (documentadas)
+
+- **Sandbox math.js:** só `import` + `createUnit` são bloqueados, NÃO os 7 nomes que o plano-mestre listou. O `evaluate` do math.js usa `parse` internamente — sobrescrever `parse` quebra a engine. Seguimos a recomendação oficial (https://mathjs.org/docs/expressions/security.html).
+- **`2*5=20 → ok` do prompt original é incorreto** (2*5=10). O parser segue a regra correta (RHS bate com LHS calculado); há teste Vitest documentando.
+- **LinhaCalculo input controlado:** o design original (`value` computado) injetava o resultado no input ao digitar `=`, impedindo o usuário de digitar o próprio RHS. Corrigido: input puro em `linha.expressao` + resultado como ghost text à direita + auto-fill no blur.
+
+### Verificação
+
+- `get_advisors security`: 1 WARN esperado em `engenharia_salvar_calculo_com_versao` (authenticated SECDEF executável — comportamento esperado). Sem novos tipos de lint; total 77→78.
+- `npx tsc -b`: 0 erros.
+- `npx vitest run src/modules/engenharia/`: 47/47.
+- `npm run build`: chunk lazy `CalculoPage-*.js` ~195 KB gzip (mathjs incluso).
+- ~10 commits do módulo nesta onda.
+
+### ⛔ Hard stop
+
+Onda 6 (variáveis nomeadas + spinner + grid Excel + palavras reservadas) NÃO segue automático — requer aprovação manual do usuário (decisão do prompt original seção 5).
