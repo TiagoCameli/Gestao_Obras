@@ -40,7 +40,7 @@ export default function FuncionarioList({ funcionarios, onEdit, onDelete, canEdi
     'Gerente Financeiro': 'bg-emerald-100 text-emerald-800',
     'Gerente de Compras': 'bg-teal-100 text-teal-800',
     Supervisor: 'bg-cyan-100 text-cyan-800',
-    Operador: 'bg-gray-100 text-gray-800',
+    Operador: 'bg-gray-200 text-gray-700',
     Financeiro: 'bg-amber-100 text-amber-800',
     Apontador: 'bg-sky-100 text-sky-800',
     'Engenheiro Civil Sênior': 'bg-indigo-100 text-indigo-800',
@@ -79,32 +79,32 @@ export default function FuncionarioList({ funcionarios, onEdit, onDelete, canEdi
       </div>
 
       {filtrados.length === 0 ? (
-        <div className="bg-white rounded-lg shadow p-8 text-center">
+        <div className="bg-white rounded-lg shadow border border-[var(--color-border)] p-8 text-center">
           <p className="text-gray-500">Nenhum funcionario encontrado.</p>
         </div>
       ) : (
         <>
-          <div className="bg-white rounded-lg shadow overflow-hidden">
+          <div className="bg-white rounded-lg shadow border border-[var(--color-border)] overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
-                <thead className="bg-emt-verde text-white">
+                <thead className="bg-[var(--color-surface-2)] text-[10.5px] uppercase tracking-[0.06em] text-[var(--color-fg-muted)] border-b border-[var(--color-border)]">
                   <tr>
-                    <th className="text-left px-4 py-3 text-white font-medium uppercase text-xs">Usuário</th>
-                    <th className="text-left px-4 py-3 text-white font-medium uppercase text-xs">E-mail</th>
-                    <th className="text-left px-4 py-3 text-white font-medium uppercase text-xs">Cargo</th>
-                    <th className="text-center px-4 py-3 text-white font-medium uppercase text-xs">Status</th>
-                    <th className="text-center px-4 py-3 text-white font-medium uppercase text-xs">Ações</th>
+                    <th className="text-left px-4 py-2.5 font-semibold">Usuário</th>
+                    <th className="text-left px-4 py-2.5 font-semibold">E-mail</th>
+                    <th className="text-left px-4 py-2.5 font-semibold">Cargo</th>
+                    <th className="text-center px-4 py-2.5 font-semibold">Status</th>
+                    <th className="text-center px-4 py-2.5 font-semibold">Ações</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-100 [&>tr:nth-child(even)]:bg-emt-cinza-claro">
+                <tbody className="divide-y divide-gray-100">
                   {paginados.map((func) => {
                     const iniciais = func.nome.split(' ').map((p) => p[0]).slice(0, 2).join('').toUpperCase();
                     return (
-                      <tr key={func.id} className="hover:bg-emt-verde-claro">
+                      <tr key={func.id} className="even:bg-[var(--color-surface-2)] hover:bg-[var(--color-accent-soft)] transition-colors">
                         <td className="px-4 py-3">
                           <div className="flex items-center gap-3">
                             <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold ${
-                              func.status === 'ativo' ? 'bg-emt-verde-claro text-emt-verde' : 'bg-gray-100 text-gray-500'
+                              func.status === 'ativo' ? 'bg-emt-verde-claro text-emt-verde' : 'bg-gray-200 text-gray-500'
                             }`}>
                               {iniciais}
                             </div>
@@ -113,12 +113,12 @@ export default function FuncionarioList({ funcionarios, onEdit, onDelete, canEdi
                         </td>
                         <td className="px-4 py-3 text-gray-600">{func.email}</td>
                         <td className="px-4 py-3">
-                          <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-medium ${CARGO_COLORS[func.cargo]}`}>
+                          <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-medium ring-1 ring-inset ring-current/20 ${CARGO_COLORS[func.cargo]}`}>
                             {func.cargo}
                           </span>
                         </td>
                         <td className="px-4 py-3 text-center">
-                          <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-medium ${
+                          <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-medium ring-1 ring-inset ring-current/20 ${
                             func.status === 'ativo' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
                           }`}>
                             {func.status === 'ativo' ? 'Ativo' : 'Inativo'}
