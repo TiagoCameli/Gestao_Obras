@@ -315,3 +315,53 @@ D-4 revisada (lock pessimista, sem Yjs/CRDT), D-8 (libs aprovadas em bloco), D-9
 ### ⛔ Hard stop
 
 Onda 6 (variáveis nomeadas + spinner + grid Excel + palavras reservadas) NÃO segue automático — requer aprovação manual do usuário (decisão do prompt original seção 5).
+
+---
+
+## Onda 6a — Bloco de Cálculo: variáveis (numéricas + string + aliases + reservadas) (2026-05-28)
+
+> Parte da Onda 6 (sub-fases 6.1 + 6.2). Spinner (6.3), caixas de texto (6.4) e mini-grid (6.5) ficam para ondas 6b/6c/6d.
+
+### Frontend / Engine
+
+- `src/modules/engenharia/services/calcReservedWords.ts` — 36 palavras reservadas (funções/constantes math.js) + `normalizarNome` + `ehReservada`. Bloqueiam a DEFINIÇÃO de variável (não o uso da função). Decisão D-6.
+- `src/modules/engenharia/services/calcDocumento.ts` — `recalcularDocumento(linhas)` (função pura): avaliação document-level com scope cumulativo, detecção atribuição-vs-avaliação, variáveis string com aliases (greedy longest-match + word boundaries), cascade. + `substituirAliases`.
+- `src/modules/engenharia/components/LinhaCalculo.tsx` — refatorado: recebe `LinhaAvaliada` pronta (não chama mais `parseLinha`); input puro controlado; erro de reservada/indefinida inline via `avaliada.erroEngine`.
+- `src/modules/engenharia/pages/CalculoPage.tsx` — `useMemo(recalcularDocumento(linhas))` → cascade; persiste resultado/alerta derivados preservando `revisado`.
+
+### Regra de detecção (atribuição vs avaliação)
+
+- LHS = identificador simples (`x`) OU string literal (`"Brita 4"`) com RHS não-vazio → **atribuição** (define variável). Ex: `x = 2*2`, `"Brita 4" = 110`.
+- Caso contrário → **avaliação** (comportamento da Onda 5): `x*2=`, `2*5=11`.
+
+### Variáveis string + aliases
+
+- `"Brita 4" = 110` → chave segura `__sv_brita_4` no scope do math.js.
+- Referências `brita4`, `Brita 4`, `BRITA 4` substituídas antes da avaliação por regex greedy longest-match com `\b` (word boundaries impedem casar dentro de chave já substituída ou de outros identificadores tipo `cobrita`).
+
+### Palavras reservadas (D-6)
+
+- `"sin" = 5`, `sin = 5`, `"log10" = 100` → rejeitados com erro inline ("é palavra reservada").
+- `"viga_principal" = 5` → aceito. `sqrt(16)=` → funciona (só a definição é bloqueada).
+
+### Testes
+
+- +5 Vitest `calcReservedWords.test.ts`.
+- +20 Vitest `calcDocumento.test.ts` (variáveis num/string, aliases, cenário canônico `x+y+brita4=117`, greedy longest-match, reservadas, compat Onda 5, `substituirAliases`).
+- +3 Playwright `engenharia-calculos.spec.ts` (variável numérica cascade, cenário canônico 117, palavra reservada). Seletores de placeholder migrados pra regex.
+- Total Vitest do módulo: **72 verdes**.
+
+### Sem libs novas. Sem migration (só frontend/engine).
+
+### Verificação
+
+- `npx vitest run src/modules/engenharia/`: 72/72.
+- `npx tsc -b`: 0 erros no escopo engenharia.
+- Cenário canônico `x=4, y=3, "Brita 4"=110, x+y+brita4= → 117` ✓ (Vitest + Playwright).
+
+### Pendente da Onda 6 (próximas ondas)
+
+- 6b: spinner numérico (`@floating-ui/react`).
+- 6c: caixas de texto livres (mini-Tiptap).
+- 6d: mini-grid Excel (`react-data-grid`).
+- Lock 2-contextos E2E + performance 100 linhas <200ms (quando houver virtualização).

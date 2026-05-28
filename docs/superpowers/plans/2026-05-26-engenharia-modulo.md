@@ -619,14 +619,16 @@ erDiagram
 
 ### Onda 6 — Bloco de Cálculo, parte 2: variáveis + spinner + caixas + grid (16–24h)
 
+> **6.1 + 6.2 CONCLUÍDAS 2026-05-28** como Onda 6a — plano TDD: [`2026-05-28-engenharia-onda-6a-variaveis.md`](2026-05-28-engenharia-onda-6a-variaveis.md), CHANGELOG: [`docs/modulos/engenharia/CHANGELOG.md`](../../modulos/engenharia/CHANGELOG.md#onda-6a--bloco-de-calculo-variaveis-numericas--string--aliases--reservadas-2026-05-28). 6.3/6.4/6.5 pendentes (ondas 6b/6c/6d).
+
 **Plano TDD próprio:** `2026-XX-XX-engenharia-onda-6-calculo-avancado.md`.
 
 **Entregas (sub-fases, cada uma commit + teste antes da próxima):**
 
 > Cálculo também usa o **lock pessimista** introduzido na Onda 4 (D-4): `useLockRecurso('calculo', calculoId)` no canvas. Mesma UX: 1 editor por vez, banner para os outros, heartbeat 60s.
 
-- **6.1 Variáveis numéricas** (`x = 2*2`): scope por bloco, reuso, cascade re-eval.
-- **6.2 Variáveis string** (`"Brita 4" = 110`): pré-processamento de aliases (`brita 4`, `brita4`, `BRITA 4`), greedy longest-match. **Palavras reservadas (decisão D-6 2026-05-26)**: bloquear com erro inline + tooltip listando reservadas. Lista: `sin, cos, tan, asin, acos, atan, atan2, log, ln, log10, log2, exp, sqrt, abs, min, max, sum, mean, median, std, floor, ceil, round, pi, e, i, true, false, null, NaN, Infinity, mod, gcd, lcm, sign`. Constante em `services/calcReservedWords.ts`.
+- ✅ **6.1 Variáveis numéricas** (`x = 2*2`): scope por bloco, reuso, cascade re-eval.
+- ✅ **6.2 Variáveis string** (`"Brita 4" = 110`): pré-processamento de aliases (`brita 4`, `brita4`, `BRITA 4`), greedy longest-match. **Palavras reservadas (decisão D-6 2026-05-26)**: bloquear com erro inline + tooltip listando reservadas. Lista: `sin, cos, tan, asin, acos, atan, atan2, log, ln, log10, log2, exp, sqrt, abs, min, max, sum, mean, median, std, floor, ceil, round, pi, e, i, true, false, null, NaN, Infinity, mod, gcd, lcm, sign`. Constante em `services/calcReservedWords.ts`.
 - **6.3 Spinner em número**: detectar token numérico via AST do math.js, popover `@floating-ui/react`, stepper ▲/▼ com Shift=×10, Alt=÷10. Lib nova: `@floating-ui/react` (~15 KB).
 - **6.4 Caixas de texto livres**: nova `tipo: "texto"` no `documento_json`, mini-Tiptap inline (negrito/itálico só).
 - **6.5 Mini-grid Excel-like**: `tipo: "grid"` no `documento_json`, `react-data-grid` (~40 KB), fórmulas básicas (`=A1+B1`, `=SUM(A1:A3)`). Escopo separado — variáveis do bloco NÃO entram nas células (documentar).
