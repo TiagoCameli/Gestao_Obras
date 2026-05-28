@@ -1,60 +1,53 @@
-import { useMemo } from 'react';
 import { AlertTriangle, Check } from 'lucide-react';
 import { Button } from '@/components/shadcn/button';
 import { Input } from '@/components/shadcn/input';
-import { parseLinha } from '../services/calcEngine';
 import type { LinhaCalculo as TLinha } from '../types/calculo';
+import type { LinhaAvaliada } from '../services/calcDocumento';
 
 interface LinhaCalculoProps {
   linha: TLinha;
+  /** Resultado da avaliação document-level (vem do CalculoPage). */
+  avaliada: LinhaAvaliada;
   alertaAtivo: boolean;
   readOnly: boolean;
   onChange: (atualizada: TLinha) => void;
   onRevisado: (linhaId: string) => void;
-  /** Quando true (após o user clicar Alerta revisado) sobrescreve `alerta` desta linha como `revisado`. */
   marcadaRevisada: boolean;
 }
 
 export function LinhaCalculo({
   linha,
+  avaliada,
   alertaAtivo,
   readOnly,
   onChange,
   onRevisado,
   marcadaRevisada,
 }: LinhaCalculoProps) {
-  // Reavalia a linha on-render (parser puro, sem efeitos colaterais)
-  const parsed = useMemo(() => parseLinha(linha.expressao), [linha.expressao]);
-  const alertaEfetivo = marcadaRevisada ? 'revisado' : parsed.alerta;
-
+  const alertaEfetivo = marcadaRevisada ? 'revisado' : avaliada.alerta;
   const mostrarErro = alertaAtivo && alertaEfetivo === 'erro';
 
-  // Resultado pendente de uma linha `1+1=` (RHS vazio): exibido como ghost text à
-  // direita do input, SEM hijack do value (input é puro controlado em linha.expressao).
   const mostrarGhostResultado =
-    parsed.alerta === 'ok' &&
-    parsed.rhsUsuario === null &&
-    parsed.resultado !== null &&
+    avaliada.alerta === 'ok' &&
+    avaliada.rhsUsuario === null &&
+    avaliada.resultado !== null &&
+    avaliada.tipo !== 'vazio' &&
     !mostrarErro;
 
   function handleChange(novoTexto: string) {
-    const novoParsed = parseLinha(novoTexto);
-    onChange({
-      ...linha,
-      expressao: novoTexto,
-      resultado: novoParsed.resultado,
-      alerta: novoParsed.alerta,
-    });
+    onChange({ ...linha, expressao: novoTexto });
   }
 
   function handleBlurAutoFill() {
-    // Quando user sai do input e a linha tipo `1+1=`, persiste o resultado preenchido.
-    // Re-parseia fresh a partir de linha.expressao (evita stale closure do render).
-    const atual = parseLinha(linha.expressao);
-    if (atual.alerta === 'ok' && atual.rhsUsuario === null && atual.resultado !== null) {
-      const completo = `${atual.lhs}=${atual.resultado}`;
+    if (
+      avaliada.tipo === 'avaliacao' &&
+      avaliada.alerta === 'ok' &&
+      avaliada.rhsUsuario === null &&
+      avaliada.resultado !== null
+    ) {
+      const completo = `${avaliada.lhs}=${avaliada.resultado}`;
       if (linha.expressao !== completo) {
-        onChange({ ...linha, expressao: completo, resultado: atual.resultado, alerta: 'ok' });
+        onChange({ ...linha, expressao: completo });
       }
     }
   }
@@ -62,6 +55,7 @@ export function LinhaCalculo({
   return (
     <div
       data-alerta={alertaEfetivo}
+      data-tipo={avaliada.tipo}
       className={[
         'flex items-center gap-2 px-3 py-1.5 rounded-md border',
         mostrarErro
@@ -75,19 +69,23 @@ export function LinhaCalculo({
         onBlur={handleBlurAutoFill}
         disabled={readOnly}
         className="font-mono text-sm border-none shadow-none focus-visible:ring-0 px-0 bg-transparent"
-        placeholder="Digite uma expressão (ex: 1+1=)"
+        placeholder="Digite uma expressão (ex: 1+1= ou x=2*2)"
         aria-invalid={mostrarErro || undefined}
       />
       {mostrarGhostResultado && (
         <span className="text-xs text-muted-foreground whitespace-nowrap" aria-hidden>
-          = {parsed.resultado}
+          = {avaliada.resultado}
         </span>
       )}
       {mostrarErro && (
         <>
           <AlertTriangle className="h-4 w-4 text-destructive shrink-0" aria-hidden />
           <span className="text-xs text-destructive whitespace-nowrap">
-            {parsed.resultado !== null ? `calculado: ${parsed.resultado}` : 'expressão inválida'}
+            {avaliada.erroEngine
+              ? avaliada.erroEngine
+              : avaliada.resultado !== null
+                ? `calculado: ${avaliada.resultado}`
+                : 'expressão inválida'}
           </span>
           {!readOnly && (
             <Button
