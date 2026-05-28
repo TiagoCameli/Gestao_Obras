@@ -38,7 +38,7 @@ test.describe('Engenharia — Cálculos', () => {
 
   test('1+1= preenche resultado 2 (no blur)', async ({ page }) => {
     await abrirNovoCalculo(page);
-    const linha = page.getByPlaceholder('Digite uma expressão (ex: 1+1=)').first();
+    const linha = page.getByPlaceholder(/Digite uma expressão/i).first();
     await linha.fill('1+1=');
     await linha.blur();
     await expect(linha).toHaveValue('1+1=2');
@@ -46,7 +46,7 @@ test.describe('Engenharia — Cálculos', () => {
 
   test('2*5=11 acende alerta vermelho com calculado=10', async ({ page }) => {
     await abrirNovoCalculo(page);
-    const linha = page.getByPlaceholder('Digite uma expressão (ex: 1+1=)').first();
+    const linha = page.getByPlaceholder(/Digite uma expressão/i).first();
     await linha.fill('2*5=11');
     await expect(page.getByText('calculado: 10')).toBeVisible();
     await expect(page.getByRole('button', { name: /Alerta revisado/i })).toBeVisible();
@@ -54,7 +54,7 @@ test.describe('Engenharia — Cálculos', () => {
 
   test('clicar Alerta revisado limpa o vermelho, valor persiste', async ({ page }) => {
     await abrirNovoCalculo(page);
-    const linha = page.getByPlaceholder('Digite uma expressão (ex: 1+1=)').first();
+    const linha = page.getByPlaceholder(/Digite uma expressão/i).first();
     await linha.fill('2*5=11');
     await page.getByRole('button', { name: /Alerta revisado/i }).click();
     await expect(page.getByRole('button', { name: /Alerta revisado/i })).not.toBeVisible();
@@ -63,11 +63,43 @@ test.describe('Engenharia — Cálculos', () => {
 
   test('desligar verificação tira o vermelho', async ({ page }) => {
     await abrirNovoCalculo(page);
-    const linha = page.getByPlaceholder('Digite uma expressão (ex: 1+1=)').first();
+    const linha = page.getByPlaceholder(/Digite uma expressão/i).first();
     await linha.fill('2*5=99');
     await expect(page.getByText('calculado: 10')).toBeVisible();
     await page.getByRole('switch', { name: /Verificação automática/i }).click();
     await expect(page.getByText('calculado: 10')).not.toBeVisible();
+  });
+
+  test('variável numérica: x=4 depois x*2= → 8', async ({ page }) => {
+    await abrirNovoCalculo(page);
+    const l1 = page.getByPlaceholder(/Digite uma expressão/i).first();
+    await l1.fill('x=4');
+    await l1.blur();
+    await page.getByRole('button', { name: /Adicionar linha/i }).click();
+    const l2 = page.getByPlaceholder(/Digite uma expressão/i).nth(1);
+    await l2.fill('x*2=');
+    await l2.blur();
+    await expect(l2).toHaveValue('x*2=8');
+  });
+
+  test('⭐ cenário canônico: x+y+brita4 = 117', async ({ page }) => {
+    await abrirNovoCalculo(page);
+    const addBtn = page.getByRole('button', { name: /Adicionar linha/i });
+    const linha = (n: number) => page.getByPlaceholder(/Digite uma expressão/i).nth(n);
+
+    await linha(0).fill('x=4'); await linha(0).blur();
+    await addBtn.click(); await linha(1).fill('y=3'); await linha(1).blur();
+    await addBtn.click(); await linha(2).fill('"Brita 4" = 110'); await linha(2).blur();
+    await addBtn.click(); await linha(3).fill('x+y+brita4='); await linha(3).blur();
+
+    await expect(linha(3)).toHaveValue('x+y+brita4=117');
+  });
+
+  test('palavra reservada: "sin" = 5 rejeitada com erro', async ({ page }) => {
+    await abrirNovoCalculo(page);
+    const l1 = page.getByPlaceholder(/Digite uma expressão/i).first();
+    await l1.fill('"sin" = 5');
+    await expect(page.getByText(/reservada/i)).toBeVisible();
   });
 
   test('lock 2 usuarios — SKIPPED até fixture Onda 8', async () => {
