@@ -39,6 +39,7 @@ const MScanPage = lazy(() => import('./pages/mobile/MScanPage'));
 const EngenhariaPage = lazy(() => import('./modules/engenharia/pages/EngenhariaPage'));
 const PastaEngenhariaPage = lazy(() => import('./modules/engenharia/pages/PastaPage'));
 const NotaEngenhariaPage = lazy(() => import('./modules/engenharia/pages/NotaPage'));
+const CalculoEngenhariaPage = lazy(() => import('./modules/engenharia/pages/CalculoPage'));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -129,6 +130,16 @@ export default function App() {
                   <ProtectedRoute acao="ver_engenharia">
                     <Suspense fallback={<div className="p-8 text-center text-[var(--color-fg-muted)]">Carregando…</div>}>
                       <NotaEngenhariaPage />
+                    </Suspense>
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/engenharia/calculo/:id"
+                element={
+                  <ProtectedRoute acao="ver_engenharia">
+                    <Suspense fallback={<div className="p-8 text-center text-[var(--color-fg-muted)]">Carregando…</div>}>
+                      <CalculoEngenhariaPage />
                     </Suspense>
                   </ProtectedRoute>
                 }

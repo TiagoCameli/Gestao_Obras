@@ -17,6 +17,7 @@ import {
   useEngenhariaPastasRaizes,
 } from '../hooks/useEngenhariaPastas';
 import { useCriarNota } from '../hooks/useEngenhariaNotas';
+import { useCriarCalculo } from '../hooks/useEngenhariaCalculos';
 import { FolderBreadcrumb } from '../components/FolderBreadcrumb';
 import { FolderTree } from '../components/FolderTree';
 import { FolderCard } from '../components/FolderCard';
@@ -29,6 +30,7 @@ export default function PastaPage() {
   const { temAcao } = useAuth();
   const navigate = useNavigate();
   const criarNota = useCriarNota();
+  const criarCalculo = useCriarCalculo();
   const { showToast } = useToast();
   const [criarOpen, setCriarOpen] = useState(false);
 
@@ -100,9 +102,22 @@ export default function PastaPage() {
                     <FilePlus className="mr-2 h-4 w-4" /> Nota
                   </DropdownMenuItem>
                 )}
-                <DropdownMenuItem disabled>
-                  <Calculator className="mr-2 h-4 w-4" /> Cálculo (Onda 5)
-                </DropdownMenuItem>
+                {temAcao('criar_engenharia_calculo') && (
+                  <DropdownMenuItem
+                    disabled={criarCalculo.isPending}
+                    onClick={async () => {
+                      try {
+                        const calc = await criarCalculo.mutateAsync({ pastaId: pasta.id, titulo: 'Novo cálculo' });
+                        navigate(`/engenharia/calculo/${calc.id}`);
+                      } catch (e) {
+                        const msg = e instanceof Error ? e.message : 'erro desconhecido';
+                        showToast({ kind: 'error', message: `Falha ao criar cálculo: ${msg}` });
+                      }
+                    }}
+                  >
+                    <Calculator className="mr-2 h-4 w-4" /> Cálculo
+                  </DropdownMenuItem>
+                )}
               </DropdownMenuContent>
             </DropdownMenu>
           )}
