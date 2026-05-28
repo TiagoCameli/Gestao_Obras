@@ -60,25 +60,30 @@ export default function CalculoPage() {
     setSalvando(true);
     setErroSalvar(null);
     setErroEhConflito(false);
-    const documento: DocumentoCalculo = { linhas };
-    const result = await salvarMutation.mutateAsync({
-      id: calculo.id,
-      titulo,
-      documento,
-      alertaAtivo,
-      versaoAtual: calculo.versao,
-    });
-    setSalvando(false);
-    if (!result.ok) {
-      const ehConflito = result.motivo === 'conflito_versao';
-      setErroEhConflito(ehConflito);
-      setErroSalvar(
-        ehConflito
-          ? 'Outro usuário salvou no meio. Recarregue para ver as mudanças.'
-          : `Falha ao salvar: ${result.motivo}`,
-      );
-    } else {
-      dirtyRef.current = false;
+    try {
+      const documento: DocumentoCalculo = { linhas };
+      const result = await salvarMutation.mutateAsync({
+        id: calculo.id,
+        titulo,
+        documento,
+        alertaAtivo,
+        versaoAtual: calculo.versao,
+      });
+      if (!result.ok) {
+        const ehConflito = result.motivo === 'conflito_versao';
+        setErroEhConflito(ehConflito);
+        setErroSalvar(
+          ehConflito
+            ? 'Outro usuário salvou no meio. Recarregue para ver as mudanças.'
+            : `Falha ao salvar: ${result.motivo}`,
+        );
+      } else {
+        dirtyRef.current = false;
+      }
+    } catch (e) {
+      setErroSalvar(`Falha ao salvar: ${e instanceof Error ? e.message : 'erro desconhecido'}`);
+    } finally {
+      setSalvando(false);
     }
   }, [calculo, readOnly, salvando, salvarMutation, titulo, linhas, alertaAtivo]);
 
@@ -91,7 +96,7 @@ export default function CalculoPage() {
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
-      if ((e.metaKey || e.ctrlKey) && e.key === 's') {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 's') {
         if (readOnly) return;
         e.preventDefault();
         void salvar();
