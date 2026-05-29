@@ -37,11 +37,20 @@ export function useAtualizarFuncionario() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (funcionario: Funcionario) => {
-      const { error } = await supabase
+      // `.select()` devolve as linhas afetadas. Se o RLS bloqueia o UPDATE,
+      // o Supabase responde sucesso com 0 linhas (sem erro). Tratamos isso
+      // como falha explícita pra nunca mais ter "salvar não faz nada".
+      const { data, error } = await supabase
         .from('funcionarios')
         .update(funcionarioToDb(funcionario))
-        .eq('id', funcionario.id);
+        .eq('id', funcionario.id)
+        .select('id');
       if (error) throw error;
+      if (!data || data.length === 0) {
+        throw new Error(
+          'Não foi possível salvar: você não tem permissão para editar este usuário (nenhuma linha foi alterada).'
+        );
+      }
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ['funcionarios'] }),
   });

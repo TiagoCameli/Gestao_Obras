@@ -2,7 +2,7 @@ import { useMemo } from 'react'
 import { PackageCheck } from 'lucide-react'
 import type { Frete } from '../../types'
 import { UploadFotosButtons } from '../combustivel/AnexosUploader'
-import FotoFreteGaleria from './FotoFreteGaleria'
+import FotoGaleria from '../shared/FotoGaleria'
 import { useAtualizarFrete } from '../../hooks/useFretes'
 import { useToast } from '../ui/Toast'
 import { calcularUpdateFotoChegada } from '../../utils/freteFotoChegada'
@@ -23,7 +23,7 @@ function fmtData(iso: string): string {
 
 /**
  * Bloco de exibição + upload das fotos de chegada do frete no drawer/row-expanded.
- * Display sempre usa FotoFreteGaleria (lightbox + download, sem delete).
+ * Display sempre usa FotoGaleria (lightbox + download, sem delete).
  * Upload disponível quando canEdit=true.
  * Delete só no modo edição do FreteForm.
  */
@@ -90,7 +90,7 @@ export default function FreteFotoChegadaBlock({ frete, canEdit, variant = 'card'
         </div>
       )}
 
-      <FotoFreteGaleria
+      <FotoGaleria
         fotoUrls={fotosAtuais}
         canDelete={false}
         canDownload

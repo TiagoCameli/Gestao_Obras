@@ -1,9 +1,11 @@
-// Galeria de fotos do frete: grid com thumbnail + lightbox in-app + download por foto.
-// Delete opcional (só edit mode). Suporta navegação por teclado (Esc, ←, →).
+// Galeria de fotos genérica: grid com thumbnail + lightbox in-app + download por foto.
+// Re-assina URLs frescas a partir do path (corrige InvalidJWT de signed URLs
+// expiradas). Delete opcional (só edit mode). Navegação por teclado (Esc, ←, →).
+// Usada por frete e combustível (mesmo bucket abastecimento-fotos).
 
 import { useEffect, useState } from 'react'
 import { Trash2, Download, X, ChevronLeft, ChevronRight, ImageOff, Loader2 } from 'lucide-react'
-import { useFreteThumbnails } from '../../hooks/useFreteThumbnails'
+import { useFotoThumbnails } from '../../hooks/useFotoThumbnails'
 import { downloadSignedUrl, fileNameFromUrl, pathFromSignedUrl } from '../../utils/signedUrl'
 import { supabase } from '../../lib/supabase'
 
@@ -30,7 +32,7 @@ interface Props {
   size?: 'normal' | 'compact'
 }
 
-export default function FotoFreteGaleria({
+export default function FotoGaleria({
   fotoUrls,
   canDelete,
   canDownload,
@@ -38,16 +40,14 @@ export default function FotoFreteGaleria({
   size = 'normal',
 }: Props) {
   const [indiceAmpliada, setIndiceAmpliada] = useState<number | null>(null)
-  const [fullLoaded, setFullLoaded] = useState(false)
-  const { data: fotoUrlsFrescas } = useFreteThumbnails(fotoUrls)
+  // Guarda o índice cuja preview já carregou. fullLoaded é derivado disso —
+  // ao navegar, indiceAmpliada muda e fullLoaded vira false sozinho (sem effect).
+  const [indiceCarregado, setIndiceCarregado] = useState<number | null>(null)
+  const fullLoaded = indiceCarregado === indiceAmpliada
+  const { data: fotoUrlsFrescas } = useFotoThumbnails(fotoUrls)
 
   const urlFresca = (i: number, kind: 'thumb' | 'preview'): string =>
     fotoUrlsFrescas?.[i]?.[kind] ?? fotoUrls[i]
-
-  // Reset loading state whenever the ampliada index changes.
-  useEffect(() => {
-    setFullLoaded(false)
-  }, [indiceAmpliada])
 
   // Pré-carrega TODAS as previews (1400x1400 q85, ~150KB cada) assim que o hook
   // resolve as URLs. Total ~1.2MB pra 8 fotos — browser cacheia em paralelo,
@@ -207,8 +207,8 @@ export default function FotoFreteGaleria({
               key={indiceAmpliada}
               src={urlFresca(indiceAmpliada, 'preview')}
               alt={`Foto ${indiceAmpliada + 1} ampliada`}
-              onLoad={() => setFullLoaded(true)}
-              onError={() => setFullLoaded(true)}
+              onLoad={() => setIndiceCarregado(indiceAmpliada)}
+              onError={() => setIndiceCarregado(indiceAmpliada)}
               className="max-h-[calc(100vh-2rem)] max-w-[calc(100vw-2rem)] object-contain rounded-lg shadow-2xl transition-opacity duration-150"
               style={{ opacity: fullLoaded ? 1 : 0 }}
             />

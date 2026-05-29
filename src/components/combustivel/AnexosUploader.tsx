@@ -228,7 +228,7 @@ interface UploadFotosButtonsProps {
 /**
  * Sub-componente que renderiza só os botões "Tirar foto" + "Da galeria"
  * (sem o grid de display). Usado quando o display é responsabilidade de outro componente
- * (ex: FotoFreteGaleria com lightbox próprio).
+ * (ex: FotoGaleria com lightbox próprio).
  */
 export function UploadFotosButtons({ fotoUrls, onChange, pastaId, className = '' }: UploadFotosButtonsProps) {
   const cameraRef = useRef<HTMLInputElement>(null)

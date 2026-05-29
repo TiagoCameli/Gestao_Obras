@@ -8,6 +8,7 @@ import {
 } from '../../shadcn/sheet';
 import Button from '../../ui/Button';
 import HistoricoTimeline from '../../combustivel/HistoricoTimeline';
+import FotoGaleria from '../../shared/FotoGaleria';
 
 interface Props {
   tanque: Deposito | null;
@@ -187,19 +188,7 @@ export default function TanqueDetalhesDrawer({
                 <Paperclip className="w-3 h-3" />
                 Fotos ({tanque.fotoUrls.length})
               </div>
-              <div className="grid grid-cols-3 gap-2">
-                {tanque.fotoUrls.map((url, i) => (
-                  <a
-                    key={url + i}
-                    href={url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="block aspect-square rounded-lg overflow-hidden border border-[var(--color-border)] hover:border-[var(--color-accent)] transition-colors"
-                  >
-                    <img src={url} alt={`Foto ${i + 1}`} className="w-full h-full object-cover" loading="lazy" />
-                  </a>
-                ))}
-              </div>
+              <FotoGaleria fotoUrls={tanque.fotoUrls} canDelete={false} canDownload />
             </div>
           )}
 

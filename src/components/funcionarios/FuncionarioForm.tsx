@@ -60,7 +60,7 @@ const FUNC_TEMPLATE = [
 
 interface FuncionarioFormProps {
   initial: Funcionario | null;
-  onSubmit: (func: Funcionario, senha?: string) => void;
+  onSubmit: (func: Funcionario, senha?: string) => void | Promise<void>;
   onCancel: () => void;
   onImportBatch?: (items: Funcionario[], senhas: Map<string, string>) => void;
 }
@@ -258,7 +258,7 @@ export default function FuncionarioForm({ initial, onSubmit, onCancel, onImportB
     return e;
   }
 
-  const onValidSubmit = useCallback((values: FuncionarioFormValues) => {
+  const onValidSubmit = useCallback(async (values: FuncionarioFormValues) => {
     const errosVal = validarCrossField(values);
     if (errosVal.length > 0) {
       setErrosCustom(errosVal);
@@ -296,7 +296,13 @@ export default function FuncionarioForm({ initial, onSubmit, onCancel, onImportB
     };
 
     const rawSenha = (!initial || alterarSenha) ? values.senha : undefined;
-    onSubmit(func, rawSenha || undefined);
+    try {
+      await onSubmit(func, rawSenha || undefined);
+    } catch (e) {
+      // Falha no salvar (ex.: RLS rejeitou, rede). Mostra na caixa de erro
+      // em vez de sumir sem feedback.
+      setErrosCustom([e instanceof Error ? e.message : 'Erro ao salvar. Tente novamente.']);
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initial, alterarSenha, acoesPermitidas, errosDependencia, allFuncionarios, usuarioLogado, onSubmit]);
 

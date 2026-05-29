@@ -38,21 +38,23 @@ async function mintFotoUrls(url: string): Promise<FotoUrls> {
 }
 
 /**
- * Mintra URLs assinadas frescas (com transform) pras fotos do frete:
+ * Mintra URLs assinadas FRESCAS (com transform) a partir do path guardado no
+ * banco. As URLs salvas em fotoUrls são signed URLs que expiram em 1h (JWT
+ * `exp`); reaproveitá-las direto no <img> quebra com InvalidJWT. Aqui extraímos
+ * o path e re-assinamos na hora, em duas versões:
  *  - thumb: 400x400 q75 pro grid
  *  - preview: 1400x1400 q85 pro lightbox
  *
- * As duas versões são otimizadas — preview tem ~150KB vs ~2MB do original,
- * permitindo pré-carregar 8 fotos sem saturar a rede.
- *
- * Pra download do original full-res, use `mintFreshOriginalUrl()` on-demand
- * (definida em utils/signedUrl.ts).
+ * preview tem ~150KB vs ~2MB do original, permitindo pré-carregar 8 fotos sem
+ * saturar a rede. Pra download do original full-res, use mint on-demand.
  *
  * Cache 30min via React Query (URLs duram 1h, re-mint antes de expirar).
+ *
+ * Genérico — usado por frete e combustível (mesmo bucket abastecimento-fotos).
  */
-export function useFreteThumbnails(urls: string[]) {
+export function useFotoThumbnails(urls: string[]) {
   return useQuery({
-    queryKey: ['frete-foto-urls', urls],
+    queryKey: ['foto-urls', urls],
     queryFn: () => Promise.all(urls.map(mintFotoUrls)),
     staleTime: 1000 * 60 * 30,
     gcTime: 1000 * 60 * 60,
