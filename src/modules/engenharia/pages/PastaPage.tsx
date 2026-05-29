@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useParams, Navigate, useNavigate } from 'react-router-dom';
-import { Plus, FilePlus, FolderPlus, Calculator } from 'lucide-react';
+import { Plus, FilePlus, FolderPlus, Calculator, LayoutDashboard } from 'lucide-react';
 import { Button } from '@/components/shadcn/button';
 import { Skeleton } from '@/components/shadcn/skeleton';
 import {
@@ -18,6 +18,7 @@ import {
 } from '../hooks/useEngenhariaPastas';
 import { useCriarNota } from '../hooks/useEngenhariaNotas';
 import { useCriarCalculo } from '../hooks/useEngenhariaCalculos';
+import { useCriarPrancha } from '../hooks/useEngenhariaPranchas';
 import { FolderBreadcrumb } from '../components/FolderBreadcrumb';
 import { FolderTree } from '../components/FolderTree';
 import { FolderCard } from '../components/FolderCard';
@@ -31,6 +32,7 @@ export default function PastaPage() {
   const navigate = useNavigate();
   const criarNota = useCriarNota();
   const criarCalculo = useCriarCalculo();
+  const criarPrancha = useCriarPrancha();
   const { showToast } = useToast();
   const [criarOpen, setCriarOpen] = useState(false);
 
@@ -116,6 +118,22 @@ export default function PastaPage() {
                     }}
                   >
                     <Calculator className="mr-2 h-4 w-4" /> Cálculo
+                  </DropdownMenuItem>
+                )}
+                {temAcao('criar_engenharia_prancha') && (
+                  <DropdownMenuItem
+                    disabled={criarPrancha.isPending}
+                    onClick={async () => {
+                      try {
+                        const p = await criarPrancha.mutateAsync({ pastaId: pasta.id, titulo: 'Nova prancha' });
+                        navigate(`/engenharia/prancha/${p.id}`);
+                      } catch (e) {
+                        const msg = e instanceof Error ? e.message : 'erro desconhecido';
+                        showToast({ kind: 'error', message: `Falha ao criar prancha: ${msg}` });
+                      }
+                    }}
+                  >
+                    <LayoutDashboard className="mr-2 h-4 w-4" /> Prancha
                   </DropdownMenuItem>
                 )}
               </DropdownMenuContent>
