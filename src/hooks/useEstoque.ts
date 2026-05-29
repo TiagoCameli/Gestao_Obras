@@ -28,6 +28,20 @@ export async function calcularCombustivelTanqueNaData(
   return (data as string | null) ?? null;
 }
 
+/** Trava de ciclo: timestamp do início do ciclo aberto do tanque (último
+ *  marco = entrada/transferência recebida com o tanque zerado). Movimentos
+ *  com data ANTES desse valor estão em ciclo fechado (travados). NULL = sem
+ *  marco, nada travado. */
+export async function inicioCicloAbertoTanque(
+  tanqueId: string
+): Promise<string | null> {
+  const { data, error } = await supabase.rpc('inicio_ciclo_aberto_tanque', {
+    p_tanque_id: tanqueId,
+  });
+  if (error) throw error;
+  return (data as string | null) ?? null;
+}
+
 export async function calcularEstoqueMaterial(
   depositoMaterialId: string,
   insumoId: string

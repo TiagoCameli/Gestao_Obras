@@ -47,7 +47,7 @@ import { useTransferenciasCombustivel } from '../../hooks/useTransferenciasCombu
 import { useSaidasCombustivel } from '../../hooks/useSaidasCombustivel';
 import { calcularPrecoMedioTanque } from '../../utils/precoMedioTanque';
 import { calcularPrecoFIFO } from '../../utils/fifoCombustivel';
-import { calcularEstoqueCombustivelNaData } from '../../hooks/useEstoque';
+import { calcularEstoqueCombustivelNaData, inicioCicloAbertoTanque } from '../../hooks/useEstoque';
 import {
   saidaCombustivelSchema,
   type SaidaCombustivelFormValues,
@@ -409,6 +409,31 @@ export default function SaidaCombustivelForm({
     !tanqueSelecionado.ehExterno &&
     litros > saldoTanqueNaData;
 
+  // Trava de ciclo fechado: ao EDITAR uma saída de tanque, checa se ela está
+  // antes do início do ciclo aberto (tanque zerou e recebeu combustível novo).
+  // Em ciclo fechado, tanque/litros/data ficam travados (banco rejeita também).
+  const [cicloFechado, setCicloFechado] = useState(false);
+  useEffect(() => {
+    const tanqueOriginal = initial?.tanqueId;
+    if (!initial || initial.origem !== 'tanque' || !tanqueOriginal || !initial.data) {
+      setCicloFechado(false);
+      return;
+    }
+    let ativo = true;
+    inicioCicloAbertoTanque(tanqueOriginal)
+      .then((inicio) => {
+        if (!ativo) return;
+        setCicloFechado(!!inicio && initial.data < inicio);
+      })
+      .catch((err) => {
+        console.error('[SaidaCombustivelForm] ciclo aberto falhou', err);
+        if (ativo) setCicloFechado(false);
+      });
+    return () => {
+      ativo = false;
+    };
+  }, [initial]);
+
   // Bloqueia salvar quando o tipo de combustível da saída diverge do que está
   // atualmente no tanque (situação que ocorre ao editar saída antiga depois
   // que o tanque foi esvaziado e reabastecido com outro tipo).
@@ -688,6 +713,13 @@ export default function SaidaCombustivelForm({
         </div>
       )}
 
+      {cicloFechado && (
+        <div className="rounded-lg bg-amber-50 border border-amber-200 px-3 py-2 text-xs text-amber-800 dark:bg-amber-900/20 dark:border-amber-800 dark:text-amber-300">
+          <strong>Ciclo fechado.</strong> Este tanque já zerou e recebeu combustível novo depois desta saída.
+          Para não bagunçar o saldo, tanque, litros e data ficam travados. Você ainda pode ajustar equipamento, obra, etapa, fotos, observação e medição.
+        </div>
+      )}
+
       {/* Tipo de consumidor — radio cards grandes */}
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -824,6 +856,7 @@ export default function SaidaCombustivelForm({
             type="datetime-local"
             {...register('data')}
             required
+            disabled={cicloFechado}
           />
           {errors.data && (
             <p className="mt-1 text-xs text-[var(--color-danger)]">{errors.data.message}</p>
@@ -982,7 +1015,7 @@ export default function SaidaCombustivelForm({
                     label: t.apelido ? `${t.apelido} (${t.nome})` : t.nome,
                   }))}
                   placeholder={obraId ? 'Selecione tanque' : 'Selecione obra primeiro'}
-                  disabled={!obraId}
+                  disabled={!obraId || cicloFechado}
                   required
                   error={errors.tanqueId?.message}
                 />
@@ -1170,6 +1203,7 @@ export default function SaidaCombustivelForm({
                 : errors.litros?.message
             }
             required
+            disabled={cicloFechado}
           />
         </div>
 
