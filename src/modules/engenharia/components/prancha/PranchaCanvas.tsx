@@ -1,10 +1,11 @@
-import { useRef, useState, useCallback, useEffect } from 'react';
+import { useRef, useState, useCallback, useEffect, useMemo } from 'react';
 import Moveable from 'react-moveable';
 import { PranchaToolbar, type Ferramenta } from './PranchaToolbar';
 import { ElementoTexto } from './ElementoTexto';
 import { ElementoForma } from './ElementoForma';
 import { ElementoCalculo } from './ElementoCalculo';
 import { novoElemento, telaParaCanvas } from '../../services/pranchaModel';
+import { recalcularPrancha, type CaixaCalc, type LinhaAvaliada } from '../../services/calcDocumento';
 import type {
   DocumentoPrancha, ElementoPrancha, FormaTipo,
   PropsTexto, PropsCalculo, PropsForma,
@@ -27,6 +28,15 @@ export function PranchaCanvas({ documento, readOnly, onChange }: Props) {
   const elementoRefs = useRef<Map<string, HTMLDivElement>>(new Map());
 
   const { viewport, elementos } = documento;
+
+  // Escopo de cálculo compartilhado entre TODAS as caixas de cálculo da prancha:
+  // uma variável definida em qualquer caixa é utilizável em qualquer outra.
+  const avaliadasPorCaixa = useMemo<Map<string, LinhaAvaliada[]>>(() => {
+    const caixas: CaixaCalc[] = elementos
+      .filter((el) => el.tipo === 'calculo')
+      .map((el) => ({ id: el.id, x: el.x, y: el.y, linhas: (el.props as PropsCalculo).linhas }));
+    return recalcularPrancha(caixas);
+  }, [elementos]);
 
   const setElementos = useCallback((novos: ElementoPrancha[]) => {
     onChange({ ...documento, elementos: novos });
@@ -82,7 +92,7 @@ export function PranchaCanvas({ documento, readOnly, onChange }: Props) {
   function renderProps(el: ElementoPrancha) {
     const onPropsChange = (props: ElementoPrancha['props']) => atualizarElemento(el.id, { props });
     if (el.tipo === 'texto') return <ElementoTexto props={el.props as PropsTexto} readOnly={readOnly} onChange={onPropsChange} />;
-    if (el.tipo === 'calculo') return <ElementoCalculo props={el.props as PropsCalculo} readOnly={readOnly} onChange={onPropsChange} />;
+    if (el.tipo === 'calculo') return <ElementoCalculo props={el.props as PropsCalculo} avaliadas={avaliadasPorCaixa.get(el.id) ?? []} readOnly={readOnly} onChange={onPropsChange} />;
     return <ElementoForma props={el.props as PropsForma} largura={el.largura} altura={el.altura} />;
   }
 

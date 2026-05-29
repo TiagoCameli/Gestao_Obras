@@ -1,17 +1,17 @@
 import { useMemo } from 'react';
 import { LinhaCalculo as LinhaCalculoComp } from '../LinhaCalculo';
-import { recalcularDocumento } from '../../services/calcDocumento';
 import { novaLinhaVazia, type LinhaCalculo } from '../../types/calculo';
 import type { PropsCalculo } from '../../types/prancha';
+import type { LinhaAvaliada } from '../../services/calcDocumento';
 
 interface Props {
   props: PropsCalculo;
+  avaliadas: LinhaAvaliada[];
   readOnly: boolean;
   onChange: (props: PropsCalculo) => void;
 }
 
-export function ElementoCalculo({ props, readOnly, onChange }: Props) {
-  const avaliadas = useMemo(() => recalcularDocumento(props.linhas), [props.linhas]);
+export function ElementoCalculo({ props, avaliadas, readOnly, onChange }: Props) {
   const avaliadaPorId = useMemo(() => new Map(avaliadas.map((a) => [a.id, a])), [avaliadas]);
 
   function handleLinhaChange(atualizada: LinhaCalculo) {
@@ -30,18 +30,28 @@ export function ElementoCalculo({ props, readOnly, onChange }: Props) {
       data-testid="prancha-calculo"
       onPointerDown={(e) => { if (!readOnly) e.stopPropagation(); }}
     >
-      {props.linhas.map((l) => (
-        <LinhaCalculoComp
-          key={l.id}
-          linha={l}
-          avaliada={avaliadaPorId.get(l.id)!}
-          alertaAtivo={props.alertaAtivo}
-          readOnly={readOnly}
-          onChange={handleLinhaChange}
-          onRevisado={handleRevisado}
-          marcadaRevisada={l.alerta === 'revisado'}
-        />
-      ))}
+      {props.linhas.map((l) => {
+        const avaliada = avaliadaPorId.get(l.id);
+        // Fallback defensivo: se (por algum motivo) não veio avaliada para esta
+        // linha, trata como vazia pra não quebrar a renderização.
+        const av: LinhaAvaliada = avaliada ?? {
+          id: l.id, expressao: l.expressao, tipo: 'vazio', lhs: l.expressao,
+          rhsUsuario: null, resultado: null, alerta: 'vazio',
+        };
+        return (
+          <LinhaCalculoComp
+            key={l.id}
+            linha={l}
+            avaliada={av}
+            alertaAtivo={props.alertaAtivo}
+            readOnly={readOnly}
+            onChange={handleLinhaChange}
+            onRevisado={handleRevisado}
+            marcadaRevisada={l.alerta === 'revisado'}
+            empilhado
+          />
+        );
+      })}
       {!readOnly && (
         <button onClick={adicionarLinha} className="text-xs text-muted-foreground hover:text-foreground px-1">
           + linha
