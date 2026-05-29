@@ -180,3 +180,117 @@ export function recalcularDocumento(linhas: LinhaCalculo[]): LinhaAvaliada[] {
 
   return out;
 }
+
+export interface CaixaCalc {
+  id: string;
+  linhas: LinhaCalculo[];
+  x: number;
+  y: number;
+}
+
+/** Avalia UMA linha contra um escopo FIXO (não muta). Usado na fase 2 da prancha. */
+function avaliarLinhaFixo(
+  linha: LinhaCalculo,
+  scope: Record<string, unknown>,
+  aliases: AliasRegistrado[],
+): LinhaAvaliada {
+  const c = classificar(linha.expressao);
+  const base = { id: linha.id, expressao: linha.expressao, lhs: c.lhs, rhsUsuario: c.rhsUsuario };
+  if (c.tipo === 'vazio') return { ...base, tipo: 'vazio', resultado: null, alerta: 'vazio' };
+
+  if (c.tipo === 'atribuicao_num' || c.tipo === 'atribuicao_str') {
+    if (ehReservada(c.nomeVar!)) {
+      return {
+        ...base, tipo: c.tipo, resultado: null, alerta: 'erro',
+        erroEngine: `'${c.nomeVar}' é palavra reservada (função do math.js)`,
+      };
+    }
+    let valor: unknown;
+    try {
+      valor = evalSafe(substituirAliases(c.rhsExpr, aliases), scope);
+    } catch (e) {
+      return {
+        ...base, tipo: c.tipo, resultado: null, alerta: 'erro',
+        erroEngine: e instanceof Error ? e.message : 'erro de cálculo',
+      };
+    }
+    const resultado = stringifyResultado(valor);
+    const varDef = c.ehString ? normalizarNome(c.nomeVar!) : c.nomeVar!;
+    return {
+      ...base,
+      tipo: c.ehString ? 'atribuicao_str' : 'atribuicao_num',
+      resultado, alerta: 'ok', varDefinida: varDef,
+    };
+  }
+
+  let valor: unknown;
+  try {
+    valor = evalSafe(substituirAliases(c.lhs, aliases), scope);
+  } catch (e) {
+    return {
+      ...base, tipo: 'avaliacao', resultado: null, alerta: 'erro',
+      erroEngine: e instanceof Error ? e.message : 'erro de cálculo',
+    };
+  }
+  const resultado = stringifyResultado(valor);
+  if (c.rhsUsuario === null || resultadosBatem(resultado, c.rhsUsuario)) {
+    return { ...base, tipo: 'avaliacao', resultado, alerta: 'ok' };
+  }
+  return { ...base, tipo: 'avaliacao', resultado, alerta: 'erro' };
+}
+
+/**
+ * Escopo compartilhado da prancha: define-anywhere/use-anywhere.
+ * Ordem de leitura: y asc, depois x asc. Primeira definição de cada variável vence.
+ * Fase 1: coleta atribuições até fixpoint (first-write-wins). Fase 2: avalia todas
+ * as linhas contra o escopo completo. Retorna Map<idCaixa, LinhaAvaliada[]>.
+ */
+export function recalcularPrancha(caixas: CaixaCalc[]): Map<string, LinhaAvaliada[]> {
+  const ordenadas = [...caixas].sort((a, b) => (a.y - b.y) || (a.x - b.x));
+  const linhasOrdenadas: LinhaCalculo[] = [];
+  const donoDe = new Map<string, string>();
+  for (const cx of ordenadas) {
+    for (const l of cx.linhas) {
+      linhasOrdenadas.push(l);
+      if (!donoDe.has(l.id)) donoDe.set(l.id, cx.id);
+    }
+  }
+
+  const scope: Record<string, unknown> = {};
+  const aliases: AliasRegistrado[] = [];
+  const definido = new Set<string>();
+
+  for (let pass = 0; pass < 8; pass++) {
+    let mudou = false;
+    for (const linha of linhasOrdenadas) {
+      const c = classificar(linha.expressao);
+      if (c.tipo !== 'atribuicao_num' && c.tipo !== 'atribuicao_str') continue;
+      if (ehReservada(c.nomeVar!)) continue;
+      const chave = c.ehString ? chaveScopeDe(normalizarNome(c.nomeVar!)) : c.nomeVar!;
+      if (definido.has(chave)) continue;
+      let valor: unknown;
+      try {
+        valor = evalSafe(substituirAliases(c.rhsExpr, aliases), scope);
+      } catch {
+        continue;
+      }
+      scope[chave] = valor;
+      definido.add(chave);
+      if (c.ehString) {
+        const canonico = normalizarNome(c.nomeVar!);
+        if (!aliases.some((a) => a.canonico === canonico)) {
+          aliases.push({ canonico, chaveScope: chave });
+        }
+      }
+      mudou = true;
+    }
+    if (!mudou) break;
+  }
+
+  const porCaixa = new Map<string, LinhaAvaliada[]>();
+  for (const cx of caixas) porCaixa.set(cx.id, []);
+  for (const linha of linhasOrdenadas) {
+    porCaixa.get(donoDe.get(linha.id)!)!.push(avaliarLinhaFixo(linha, scope, aliases));
+  }
+  return porCaixa;
+}
