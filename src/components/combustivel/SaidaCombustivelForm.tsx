@@ -534,8 +534,9 @@ export default function SaidaCombustivelForm({
     if (!watch('tipoCombustivel')) faltam.push('Combustível');
     if (litros <= 0) faltam.push('Litros');
     if (precoUnitario <= 0 && origem !== 'tanque') faltam.push('Preço unitário');
+    if (!watch('etapaId')) faltam.push('Etapa');
     if (tipoConsumidor === 'equipamento_proprio') {
-      if (!equipamentoId) faltam.push('Equipamento');
+      if (!equipamentoId || equipamentoId === 'desconhecido') faltam.push('Equipamento');
     } else {
       if (!watch('transportadoraId')) faltam.push('Transportadora');
     }
@@ -995,7 +996,7 @@ export default function SaidaCombustivelForm({
             htmlFor="saidaEtapa"
             className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1"
           >
-            Etapa
+            Etapa <span className="text-red-500">*</span>
           </label>
           {obraId ? (
             <Controller
@@ -1006,7 +1007,7 @@ export default function SaidaCombustivelForm({
                   value={field.value}
                   onChange={field.onChange}
                   options={etapasDaObra.map((et) => ({ value: et.id, label: et.nome }))}
-                  placeholder="Buscar etapa por código ou nome (opcional)"
+                  placeholder="Buscar etapa por código ou nome"
                 />
               )}
             />
@@ -1018,6 +1019,9 @@ export default function SaidaCombustivelForm({
               placeholder="Selecione obra primeiro"
               className="w-full h-[38px] rounded-lg px-3 py-2 text-sm bg-gray-100 dark:bg-slate-700 border border-gray-300 dark:border-slate-600 text-gray-400 dark:text-slate-500"
             />
+          )}
+          {errors.etapaId?.message && (
+            <p className="text-xs text-red-500 mt-1">{errors.etapaId.message}</p>
           )}
           {obraId && etapasDaObra.length === 0 && (
             <div className="text-xs text-[var(--color-warning-fg)] mt-1">

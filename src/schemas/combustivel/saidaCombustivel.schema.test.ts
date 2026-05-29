@@ -10,7 +10,7 @@ const validEquipamentoTanque = {
   transportadoraId: '',
   placa: '',
   obraId: 'obra-1',
-  etapaId: '',
+  etapaId: 'et-1',
   tipoCombustivel: 'ins-diesel',
   litros: 100,
   taxaLitro: 0,
@@ -44,6 +44,37 @@ describe('saidaCombustivelSchema', () => {
     expect(r.success).toBe(false)
     if (!r.success) {
       expect(r.error.issues.some((i) => i.path.includes('equipamentoId'))).toBe(true)
+    }
+  })
+
+  it('rejeita equipamentoId = desconhecido (sentinela) em equipamento_proprio', () => {
+    const r = saidaCombustivelSchema.safeParse({ ...validEquipamentoTanque, equipamentoId: 'desconhecido' })
+    expect(r.success).toBe(false)
+    if (!r.success) {
+      expect(r.error.issues.some((i) => i.path.includes('equipamentoId'))).toBe(true)
+    }
+  })
+
+  it('exige etapaId em toda saída', () => {
+    const r = saidaCombustivelSchema.safeParse({ ...validEquipamentoTanque, etapaId: '' })
+    expect(r.success).toBe(false)
+    if (!r.success) {
+      expect(r.error.issues.some((i) => i.path.includes('etapaId'))).toBe(true)
+    }
+  })
+
+  it('exige etapaId também em carreta', () => {
+    const r = saidaCombustivelSchema.safeParse({
+      ...validEquipamentoTanque,
+      tipoConsumidor: 'carreta_transportadora',
+      equipamentoId: '',
+      transportadoraId: 'transp-1',
+      precoCombustivel: 5,
+      etapaId: '',
+    })
+    expect(r.success).toBe(false)
+    if (!r.success) {
+      expect(r.error.issues.some((i) => i.path.includes('etapaId'))).toBe(true)
     }
   })
 

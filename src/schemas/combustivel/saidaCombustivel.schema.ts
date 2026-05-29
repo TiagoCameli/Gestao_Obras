@@ -28,11 +28,24 @@ const baseSchema = z.object({
 })
 
 export const saidaCombustivelSchema = baseSchema.superRefine((data, ctx) => {
-  if (data.tipoConsumidor === 'equipamento_proprio' && !data.equipamentoId) {
+  // Equipamento obrigatório e REAL (bloqueia o sentinela 'desconhecido') para
+  // saída de equipamento próprio. Garante rastreio de custo por máquina.
+  if (
+    data.tipoConsumidor === 'equipamento_proprio' &&
+    (!data.equipamentoId || data.equipamentoId === 'desconhecido')
+  ) {
     ctx.addIssue({
       code: 'custom',
-      message: 'Selecione equipamento',
+      message: 'Selecione um equipamento',
       path: ['equipamentoId'],
+    })
+  }
+  // Etapa obrigatória em toda saída (aloca o custo na etapa da obra).
+  if (!data.etapaId) {
+    ctx.addIssue({
+      code: 'custom',
+      message: 'Selecione a etapa',
+      path: ['etapaId'],
     })
   }
   if (data.tipoConsumidor === 'carreta_transportadora' && !data.transportadoraId) {
