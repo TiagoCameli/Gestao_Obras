@@ -1,5 +1,69 @@
 # Engenharia — CHANGELOG
 
+## Onda Prancha v1 (2026-05-29)
+
+### O que é
+
+Novo tipo de bloco **Prancha** — quadro livre (canvas) ao lado de Nota e Cálculo. O usuário seleciona uma ferramenta na paleta lateral e aplica onde clicar no canvas. Elementos v1: caixa de texto, caixa de cálculo (reusa `recalcularDocumento` + `LinhaCalculo`), e formas geométricas SVG (linha, retângulo, quadrado, círculo).
+
+### Banco de dados
+
+- **2 tabelas novas:** `engenharia_pranchas` + `engenharia_pranchas_versoes`.
+- **RLS per-command** em ambas as tabelas via `private.current_has_action(...)`.
+- **1 função SECDEF nova:** `engenharia_salvar_prancha_com_versao(uuid, text, jsonb, int)` — atomiza snapshot da versão + UPDATE da prancha. Optimistic concurrency via `p_versao_atual` (rejeita `conflito_versao` se DB já avançou). Cap de 50 versões por prancha (D-9). GRANT EXECUTE só para authenticated; REVOKE de anon/public.
+- **Migration `20260529120000`** (+ rollback): tabelas + RLS + função SECDEF.
+- **Migration `20260529130000`** (+ rollback): backfill das chaves de permissão por cargo.
+- **Migrations ainda NÃO aplicadas no banco — aplicar via `supabase db push` / MCP no merge.**
+
+### Permissões
+
+- 3 chaves novas em `ACOES_PLATAFORMA`: `criar_engenharia_prancha`, `editar_engenharia_prancha`, `excluir_engenharia_prancha`.
+- Deps adicionadas em `DEPENDENCIAS_ACOES` (`ver_engenharia` como raiz).
+- `TEMPLATES_ACOES_POR_CARGO` atualizado para todos os cargos aplicáveis.
+
+### Frontend
+
+- Canvas DIY com `react-moveable@^0.56` (mover, redimensionar, rotacionar elementos).
+- Formas SVG nativas (linha, retângulo, quadrado, círculo).
+- Componentes React: `PranchaCanvas.tsx`, `PranchaToolbar.tsx`, `ElementoTexto.tsx`, `ElementoCalculo.tsx`, `ElementoForma.tsx`, `PranchaPage.tsx`.
+- `ElementoCalculo` reusa `recalcularDocumento` + `LinhaCalculo` da Onda 6a — sem duplicação de engine.
+- `src/modules/engenharia/types/prancha.ts` — `EngenhariaPrancha`, `EngenhariaPranchaVersao`, `ElementoPrancha` (union `texto | calculo | forma`) + mappers.
+- `src/modules/engenharia/hooks/useEngenhariaPranchas.ts` — `useEngenhariaPrancha`, `usePranchasDaPasta`, `useCriarPrancha`, `useSalvarPrancha` (RPC), `useSoftDeletePrancha`.
+- Lock pessimista via `useLockRecurso('prancha', id)` (mesmo hook genérico da Nota e do Cálculo).
+- Auto-save debounce 5s + Cmd/Ctrl+S manual. Mensagem dedicada para `conflito_versao` com botão "Recarregar".
+- `src/modules/engenharia/services/pranchaModel.ts` — modelo puro (lógica de criação/atualização de elementos, sem efeitos colaterais).
+- Rota `/engenharia/prancha/:id` (lazy) + `ProtectedRoute acao="ver_engenharia"`.
+- `PastaPage.tsx` — item "Novo > Prancha" habilitado; hidden quando `!temAcao('criar_engenharia_prancha')`.
+
+### Libs novas
+
+- `react-moveable@^0.56` — mover/redimensionar/rotacionar elementos no canvas.
+
+### Testes
+
+- 5 Vitest em `pranchaModel.test.ts` (modelo puro: criar elemento, atualizar posição, remover, tipos distintos, canvas vazio).
+- `src/utils/permissions.test.ts` atualizado para incluir as 3 novas chaves de prancha.
+- 1 spec Playwright `tests/engenharia-prancha.spec.ts` (1 cenário ativo: criar prancha + abrir canvas; roda após aplicar a migration).
+
+### Migrations (2 pares fix+rollback)
+
+| Timestamp | Conteúdo |
+|---|---|
+| `20260529120000` | Tabelas `engenharia_pranchas` + `_versoes` + RLS + função SECDEF `engenharia_salvar_prancha_com_versao` |
+| `20260529130000` | Backfill das chaves de permissão por cargo |
+
+### Fora da v1 (próximas ondas)
+
+Pan/zoom interativo, undo/redo, snap a grid, histórico na UI, variável compartilhada entre blocos, e fases P2–P5 do roadmap (mini-planilha, conversor de unidades, templates de cálculo, cota com escala, seção de pavimento, régua de km). Ver spec `docs/superpowers/specs/2026-05-28-engenharia-prancha-quadro-livre-design.md`.
+
+### Verificação
+
+- `npx tsc -b`: **0 erros**.
+- `npx vitest run src/modules/engenharia/ src/utils/permissions.test.ts`: **94/94 passing** (9 test files).
+- `npm run build`: build OK — chunk lazy `PranchaPage-BCLMLUYc.js` emitido (242.63 kB / 80.01 kB gzip).
+
+---
+
 ## Onda 1 — Schema, RLS, triggers, locks (2026-05-26)
 
 ### Banco de dados

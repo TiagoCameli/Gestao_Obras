@@ -19,7 +19,7 @@ export type EstadoLock =
  * - Release ao desmontar (best-effort).
  */
 export function useLockRecurso(
-  recursoTipo: 'nota' | 'calculo',
+  recursoTipo: 'nota' | 'calculo' | 'prancha',
   recursoId: string | null,
 ): EstadoLock {
   const [estado, setEstado] = useState<EstadoLock>({ status: 'carregando' });

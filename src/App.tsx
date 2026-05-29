@@ -40,6 +40,7 @@ const EngenhariaPage = lazy(() => import('./modules/engenharia/pages/EngenhariaP
 const PastaEngenhariaPage = lazy(() => import('./modules/engenharia/pages/PastaPage'));
 const NotaEngenhariaPage = lazy(() => import('./modules/engenharia/pages/NotaPage'));
 const CalculoEngenhariaPage = lazy(() => import('./modules/engenharia/pages/CalculoPage'));
+const PranchaEngenhariaPage = lazy(() => import('./modules/engenharia/pages/PranchaPage'));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -140,6 +141,16 @@ export default function App() {
                   <ProtectedRoute acao="ver_engenharia">
                     <Suspense fallback={<div className="p-8 text-center text-[var(--color-fg-muted)]">Carregando…</div>}>
                       <CalculoEngenhariaPage />
+                    </Suspense>
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/engenharia/prancha/:id"
+                element={
+                  <ProtectedRoute acao="ver_engenharia">
+                    <Suspense fallback={<div className="p-8 text-center text-[var(--color-fg-muted)]">Carregando…</div>}>
+                      <PranchaEngenhariaPage />
                     </Suspense>
                   </ProtectedRoute>
                 }
