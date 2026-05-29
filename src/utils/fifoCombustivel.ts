@@ -16,6 +16,10 @@ export interface FIFOInput {
   entradas: EntradaCombustivel[]
   transferencias: TransferenciaCombustivel[]
   saidasAnteriores: SaidaCombustivel[]
+  // FIFO é segmentado por tipo de combustível: uma saída de S500 só consome
+  // lotes de S500 (e replay só de saídas de S500), etc. Quando omitido, não
+  // filtra por tipo (compat). Deve corresponder ao tipo_combustivel da saída.
+  tipoCombustivel?: string
 }
 
 export interface FIFOResult {
@@ -50,12 +54,17 @@ interface LoteSaldo {
  * `new Date(...)` pra evitar TZ shift / perda de precisão.
  */
 export function calcularPrecoFIFO(input: FIFOInput): FIFOResult {
-  const { tanqueId, dataHora, litros, entradas, transferencias, saidasAnteriores } = input
+  const { tanqueId, dataHora, litros, entradas, transferencias, saidasAnteriores, tipoCombustivel } = input
 
-  // 1. Monta lista de lotes ATÉ a data da saída (wall-clock string comparison)
+  // 1. Monta lista de lotes ATÉ a data da saída (wall-clock string comparison),
+  //    filtrando pelo tipo de combustível quando informado.
   const saldos: LoteSaldo[] = []
   for (const e of entradas) {
-    if (e.depositoId === tanqueId && e.dataHora <= dataHora) {
+    if (
+      e.depositoId === tanqueId &&
+      e.dataHora <= dataHora &&
+      (!tipoCombustivel || e.tipoCombustivel === tipoCombustivel)
+    ) {
       saldos.push({
         fonteTipo: 'entrada',
         fonteId: e.id,
@@ -67,7 +76,11 @@ export function calcularPrecoFIFO(input: FIFOInput): FIFOResult {
     }
   }
   for (const t of transferencias) {
-    if (t.depositoDestinoId === tanqueId && t.dataHora <= dataHora) {
+    if (
+      t.depositoDestinoId === tanqueId &&
+      t.dataHora <= dataHora &&
+      (!tipoCombustivel || t.tipoCombustivel === tipoCombustivel)
+    ) {
       saldos.push({
         fonteTipo: 'transferencia',
         fonteId: t.id,
@@ -87,7 +100,12 @@ export function calcularPrecoFIFO(input: FIFOInput): FIFOResult {
 
   // 3. Replay saídas anteriores (consomem do saldo) em ordem cronológica
   const saidasOrdenadas = saidasAnteriores
-    .filter((s) => s.tanqueId === tanqueId && s.data < dataHora)
+    .filter(
+      (s) =>
+        s.tanqueId === tanqueId &&
+        s.data < dataHora &&
+        (!tipoCombustivel || s.tipoCombustivel === tipoCombustivel),
+    )
     .sort((a, b) => a.data.localeCompare(b.data))
 
   for (const s of saidasOrdenadas) {

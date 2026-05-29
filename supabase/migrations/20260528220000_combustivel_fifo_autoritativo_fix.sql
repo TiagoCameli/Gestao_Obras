@@ -67,10 +67,13 @@ BEGIN
   END IF;
 
   -- Tabela temporária com o saldo mutável dos lotes deste tanque.
+  -- tipo_comb: FIFO é segmentado por tipo de combustível (uma saída de S500
+  -- só consome lotes de S500; S10 só de S10; etc).
   CREATE TEMP TABLE IF NOT EXISTS _fifo_lotes (
     seq          bigserial PRIMARY KEY,
     fonte_tipo   text NOT NULL,
     fonte_id     text NOT NULL,
+    tipo_comb    text,
     data_origem  timestamp NOT NULL,
     saldo        numeric NOT NULL,
     preco        numeric NOT NULL
@@ -78,14 +81,14 @@ BEGIN
   TRUNCATE _fifo_lotes RESTART IDENTITY;
 
   -- Lotes = ENTRADAS (compras) + TRANSFERÊNCIAS recebidas (destino).
-  INSERT INTO _fifo_lotes (fonte_tipo, fonte_id, data_origem, saldo, preco)
-  SELECT 'entrada', e.id, e.data_hora, e.quantidade_litros,
+  INSERT INTO _fifo_lotes (fonte_tipo, fonte_id, tipo_comb, data_origem, saldo, preco)
+  SELECT 'entrada', e.id, e.tipo_combustivel, e.data_hora, e.quantidade_litros,
          CASE WHEN e.quantidade_litros > 0 THEN e.valor_total / e.quantidade_litros ELSE 0 END
   FROM public.entradas_combustivel e
   WHERE e.deposito_id = p_tanque_id AND e.deleted_at IS NULL;
 
-  INSERT INTO _fifo_lotes (fonte_tipo, fonte_id, data_origem, saldo, preco)
-  SELECT 'transferencia', t.id, t.data_hora, t.quantidade_litros,
+  INSERT INTO _fifo_lotes (fonte_tipo, fonte_id, tipo_comb, data_origem, saldo, preco)
+  SELECT 'transferencia', t.id, t.tipo_combustivel, t.data_hora, t.quantidade_litros,
          CASE WHEN t.quantidade_litros > 0 THEN t.valor_total / t.quantidade_litros ELSE 0 END
   FROM public.transferencias_combustivel t
   WHERE t.deposito_destino_id = p_tanque_id AND t.deleted_at IS NULL;
@@ -102,7 +105,7 @@ BEGIN
   -- cronológica determinística. Carreta consome lote (físico) mas não tem
   -- preço alterado.
   FOR v_saida IN
-    SELECT id, data, litros, tipo_consumidor
+    SELECT id, data, litros, tipo_consumidor, tipo_combustivel
     FROM public.saidas_combustivel
     WHERE tanque_id = p_tanque_id
       AND origem = 'tanque'
@@ -113,11 +116,14 @@ BEGIN
     v_total_valor := 0;
     v_total_litros := 0;
 
-    -- Consome lotes elegíveis (data_origem <= data da saída) em ordem FIFO.
+    -- Consome lotes elegíveis (mesmo tipo de combustível, data_origem <= data
+    -- da saída) em ordem FIFO.
     FOR v_lote IN
       SELECT seq, fonte_tipo, fonte_id, saldo, preco
       FROM _fifo_lotes
-      WHERE data_origem <= v_saida.data AND saldo > 0
+      WHERE tipo_comb = v_saida.tipo_combustivel
+        AND data_origem <= v_saida.data
+        AND saldo > 0
       ORDER BY data_origem ASC, seq ASC
     LOOP
       EXIT WHEN v_restante <= 0;

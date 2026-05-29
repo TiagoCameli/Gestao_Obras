@@ -284,6 +284,7 @@ export default function SaidaCombustivelForm({
   //   - detalhamento: quebra por lote, pra grava em saidas_lotes
   //   - litrosSemSuprimento: > 0 quando saída excede o suprimento → grava
   //     em saidas_sem_suprimento pra revisão.
+  const tipoCombustivelSaida = watch('tipoCombustivel');
   const fifoResult = useMemo(() => {
     if (origem !== 'tanque' || !tanqueId) {
       return { precoMedio: 0, detalhamento: [] as ReturnType<typeof calcularPrecoFIFO>['detalhamento'], litrosSemSuprimento: 0 };
@@ -302,12 +303,13 @@ export default function SaidaCombustivelForm({
       litros,
       entradas: entradasCombustivel,
       transferencias,
+      tipoCombustivel: tipoCombustivelSaida,
       // Em edit mode exclui ESTA saída do replay (senão consumiria 2x).
       saidasAnteriores: saidasExistentes.filter(
         (s) => s.tanqueId === tanqueId && s.id !== initial?.id,
       ),
     });
-  }, [origem, tanqueId, data, litros, entradasCombustivel, transferencias, saidasExistentes, initial?.id]);
+  }, [origem, tanqueId, data, litros, entradasCombustivel, transferencias, saidasExistentes, initial?.id, tipoCombustivelSaida]);
 
   // Preço médio CORRENTE do tanque (FIFO). Usado no preview da UI.
   const precoMedioTanqueCorrente = fifoResult.precoMedio;

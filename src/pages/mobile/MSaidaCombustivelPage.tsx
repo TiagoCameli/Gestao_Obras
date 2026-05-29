@@ -111,9 +111,10 @@ export default function MSaidaCombustivelPage() {
       litros: litrosNum,
       entradas: entradasCombustivel,
       transferencias,
+      tipoCombustivel: tanqueSelecionado?.combustivelAtualId ?? '',
       saidasAnteriores: saidasExistentes.filter((s) => s.tanqueId === tanqueId),
     });
-  }, [tanqueId, litros, entradasCombustivel, transferencias, saidasExistentes]);
+  }, [tanqueId, litros, entradasCombustivel, transferencias, saidasExistentes, tanqueSelecionado?.combustivelAtualId]);
   const precoMedioTanque = fifoPreview.precoMedio;
 
   const combustivelDoTanque = tanqueSelecionado?.combustivelAtualId ?? '';
@@ -193,6 +194,7 @@ export default function MSaidaCombustivelPage() {
         litros: litrosNum,
         entradas: entradasCombustivel,
         transferencias,
+        tipoCombustivel: combustivelDoTanque,
         saidasAnteriores: saidasExistentes.filter((s) => s.tanqueId === tanqueId),
       });
       const precoFIFO = fifo.precoMedio;
