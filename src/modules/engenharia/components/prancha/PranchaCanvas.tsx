@@ -1,4 +1,4 @@
-import { useRef, useState, useCallback } from 'react';
+import { useRef, useState, useCallback, useEffect } from 'react';
 import Moveable from 'react-moveable';
 import { PranchaToolbar, type Ferramenta } from './PranchaToolbar';
 import { ElementoTexto } from './ElementoTexto';
@@ -58,6 +58,26 @@ export function PranchaCanvas({ documento, readOnly, onChange }: Props) {
     setElementos(elementos.filter((el) => el.id !== selecionadoId));
     setSelecionadoId(null);
   }
+
+  // Tecla Delete/Backspace apaga o elemento selecionado (a menos que o foco
+  // esteja num campo de texto, pra não comer o que o usuário está digitando).
+  useEffect(() => {
+    if (readOnly || !selecionadoId) return;
+    function onKey(e: KeyboardEvent) {
+      if (e.key !== 'Delete' && e.key !== 'Backspace') return;
+      const alvo = document.activeElement;
+      const editando =
+        alvo instanceof HTMLInputElement ||
+        alvo instanceof HTMLTextAreaElement ||
+        (alvo instanceof HTMLElement && alvo.isContentEditable);
+      if (editando) return;
+      e.preventDefault();
+      setElementos(elementos.filter((el) => el.id !== selecionadoId));
+      setSelecionadoId(null);
+    }
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [readOnly, selecionadoId, elementos, setElementos]);
 
   function renderProps(el: ElementoPrancha) {
     const onPropsChange = (props: ElementoPrancha['props']) => atualizarElemento(el.id, { props });
