@@ -1155,7 +1155,7 @@ export const TEMPLATES_ACOES_POR_CARGO: Record<CargoFuncionario, string[]> = {
     'exportar_medicao',
     // Mobile
     'executar_checklist_mobile', 'lancar_medicao_mobile', 'abrir_os_mobile',
-    // Engenharia (16 chaves — tudo menos excluir_permanente_engenharia)
+    // Engenharia (19 chaves — tudo menos excluir_permanente_engenharia)
     'ver_engenharia',
     'criar_engenharia_pasta', 'editar_engenharia_pasta', 'excluir_engenharia_pasta',
     'criar_engenharia_nota', 'editar_engenharia_nota', 'excluir_engenharia_nota',

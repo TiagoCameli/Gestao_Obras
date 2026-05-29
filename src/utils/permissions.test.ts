@@ -20,7 +20,7 @@ describe('ACOES_PLATAFORMA — Engenharia', () => {
     expect(chavesEng.sort()).toEqual([...CHAVES_ENGENHARIA_TODAS].sort());
   });
 
-  it('todas as 17 chaves têm label não-vazio', () => {
+  it('todas as 20 chaves têm label não-vazio', () => {
     const acoes = ACOES_PLATAFORMA.filter((a) => a.grupo === 'Engenharia');
     for (const a of acoes) {
       expect(a.label.length).toBeGreaterThan(0);
@@ -61,6 +61,9 @@ describe('acoesPadraoDoCargo — Engenharia', () => {
     expect(acoes).toContain('gerenciar_locks_engenharia');
     expect(acoes).toContain('excluir_engenharia_pasta');
     expect(acoes).toContain('excluir_engenharia_arquivo');
+    expect(acoes).toContain('criar_engenharia_prancha');
+    expect(acoes).toContain('editar_engenharia_prancha');
+    expect(acoes).toContain('excluir_engenharia_prancha');
     expect(acoes).not.toContain('excluir_permanente_engenharia');
   });
 
