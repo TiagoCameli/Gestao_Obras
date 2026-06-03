@@ -11,6 +11,7 @@ import Modal from '../../ui/Modal';
 import Input from '../../ui/Input';
 import Select from '../../ui/Select';
 import Button from '../../ui/Button';
+import SubmitButton from '../../ui/SubmitButton';
 
 interface Props {
   open: boolean;
@@ -297,9 +298,9 @@ export default function FinanceiroFormModal({
           <Button variant="secondary" type="button" onClick={onClose} disabled={submitting}>
             Cancelar
           </Button>
-          <Button type="submit" disabled={submitting}>
-            {submitting ? 'Salvando…' : 'Salvar'}
-          </Button>
+          <SubmitButton loading={submitting}>
+            Salvar
+          </SubmitButton>
         </div>
       </form>
     </Modal>

@@ -19,6 +19,7 @@ import { useTiposEquipamento, useAdicionarTipoEquipamento } from '../../hooks/us
 import Input from '../ui/Input';
 import Select from '../ui/Select';
 import Button from '../ui/Button';
+import SubmitButton from '../ui/SubmitButton';
 import SearchableSelect from '../ui/SearchableSelect';
 import ImportEquipamentosModal from '../obras/ImportEquipamentosModal';
 import AnexosUploader from '../combustivel/AnexosUploader';
@@ -51,7 +52,7 @@ function gerarCodigoPatrimonio(tipo: string, existentes: Equipamento[], codigo?:
 
 interface EquipamentoFormFrotaProps {
   initial?: Equipamento | null;
-  onSubmit: (eq: Equipamento) => void;
+  onSubmit: (eq: Equipamento) => void | Promise<void>;
   onCancel: () => void;
   empresas: Empresa[];
   equipamentosExistentes: Equipamento[];
@@ -103,7 +104,7 @@ export default function EquipamentoFormFrota({ initial, onSubmit, onCancel, empr
     setValue,
     reset,
     control,
-    formState: { errors, isValid: rhfIsValid },
+    formState: { errors, isValid: rhfIsValid, isSubmitting },
   } = useForm<EquipamentoFrotaFormValues>({
     resolver: zodResolver(equipamentoFrotaFormSchema),
     mode: 'onChange',
@@ -182,8 +183,8 @@ export default function EquipamentoFormFrota({ initial, onSubmit, onCancel, empr
   }, [dataVendaWatch]);
 
   // ── Submit + tipo novo handler ───────────────────────────────────────────
-  const onValidSubmit = useCallback((values: EquipamentoFrotaFormValues) => {
-    onSubmit({
+  const onValidSubmit = useCallback(async (values: EquipamentoFrotaFormValues) => {
+    await onSubmit({
       id: initial?.id || gerarId(),
       nome: values.nome,
       tipo: values.tipo,
@@ -494,9 +495,9 @@ export default function EquipamentoFormFrota({ initial, onSubmit, onCancel, empr
         <Button variant="secondary" type="button" onClick={onCancel}>
           Cancelar
         </Button>
-        <Button type="submit" disabled={!isValid}>
+        <SubmitButton loading={isSubmitting} disabled={!isValid}>
           {initial ? 'Salvar Alterações' : 'Cadastrar Equipamento'}
-        </Button>
+        </SubmitButton>
       </div>
 
       {onImportBatch && (

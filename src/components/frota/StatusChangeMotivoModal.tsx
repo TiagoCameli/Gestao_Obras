@@ -9,6 +9,7 @@ import type { StatusEquipamento } from '../../types';
 import { STATUS_EQUIPAMENTO_LABEL } from '../../types';
 import Modal from '../ui/Modal';
 import Button from '../ui/Button';
+import SubmitButton from '../ui/SubmitButton';
 import { useAuth } from '../../contexts/AuthContext';
 
 interface Props {
@@ -165,9 +166,9 @@ export default function StatusChangeMotivoModal({
           <Button variant="secondary" type="button" onClick={onClose} disabled={submitting}>
             Cancelar
           </Button>
-          <Button type="submit" disabled={!podeSalvar || submitting}>
-            {submitting ? 'Salvando…' : 'Confirmar'}
-          </Button>
+          <SubmitButton loading={submitting} disabled={!podeSalvar}>
+            Confirmar
+          </SubmitButton>
         </div>
       </form>
     </Modal>

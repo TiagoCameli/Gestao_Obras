@@ -17,6 +17,7 @@ import Modal from '../../ui/Modal';
 import Input from '../../ui/Input';
 import Select from '../../ui/Select';
 import Button from '../../ui/Button';
+import SubmitButton from '../../ui/SubmitButton';
 import AnexosUploader from '../../combustivel/AnexosUploader';
 
 interface Props {
@@ -189,9 +190,9 @@ export default function DocumentoFormModal({
           <Button variant="secondary" type="button" onClick={onClose} disabled={submitting}>
             Cancelar
           </Button>
-          <Button type="submit" disabled={submitting}>
-            {submitting ? 'Salvando…' : initial ? 'Salvar alterações' : 'Cadastrar documento'}
-          </Button>
+          <SubmitButton loading={submitting}>
+            {initial ? 'Salvar alterações' : 'Cadastrar documento'}
+          </SubmitButton>
         </div>
       </form>
     </Modal>

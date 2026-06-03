@@ -10,6 +10,7 @@ import type { Equipamento, EspecificacoesEquipamento, FiltrosEquipamento } from 
 import Modal from '../../ui/Modal';
 import Input from '../../ui/Input';
 import Button from '../../ui/Button';
+import SubmitButton from '../../ui/SubmitButton';
 import { Plus, Trash2 } from 'lucide-react';
 
 interface Props {
@@ -296,9 +297,9 @@ export default function EspecificacoesFormModal({
           <Button variant="secondary" type="button" onClick={onClose} disabled={submitting}>
             Cancelar
           </Button>
-          <Button type="submit" disabled={submitting}>
-            {submitting ? 'Salvando…' : 'Salvar especificações'}
-          </Button>
+          <SubmitButton loading={submitting}>
+            Salvar especificações
+          </SubmitButton>
         </div>
       </form>
     </Modal>

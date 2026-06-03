@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import type { Deposito } from '../../../types';
 import Button from '../../ui/Button';
+import SubmitButton from '../../ui/SubmitButton';
 import Input from '../../ui/Input';
 import AnexosUploader from '../../combustivel/AnexosUploader';
 
@@ -103,9 +104,9 @@ export default function TanqueForm({ initial, onSubmit, onCancel }: TanqueFormPr
         <Button type="button" variant="secondary" onClick={onCancel}>
           Cancelar
         </Button>
-        <Button type="submit" disabled={salvando || !nome.trim() || !capacidadeLitros}>
-          {salvando ? 'Salvando...' : initial ? 'Salvar' : 'Criar Tanque'}
-        </Button>
+        <SubmitButton loading={salvando} disabled={!nome.trim() || !capacidadeLitros}>
+          {initial ? 'Salvar' : 'Criar Tanque'}
+        </SubmitButton>
       </div>
     </form>
   );

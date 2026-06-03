@@ -3,10 +3,11 @@
 // nivel_atual_litros vira 0 e combustivel_atual_id vira null.
 
 import { useEffect, useState, type FormEvent } from 'react';
-import { AlertTriangle, Loader2 } from 'lucide-react';
+import { AlertTriangle } from 'lucide-react';
 import type { Deposito } from '../../../types';
 import Modal from '../../ui/Modal';
 import Button from '../../ui/Button';
+import SubmitButton from '../../ui/SubmitButton';
 import { useEsvaziarTanque } from '../../../hooks/useEsvaziamentosTanque';
 import { useAuth } from '../../../contexts/AuthContext';
 
@@ -94,10 +95,9 @@ export default function EsvaziarTanqueModal({ open, onClose, tanque, combustivel
           <Button type="button" variant="secondary" onClick={onClose} disabled={esvaziarMut.isPending}>
             Cancelar
           </Button>
-          <Button type="submit" disabled={esvaziarMut.isPending} className="inline-flex items-center gap-1.5">
-            {esvaziarMut.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
+          <SubmitButton loading={esvaziarMut.isPending} loadingLabel="Esvaziando...">
             Esvaziar tanque
-          </Button>
+          </SubmitButton>
         </div>
       </form>
     </Modal>
