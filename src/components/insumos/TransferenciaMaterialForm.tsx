@@ -4,10 +4,11 @@ import { calcularEstoqueMaterial, calcularEstoqueMaterialNaData } from '../../ho
 import Input from '../ui/Input';
 import Select from '../ui/Select';
 import Button from '../ui/Button';
+import SubmitButton from '../ui/SubmitButton';
 import ImportExcelModal, { parseStr, parseNumero, type ParsedRow } from '../ui/ImportExcelModal';
 
 interface TransferenciaMaterialFormProps {
-  onSubmit: (data: TransferenciaMaterial) => void;
+  onSubmit: (data: TransferenciaMaterial) => void | Promise<void>;
   onCancel: () => void;
   depositosMaterial: DepositoMaterial[];
   insumos: Insumo[];
@@ -48,6 +49,7 @@ export default function TransferenciaMaterialForm({
   const [observacoes, setObservacoes] = useState('');
   const [importModalOpen, setImportModalOpen] = useState(false);
   const [toastMsg, setToastMsg] = useState('');
+  const [submitting, setSubmitting] = useState(false);
 
   const parseRow = useCallback((row: unknown[], _index: number): ParsedRow => {
     const erros: string[] = [];
@@ -126,19 +128,25 @@ export default function TransferenciaMaterialForm({
 
   const depositosDestino = depositos.filter((d) => d.id !== depositoOrigemId);
 
-  function handleSubmit(e: FormEvent) {
+  async function handleSubmit(e: FormEvent) {
     e.preventDefault();
-    onSubmit({
-      id: gerarId(),
-      dataHora,
-      depositoOrigemId,
-      depositoDestinoId,
-      insumoId,
-      quantidade: qtd,
-      valorTotal: parseFloat(valorTotal) || 0,
-      observacoes,
-      criadoPor: '',
-    });
+    if (submitting) return;
+    setSubmitting(true);
+    try {
+      await onSubmit({
+        id: gerarId(),
+        dataHora,
+        depositoOrigemId,
+        depositoDestinoId,
+        insumoId,
+        quantidade: qtd,
+        valorTotal: parseFloat(valorTotal) || 0,
+        observacoes,
+        criadoPor: '',
+      });
+    } finally {
+      setSubmitting(false);
+    }
   }
 
   const isValid =
@@ -277,9 +285,9 @@ export default function TransferenciaMaterialForm({
         <Button variant="secondary" type="button" onClick={onCancel}>
           Cancelar
         </Button>
-        <Button type="submit" disabled={!isValid}>
+        <SubmitButton loading={submitting} disabled={!isValid}>
           Registrar Transferência
-        </Button>
+        </SubmitButton>
       </div>
 
       {onImportBatch && (

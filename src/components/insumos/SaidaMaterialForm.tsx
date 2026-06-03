@@ -7,11 +7,12 @@ import Select from '../ui/Select';
 import SmartSelect from '../ui/SmartSelect';
 import FilterCombobox from '../ui/FilterCombobox';
 import Button from '../ui/Button';
+import SubmitButton from '../ui/SubmitButton';
 import ImportExcelModal, { parseStr, parseNumero, type ParsedRow } from '../ui/ImportExcelModal';
 
 interface SaidaMaterialFormProps {
   initial?: SaidaMaterial | null;
-  onSubmit: (data: SaidaMaterial) => void;
+  onSubmit: (data: SaidaMaterial) => void | Promise<void>;
   onCancel: () => void;
   obras: Obra[];
   insumos: Insumo[];
@@ -68,6 +69,7 @@ export default function SaidaMaterialForm({
   const [observacoes, setObservacoes] = useState(initial?.observacoes || '');
   const [importModalOpen, setImportModalOpen] = useState(false);
   const [toastMsg, setToastMsg] = useState('');
+  const [submitting, setSubmitting] = useState(false);
 
   // Insumos com estoque > 0 no depósito selecionado
   const insumosComEstoque = depositoMaterialId
@@ -227,20 +229,26 @@ export default function SaidaMaterialForm({
     );
   }
 
-  function handleSubmit(e: FormEvent) {
+  async function handleSubmit(e: FormEvent) {
     e.preventDefault();
-    onSubmit({
-      id: initial?.id || gerarId(),
-      dataHora,
-      depositoMaterialId,
-      insumoId,
-      obraId,
-      quantidade: qtd,
-      valorTotal: parseFloat(valorTotal) || 0,
-      alocacoes,
-      observacoes,
-      criadoPor: initial?.criadoPor || '',
-    });
+    if (submitting) return;
+    setSubmitting(true);
+    try {
+      await onSubmit({
+        id: initial?.id || gerarId(),
+        dataHora,
+        depositoMaterialId,
+        insumoId,
+        obraId,
+        quantidade: qtd,
+        valorTotal: parseFloat(valorTotal) || 0,
+        alocacoes,
+        observacoes,
+        criadoPor: initial?.criadoPor || '',
+      });
+    } finally {
+      setSubmitting(false);
+    }
   }
 
   const isValid =
@@ -465,9 +473,9 @@ export default function SaidaMaterialForm({
         <Button variant="secondary" type="button" onClick={onCancel}>
           Cancelar
         </Button>
-        <Button type="submit" disabled={!isValid}>
+        <SubmitButton loading={submitting} disabled={!isValid}>
           {initial ? 'Salvar Alterações' : 'Registrar Saída'}
-        </Button>
+        </SubmitButton>
       </div>
 
       {onImportBatch && (

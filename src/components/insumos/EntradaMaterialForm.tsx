@@ -7,11 +7,12 @@ import Select from '../ui/Select';
 import SmartSelect from '../ui/SmartSelect';
 import FilterCombobox from '../ui/FilterCombobox';
 import Button from '../ui/Button';
+import SubmitButton from '../ui/SubmitButton';
 import ImportExcelModal, { parseStr, parseNumero, type ParsedRow } from '../ui/ImportExcelModal';
 
 interface EntradaMaterialFormProps {
   initial?: EntradaMaterial | null;
-  onSubmit: (data: EntradaMaterial) => void;
+  onSubmit: (data: EntradaMaterial) => void | Promise<void>;
   onCancel: () => void;
   obras: Obra[];
   insumos: Insumo[];
@@ -97,6 +98,7 @@ export default function EntradaMaterialForm({
   const [observacoes, setObservacoes] = useState(initial?.observacoes || '');
   const [importModalOpen, setImportModalOpen] = useState(false);
   const [toastMsg, setToastMsg] = useState('');
+  const [submitting, setSubmitting] = useState(false);
 
   // Multi-item state (creation mode only)
   const [itens, setItens] = useState<ItemLinha[]>([
@@ -212,45 +214,53 @@ export default function EntradaMaterialForm({
     return unidadesMap.get(mat.unidade) || mat.unidade;
   }
 
-  function handleSubmit(e: FormEvent) {
+  async function handleSubmit(e: FormEvent) {
     e.preventDefault();
-    if (initial) {
-      // Edit mode: single item
-      onSubmit({
-        id: initial.id,
-        dataHora,
-        depositoMaterialId,
-        insumoId,
-        obraId,
-        quantidade: parseFloat(quantidade) || 0,
-        valorTotal: parseFloat(valorTotal) || 0,
-        fornecedorId,
-        notaFiscal,
-        observacoes,
-        criadoPor: initial.criadoPor || '',
-      });
-    } else {
-      // Creation mode: multi-item — derive obraId from selected depósito
-      const depositoSel = allDepositos.find((d) => d.id === depositoMaterialId);
-      const obraIdDerivado = depositoSel?.obraId ?? '';
-      const entries: EntradaMaterial[] = itens.map((it) => ({
-        id: gerarId(),
-        dataHora,
-        depositoMaterialId,
-        insumoId: it.insumoId,
-        obraId: obraIdDerivado,
-        quantidade: parseFloat(it.quantidade) || 0,
-        valorTotal: parseFloat(it.valorTotal) || 0,
-        fornecedorId,
-        notaFiscal,
-        observacoes,
-        criadoPor: '',
-      }));
-      if (onImportBatch) {
-        onImportBatch(entries);
+    if (submitting) return;
+    setSubmitting(true);
+    try {
+      if (initial) {
+        // Edit mode: single item
+        await onSubmit({
+          id: initial.id,
+          dataHora,
+          depositoMaterialId,
+          insumoId,
+          obraId,
+          quantidade: parseFloat(quantidade) || 0,
+          valorTotal: parseFloat(valorTotal) || 0,
+          fornecedorId,
+          notaFiscal,
+          observacoes,
+          criadoPor: initial.criadoPor || '',
+        });
       } else {
-        entries.forEach((entry) => onSubmit(entry));
+        // Creation mode: multi-item — derive obraId from selected depósito
+        const depositoSel = allDepositos.find((d) => d.id === depositoMaterialId);
+        const obraIdDerivado = depositoSel?.obraId ?? '';
+        const entries: EntradaMaterial[] = itens.map((it) => ({
+          id: gerarId(),
+          dataHora,
+          depositoMaterialId,
+          insumoId: it.insumoId,
+          obraId: obraIdDerivado,
+          quantidade: parseFloat(it.quantidade) || 0,
+          valorTotal: parseFloat(it.valorTotal) || 0,
+          fornecedorId,
+          notaFiscal,
+          observacoes,
+          criadoPor: '',
+        }));
+        if (onImportBatch) {
+          await onImportBatch(entries);
+        } else {
+          for (const entry of entries) {
+            await onSubmit(entry);
+          }
+        }
       }
+    } finally {
+      setSubmitting(false);
     }
   }
 
@@ -704,9 +714,9 @@ export default function EntradaMaterialForm({
         <Button variant="secondary" type="button" onClick={onCancel}>
           Cancelar
         </Button>
-        <Button type="submit" disabled={!isValid}>
+        <SubmitButton loading={submitting} disabled={!isValid}>
           {initial ? 'Salvar Alterações' : 'Registrar Entrada'}
-        </Button>
+        </SubmitButton>
       </div>
 
       {onImportBatch && (
