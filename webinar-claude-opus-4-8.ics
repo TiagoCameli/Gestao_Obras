@@ -1,0 +1,21 @@
+BEGIN:VCALENDAR
+VERSION:2.0
+PRODID:-//Leo//Claude Code//PT-BR
+CALSCALE:GREGORIAN
+METHOD:PUBLISH
+BEGIN:VEVENT
+UID:webinar-claude-opus-4-8-20260604@anthropic
+DTSTAMP:20260603T120000Z
+DTSTART:20260604T200000Z
+DTEND:20260604T210000Z
+SUMMARY:Webinar: Building Agents on Claude Opus 4.8 - Live Demos with Letta and Browserbase
+DESCRIPTION:Webinar da Anthropic. Building Agents on Claude Opus 4.8 - Live Demos with Letta and Browserbase.\nHorario original: 4 de junho de 2026\, 13:00 PT (Pacific Time / PDT\, UTC-7).
+LOCATION:Online
+STATUS:CONFIRMED
+BEGIN:VALARM
+TRIGGER:-PT30M
+ACTION:DISPLAY
+DESCRIPTION:Lembrete: Webinar Claude Opus 4.8 em 30 minutos
+END:VALARM
+END:VEVENT
+END:VCALENDAR
