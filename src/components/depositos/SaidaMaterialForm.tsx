@@ -17,6 +17,7 @@ import type {
   TipoSaidaMaterial, MotivoPerda,
 } from '../../types';
 import Button from '../ui/Button';
+import SubmitButton from '../ui/SubmitButton';
 import Input from '../ui/Input';
 import SmartSelect from '../ui/SmartSelect';
 import { useToast } from '../ui/Toast';
@@ -441,10 +442,10 @@ export default function SaidaMaterialForm({
         <Button type="button" variant="secondary" onClick={onCancel} disabled={submitting}>
           Cancelar
         </Button>
-        <Button type="submit" variant={tipoSaida === 'perda' ? 'danger' : 'primary'} disabled={!podeSalvar || submitting}>
+        <SubmitButton loading={submitting} disabled={!podeSalvar} variant={tipoSaida === 'perda' ? 'danger' : 'primary'}>
           <Minus className="w-4 h-4" />
-          {submitting ? 'Salvando…' : tipoSaida === 'perda' ? 'Registrar perda' : 'Registrar saída'}
-        </Button>
+          {tipoSaida === 'perda' ? 'Registrar perda' : 'Registrar saída'}
+        </SubmitButton>
       </div>
     </form>
   );

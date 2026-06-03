@@ -8,6 +8,7 @@ import { useCallback, useMemo, useState } from 'react';
 import { Building2, AlertCircle, X, Check, Plus, Wrench } from 'lucide-react';
 import type { DepositoMaterial, Obra } from '../../types';
 import Button from '../ui/Button';
+import SubmitButton from '../ui/SubmitButton';
 import Input from '../ui/Input';
 import { useToast } from '../ui/Toast';
 import { useAuth } from '../../contexts/AuthContext';
@@ -162,9 +163,9 @@ export default function DepositoMaterialForm({ initial, obras, onSubmit, onCance
         <Button type="button" variant="secondary" onClick={onCancel} disabled={submitting}>
           Cancelar
         </Button>
-        <Button type="submit" disabled={!podeSalvar || submitting}>
-          {submitting ? 'Salvando…' : initial ? 'Salvar alterações' : 'Criar depósito'}
-        </Button>
+        <SubmitButton loading={submitting} disabled={!podeSalvar}>
+          {initial ? 'Salvar alterações' : 'Criar depósito'}
+        </SubmitButton>
       </div>
     </form>
   );

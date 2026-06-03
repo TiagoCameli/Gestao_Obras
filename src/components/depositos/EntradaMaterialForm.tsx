@@ -13,6 +13,7 @@ import type {
   DepositoMaterial, EntradaMaterial, Insumo, Fornecedor,
 } from '../../types';
 import Button from '../ui/Button';
+import SubmitButton from '../ui/SubmitButton';
 import Input from '../ui/Input';
 import SmartSelect from '../ui/SmartSelect';
 import { useToast } from '../ui/Toast';
@@ -280,9 +281,9 @@ export default function EntradaMaterialForm({
         <Button type="button" variant="secondary" onClick={onCancel} disabled={submitting}>
           Cancelar
         </Button>
-        <Button type="submit" disabled={!podeSalvar || submitting}>
-          {submitting ? 'Salvando…' : 'Registrar entrada'}
-        </Button>
+        <SubmitButton loading={submitting} disabled={!podeSalvar}>
+          Registrar entrada
+        </SubmitButton>
       </div>
     </form>
   );

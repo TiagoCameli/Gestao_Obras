@@ -15,6 +15,7 @@ import type {
   DepositoMaterial, TransferenciaMaterial, Insumo,
 } from '../../types';
 import Button from '../ui/Button';
+import SubmitButton from '../ui/SubmitButton';
 import Input from '../ui/Input';
 import SmartSelect from '../ui/SmartSelect';
 import { useToast } from '../ui/Toast';
@@ -273,10 +274,10 @@ export default function TransferenciaMaterialForm({
         <Button type="button" variant="secondary" onClick={onCancel} disabled={submitting}>
           Cancelar
         </Button>
-        <Button type="submit" disabled={!podeSalvar || submitting}>
+        <SubmitButton loading={submitting} disabled={!podeSalvar} loadingLabel="Transferindo...">
           <ArrowRightLeft className="w-4 h-4" />
-          {submitting ? 'Transferindo…' : 'Transferir'}
-        </Button>
+          Transferir
+        </SubmitButton>
       </div>
     </form>
   );
