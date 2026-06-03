@@ -22,6 +22,7 @@ import type { Frete, Obra, Insumo, Localidade } from '../../types';
 import Input from '../ui/Input';
 import Select from '../ui/Select';
 import Button from '../ui/Button';
+import SubmitButton from '../ui/SubmitButton';
 import { useAdicionarLocalidade } from '../../hooks/useLocalidades';
 import ImportExcelModal, { parseStr, parseNumero, parseData, type ParsedRow } from '../ui/ImportExcelModal';
 import AnexosUploader from '../combustivel/AnexosUploader';
@@ -30,7 +31,7 @@ import { freteFormSchema, type FreteFormValues } from '../../schemas/frete/frete
 
 interface FreteFormProps {
   initial?: Frete | null;
-  onSubmit: (data: Frete) => void;
+  onSubmit: (data: Frete) => void | Promise<void>;
   onCancel: () => void;
   obras: Obra[];
   insumos: Insumo[];
@@ -112,7 +113,7 @@ export default function FreteForm({
     watch,
     setValue,
     reset,
-    formState: { errors, isValid },
+    formState: { errors, isValid, isSubmitting },
   } = useForm<FreteFormValues>({
     resolver: zodResolver(freteFormSchema),
     mode: 'onChange',
@@ -155,7 +156,7 @@ export default function FreteForm({
   const { temAcao } = useAuth();
   const canAct = initial ? temAcao('editar_frete') : temAcao('criar_frete');
 
-  const onValidSubmit = useCallback((values: FreteFormValues) => {
+  const onValidSubmit = useCallback(async (values: FreteFormValues) => {
     if (!canAct) return;
     const payload: Frete = {
       id: initial?.id || gerarId(),
@@ -181,7 +182,7 @@ export default function FreteForm({
       fotoUrls: fotosFrete.slice(1),
       arquivoUrls,
     };
-    onSubmit(payload);
+    await onSubmit(payload);
   }, [canAct, initial, fotosFrete, arquivoUrls, onSubmit]);
 
   // ── Import Excel parser/mapper (preservados como antes) ──────────────────
@@ -643,9 +644,9 @@ export default function FreteForm({
         <Button variant="secondary" type="button" onClick={onCancel}>
           Cancelar
         </Button>
-        <Button type="submit" disabled={!isValid || !canAct}>
+        <SubmitButton loading={isSubmitting} disabled={!isValid || !canAct}>
           {initial ? 'Salvar Alterações' : 'Registrar Frete'}
-        </Button>
+        </SubmitButton>
       </div>
 
       <ImportExcelModal

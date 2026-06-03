@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from 'react';
 import Button from '../ui/Button';
+import SubmitButton from '../ui/SubmitButton';
 import Input from '../ui/Input';
 import Select from '../ui/Select';
 import { useToast } from '../ui/Toast';
@@ -200,9 +201,9 @@ export default function AjusteManualTransportadoraForm({
         <Button type="button" variant="secondary" onClick={onCancel}>
           Cancelar
         </Button>
-        <Button type="submit" disabled={!isValid || isPending || !canAjustar} title={!canAjustar ? 'Sem permissão para ajustar saldo' : undefined}>
-          {isPending ? 'Salvando...' : editing ? 'Salvar Alterações' : 'Criar Ajuste'}
-        </Button>
+        <SubmitButton loading={isPending} disabled={!isValid || !canAjustar} title={!canAjustar ? 'Sem permissão para ajustar saldo' : undefined}>
+          {editing ? 'Salvar Alterações' : 'Criar Ajuste'}
+        </SubmitButton>
       </div>
     </form>
   );

@@ -17,6 +17,7 @@ import Input from '../ui/Input';
 import Select from '../ui/Select';
 import SmartSelect from '../ui/SmartSelect';
 import Button from '../ui/Button';
+import SubmitButton from '../ui/SubmitButton';
 import ImportExcelModal, { parseStr, parseNumero, parseData, type ParsedRow } from '../ui/ImportExcelModal';
 import AnexosUploader from '../combustivel/AnexosUploader';
 import { useAuth } from '../../contexts/AuthContext';
@@ -27,7 +28,7 @@ import {
 
 interface PedidoMaterialFormProps {
   initial?: PedidoMaterial | null;
-  onSubmit: (data: PedidoMaterial) => void;
+  onSubmit: (data: PedidoMaterial) => void | Promise<void>;
   onCancel: () => void;
   fornecedores: Fornecedor[];
   insumos: Insumo[];
@@ -82,7 +83,7 @@ export default function PedidoMaterialForm({
     reset,
     watch,
     setValue,
-    formState: { errors, isValid: rhfIsValid },
+    formState: { errors, isValid: rhfIsValid, isSubmitting },
   } = useForm<PedidoMaterialFormValues>({
     resolver: zodResolver(pedidoMaterialFormSchema),
     mode: 'onChange',
@@ -95,9 +96,9 @@ export default function PedidoMaterialForm({
   }, [initial, reset]);
 
   // ── Submit ───────────────────────────────────────────────────────────────
-  const onValidSubmit = useCallback((values: PedidoMaterialFormValues) => {
+  const onValidSubmit = useCallback(async (values: PedidoMaterialFormValues) => {
     if (!canAct) return;
-    onSubmit({
+    await onSubmit({
       id: initial?.id || gerarId(),
       data: values.data,
       fornecedorId: values.fornecedorId,
@@ -403,9 +404,9 @@ export default function PedidoMaterialForm({
         <Button variant="secondary" type="button" onClick={onCancel}>
           Cancelar
         </Button>
-        <Button type="submit" disabled={!isValid}>
+        <SubmitButton loading={isSubmitting} disabled={!isValid}>
           {initial ? 'Salvar Alterações' : 'Registrar Pedido'}
-        </Button>
+        </SubmitButton>
       </div>
 
       <ImportExcelModal

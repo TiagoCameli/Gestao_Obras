@@ -20,6 +20,7 @@ import Input from '../ui/Input';
 import Select from '../ui/Select';
 import SmartSelect from '../ui/SmartSelect';
 import Button from '../ui/Button';
+import SubmitButton from '../ui/SubmitButton';
 import ImportExcelModal, { parseStr, parseNumero, parseData, type ParsedRow } from '../ui/ImportExcelModal';
 import AnexosUploader from '../combustivel/AnexosUploader';
 import { useAuth } from '../../contexts/AuthContext';
@@ -100,8 +101,8 @@ function gerarMeses(): { value: string; label: string }[] {
 
 interface PagamentoFreteFormProps {
   initial?: PagamentoFrete | null;
-  onSubmit: (data: PagamentoFrete) => void;
-  onSubmitBatch?: (data: PagamentoFrete[]) => void;
+  onSubmit: (data: PagamentoFrete) => void | Promise<void>;
+  onSubmitBatch?: (data: PagamentoFrete[]) => void | Promise<void>;
   onCancel: () => void;
   transportadoras: string[];
   funcionarios: Funcionario[];
@@ -174,7 +175,7 @@ export default function PagamentoFreteForm({
     watch,
     reset,
     control,
-    formState: { errors, isValid: rhfIsValid },
+    formState: { errors, isValid: rhfIsValid, isSubmitting },
   } = useForm<PagamentoFreteFormValues>({
     resolver: zodResolver(pagamentoFreteFormSchema),
     mode: 'onChange',
@@ -192,7 +193,7 @@ export default function PagamentoFreteForm({
     ? temAcao('editar_pagamento_frete')
     : temAcao('criar_pagamento_frete');
 
-  const onValidSubmit = useCallback((values: PagamentoFreteFormValues) => {
+  const onValidSubmit = useCallback(async (values: PagamentoFreteFormValues) => {
     if (!canPagar) return;
     if (dividir && !initial && onSubmitBatch) {
       const items: PagamentoFrete[] = parcelas.map((p) => ({
@@ -211,9 +212,9 @@ export default function PagamentoFreteForm({
         fotoUrls,
         arquivoUrls,
       }));
-      onSubmitBatch(items);
+      await onSubmitBatch(items);
     } else {
-      onSubmit({
+      await onSubmit({
         id: initial?.id || gerarId(),
         data: values.data,
         transportadora: values.transportadora,
@@ -560,9 +561,9 @@ export default function PagamentoFreteForm({
         <Button variant="secondary" type="button" onClick={onCancel}>
           Cancelar
         </Button>
-        <Button type="submit" disabled={!isValid}>
+        <SubmitButton loading={isSubmitting} disabled={!isValid}>
           {initial ? 'Salvar Alterações' : 'Registrar Pagamento'}
-        </Button>
+        </SubmitButton>
       </div>
 
       <ImportExcelModal
