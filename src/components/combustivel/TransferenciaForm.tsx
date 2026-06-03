@@ -9,6 +9,7 @@ import { calcularPrecoMedioTanque } from '../../utils/precoMedioTanque';
 import { calcularEstoqueCombustivelNaData, calcularCombustivelTanqueNaData } from '../../hooks/useEstoque';
 import Select from '../ui/Select';
 import Button from '../ui/Button';
+import SubmitButton from '../ui/SubmitButton';
 import ImportExcelModal, { parseStr, parseNumero, type ParsedRow } from '../ui/ImportExcelModal';
 import AnexosUploader from './AnexosUploader';
 import { useAuth } from '../../contexts/AuthContext';
@@ -20,7 +21,7 @@ import { nowAsLocalInput } from './v2/shared/formatters';
 
 interface TransferenciaFormProps {
   initial?: TransferenciaCombustivel | null;
-  onSubmit: (data: TransferenciaCombustivel) => void;
+  onSubmit: (data: TransferenciaCombustivel) => void | Promise<void>;
   onCancel: () => void;
   depositos: Deposito[];
   onImportBatch?: (items: TransferenciaCombustivel[]) => void;
@@ -61,7 +62,6 @@ export default function TransferenciaForm({
   // pastaId estável pra agrupar uploads no Storage.
   const [pastaId] = useState(() => initial?.id || gerarId());
 
-  const [submitting, setSubmitting] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
 
   // ── react-hook-form + Zod ─────────────────────────────────────────────────
@@ -71,7 +71,7 @@ export default function TransferenciaForm({
     handleSubmit: rhfHandleSubmit,
     watch,
     setValue,
-    formState: { errors, isValid: rhfIsValid },
+    formState: { errors, isValid: rhfIsValid, isSubmitting },
   } = useForm<TransferenciaCombustivelFormValues>({
     resolver: zodResolver(transferenciaCombustivelSchema),
     mode: 'onChange',
@@ -267,7 +267,6 @@ export default function TransferenciaForm({
 
   const onSubmitForm = async (data: TransferenciaCombustivelFormValues) => {
     if (!canAct) return;
-    setSubmitting(true);
     setErro(null);
     try {
       await onSubmit({
@@ -284,8 +283,6 @@ export default function TransferenciaForm({
       });
     } catch (err) {
       setErro(err instanceof Error ? err.message : 'Erro ao salvar transferência');
-    } finally {
-      setSubmitting(false);
     }
   };
 
@@ -527,9 +524,9 @@ export default function TransferenciaForm({
         <Button variant="secondary" type="button" onClick={onCancel}>
           Cancelar
         </Button>
-        <Button type="submit" disabled={!isValid || submitting || !canAct}>
-          {submitting ? 'Salvando…' : 'Registrar Transferência'}
-        </Button>
+        <SubmitButton loading={isSubmitting} disabled={!isValid || !canAct}>
+          Registrar Transferência
+        </SubmitButton>
       </div>
 
       <ImportExcelModal

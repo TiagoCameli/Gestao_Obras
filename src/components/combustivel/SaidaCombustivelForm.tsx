@@ -39,6 +39,7 @@ import Input from '../ui/Input';
 import Select from '../ui/Select';
 import FilterCombobox from '../ui/FilterCombobox';
 import Button from '../ui/Button';
+import SubmitButton from '../ui/SubmitButton';
 import AnexosUploader from './AnexosUploader';
 import { useAdicionarInsumo } from '../../hooks/useInsumos';
 import { useMedicaoAtual } from '../../hooks/useMedicoesEquipamento';
@@ -138,7 +139,7 @@ export default function SaidaCombustivelForm({
     handleSubmit: rhfHandleSubmit,
     watch,
     setValue,
-    formState: { errors, isValid: rhfIsValid },
+    formState: { errors, isValid: rhfIsValid, isSubmitting },
   } = useForm<SaidaCombustivelFormValues>({
     resolver: zodResolver(saidaCombustivelSchema),
     mode: 'onChange',
@@ -189,7 +190,6 @@ export default function SaidaCombustivelForm({
   // ── useState pra anexos + inline-create + saldo ────────────────────────────
   const [fotoUrls, setFotoUrls] = useState<string[]>(initial?.fotoUrls ?? []);
   const [arquivoUrls, setArquivoUrls] = useState<string[]>(initial?.arquivoUrls ?? []);
-  const [submitting, setSubmitting] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
 
   // Combustível inline (criar novo)
@@ -589,7 +589,6 @@ export default function SaidaCombustivelForm({
       );
       return;
     }
-    setSubmitting(true);
     setErro(null);
     try {
       const taxaEfetiva =
@@ -699,8 +698,6 @@ export default function SaidaCombustivelForm({
       await onSubmit(payload, fifoMeta);
     } catch (err) {
       setErro(err instanceof Error ? err.message : 'Erro ao salvar saída');
-    } finally {
-      setSubmitting(false);
     }
   };
 
@@ -1458,9 +1455,9 @@ export default function SaidaCombustivelForm({
         <Button variant="secondary" type="button" onClick={onCancel}>
           Cancelar
         </Button>
-        <Button type="submit" disabled={!isValid || submitting || !canAct}>
-          {submitting ? 'Salvando…' : initial ? 'Salvar Alterações' : 'Registrar Saída'}
-        </Button>
+        <SubmitButton loading={isSubmitting} disabled={!isValid || !canAct}>
+          {initial ? 'Salvar Alterações' : 'Registrar Saída'}
+        </SubmitButton>
       </div>
     </form>
   );

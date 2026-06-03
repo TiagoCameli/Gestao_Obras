@@ -7,6 +7,7 @@ import { useFornecedores, useAdicionarFornecedor } from '../../hooks/useForneced
 import Input from '../ui/Input';
 import Select from '../ui/Select';
 import Button from '../ui/Button';
+import SubmitButton from '../ui/SubmitButton';
 import ImportExcelModal, { parseStr, parseNumero, type ParsedRow } from '../ui/ImportExcelModal';
 import AnexosUploader from './AnexosUploader';
 import { useAuth } from '../../contexts/AuthContext';
@@ -18,7 +19,7 @@ import { nowAsLocalInput } from './v2/shared/formatters';
 
 interface EntradaFormProps {
   initial?: EntradaCombustivel | null;
-  onSubmit: (data: EntradaCombustivel) => void;
+  onSubmit: (data: EntradaCombustivel) => void | Promise<void>;
   onCancel: () => void;
   depositos: Deposito[];
   onImportBatch?: (items: EntradaCombustivel[]) => void;
@@ -93,7 +94,7 @@ export default function EntradaForm({
     handleSubmit: rhfHandleSubmit,
     watch,
     setValue,
-    formState: { errors, isValid: rhfIsValid },
+    formState: { errors, isValid: rhfIsValid, isSubmitting },
   } = useForm<EntradaCombustivelFormValues>({
     resolver: zodResolver(entradaCombustivelSchema),
     mode: 'onChange',
@@ -250,7 +251,7 @@ export default function EntradaForm({
   const onSubmitForm = async (data: EntradaCombustivelFormValues) => {
     if (!canAct) return;
     const valorTotal = data.quantidadeLitros * data.valorUnitario;
-    onSubmit({
+    await onSubmit({
       id: initial?.id ?? pastaId,
       dataHora: data.dataHora,
       depositoId: data.depositoId,
@@ -581,9 +582,9 @@ export default function EntradaForm({
         <Button variant="secondary" type="button" onClick={onCancel}>
           Cancelar
         </Button>
-        <Button type="submit" disabled={submitDisabled}>
+        <SubmitButton loading={isSubmitting} disabled={submitDisabled}>
           {initial ? 'Salvar Alterações' : 'Registrar Entrada'}
-        </Button>
+        </SubmitButton>
       </div>
 
       <ImportExcelModal
