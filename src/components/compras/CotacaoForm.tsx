@@ -2,6 +2,7 @@ import { useState, useMemo, useRef, useEffect } from 'react';
 import type { Cotacao, PedidoCompra, Fornecedor, CotacaoFornecedor, ItemPedidoCompra, Insumo, UnidadeMedida, CategoriaMaterialCompra, UnidadeCompra } from '../../types';
 import { useAdicionarInsumo } from '../../hooks/useInsumos';
 import Button from '../ui/Button';
+import SubmitButton from '../ui/SubmitButton';
 import Input from '../ui/Input';
 import Select from '../ui/Select';
 import SmartSelect from '../ui/SmartSelect';
@@ -577,9 +578,9 @@ export default function CotacaoForm({
 
       <div className="flex justify-end gap-3 pt-2">
         <Button type="button" variant="secondary" onClick={onCancel}>Cancelar</Button>
-        <Button type="submit" disabled={saving || fornecedoresSelecionados.length === 0 || itensDoPedido.length === 0}>
-          {saving ? 'Salvando...' : initial ? 'Salvar' : 'Criar Cotação'}
-        </Button>
+        <SubmitButton loading={saving} disabled={fornecedoresSelecionados.length === 0 || itensDoPedido.length === 0}>
+          {initial ? 'Salvar' : 'Criar Cotação'}
+        </SubmitButton>
       </div>
     </form>
   );

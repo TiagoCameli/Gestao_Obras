@@ -45,6 +45,7 @@ import type {
   OrdemServico,
 } from '../../types';
 import Button from '../ui/Button';
+import SubmitButton from '../ui/SubmitButton';
 import Input from '../ui/Input';
 import FilterCombobox from '../ui/FilterCombobox';
 import SmartSelect from '../ui/SmartSelect';
@@ -806,10 +807,10 @@ export default function OrdemCompraFormV2({
           <Button type="button" variant="secondary" onClick={onCancel} disabled={submitting || aprovando}>
             Cancelar
           </Button>
-          <Button type="submit" disabled={submitting || aprovando}>
+          <SubmitButton loading={submitting} disabled={aprovando}>
             <ShoppingCart className="w-4 h-4" />
-            {submitting ? 'Salvando…' : initial ? 'Salvar alterações' : 'Salvar OC'}
-          </Button>
+            {initial ? 'Salvar alterações' : 'Salvar OC'}
+          </SubmitButton>
           {podeAprovar && initial && !initial.aprovada && onAprovar && (
             <Button type="button" onClick={handleAprovar} disabled={submitting || aprovando}>
               <CheckCircle2 className="w-4 h-4" />

@@ -1,6 +1,7 @@
 import { useState, useMemo, useRef, useEffect } from 'react';
 import type { OrdemCompra, ItemOrdemCompra, CustosAdicionaisOC, Obra, EtapaObra, Fornecedor, ParcelaPagamento, Insumo } from '../../types';
 import Button from '../ui/Button';
+import SubmitButton from '../ui/SubmitButton';
 import Input from '../ui/Input';
 import Select from '../ui/Select';
 
@@ -703,7 +704,7 @@ export default function OrdemCompraForm({
 
       <div className="flex justify-end gap-3 pt-2">
         <Button type="button" variant="secondary" onClick={onCancel}>Cancelar</Button>
-        <Button type="submit" disabled={saving}>{saving ? 'Salvando...' : initial ? 'Salvar' : 'Criar OC'}</Button>
+        <SubmitButton loading={saving}>{initial ? 'Salvar' : 'Criar OC'}</SubmitButton>
       </div>
     </form>
   );

@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import type { PedidoCompra, ItemPedidoCompra, Obra, Insumo, UnidadeMedida, UrgenciaPedidoCompra, CategoriaMaterialCompra, UnidadeCompra } from '../../types';
 import { useAdicionarInsumo } from '../../hooks/useInsumos';
 import Button from '../ui/Button';
+import SubmitButton from '../ui/SubmitButton';
 import Input from '../ui/Input';
 import Select from '../ui/Select';
 
@@ -371,7 +372,7 @@ export default function PedidoCompraForm({ initial, obras, insumos, unidades, ca
 
       <div className="flex justify-end gap-3 pt-2">
         <Button type="button" variant="secondary" onClick={onCancel}>Cancelar</Button>
-        <Button type="submit" disabled={saving}>{saving ? 'Salvando...' : initial ? 'Salvar Alterações' : 'Criar Pedido'}</Button>
+        <SubmitButton loading={saving}>{initial ? 'Salvar Alterações' : 'Criar Pedido'}</SubmitButton>
       </div>
     </form>
   );

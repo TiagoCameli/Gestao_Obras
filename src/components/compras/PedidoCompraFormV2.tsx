@@ -29,6 +29,7 @@ import type {
   TipoDestinoOC,
 } from '../../types';
 import Button from '../ui/Button';
+import SubmitButton from '../ui/SubmitButton';
 import Input from '../ui/Input';
 import Select from '../ui/Select';
 import SmartSelect from '../ui/SmartSelect';
@@ -439,9 +440,9 @@ export default function PedidoCompraFormV2({
         <Button type="button" variant="secondary" onClick={onCancel} disabled={submitting}>
           Cancelar
         </Button>
-        <Button type="submit" disabled={!podeSalvar || submitting}>
-          {submitting ? 'Salvando…' : initial ? 'Salvar alterações' : 'Criar pedido'}
-        </Button>
+        <SubmitButton loading={submitting} disabled={!podeSalvar}>
+          {initial ? 'Salvar alterações' : 'Criar pedido'}
+        </SubmitButton>
       </div>
     </form>
   );

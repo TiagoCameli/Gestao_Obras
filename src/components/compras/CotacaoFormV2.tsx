@@ -48,6 +48,7 @@ import {
   ehServico,
 } from '../../utils/insumoTipoVisual';
 import Button from '../ui/Button';
+import SubmitButton from '../ui/SubmitButton';
 import Input from '../ui/Input';
 import SmartSelect from '../ui/SmartSelect';
 import InsumoSelect from './InsumoSelect';
@@ -610,9 +611,9 @@ export default function CotacaoFormV2({
         <Button type="button" variant="secondary" onClick={onCancel} disabled={submitting}>
           Cancelar
         </Button>
-        <Button type="submit" disabled={submitting}>
-          {submitting ? 'Salvando…' : initial ? 'Salvar alterações' : 'Criar cotação'}
-        </Button>
+        <SubmitButton loading={submitting}>
+          {initial ? 'Salvar alterações' : 'Criar cotação'}
+        </SubmitButton>
       </div>
     </form>
 

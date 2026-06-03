@@ -10,6 +10,7 @@ import { useState, type FormEvent } from 'react';
 import type { Insumo, CategoriaMaterialCompra } from '../../types';
 import Modal from '../ui/Modal';
 import Button from '../ui/Button';
+import SubmitButton from '../ui/SubmitButton';
 import Input from '../ui/Input';
 import Select from '../ui/Select';
 import { useAdicionarInsumo } from '../../hooks/useInsumos';
@@ -196,15 +197,13 @@ export default function InsumoQuickModal({
           <Button variant="secondary" type="button" onClick={onClose} disabled={submitting}>
             Cancelar
           </Button>
-          <Button type="submit" disabled={!podeSalvar || submitting}>
-            {submitting
-              ? 'Salvando…'
-              : ehCombustivel
-                ? 'Cadastrar combustível'
-                : ehServico
-                  ? 'Cadastrar serviço'
-                  : 'Cadastrar material'}
-          </Button>
+          <SubmitButton loading={submitting} disabled={!podeSalvar}>
+            {ehCombustivel
+              ? 'Cadastrar combustível'
+              : ehServico
+                ? 'Cadastrar serviço'
+                : 'Cadastrar material'}
+          </SubmitButton>
         </div>
       </form>
     </Modal>
