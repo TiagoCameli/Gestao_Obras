@@ -29,18 +29,19 @@ create policy "frete_cards_config_update"
   using (private.current_has_action('ver_frete'))
   with check (private.current_has_action('ver_frete'));
 
--- Seed: preserva a ordem atual dos 5 cards. Nomes que não casarem são
--- simplesmente ignorados (a migration NÃO falha); podem ser adicionados
--- depois pelo seletor "Gerenciar cards".
+-- Seed: as 4 transportadoras ativas com card hoje. "Transportadora Triunfo"
+-- foi renomeada para "LMC Transportadora" (todos os movimentos antigos
+-- migraram). ETAM Construtora fica de fora do default (saldo zero, card
+-- removido em 2026-05-11) — pode ser adicionada depois no "Gerenciar cards".
+-- Nomes que não casarem são ignorados (a migration NÃO falha).
 insert into public.frete_dashboard_cards_config (id, fornecedor_ids)
 select 'global', coalesce(array(
   select f.id
   from (values
     ('areacre', 1),
-    ('transportadora triunfo', 2),
+    ('lmc transportadora', 2),
     ('andrade transporte', 3),
-    ('etam construtora', 4),
-    ('emt transportes', 5)
+    ('emt transportes', 4)
   ) as ord(nome, pos)
   join public.fornecedores f on lower(trim(f.nome)) = ord.nome
   order by ord.pos
