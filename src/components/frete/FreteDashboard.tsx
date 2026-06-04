@@ -7,6 +7,8 @@ import { useTransportadoraMovimentos } from '../../hooks/useTransportadoraMovime
 // Saídas de carreta — substitui dependência de useAbastecimentosCarreta na Fase 5.
 import { useSaidasCombustivel } from '../../hooks/useSaidasCombustivel';
 import { useFornecedores } from '../../hooks/useFornecedores';
+import { useFreteDashboardCards, useSalvarFreteDashboardCards } from '../../hooks/useFreteDashboardCards';
+import { montarLinhasSaldoCard, SALDO_ZERO } from '../../utils/freteSaldoCard';
 import { formatCurrency } from '../../utils/formatters';
 import Card from '../ui/Card';
 import SmartSelect from '../ui/SmartSelect';
@@ -478,6 +480,17 @@ export default function FreteDashboard({
     }
     return map;
   }, [todosMovimentos, dataInicio, dataFim, obraIdFiltro]);
+
+  // ── Cards de saldo configuráveis (config global no Supabase) ──
+  const { data: fornecedorIds = [] } = useFreteDashboardCards();
+  const salvarCards = useSalvarFreteDashboardCards();
+  const fornecedorById = useMemo(() => {
+    const m = new Map<string, Fornecedor>();
+    for (const f of todosFornecedores) m.set(f.id, f);
+    return m;
+  }, [todosFornecedores]);
+  const [gerenciarOpen, setGerenciarOpen] = useState(false);
+  const [draftIds, setDraftIds] = useState<string[]>([]);
 
   const sAreacre = saldoByNome.get('areacre');
   const sTriunfo = saldoByNome.get('transportadora triunfo');
@@ -1103,53 +1116,57 @@ export default function FreteDashboard({
       {/* Cards resumo - fileira 2 — clicáveis, abrem relatório detalhado.
           Breakdowns calculados client-side respeitando os filtros de período
           e obra do topo do dashboard (saldo do recorte, não acumulado). */}
+      <div className="flex items-center justify-between gap-2 mb-3">
+        <h2 className="text-sm font-semibold text-[var(--color-fg-muted)] uppercase tracking-wider">Saldos</h2>
+        <div className="flex items-center gap-2">
+          {gerenciarOpen && (
+            <>
+              <FilterMultiSelect
+                options={todosFornecedores.map((f) => ({
+                  id: f.id,
+                  label: f.ehTransportadora ? f.nome : `${f.nome} (sem frete)`,
+                }))}
+                selected={draftIds}
+                onChange={setDraftIds}
+                placeholder="Selecionar fornecedores"
+              />
+              <button
+                type="button"
+                disabled={salvarCards.isPending}
+                onClick={() => salvarCards.mutate(draftIds, { onSuccess: () => setGerenciarOpen(false) })}
+                className="rounded-md px-3 py-1 text-xs font-medium bg-[var(--color-accent)] text-white disabled:opacity-60"
+              >
+                {salvarCards.isPending ? 'Salvando...' : 'Salvar'}
+              </button>
+            </>
+          )}
+          <button
+            type="button"
+            onClick={() => { setDraftIds(fornecedorIds); setGerenciarOpen((o) => !o); }}
+            className="rounded-md px-3 py-1 text-xs font-medium border border-[var(--color-border)] text-[var(--color-fg-muted)] hover:border-[var(--color-border-strong)]"
+          >
+            {gerenciarOpen ? 'Fechar' : 'Gerenciar cards'}
+          </button>
+        </div>
+      </div>
+      {salvarCards.isError && (
+        <p className="text-xs text-red-600 mb-2">{(salvarCards.error as Error).message}</p>
+      )}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
-        <SaldoCard
-          titulo="Saldo Areacre"
-          saldo={saldoAreacre}
-          linhas={[
-            { label: 'Crédito Frete', valor: `+${formatCurrency(aAreacre.creditoFreteTotal)}` },
-            { label: 'Pago Frete', valor: `−${formatCurrency(aAreacre.pagoFreteTotal)}` },
-            // Areacre é dona de tanque — recebe crédito de carretas, não débito.
-          ]}
-          onClick={onVerContaCorrente}
-        />
-        <SaldoCard
-          titulo="Saldo Triunfo"
-          saldo={saldoTriunfo}
-          linhas={[
-            { label: 'Crédito Frete', valor: `+${formatCurrency(aTriunfo.creditoFreteTotal)}` },
-            { label: 'Pago Frete', valor: `−${formatCurrency(aTriunfo.pagoFreteTotal)}` },
-            { label: 'Débito Combustível', valor: `−${formatCurrency(aTriunfo.debitoCombustivelTotal)}` },
-          ]}
-          onClick={onVerContaCorrente}
-        />
-        <SaldoCard
-          titulo="Saldo Andrade Transporte"
-          saldo={saldoAndrade}
-          linhas={[
-            { label: 'Crédito Frete', valor: `+${formatCurrency(aAndrade.creditoFreteTotal)}` },
-            { label: 'Pago Frete', valor: `−${formatCurrency(aAndrade.pagoFreteTotal)}` },
-            { label: 'Débito Combustível', valor: `−${formatCurrency(aAndrade.debitoCombustivelTotal)}` },
-          ]}
-          onClick={onVerContaCorrente}
-        />
-        {/* Card "Saldo ETAM" removido em 2026-05-11. Para reativar, restaure o
-            <SaldoCard titulo="Saldo ETAM" saldo={saldoEtam} linhas={[
-              { label: 'Crédito Frete', valor: `+${formatCurrency(aEtam.creditoFreteTotal)}` },
-              { label: 'Pago Frete', valor: `−${formatCurrency(aEtam.pagoFreteTotal)}` },
-            ]} onClick={onVerContaCorrente} />
-            e re-inclua saldoEtam em aPagarEmt + na linha do breakdown. */}
-        <SaldoCard
-          titulo="Saldo EMT TRANSPORTES"
-          saldo={saldoEmtTransportes}
-          linhas={[
-            { label: 'Crédito Frete', valor: `+${formatCurrency(aEmtTransportes.creditoFreteTotal)}` },
-            { label: 'Pago Frete', valor: `−${formatCurrency(aEmtTransportes.pagoFreteTotal)}` },
-            { label: 'Débito Combustível', valor: `−${formatCurrency(aEmtTransportes.debitoCombustivelTotal)}` },
-          ]}
-          onClick={onVerContaCorrente}
-        />
+        {fornecedorIds.map((id) => {
+          const f = fornecedorById.get(id);
+          if (!f) return null;
+          const agg = saldosFiltrados.get(id) ?? SALDO_ZERO;
+          return (
+            <SaldoCard
+              key={id}
+              titulo={`Saldo ${f.nome}`}
+              saldo={agg.saldo}
+              linhas={montarLinhasSaldoCard(agg, formatCurrency)}
+              onClick={onVerContaCorrente}
+            />
+          );
+        })}
       </div>
 
       {/* ── Analytics Overview: KPIs + gráficos interativos ── */}
