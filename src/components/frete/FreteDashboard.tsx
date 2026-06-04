@@ -1,14 +1,13 @@
 import { Fragment, useState, useRef, useEffect, useMemo } from 'react';
 import type { Frete, PagamentoFrete, AbastecimentoCarreta, Obra, PedidoMaterial, Fornecedor } from '../../types';
 import { useInsumos } from '../../hooks/useInsumos';
-// Fonte canônica de saldos (Fase 2 — view validada ≤ R$ 0,01 vs lógica legada).
-import { useTodosSaldosTransportadora } from '../../hooks/useTransportadoraSaldo';
 import { useTransportadoraMovimentos } from '../../hooks/useTransportadoraMovimentos';
 // Saídas de carreta — substitui dependência de useAbastecimentosCarreta na Fase 5.
 import { useSaidasCombustivel } from '../../hooks/useSaidasCombustivel';
 import { useFornecedores } from '../../hooks/useFornecedores';
 import { useFreteDashboardCards, useSalvarFreteDashboardCards } from '../../hooks/useFreteDashboardCards';
 import { montarLinhasSaldoCard, SALDO_ZERO } from '../../utils/freteSaldoCard';
+import { calcularPassivoEmt } from '../../utils/fretePassivoEmt';
 import { formatCurrency } from '../../utils/formatters';
 import Card from '../ui/Card';
 import SmartSelect from '../ui/SmartSelect';
@@ -434,17 +433,6 @@ export default function FreteDashboard({
       )
     : [];
 
-  // ── Saldos via view transportadora_saldos (Fase 4 / Commit 6) ──
-  // View `transportadora_saldos` é estado acumulado (sem filtro). Usada como
-  // fonte canônica dos transportadora_id por nome — IDs sempre presentes mesmo
-  // se o filtro client-side não retornar movimentos pra alguma transportadora.
-  const { data: saldosView = [] } = useTodosSaldosTransportadora();
-  const saldoByNome = useMemo(() => {
-    const m = new Map<string, typeof saldosView[number]>();
-    for (const s of saldosView) m.set(s.nome.trim().toLowerCase(), s);
-    return m;
-  }, [saldosView]);
-
   // ── Saldos client-side respeitando filtros (período + obra) ──
   // Cards do dashboard refletem o estado contábil DENTRO do recorte filtrado,
   // não o acumulado. Replica a fórmula da view (créditos somam, débitos
@@ -492,27 +480,6 @@ export default function FreteDashboard({
   const [gerenciarOpen, setGerenciarOpen] = useState(false);
   const [draftIds, setDraftIds] = useState<string[]>([]);
 
-  const sAreacre = saldoByNome.get('areacre');
-  const sTriunfo = saldoByNome.get('transportadora triunfo');
-  const sAndrade = saldoByNome.get('andrade transporte');
-  const sEtam = saldoByNome.get('etam construtora');
-  // EMT TRANSPORTES consolidado (Amazonia Agroindustria já foi normalizada na Fase 1a).
-  const sEmtTransportes = saldoByNome.get('emt transportes');
-
-  // Helper: pega agregado filtrado pela transportadora (saldo, créditos, débitos)
-  const aggOf = (id?: string) => (id ? saldosFiltrados.get(id) : undefined) ?? { saldo: 0, creditoFreteTotal: 0, pagoFreteTotal: 0, debitoCombustivelTotal: 0 };
-  const aAreacre = aggOf(sAreacre?.transportadoraId);
-  const aTriunfo = aggOf(sTriunfo?.transportadoraId);
-  const aAndrade = aggOf(sAndrade?.transportadoraId);
-  const aEtam = aggOf(sEtam?.transportadoraId);
-  const aEmtTransportes = aggOf(sEmtTransportes?.transportadoraId);
-
-  const saldoAreacre = aAreacre.saldo;
-  const saldoTriunfo = aTriunfo.saldo;
-  const saldoAndrade = aAndrade.saldo;
-  const saldoEtam = aEtam.saldo;
-  const saldoEmtTransportes = aEmtTransportes.saldo;
-
   // Total abast carreta (todas transp) — usado em gráficos cross-filtrados
   // mais abaixo. Mantém cálculo inline pra respeitar período/obra.
   const totalAbastCarreta = abastCarretaF.reduce((s, a) => s + a.valorTotal, 0);
@@ -529,15 +496,14 @@ export default function FreteDashboard({
     .reduce((s, p) => s + p.valor, 0);
 
   // ── A Pagar EMT ──
-  // Soma dos saldos das transportadoras ativas no módulo (representa o
-  // passivo EMT). ETAM Construtora foi removida em 2026-05-11 (não é
-  // transportadora 3rd party — é a própria empresa) — o card sumiu do
-  // Dashboard e da Conta Corrente, e o saldo dela ficou fora do "A Pagar EMT".
-  // Para reativar: re-incluir `saldoEtam` aqui e descomentar o SaldoCard
-  // "Saldo ETAM" + a linha do breakdown abaixo.
-  // Mantemos sEtam/aEtam/saldoEtam definidos para reativação rápida.
-  void sEtam; void aEtam; void saldoEtam;
-  const aPagarEmt = saldoAreacre + saldoTriunfo + saldoAndrade + saldoEmtTransportes;
+  // Passivo EMT = soma dos saldos de todas as transportadoras terceiras, derivado
+  // do flag eh_transportadora (resiliente a renome — ex.: Triunfo virou LMC).
+  // ETAM Construtora fica de fora: é a própria empresa, não 3rd party.
+  const passivoEmt = useMemo(
+    () => calcularPassivoEmt(todosFornecedores, saldosFiltrados, 'ETAM Construtora'),
+    [todosFornecedores, saldosFiltrados],
+  );
+  const aPagarEmt = passivoEmt.total;
 
   // ── Gasto por transportadora ──
   const gastoPorTransportadora = new Map<string, number>();
@@ -1104,11 +1070,9 @@ export default function FreteDashboard({
             {formatCurrency(aPagarEmt)}
           </p>
           <div className="text-xs text-gray-400 mt-1 space-y-0.5">
-            <p>Areacre: {formatCurrency(saldoAreacre)}</p>
-            <p>Triunfo: {formatCurrency(saldoTriunfo)}</p>
-            <p>Andrade: {formatCurrency(saldoAndrade)}</p>
-            {/* ETAM removida do breakdown — vide comentário em aPagarEmt acima. */}
-            <p>EMT TRANSPORTES: {formatCurrency(saldoEmtTransportes)}</p>
+            {passivoEmt.linhas.map((l) => (
+              <p key={l.nome}>{l.nome}: {formatCurrency(l.saldo)}</p>
+            ))}
           </div>
         </Card>
       </div>
