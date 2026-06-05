@@ -7,6 +7,7 @@ import FilterCombobox from "../../../components/ui/FilterCombobox";
 import { useAuth } from "../../../contexts/AuthContext";
 import {
   replaceApontamentosDoDia,
+  replaceApontamentosDoDiaPorPct,
   type ApontamentoServico,
   type Servico,
   type TipoApontamento,
@@ -160,6 +161,12 @@ export default function LancamentoServicoModal({
     return Math.min(...funcionarioIds.map((id) => horasPorFunc[id] ?? 0));
   }, [funcionarioIds, horasPorFunc]);
 
+  const bulk = funcionarioIds.length > 1;
+  // Em lote, a unidade é %: cada funcionário recebe a % das próprias horas.
+  // base=100 faz a lógica de redistribuição (compensarAposEdicao/distribuir)
+  // somar 100%. No modo individual, base = horas da pessoa (comportamento atual).
+  const base = bulk ? 100 : baseHoras;
+
   const [linhas, setLinhas] = useState<Linha[]>([]);
   const [saving, setSaving] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
@@ -168,7 +175,7 @@ export default function LancamentoServicoModal({
     if (!open) return;
     if (iniciais.length > 0) {
       const carregadas: Linha[] = iniciais.map((a) => {
-        const pct = baseHoras > 0 ? (a.horas / baseHoras) * 100 : 0;
+        const pct = base > 0 ? (a.horas / base) * 100 : 0;
         return {
           uid: crypto.randomUUID(),
           servicoId: a.servicoId ?? "",
@@ -181,18 +188,18 @@ export default function LancamentoServicoModal({
         };
       });
       // Se há apenas 1 linha existente, snap pra baseHoras (regra: 1 = 100%).
-      if (carregadas.length === 1 && baseHoras > 0) {
-        setLinhas([aplicarHoras(carregadas[0], baseHoras, baseHoras)]);
+      if (carregadas.length === 1 && base > 0) {
+        setLinhas([aplicarHoras(carregadas[0], base, base)]);
       } else {
         setLinhas(carregadas);
       }
     } else {
       // Novo lançamento: começa com 1 linha = 100% (todas as horas)
       const l = novaLinha();
-      setLinhas(baseHoras > 0 ? [aplicarHoras(l, baseHoras, baseHoras)] : [l]);
+      setLinhas(base > 0 ? [aplicarHoras(l, base, base)] : [l]);
     }
     setErro(null);
-  }, [open, iniciais, baseHoras]);
+  }, [open, iniciais, base]);
 
   function patchLinha(uid: string, patch: Partial<Linha>) {
     setLinhas((prev) =>
@@ -207,25 +214,25 @@ export default function LancamentoServicoModal({
       patchLinha(uid, { horasStr, horasNum: 0, pctStr: "" });
       return;
     }
-    setLinhas((prev) => compensarAposEdicao(prev, uid, h, baseHoras));
+    setLinhas((prev) => compensarAposEdicao(prev, uid, h, base));
   }
   function setPctDaLinha(uid: string, pctStr: string) {
     const p = parseFloat(pctStr);
-    if (!Number.isFinite(p) || baseHoras <= 0) {
+    if (!Number.isFinite(p) || base <= 0) {
       patchLinha(uid, { pctStr });
       return;
     }
-    const h = (p / 100) * baseHoras;
-    setLinhas((prev) => compensarAposEdicao(prev, uid, h, baseHoras));
+    const h = (p / 100) * base;
+    setLinhas((prev) => compensarAposEdicao(prev, uid, h, base));
   }
 
   function adicionarLinha() {
-    setLinhas((prev) => distribuirEntreTodas([...prev, novaLinha()], baseHoras));
+    setLinhas((prev) => distribuirEntreTodas([...prev, novaLinha()], base));
   }
   function removerLinha(uid: string) {
     setLinhas((prev) => {
       const restantes = prev.filter((p) => p.uid !== uid);
-      return distribuirEntreTodas(restantes, baseHoras);
+      return distribuirEntreTodas(restantes, base);
     });
   }
 
@@ -233,7 +240,7 @@ export default function LancamentoServicoModal({
     () => linhas.reduce((acc, l) => acc + (l.horasNum || 0), 0),
     [linhas]
   );
-  const totalPct = baseHoras > 0 ? (totalHoras / baseHoras) * 100 : 0;
+  const totalPct = base > 0 ? (totalHoras / base) * 100 : 0;
 
   function validar(): string | null {
     const ativas = linhas.filter((l) => Number.isFinite(l.horasNum) && l.horasNum > 0);
@@ -247,6 +254,13 @@ export default function LancamentoServicoModal({
     const ids = ativas.filter((l) => l.servicoId).map((l) => l.servicoId);
     if (new Set(ids).size !== ids.length)
       return "Há serviços repetidos. Use uma linha por serviço.";
+
+    if (bulk) {
+      // base=100 → totalHoras é a soma das porcentagens.
+      if (Math.abs(totalHoras - 100) > 0.1)
+        return `As porcentagens devem somar 100%. Soma atual: ${totalHoras.toFixed(1)}%.`;
+      return null;
+    }
 
     for (const fid of funcionarioIds) {
       const ponto = horasPorFunc[fid] ?? 0;
@@ -305,19 +319,33 @@ export default function LancamentoServicoModal({
           }
           setSaving(true);
           try {
-            await replaceApontamentosDoDia({
-              funcionarioIds,
-              data,
-              linhas: linhas
-                .filter((l) => l.horasNum > 0)
-                .map((l) => ({
+            const ativas = linhas.filter((l) => l.horasNum > 0);
+            if (bulk) {
+              await replaceApontamentosDoDiaPorPct({
+                funcionarioIds,
+                data,
+                horasPorFunc,
+                linhas: ativas.map((l) => ({
+                  servicoId: l.tipo === "produtivo" ? l.servicoId : null,
+                  pct: l.horasNum, // base=100 → horasNum guarda a %
+                  tipo: l.tipo,
+                  motivoImprodutivo: l.motivo || null,
+                  observacao: l.observacao || null,
+                })),
+              });
+            } else {
+              await replaceApontamentosDoDia({
+                funcionarioIds,
+                data,
+                linhas: ativas.map((l) => ({
                   servicoId: l.tipo === "produtivo" ? l.servicoId : null,
                   horas: l.horasNum,
                   tipo: l.tipo,
                   motivoImprodutivo: l.motivo || null,
                   observacao: l.observacao || null,
                 })),
-            });
+              });
+            }
             onSaved();
           } catch (err2) {
             setErro(
