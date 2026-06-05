@@ -1,4 +1,10 @@
 import { supabase } from "../../../lib/supabase";
+import {
+  montarRowsApontamentoPorPct,
+  type LinhaServicoPct,
+} from "./apontamentoServicoPct";
+
+export type { LinhaServicoPct } from "./apontamentoServicoPct";
 
 /**
  * "Serviço" agora é um item de contrato da obra (rodotracker_contract_items).
@@ -240,6 +246,46 @@ export async function replaceApontamentosDoDia(input: {
     .from("apont_apontamentos_servico")
     .insert(rows);
   throwIfError(insErr, "replace:insert");
+}
+
+/**
+ * Versão em lote por porcentagem: cada funcionário recebe a % de cada linha
+ * aplicada sobre as horas reais DELE (horasPorFunc). Cada dia fecha 100%.
+ * Substitui os apontamentos do dia (apaga e reinsere), igual replaceApontamentosDoDia.
+ */
+export async function replaceApontamentosDoDiaPorPct(input: {
+  funcionarioIds: string[];
+  data: string;
+  linhas: LinhaServicoPct[];
+  horasPorFunc: Record<string, number>;
+}): Promise<void> {
+  if (input.funcionarioIds.length === 0) return;
+
+  const { error: delErr } = await supabase
+    .from("apont_apontamentos_servico")
+    .delete()
+    .in("funcionario_id", input.funcionarioIds)
+    .eq("data", input.data);
+  throwIfError(delErr, "replacePct:delete");
+
+  if (input.linhas.length === 0) return;
+
+  const { data: userData } = await supabase.auth.getUser();
+  const userId = userData.user?.id ?? null;
+
+  const rows = montarRowsApontamentoPorPct({
+    funcionarioIds: input.funcionarioIds,
+    data: input.data,
+    linhas: input.linhas,
+    horasPorFunc: input.horasPorFunc,
+    registradoPorId: userId,
+  });
+  if (rows.length === 0) return;
+
+  const { error: insErr } = await supabase
+    .from("apont_apontamentos_servico")
+    .insert(rows);
+  throwIfError(insErr, "replacePct:insert");
 }
 
 export async function excluirLancamentoDoDia(
