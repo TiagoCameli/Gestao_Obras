@@ -12,6 +12,7 @@ import {
   type Servico,
   type TipoApontamento,
 } from "../utils/apontamentoServicoApi";
+import { ratearHorasPorPct } from "../utils/apontamentoServicoPct";
 
 export const MOTIVOS_IMPRODUTIVO = [
   "Chuva",
@@ -242,6 +243,29 @@ export default function LancamentoServicoModal({
   );
   const totalPct = base > 0 ? (totalHoras / base) * 100 : 0;
 
+  const previewLote = useMemo(() => {
+    if (!bulk) return [] as { fid: string; hf: number; itens: { label: string; horas: number }[] }[];
+    const servLabel = (servicoId: string | null) => {
+      if (!servicoId) return "—";
+      const s = servicos.find((x) => x.id === servicoId);
+      return s ? (s.codigo ?? s.nome) : "—";
+    };
+    const ativas = linhas.filter((l) => l.horasNum > 0);
+    const pcts = ativas.map((l) => l.horasNum); // base=100 → horasNum é a %
+    return funcionarioIds.map((fid) => {
+      const hf = horasPorFunc[fid] ?? 0;
+      const horas = ratearHorasPorPct(pcts, hf);
+      return {
+        fid,
+        hf,
+        itens: ativas.map((l, i) => ({
+          label: l.tipo === "produtivo" ? servLabel(l.servicoId) : l.motivo || "Improdutivo",
+          horas: horas[i],
+        })),
+      };
+    });
+  }, [bulk, linhas, funcionarioIds, horasPorFunc, servicos]);
+
   function validar(): string | null {
     const ativas = linhas.filter((l) => Number.isFinite(l.horasNum) && l.horasNum > 0);
     if (ativas.length === 0) return "Adicione pelo menos uma linha com horas > 0.";
@@ -357,17 +381,15 @@ export default function LancamentoServicoModal({
         }}
         className="space-y-4"
       >
-        {funcionarioIds.length > 1 && (
+        {bulk && (
           <div className="rounded-lg bg-[var(--color-surface-2)] px-3 py-2 text-xs text-[var(--color-fg-muted)]">
             Aplicado a:{" "}
             <span className="text-[var(--color-fg)]">
               {funcionarioIds.map((id) => funcNome[id] ?? id).join(", ")}
             </span>
             <div className="mt-1 text-[var(--color-fg-subtle)]">
-              Base de horas (menor entre os selecionados):{" "}
-              <span className="font-mono text-[var(--color-fg-muted)]">
-                {baseHoras.toFixed(2)}h
-              </span>
+              A porcentagem é aplicada sobre as horas de ponto de cada
+              funcionário — o dia de cada um fecha 100%.
             </div>
           </div>
         )}
@@ -453,18 +475,7 @@ export default function LancamentoServicoModal({
                 />
               )}
 
-              <div className="grid grid-cols-2 gap-3">
-                <Input
-                  label="Horas"
-                  type="number"
-                  step="any"
-                  min="0"
-                  max={baseHoras > 0 ? baseHoras : undefined}
-                  value={l.horasStr}
-                  onChange={(e) => setHorasDaLinha(l.uid, e.target.value)}
-                  placeholder="Ex: 4.0"
-                  disabled={linhas.length === 1 && baseHoras > 0}
-                />
+              {bulk ? (
                 <Input
                   label="% do dia"
                   type="number"
@@ -473,20 +484,49 @@ export default function LancamentoServicoModal({
                   max="100"
                   value={l.pctStr}
                   onChange={(e) => setPctDaLinha(l.uid, e.target.value)}
-                  placeholder={baseHoras > 0 ? "Ex: 50" : "—"}
-                  disabled={baseHoras <= 0 || (linhas.length === 1 && baseHoras > 0)}
+                  placeholder="Ex: 60"
+                  disabled={linhas.length === 1}
                 />
-              </div>
-              {linhas.length === 1 && baseHoras > 0 && (
+              ) : (
+                <div className="grid grid-cols-2 gap-3">
+                  <Input
+                    label="Horas"
+                    type="number"
+                    step="any"
+                    min="0"
+                    max={base > 0 ? base : undefined}
+                    value={l.horasStr}
+                    onChange={(e) => setHorasDaLinha(l.uid, e.target.value)}
+                    placeholder="Ex: 4.0"
+                    disabled={linhas.length === 1 && base > 0}
+                  />
+                  <Input
+                    label="% do dia"
+                    type="number"
+                    step="any"
+                    min="0"
+                    max="100"
+                    value={l.pctStr}
+                    onChange={(e) => setPctDaLinha(l.uid, e.target.value)}
+                    placeholder={base > 0 ? "Ex: 50" : "—"}
+                    disabled={base <= 0 || (linhas.length === 1 && base > 0)}
+                  />
+                </div>
+              )}
+              {linhas.length === 1 && base > 0 && (
                 <p className="text-[11px] text-[var(--color-fg-subtle)] -mt-1">
-                  Linha única: recebe automaticamente 100% das horas do ponto.
+                  Linha única: recebe automaticamente 100%
+                  {bulk ? " das horas de cada um" : " das horas do ponto"}.
                   Adicione outro serviço pra dividir.
                 </p>
               )}
-              {linhas.length > 1 && baseHoras > 0 && (
+              {linhas.length > 1 && base > 0 && (
                 <p className="text-[11px] text-[var(--color-fg-subtle)] -mt-1">
-                  Editar uma linha redistribui as horas restantes nas outras
-                  proporcionalmente — a soma sempre fecha em {baseHoras.toFixed(2)}h.
+                  {bulk
+                    ? "Editar uma linha redistribui as porcentagens nas outras — a soma sempre fecha 100%."
+                    : `Editar uma linha redistribui as horas restantes nas outras proporcionalmente — a soma sempre fecha em ${baseHoras.toFixed(
+                        2,
+                      )}h.`}
                 </p>
               )}
 
@@ -502,6 +542,33 @@ export default function LancamentoServicoModal({
           ))}
         </div>
 
+        {bulk && previewLote.length > 0 && (
+          <div className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-1)] p-3 space-y-1.5">
+            <p className="text-xs font-semibold text-[var(--color-fg-muted)]">
+              Prévia por funcionário
+            </p>
+            {previewLote.map((p) => (
+              <div key={p.fid} className="text-xs leading-relaxed">
+                <span className="text-[var(--color-fg)]">
+                  {funcNome[p.fid] ?? p.fid}
+                </span>
+                <span className="text-[var(--color-fg-subtle)] font-mono">
+                  {" "}
+                  — {p.hf.toFixed(2)}h
+                </span>
+                {p.itens.length > 0 && (
+                  <span className="text-[var(--color-fg-muted)]">
+                    {" → "}
+                    {p.itens
+                      .map((it) => `${it.label} ${it.horas.toFixed(2)}h`)
+                      .join(" · ")}
+                  </span>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+
         <button
           type="button"
           onClick={adicionarLinha}
@@ -513,16 +580,25 @@ export default function LancamentoServicoModal({
         <div className="flex items-center justify-between text-sm border-t border-[var(--color-border)] pt-3">
           <span className="text-[var(--color-fg-muted)]">Total</span>
           <span className="font-mono">
-            {totalHoras.toFixed(2)}h
-            {baseHoras > 0 && (
-              <span className="text-[var(--color-fg-subtle)] ml-2">
-                ({totalPct.toFixed(1)}%)
-              </span>
-            )}
-            {baseHoras > 0 && (
-              <span className="text-[var(--color-fg-subtle)] ml-2">
-                / {baseHoras.toFixed(2)}h
-              </span>
+            {bulk ? (
+              <>
+                {totalHoras.toFixed(1)}%
+                <span className="text-[var(--color-fg-subtle)] ml-2">/ 100%</span>
+              </>
+            ) : (
+              <>
+                {totalHoras.toFixed(2)}h
+                {base > 0 && (
+                  <span className="text-[var(--color-fg-subtle)] ml-2">
+                    ({totalPct.toFixed(1)}%)
+                  </span>
+                )}
+                {base > 0 && (
+                  <span className="text-[var(--color-fg-subtle)] ml-2">
+                    / {baseHoras.toFixed(2)}h
+                  </span>
+                )}
+              </>
             )}
           </span>
         </div>
