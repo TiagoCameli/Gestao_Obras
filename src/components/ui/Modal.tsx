@@ -50,6 +50,10 @@ interface ModalProps {
    * e do render do dialog.
    */
   onClosePending?: () => void;
+  /** Classe extra no conteúdo do dialog (ex.: z-index quando aninhado em overlay alto). */
+  contentClassName?: string;
+  /** Classe extra no overlay do dialog (par do contentClassName pro backdrop subir junto). */
+  overlayClassName?: string;
 }
 
 const sizeClasses: Record<NonNullable<ModalProps['size']>, string> = {
@@ -66,6 +70,8 @@ export default function Modal({
   size = 'default',
   confirmClose,
   onClosePending,
+  contentClassName,
+  overlayClassName,
 }: ModalProps) {
   const handleOpenChange = (next: boolean) => {
     // Só interceptamos closes (Radix nunca chama com next=true sem trigger explícito).
@@ -82,6 +88,7 @@ export default function Modal({
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent
+        overlayClassName={overlayClassName}
         className={
           // Reseta o padding/max-width default do shadcn (p-4, sm:max-w-sm, gap-4)
           // e aplica nosso visual: surface-1 bg, border, shadow-xl, sm:rounded-2xl,
@@ -90,7 +97,8 @@ export default function Modal({
           'bg-[var(--color-surface-1)] text-[var(--color-fg)] ' +
           'border border-[var(--color-border)] sm:rounded-2xl ' +
           'shadow-[var(--shadow-xl)] elevate-top ' +
-          'w-full ' + sizeClasses[size]
+          'w-full ' + sizeClasses[size] +
+          (contentClassName ? ' ' + contentClassName : '')
         }
       >
         <DialogHeader
