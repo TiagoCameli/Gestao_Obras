@@ -107,7 +107,10 @@ export function QuickEntrySheet({ open, onClose, obra, medicao }: Props) {
 
   return (
     <Dialog open={open} onOpenChange={(o) => { if (!o) tryClose(); }}>
-      <DialogContent className="max-w-[95vw] w-[1200px] max-h-[90vh] overflow-hidden flex flex-col">
+      <DialogContent
+        overlayClassName="z-[3600]"
+        className="z-[3600] max-w-[95vw] w-[1200px] max-h-[90vh] overflow-hidden flex flex-col"
+      >
         <DialogHeader>
           <DialogTitle>
             Lançamento rápido — {obra.name} · {medicao}ª Medição
