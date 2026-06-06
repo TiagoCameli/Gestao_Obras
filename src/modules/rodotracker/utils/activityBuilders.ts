@@ -75,20 +75,15 @@ export function buildTsActivity(
   now: number = Date.now(),
 ): Activity {
   const pt = latLngFromKm(input.km, obra) ?? { lat: obra.centerLat, lng: obra.centerLng };
-  const tsMedidas = {
-    comprimento: input.ts.comprimento,
-    largura: input.ts.largura,
-    espessura: input.ts.espessura,
-  };
   const trocaSolo: TrocaSoloData = {
     categoria: input.ts.categoria,
     medicaoNumber: medicao,
-    comprimento: tsMedidas.comprimento,
-    largura: tsMedidas.largura,
-    espessura: tsMedidas.espessura,
+    comprimento: input.ts.comprimento,
+    largura: input.ts.largura,
+    espessura: input.ts.espessura,
     capaAsfaltica: input.ts.capaAsfaltica,
     drenos: input.ts.drenos,
-    contributions: calcTrocaSolo(input.ts.categoria, tsMedidas, input.ts.drenos).quantidades,
+    contributions: calcTrocaSolo(input.ts.categoria, input.ts, input.ts.drenos).quantidades,
   };
   return {
     id: generateId(),
