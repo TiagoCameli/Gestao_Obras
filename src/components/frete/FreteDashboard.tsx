@@ -1,7 +1,7 @@
 import { Fragment, useState, useRef, useEffect, useMemo } from 'react';
 import type { Frete, PagamentoFrete, AbastecimentoCarreta, Obra, PedidoMaterial, Fornecedor } from '../../types';
 import { useInsumos } from '../../hooks/useInsumos';
-import { useTransportadoraMovimentos } from '../../hooks/useTransportadoraMovimentos';
+import { useTodosSaldosTransportadora } from '../../hooks/useTransportadoraSaldo';
 // Saídas de carreta — substitui dependência de useAbastecimentosCarreta na Fase 5.
 import { useSaidasCombustivel } from '../../hooks/useSaidasCombustivel';
 import { useFornecedores } from '../../hooks/useFornecedores';
@@ -433,41 +433,21 @@ export default function FreteDashboard({
       )
     : [];
 
-  // ── Saldos client-side respeitando filtros (período + obra) ──
-  // Cards do dashboard refletem o estado contábil DENTRO do recorte filtrado,
-  // não o acumulado. Replica a fórmula da view (créditos somam, débitos
-  // subtraem; débitos abatidos em pagamento são excluídos do saldo igual à
-  // view). Quando todos os filtros estão vazios, resultado bate com a view.
+  // ── Saldos dos cards = espelho da Conta Corrente (view agregada) ──
+  // Os cards SALDOS e o "A Pagar EMT" mostram SEMPRE o saldo total acumulado,
+  // lido da view `transportadora_saldos` (mesma fonte da aba Conta Corrente).
+  // A soma é feita no banco, então não tem corte de linhas nem divergência.
   //
-  // Filtro de período usa mes_referencia (truncado YYYY-MM) — pagamentos de
-  // frete abatem no mês de referência informado pelo usuário, não na data em
-  // que foram lançados. Trigger no DB sempre popula mes_referencia (pagamento
-  // usa o mês informado, demais tipos usam date_trunc('month', data)).
-  const { data: todosMovimentos = [] } = useTransportadoraMovimentos();
-  const saldosFiltrados = useMemo(() => {
-    type Agregado = { saldo: number; creditoFreteTotal: number; pagoFreteTotal: number; debitoCombustivelTotal: number };
-    const map = new Map<string, Agregado>();
-    const inicioMes = dataInicio ? dataInicio.slice(0, 7) : '';
-    const fimMes = dataFim ? dataFim.slice(0, 7) : '';
-    for (const m of todosMovimentos) {
-      const ref = (m.mesReferencia ?? (m.data ?? '').slice(0, 10)).slice(0, 7);
-      if (inicioMes && ref < inicioMes) continue;
-      if (fimMes && ref > fimMes) continue;
-      if (obraIdFiltro && m.obraId !== obraIdFiltro) continue;
-
-      const cur = map.get(m.transportadoraId) ?? { saldo: 0, creditoFreteTotal: 0, pagoFreteTotal: 0, debitoCombustivelTotal: 0 };
-      const isCredit = m.tipo === 'credito_frete' || m.tipo === 'credito_abastecimento_transterra' || m.tipo === 'ajuste_manual_credito';
-      const isDebitoComb = m.tipo === 'debito_abastecimento_transterra' || m.tipo === 'debito_abastecimento_emt';
-      const debitoAbatido = isDebitoComb && m.abatidoEmPagamentoId != null;
-      if (isCredit) cur.saldo += m.valor;
-      else if (!debitoAbatido) cur.saldo -= m.valor;
-      if (m.tipo === 'credito_frete') cur.creditoFreteTotal += m.valor;
-      if (m.tipo === 'debito_pagamento_frete') cur.pagoFreteTotal += m.valor;
-      if (isDebitoComb) cur.debitoCombustivelTotal += m.valor;
-      map.set(m.transportadoraId, cur);
-    }
-    return map;
-  }, [todosMovimentos, dataInicio, dataFim, obraIdFiltro]);
+  // ATENÇÃO: estes cards NÃO reagem ao filtro de período/obra do topo (de
+  // propósito). Antes a soma era client-side puxando todos os movimentos, mas
+  // isso quebrava ao passar de 1000 linhas (limite default do Supabase corta
+  // os movimentos mais antigos e subconta o saldo). O resto do dashboard
+  // (tabelas e totais) continua respeitando os filtros normalmente.
+  const { data: saldosView = [] } = useTodosSaldosTransportadora();
+  const saldosFiltrados = useMemo(
+    () => new Map(saldosView.map((s) => [s.transportadoraId, s])),
+    [saldosView],
+  );
 
   // ── Cards de saldo configuráveis (config global no Supabase) ──
   const { data: fornecedorIds = [] } = useFreteDashboardCards();
