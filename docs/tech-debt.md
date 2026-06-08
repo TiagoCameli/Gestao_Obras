@@ -197,6 +197,28 @@ projeto inteiro, não só ao escopo da refatoração.
     falha de forma segura se old_string não bater. Sed em arquivos do
     repo só com extremo cuidado e backup prévio.
 
+16. **Limite default de 1000 linhas do PostgREST/Supabase em qualquer
+    `select` sem `.range()`.** Toda query que faz `supabase.from(x).select()`
+    sem paginação volta no máximo 1000 linhas, SILENCIOSAMENTE (sem erro).
+    Se o resultado alimenta um agregado client-side (soma, contagem, custo
+    por X), o número fica subcontado assim que a tabela passa de 1000 linhas,
+    e ninguém percebe porque não quebra. Origem: cards SALDOS do FreteDashboard
+    somavam todos os `transportadora_movimentos` no cliente; ao passar de 1000
+    movimentos no total (1074), Areacre e EMT apareceram com saldo errado
+    (Areacre R$ 345.310,79 em vez de R$ 801.922,33) enquanto a Conta Corrente
+    (lê a view agregada `transportadora_saldos`, soma no banco) seguia certa.
+    Fix em `da5e5be` (cards passam a ler a view) e na paginação de
+    `useSaidasCombustivel` (já tinha 1392 saídas, capava em 1000).
+    **Regra:** pra agregados, preferir SEMPRE somar no banco (view/RPC) em vez
+    de puxar todas as linhas pro cliente. Quando precisar mesmo da lista
+    inteira, paginar com loop `.range(from, from+999)` + `.order` por coluna
+    ÚNICA (id) de tiebreaker, até o lote vir < 1000.
+    **Watch list** (tabelas crescendo, ainda < 1000 mas mesmo risco quando
+    passarem): `fretes` (439), `pagamentos_frete` (80), e
+    `transportadora_movimentos` por transportadora (Areacre já em 650). Auditar
+    os hooks `useFretes` / `usePagamentosFrete` antes de virarem o próximo
+    345.310,79.
+
 ---
 
 ## Adicionar `created_at` / `updated_at` em fretes, pagamentos_frete, abastecimentos_carreta
