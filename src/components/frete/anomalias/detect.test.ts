@@ -93,6 +93,16 @@ describe('F3 — saldo negativo na pedreira', () => {
     const res = detectAnomaliasFrete(base({ fretesNoPeriodo: fretes, fretesTodos: fretes, pedidos: [pedido({})] }));
     expect(res.filter((a) => a.detector === 'F3')).toHaveLength(0);
   });
+
+  it('usa fretesTodos e não fretesNoPeriodo — dispara mesmo com fretesNoPeriodo vazio', () => {
+    const todosFretes = [
+      frete({ id: 'a', insumoId: 'brita4', pesoToneladas: 700 }),
+      frete({ id: 'b', insumoId: 'brita4', pesoToneladas: 500 }),
+    ];
+    const p = pedido({ itens: [{ insumoId: 'brita4', quantidade: 1000, valorUnitario: 121.98 }] });
+    const res = detectAnomaliasFrete(base({ fretesNoPeriodo: [], fretesTodos: todosFretes, pedidos: [p] }));
+    expect(res.filter((a) => a.detector === 'F3')).toHaveLength(1);
+  });
 });
 
 describe('F4 — frete duplicado', () => {
@@ -170,5 +180,17 @@ describe('F6 — frete sem chegada', () => {
     const f = frete({ id: 'nc3', dataChegada: '2026-06-02', data: '2026-06-01' });
     const res = detectAnomaliasFrete(base({ fretesNoPeriodo: [f], fretesTodos: [f], pedidos: [pedido({})], hoje: '2026-06-30' }));
     expect(res.filter((a) => a.detector === 'F6')).toHaveLength(0);
+  });
+
+  it('NÃO dispara quando diasEntre === 7 (limite exato)', () => {
+    const f = frete({ id: 'nc4', dataChegada: '', data: '2026-06-01' });
+    const res = detectAnomaliasFrete(base({ fretesNoPeriodo: [f], fretesTodos: [f], pedidos: [pedido({})], hoje: '2026-06-08' }));
+    expect(res.filter((a) => a.detector === 'F6')).toHaveLength(0);
+  });
+
+  it('dispara quando diasEntre === 8 (um dia além do limite)', () => {
+    const f = frete({ id: 'nc5', dataChegada: '', data: '2026-06-01' });
+    const res = detectAnomaliasFrete(base({ fretesNoPeriodo: [f], fretesTodos: [f], pedidos: [pedido({})], hoje: '2026-06-09' }));
+    expect(res.filter((a) => a.detector === 'F6')).toHaveLength(1);
   });
 });

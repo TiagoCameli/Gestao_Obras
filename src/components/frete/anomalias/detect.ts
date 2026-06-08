@@ -61,7 +61,7 @@ export function buildPedidoInfo(pedidos: PedidoMaterial[]) {
   for (const p of pedidos) {
     if (!p.fornecedorId || p.deletedAt) continue;
     for (const it of p.itens ?? []) {
-      const key = `${p.fornecedorId}|${it.insumoId}`;
+      const key = `${p.fornecedorId}\x00${it.insumoId}`;
       const cur = map.get(key) ?? { precos: [], qtd: 0 };
       if (!cur.precos.some((pr) => Math.abs(pr - it.valorUnitario) < 0.005)) cur.precos.push(it.valorUnitario);
       cur.qtd += it.quantidade;
@@ -90,7 +90,7 @@ function detectF1(ctx: Ctx): AnomaliaFrete[] {
     if (!f.insumoId || !(f.pesoToneladas > 0) || !(f.valorMaterial > 0)) continue;
     const fornId = findForn(f.origem);
     if (!fornId) continue; // origem sem fornecedor -> F5
-    const info = pedidoInfo.get(`${fornId}|${f.insumoId}`);
+    const info = pedidoInfo.get(`${fornId}\x00${f.insumoId}`);
     if (!info || info.precos.length === 0) continue; // sem pedido -> F2
     const unit = f.valorMaterial / f.pesoToneladas;
     if (info.precos.some((pr) => Math.abs(pr - unit) <= PRECO_TOL)) continue;
@@ -119,7 +119,7 @@ function detectF2(ctx: Ctx): AnomaliaFrete[] {
     if (!f.insumoId) continue;
     const fornId = findForn(f.origem);
     if (!fornId) continue; // origem sem fornecedor -> F5
-    const info = pedidoInfo.get(`${fornId}|${f.insumoId}`);
+    const info = pedidoInfo.get(`${fornId}\x00${f.insumoId}`);
     if (info && info.precos.length > 0) continue; // tem pedido -> ok (ou F1)
     const matNome = input.insumoNome.get(f.insumoId) ?? f.insumoId;
     const fornNome = input.fornecedorNome.get(fornId) ?? (f.origem || fornId);
@@ -147,7 +147,7 @@ function detectF3(ctx: Ctx): AnomaliaFrete[] {
     if (!f.insumoId || !(f.pesoToneladas > 0)) continue;
     const fornId = findForn(f.origem);
     if (!fornId) continue;
-    const key = `${fornId}|${f.insumoId}`;
+    const key = `${fornId}\x00${f.insumoId}`;
     transp.set(key, (transp.get(key) ?? 0) + f.pesoToneladas);
   }
   const out: AnomaliaFrete[] = [];
@@ -156,7 +156,9 @@ function detectF3(ctx: Ctx): AnomaliaFrete[] {
     const qtdPed = info?.qtd ?? 0;
     const saldo = qtdPed - qtdTransp;
     if (saldo >= -0.1) continue; // só negativo relevante
-    const [fornId, insumoId] = key.split('|');
+    const sep = key.indexOf('\x00');
+    const fornId = key.slice(0, sep);
+    const insumoId = key.slice(sep + 1);
     const matNome = input.insumoNome.get(insumoId) ?? insumoId;
     const fornNome = input.fornecedorNome.get(fornId) ?? fornId;
     out.push({
