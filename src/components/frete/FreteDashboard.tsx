@@ -732,7 +732,7 @@ export default function FreteDashboard({
           const valorMaterialTransp = materialValorMap.get(key) || 0;
           const custoMedioFrete = qtdTransportada > 0 ? freteValor / qtdTransportada : 0;
           const saldoQtdRaw = dados.qtd - qtdTransportada;
-          const saldoQtd = Math.abs(saldoQtdRaw) < 0.1 ? 0 : saldoQtdRaw;
+          const saldoQtd = Math.abs(saldoQtdRaw) < 0.001 ? 0 : saldoQtdRaw;
           const saldoValorRaw = dados.valor - valorMaterialTransp;
           const saldoValor = Math.abs(saldoValorRaw) < 0.01 ? 0 : saldoValorRaw;
           pedidosFornecedorRows.push({ fornecedorId, fornecedorNome, insumoId, qtd: dados.qtd, qtdTransportada, saldoQtd, vlrMedio, custoMedioFrete, valor: dados.valor, valorMaterialTransp, saldoValor });
@@ -1376,7 +1376,7 @@ export default function FreteDashboard({
                   const valorMaterialTransp = pmfMatValMap.get(key) || 0;
                   const custoMedioFrete = qtdTransportada > 0 ? freteValor / qtdTransportada : 0;
                   const saldoQtdRaw = dados.qtd - qtdTransportada;
-                  const saldoQtd = Math.abs(saldoQtdRaw) < 0.1 ? 0 : saldoQtdRaw;
+                  const saldoQtd = Math.abs(saldoQtdRaw) < 0.001 ? 0 : saldoQtdRaw;
                   const saldoValorRaw = dados.valor - valorMaterialTransp;
                   const saldoValor = Math.abs(saldoValorRaw) < 0.01 ? 0 : saldoValorRaw;
                   pmfRows.push({ fornecedorId, fornecedorNome, insumoId, qtd: dados.qtd, qtdTransportada, saldoQtd, vlrMedio, custoMedioFrete, valor: dados.valor, valorMaterialTransp, saldoValor });
@@ -1424,7 +1424,7 @@ export default function FreteDashboard({
                           <td className="px-3 py-2 text-right font-semibold text-gray-600">{formatCurrency(forn.totalValor)}</td>
                           <td className="px-3 py-2 text-right font-semibold text-emerald-700">{forn.totalQtdTransp.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>
                           <td className="px-3 py-2 text-right font-semibold text-emerald-700">{formatCurrency(forn.totalValorMaterialTransp)}</td>
-                          <td className={`px-3 py-2 text-right font-semibold ${(() => { const v = forn.totalQtd - forn.totalQtdTransp; const s = Math.abs(v) < 0.1 ? 0 : v; return s < 0 ? 'text-red-600' : s === 0 ? 'text-gray-400' : 'text-green-600'; })()}`}>{(() => { const v = forn.totalQtd - forn.totalQtdTransp; return (Math.abs(v) < 0.1 ? 0 : v).toLocaleString('pt-BR', { minimumFractionDigits: 2 }); })()}</td>
+                          <td className={`px-3 py-2 text-right font-semibold ${(() => { const v = forn.totalQtd - forn.totalQtdTransp; const s = Math.abs(v) < 0.001 ? 0 : v; return s < 0 ? 'text-red-600' : s === 0 ? 'text-gray-400' : 'text-green-600'; })()}`}>{(() => { const v = forn.totalQtd - forn.totalQtdTransp; return (Math.abs(v) < 0.001 ? 0 : v).toLocaleString('pt-BR', { minimumFractionDigits: 2 }); })()}</td>
                           <td className={`px-3 py-2 text-right font-semibold ${forn.totalSaldoValor < 0 ? 'text-red-600' : forn.totalSaldoValor === 0 ? 'text-gray-400' : 'text-green-600'}`}>{formatCurrency(forn.totalSaldoValor)}</td>
                           <td className="px-3 py-2 text-right font-semibold text-purple-700">{formatCurrency(fornCMM)}</td>
                           <td className="px-3 py-2 text-right font-semibold text-purple-700">{fornCMF > 0 ? formatCurrency(fornCMF) : '-'}</td>
@@ -1455,7 +1455,7 @@ export default function FreteDashboard({
                     <td className="px-3 py-2 text-right text-gray-800">{formatCurrency(pmfTotalPedidos)}</td>
                     <td className="px-3 py-2 text-right text-emerald-700">{pmfTotalQtdTransp.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>
                     <td className="px-3 py-2 text-right text-emerald-700">{formatCurrency(pmfTotalMatTransp)}</td>
-                    <td className={`px-3 py-2 text-right ${(() => { const v = pmfTotalQtd - pmfTotalQtdTransp; const s = Math.abs(v) < 0.1 ? 0 : v; return s < 0 ? 'text-red-600' : s === 0 ? 'text-gray-400' : 'text-green-600'; })()}`}>{(() => { const v = pmfTotalQtd - pmfTotalQtdTransp; return (Math.abs(v) < 0.1 ? 0 : v).toLocaleString('pt-BR', { minimumFractionDigits: 2 }); })()}</td>
+                    <td className={`px-3 py-2 text-right ${(() => { const v = pmfTotalQtd - pmfTotalQtdTransp; const s = Math.abs(v) < 0.001 ? 0 : v; return s < 0 ? 'text-red-600' : s === 0 ? 'text-gray-400' : 'text-green-600'; })()}`}>{(() => { const v = pmfTotalQtd - pmfTotalQtdTransp; return (Math.abs(v) < 0.001 ? 0 : v).toLocaleString('pt-BR', { minimumFractionDigits: 2 }); })()}</td>
                     <td className={`px-3 py-2 text-right ${pmfTotalSaldoValor < 0 ? 'text-red-600' : pmfTotalSaldoValor === 0 ? 'text-gray-400' : 'text-green-600'}`}>{formatCurrency(pmfTotalSaldoValor)}</td>
                     <td className="px-3 py-2 text-right text-purple-700">{pmfTotalQtd > 0 ? formatCurrency(pmfTotalPedidos / pmfTotalQtd) : '-'}</td>
                     <td className="px-3 py-2 text-right text-purple-700">{pmfTotalQtdTransp > 0 ? formatCurrency(pmfTotalFreteValor / pmfTotalQtdTransp) : '-'}</td>
