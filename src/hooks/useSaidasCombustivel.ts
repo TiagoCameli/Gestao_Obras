@@ -22,13 +22,30 @@ export function useSaidasCombustivel() {
     queryFn: async () => {
       // F8.4 — soft delete: filtra deleted_at IS NULL (registros ativos).
       // Pra ver lixeira (admin), usar useSaidasCombustivelDeletadas (TBD).
-      const { data, error } = await supabase
-        .from('saidas_combustivel')
-        .select('*')
-        .is('deleted_at', null)
-        .order('data', { ascending: false });
-      if (error) throw error;
-      return (data ?? []).map(dbToSaidaCombustivel);
+      //
+      // Paginação obrigatória: o PostgREST corta em 1000 linhas por request
+      // (default do Supabase). Como a tabela já passou de 1000 (e cresce todo
+      // dia), buscar sem .range() descartaria silenciosamente as saídas mais
+      // antigas e subcontaria todos os agregados que dependem deste hook
+      // (totais de combustível, custo por equipamento, etc). Busca em páginas
+      // de 1000 até esgotar. Tiebreaker por id estabiliza a ordenação na borda
+      // das páginas (data não é única). Ver docs/tech-debt.md (limite de 1000).
+      const PAGINA = 1000;
+      const todas: unknown[] = [];
+      for (let from = 0; ; from += PAGINA) {
+        const { data, error } = await supabase
+          .from('saidas_combustivel')
+          .select('*')
+          .is('deleted_at', null)
+          .order('data', { ascending: false })
+          .order('id', { ascending: false })
+          .range(from, from + PAGINA - 1);
+        if (error) throw error;
+        const lote = data ?? [];
+        todas.push(...lote);
+        if (lote.length < PAGINA) break;
+      }
+      return todas.map(dbToSaidaCombustivel);
     },
   });
 }
