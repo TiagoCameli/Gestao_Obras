@@ -174,9 +174,22 @@ export default function FreteListV2({
       cell: (info) => <span className="tabular-nums">{(info.getValue() ?? 0).toLocaleString('pt-BR')} t</span>,
     }) as ColumnDef<Frete>,
     ch.accessor('valorTotal', {
-      header: 'Valor',
+      header: 'Valor Frete',
       cell: (info) => <span className="tabular-nums font-semibold">{fmtBRL(info.getValue() ?? 0)}</span>,
     }) as ColumnDef<Frete>,
+    ch.accessor('valorMaterial', {
+      header: 'Valor Material',
+      cell: (info) => <span className="tabular-nums">{fmtBRL(info.getValue() ?? 0)}</span>,
+    }) as ColumnDef<Frete>,
+    {
+      id: 'precoUnitMaterial',
+      header: 'Preço Unit.',
+      accessorFn: (f) => (f.pesoToneladas > 0 ? (f.valorMaterial ?? 0) / f.pesoToneladas : 0),
+      cell: (info) => {
+        const v = Number(info.getValue() ?? 0);
+        return <span className="tabular-nums">{v > 0 ? `${fmtBRL(v)}/t` : '—'}</span>;
+      },
+    } as ColumnDef<Frete>,
     {
       id: 'actions',
       header: '',
@@ -224,9 +237,10 @@ export default function FreteListV2({
       (acc, f) => {
         acc.peso += f.pesoToneladas ?? 0;
         acc.valor += f.valorTotal ?? 0;
+        acc.valorMaterial += f.valorMaterial ?? 0;
         return acc;
       },
-      { peso: 0, valor: 0 },
+      { peso: 0, valor: 0, valorMaterial: 0 },
     );
   }, [filtrados]);
 
@@ -250,18 +264,27 @@ export default function FreteListV2({
         title: 'Nenhum frete encontrado',
         description: 'Ajuste os filtros acima ou registre um novo frete.',
       }}
-      renderFooter={() => (
-        <tr>
-          <td colSpan={6} className="px-3 py-2 text-2xs label-eyebrow">Totais</td>
-          <td className="px-3 py-2 text-sm tabular-nums font-semibold">
-            {totals.peso.toLocaleString('pt-BR')} t
-          </td>
-          <td className="px-3 py-2 text-sm tabular-nums font-semibold text-[var(--color-fg)]">
-            {fmtBRL(totals.valor)}
-          </td>
-          <td />
-        </tr>
-      )}
+      renderFooter={() => {
+        const precoMedio = totals.peso > 0 ? totals.valorMaterial / totals.peso : 0;
+        return (
+          <tr>
+            <td colSpan={6} className="px-3 py-2 text-2xs label-eyebrow">Totais</td>
+            <td className="px-3 py-2 text-sm tabular-nums font-semibold">
+              {totals.peso.toLocaleString('pt-BR')} t
+            </td>
+            <td className="px-3 py-2 text-sm tabular-nums font-semibold text-[var(--color-fg)]">
+              {fmtBRL(totals.valor)}
+            </td>
+            <td className="px-3 py-2 text-sm tabular-nums font-semibold text-[var(--color-fg)]">
+              {fmtBRL(totals.valorMaterial)}
+            </td>
+            <td className="px-3 py-2 text-sm tabular-nums font-semibold text-[var(--color-fg)]">
+              {precoMedio > 0 ? `${fmtBRL(precoMedio)}/t` : '—'}
+            </td>
+            <td />
+          </tr>
+        );
+      }}
     />
   );
 }
