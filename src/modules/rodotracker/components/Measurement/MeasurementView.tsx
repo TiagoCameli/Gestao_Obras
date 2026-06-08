@@ -21,7 +21,7 @@ import {
   isAdminLocal,
 } from "../../utils/contractTree";
 import { ImportExcelModal } from "./ImportExcelModal";
-import { QuickEntrySheet } from "./QuickEntrySheet";
+import { QuickEntryModal } from "./QuickEntryModal";
 import { useAuth } from "../../../../contexts/AuthContext";
 
 interface MeasurementViewProps {
@@ -655,7 +655,7 @@ export function MeasurementView({ obra, onClose }: MeasurementViewProps) {
       )}
 
       {showQuickEntry && (
-        <QuickEntrySheet
+        <QuickEntryModal
           open={showQuickEntry}
           onClose={() => setShowQuickEntry(false)}
           obra={obra}
