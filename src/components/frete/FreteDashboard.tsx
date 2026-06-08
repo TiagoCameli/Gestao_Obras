@@ -699,6 +699,21 @@ export default function FreteDashboard({
       });
     });
   });
+  // Preço do pedido MAIS RECENTE por fornecedor+insumo. Usado pra valorizar o Saldo na Pedreira
+  // (Saldo Qtd × esse preço), refletindo o preço atual do material e ignorando picos antigos.
+  // Vem de TODOS os pedidos (não filtrado por período), pra o preço de referência ficar estável.
+  const precoPedidoRecente = new Map<string, { data: string; preco: number }>();
+  pedidosMaterial.forEach((p) => {
+    if (!p.fornecedorId || !p.data || p.deletedAt) return;
+    (p.itens || []).forEach((item) => {
+      const k = `${p.fornecedorId}|${item.insumoId}`;
+      const prev = precoPedidoRecente.get(k);
+      if (!prev || p.data > prev.data) precoPedidoRecente.set(k, { data: p.data, preco: item.valorUnitario });
+    });
+  });
+  const precoSaldo = (fornId: string, insumoId: string, fallback: number) =>
+    precoPedidoRecente.get(`${fornId}|${insumoId}`)?.preco ?? fallback;
+
   // Flatten para lista de linhas agrupadas por fornecedor
   interface PedidoFornRow { fornecedorId: string; fornecedorNome: string; insumoId: string; qtd: number; qtdTransportada: number; saldoQtd: number; vlrMedio: number; custoMedioFrete: number; valor: number; valorMaterialTransp: number; saldoValor: number }
   const pedidosFornecedorRows: PedidoFornRow[] = [];
@@ -733,7 +748,9 @@ export default function FreteDashboard({
           const custoMedioFrete = qtdTransportada > 0 ? freteValor / qtdTransportada : 0;
           const saldoQtdRaw = dados.qtd - qtdTransportada;
           const saldoQtd = Math.abs(saldoQtdRaw) < 0.1 ? 0 : saldoQtdRaw;
-          const saldoValorRaw = dados.valor - valorMaterialTransp;
+          // Saldo Valor = Saldo Qtd × preço do pedido mais recente do material (decisão Tiago 08/06).
+          // Não usar média de pedido nem preço de frete: ambos rejeitados. Sem pedido, cai no vlrMedio.
+          const saldoValorRaw = saldoQtd * precoSaldo(fornecedorId, insumoId, vlrMedio);
           const saldoValor = Math.abs(saldoValorRaw) < 0.01 ? 0 : saldoValorRaw;
           pedidosFornecedorRows.push({ fornecedorId, fornecedorNome, insumoId, qtd: dados.qtd, qtdTransportada, saldoQtd, vlrMedio, custoMedioFrete, valor: dados.valor, valorMaterialTransp, saldoValor });
           fornQtd += dados.qtd;
@@ -1377,7 +1394,9 @@ export default function FreteDashboard({
                   const custoMedioFrete = qtdTransportada > 0 ? freteValor / qtdTransportada : 0;
                   const saldoQtdRaw = dados.qtd - qtdTransportada;
                   const saldoQtd = Math.abs(saldoQtdRaw) < 0.1 ? 0 : saldoQtdRaw;
-                  const saldoValorRaw = dados.valor - valorMaterialTransp;
+                  // Saldo Valor = Saldo Qtd × preço do pedido mais recente do material (decisão Tiago 08/06).
+                  // Não usar média de pedido nem preço de frete: ambos rejeitados. Sem pedido, cai no vlrMedio.
+                  const saldoValorRaw = saldoQtd * precoSaldo(fornecedorId, insumoId, vlrMedio);
                   const saldoValor = Math.abs(saldoValorRaw) < 0.01 ? 0 : saldoValorRaw;
                   pmfRows.push({ fornecedorId, fornecedorNome, insumoId, qtd: dados.qtd, qtdTransportada, saldoQtd, vlrMedio, custoMedioFrete, valor: dados.valor, valorMaterialTransp, saldoValor });
                   fQtd += dados.qtd; fQtdT += qtdTransportada; fVal += dados.valor; fFrete += freteValor; fSaldo += saldoValor; fMatTransp += valorMaterialTransp;
