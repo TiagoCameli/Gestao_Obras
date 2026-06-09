@@ -756,6 +756,10 @@ export default function Frete() {
 
       {/* ── Anomalias Tab ── */}
       <TabsContent value="anomalias">
+        {/* `fretes` (de useFretes) é a lista completa sem filtro de período, então
+            fretesNoPeriodo e fretesTodos recebem o mesmo array de propósito: as
+            anomalias varrem todos os fretes (F3 precisa do saldo cumulativo). Se um dia
+            aplicar filtro de período a `fretes`, passar a versão completa em fretesTodos. */}
         <AnomaliasFreteTab
           fretesNoPeriodo={fretes}
           fretesTodos={fretes}
