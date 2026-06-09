@@ -10,7 +10,7 @@ interface Props {
 
 export default function FretesAfetadosList({ fretes, insumoNome, onEditFrete }: Props) {
   if (fretes.length === 0) {
-    return <p className="text-sm text-[var(--color-fg-muted)] italic">Anomalia agregada (sem frete único).</p>;
+    return <p className="text-sm text-[var(--color-fg-muted)] italic">Anomalia agregada por material e fornecedor (sem fretes específicos).</p>;
   }
   return (
     <ul className="space-y-2">

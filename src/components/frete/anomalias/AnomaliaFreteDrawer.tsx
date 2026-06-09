@@ -1,4 +1,5 @@
 import { useMemo } from 'react';
+import { fmtDataHora as fmtDataHoraBR } from '../../combustivel/v2/shared/formatters';
 import { AlertCircle, AlertTriangle, Info, CheckCircle2, Undo2 } from 'lucide-react';
 import Drawer from '../../ui/Drawer';
 import Button from '../../ui/Button';
@@ -95,7 +96,7 @@ export default function AnomaliaFreteDrawer({
               </div>
               <p className="text-sm text-[var(--color-fg)] mt-0.5">
                 {verificada.checkedBy ? `por ${verificada.checkedBy} · ` : ''}
-                {verificada.checkedAt.slice(0, 16).replace('T', ' ')}
+                {fmtDataHoraBR(verificada.checkedAt)}
               </p>
               {verificada.motivo && (
                 <p className="text-[11px] text-[var(--color-fg-muted)] italic mt-1">

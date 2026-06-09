@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { AlertCircle, AlertTriangle, Info, ShieldCheck, Search } from 'lucide-react';
 import Card from '../../ui/Card';
 import AnomaliaFreteDrawer from './AnomaliaFreteDrawer';
@@ -85,8 +85,27 @@ export default function AnomaliasFreteTab(props: Props) {
     });
   }, [anomalias, anomaliasChecks, mostrarVerificadas, sevFiltro, detFiltro, busca]);
 
-  const naoVerificadas = anomalias.filter((a) => !anomaliasChecks.has(a.id));
-  const verificadasCount = anomalias.length - naoVerificadas.length;
+  // Uma passada só: produz sevCounts, detCounts, verificadasCount, abertasCount.
+  // Quando toggle OFF, exclui verificadas das contagens da sidebar (igual ao combustível).
+  const counts = useMemo(() => {
+    const sevCounts: Record<Severidade, number> = { critical: 0, warning: 0, info: 0 };
+    const detCounts: Record<FreteDetectorId, number> = { F1: 0, F2: 0, F3: 0, F4: 0, F5: 0, F6: 0 };
+    let verificadasCount = 0;
+    for (const a of anomalias) {
+      const isChecked = anomaliasChecks.has(a.id);
+      if (isChecked) verificadasCount++;
+      if (!mostrarVerificadas && isChecked) continue;
+      sevCounts[a.severity]++;
+      detCounts[a.detector]++;
+    }
+    return { sevCounts, detCounts, verificadasCount, abertasCount: anomalias.length - verificadasCount };
+  }, [anomalias, anomaliasChecks, mostrarVerificadas]);
+
+  // Auto-fechar drawer quando a anomalia selecionada sai da lista
+  useEffect(() => {
+    if (selectedId && !anomalias.some((a) => a.id === selectedId)) setSelectedId(null);
+  }, [anomalias, selectedId]);
+
   const selected: AnomaliaFrete | null = anomalias.find((a) => a.id === selectedId) ?? null;
 
   const toggle = <T,>(arr: T[], v: T, set: (x: T[]) => void) =>
@@ -106,7 +125,7 @@ export default function AnomaliasFreteTab(props: Props) {
   return (
     <div className="space-y-4">
       <div className="text-sm text-[var(--color-fg-muted)]">
-        {naoVerificadas.length} anomalia(s) em aberto{verificadasCount > 0 ? ` · ${verificadasCount} verificada(s)` : ''}
+        {counts.abertasCount} anomalia(s) em aberto{counts.verificadasCount > 0 ? ` · ${counts.verificadasCount} verificada(s)` : ''}
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-[240px_1fr] gap-4">
@@ -115,7 +134,7 @@ export default function AnomaliasFreteTab(props: Props) {
             <div className="text-[11px] font-semibold uppercase text-[var(--color-fg-muted)] mb-1.5">Severidade</div>
             <div className="flex flex-col gap-1">
               {ALL_SEV.map((s) => {
-                const n = naoVerificadas.filter((a) => a.severity === s).length;
+                const n = counts.sevCounts[s];
                 const on = sevFiltro.includes(s);
                 return (
                   <button key={s} type="button" onClick={() => toggle(sevFiltro, s, setSevFiltro)}
@@ -130,7 +149,7 @@ export default function AnomaliasFreteTab(props: Props) {
             <div className="text-[11px] font-semibold uppercase text-[var(--color-fg-muted)] mb-1.5">Tipo</div>
             <div className="flex flex-col gap-1">
               {ALL_DET.map((d) => {
-                const n = naoVerificadas.filter((a) => a.detector === d).length;
+                const n = counts.detCounts[d];
                 const on = detFiltro.includes(d);
                 return (
                   <button key={d} type="button" onClick={() => toggle(detFiltro, d, setDetFiltro)}
@@ -141,10 +160,10 @@ export default function AnomaliasFreteTab(props: Props) {
               })}
             </div>
           </div>
-          {verificadasCount > 0 && (
+          {counts.verificadasCount > 0 && (
             <label className="flex items-center gap-2 text-sm cursor-pointer">
               <input type="checkbox" checked={mostrarVerificadas} onChange={(e) => setMostrarVerificadas(e.target.checked)} />
-              Mostrar verificadas ({verificadasCount})
+              Mostrar verificadas ({counts.verificadasCount})
             </label>
           )}
           {(sevFiltro.length > 0 || detFiltro.length > 0 || busca) ? (
