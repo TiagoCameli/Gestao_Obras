@@ -41,10 +41,12 @@ import { exportarPedidosMaterialExcel, exportarPedidosMaterialPDF } from '../uti
 import FilterBar from '../components/frete/FilterBar';
 import FretePresets, { type PresetKey } from '../components/frete/FretePresets';
 import { presetEstaSemana, presetEsteMes, presetMesPassado } from '../utils/dateRangePresets';
-import { Truck, BarChart3, Wallet, Wallet2, PackageSearch, Trash2 } from 'lucide-react';
+import { Truck, BarChart3, Wallet, Wallet2, PackageSearch, Trash2, AlertTriangle } from 'lucide-react';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '../components/shadcn/tabs';
+import AnomaliasFreteTab from '../components/frete/anomalias/AnomaliasFreteTab';
+import { useAnomaliasFreteChecks, useMarcarAnomaliaFreteVerificada, useDesfazerVerificacaoAnomaliaFrete } from '../hooks/useAnomaliasFreteChecks';
 
-type Tab = 'dashboard' | 'fretes' | 'pagamentos' | 'conta_corrente' | 'pedidos' | 'lixeira';
+type Tab = 'dashboard' | 'fretes' | 'pagamentos' | 'conta_corrente' | 'pedidos' | 'anomalias' | 'lixeira';
 
 export default function Frete() {
   const { temAcao, usuario } = useAuth();
@@ -61,7 +63,7 @@ export default function Frete() {
   }, [showToast]);
 
   const [searchParams, setSearchParams] = useSearchParams();
-  const validTabs: Tab[] = ['dashboard', 'fretes', 'pagamentos', 'conta_corrente', 'pedidos', 'lixeira'];
+  const validTabs: Tab[] = ['dashboard', 'fretes', 'pagamentos', 'conta_corrente', 'pedidos', 'anomalias', 'lixeira'];
   // Filtra abas pelas permissões — se a aba pedida na URL não está liberada,
   // cai na primeira permitida (ou null).
   const permByTab: Record<Tab, string> = {
@@ -70,6 +72,7 @@ export default function Frete() {
     pagamentos: 'aba_frete_pagamentos',
     conta_corrente: 'aba_frete_conta_corrente',
     pedidos: 'aba_frete_pedidos',
+    anomalias: 'ver_frete',
     lixeira: 'aba_frete_lixeira',
   };
   const allowedTabs = validTabs.filter((t) => temAcao(permByTab[t]));
@@ -99,6 +102,15 @@ export default function Frete() {
   const adicionarPedidoMutation = useAdicionarPedidoMaterial();
   const atualizarPedidoMutation = useAtualizarPedidoMaterial();
   const excluirPedidoMutation = useExcluirPedidoMaterial();
+
+  // Anomalias da aba de anomalias
+  const { data: anomaliasFreteChecks = new Map() } = useAnomaliasFreteChecks();
+  const marcarAnomaliaFrete = useMarcarAnomaliaFreteVerificada();
+  const desfazerAnomaliaFrete = useDesfazerVerificacaoAnomaliaFrete();
+  const insumoNomeMap = useMemo(() => new Map(insumos.map((i) => [i.id, i.nome])), [insumos]);
+  const fornecedorNomeMap = useMemo(() => new Map(fornecedores.map((f) => [f.id, f.nome])), [fornecedores]);
+  const hojeIso = useMemo(() => new Date().toISOString().slice(0, 10), []);
+  const checkedByNome = usuario?.nome ?? null;
 
   // Filter insumos: materials (combustiveis movidos pra Combustivel.tsx)
   const insumosAtivos = insumos.filter((i) => i.ativo !== false);
@@ -456,6 +468,12 @@ export default function Frete() {
               Pedidos
             </TabsTrigger>
           )}
+          {allowedTabs.includes('anomalias') && (
+            <TabsTrigger value="anomalias" className="gap-1.5">
+              <AlertTriangle className="w-3.5 h-3.5" />
+              Anomalias
+            </TabsTrigger>
+          )}
           {allowedTabs.includes('lixeira') && (
             <TabsTrigger value="lixeira" className="gap-1.5">
               <Trash2 className="w-3.5 h-3.5" />
@@ -734,6 +752,23 @@ export default function Frete() {
             canDelete={canDelete}
           />
         </>
+      </TabsContent>
+
+      {/* ── Anomalias Tab ── */}
+      <TabsContent value="anomalias">
+        <AnomaliasFreteTab
+          fretesNoPeriodo={fretes}
+          fretesTodos={fretes}
+          pedidos={pedidosMaterial}
+          fornecedores={fornecedores}
+          insumoNome={insumoNomeMap}
+          fornecedorNome={fornecedorNomeMap}
+          hoje={hojeIso}
+          onEditFrete={(f) => { setEditando(f); setModalOpen(true); }}
+          anomaliasChecks={anomaliasFreteChecks}
+          onMarcarVerificada={(id) => marcarAnomaliaFrete.mutate({ anomaliaId: id, checkedBy: checkedByNome })}
+          onDesfazerVerificacao={(id) => desfazerAnomaliaFrete.mutate(id)}
+        />
       </TabsContent>
 
       {/* FF.7 — Aba Lixeira admin-only (validação extra de cargo aqui pra
