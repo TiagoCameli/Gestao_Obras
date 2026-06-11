@@ -47,12 +47,15 @@ describe('useAtualizarTransferenciaCombustivel', () => {
     await expect(result.current.mutateAsync(transf)).resolves.toBeUndefined();
     expect(update).toHaveBeenCalled();
     expect(eq).toHaveBeenCalledWith('id', 'tcf-1');
+    expect(update).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 'tcf-1', valor_total: 3250, deposito_origem_id: 'dep-a' }),
+    );
   });
 
   it('rejeita quando o Supabase devolve erro', async () => {
     mockUpdateChain({ data: null, error: { message: 'boom' } });
     const { result } = renderHook(() => useAtualizarTransferenciaCombustivel(), { wrapper });
-    await expect(result.current.mutateAsync(transf)).rejects.toBeTruthy();
+    await expect(result.current.mutateAsync(transf)).rejects.toThrow();
   });
 
   it('lança erro quando 0 linhas (RLS rejeitou em silêncio)', async () => {
