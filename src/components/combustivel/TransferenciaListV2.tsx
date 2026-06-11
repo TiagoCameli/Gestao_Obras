@@ -2,7 +2,6 @@
 // Usa @tanstack/react-table com sort por coluna, paginação e DropdownMenu shadcn.
 // Remove o header bg-emt-verde brilhante do Audit item 10.
 // Espelha o padrão de FreteListV2 (Fase B).
-// Nota: transferências não têm edição no padrão atual — só exclusão.
 
 import { Fragment, useCallback, useEffect, useMemo, useState } from 'react';
 import {
@@ -10,7 +9,7 @@ import {
   createColumnHelper, flexRender,
   type ColumnDef, type SortingState,
 } from '@tanstack/react-table';
-import { ArrowUpDown, ArrowUp, ArrowDown, MoreVertical, Trash2, ArrowRight } from 'lucide-react';
+import { ArrowUpDown, ArrowUp, ArrowDown, MoreVertical, Pencil, Trash2, ArrowRight } from 'lucide-react';
 import type { TransferenciaCombustivel, Deposito, Insumo } from '../../types';
 import AnexosBadge from './AnexosBadge';
 import {
@@ -23,8 +22,10 @@ interface Props {
   depositos: Deposito[];
   /** HF.7 — Pra resolver tipoCombustivel (id) → nome do insumo. */
   insumos?: Insumo[];
+  onEdit: (transferencia: TransferenciaCombustivel) => void;
   onDelete: (id: string) => void;
   onSelect?: (t: TransferenciaCombustivel) => void;
+  canEdit?: boolean;
   canDelete?: boolean;
 }
 
@@ -45,8 +46,10 @@ export default function TransferenciaListV2({
   transferencias,
   depositos,
   insumos = [],
+  onEdit,
   onDelete,
   onSelect,
+  canEdit = true,
   canDelete = true,
 }: Props) {
   const depositosMap = useMemo(
@@ -138,7 +141,7 @@ export default function TransferenciaListV2({
       id: 'actions',
       header: '',
       cell: ({ row }) => {
-        if (!canDelete) return null;
+        if (!canEdit && !canDelete) return null;
         return (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
@@ -152,6 +155,14 @@ export default function TransferenciaListV2({
               </button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
+              {canEdit && (
+                <DropdownMenuItem
+                  onClick={(e) => { e.stopPropagation(); onEdit(row.original); }}
+                >
+                  <Pencil className="w-3.5 h-3.5 mr-2" />
+                  Editar
+                </DropdownMenuItem>
+              )}
               {canDelete && (
                 <DropdownMenuItem
                   onClick={(e) => { e.stopPropagation(); onDelete(row.original.id); }}
@@ -168,7 +179,7 @@ export default function TransferenciaListV2({
       size: 32,
       enableSorting: false,
     },
-  ], [ch, depositosMap, insumosMap, canDelete, onDelete]);
+  ], [ch, depositosMap, insumosMap, canEdit, canDelete, onEdit, onDelete]);
 
   const [sorting, setSorting] = useState<SortingState>([{ id: 'dataHora', desc: true }]);
   const [pageSize, setPageSize] = useState<number>(getInitialPageSize);

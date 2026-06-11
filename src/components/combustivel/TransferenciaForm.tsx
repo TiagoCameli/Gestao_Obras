@@ -263,7 +263,7 @@ export default function TransferenciaForm({
   );
 
   const { temAcao, usuario } = useAuth();
-  const canAct = temAcao('criar_transferencia_combustivel');
+  const canAct = initial ? temAcao('editar_combustivel') : temAcao('criar_transferencia_combustivel');
 
   const onSubmitForm = async (data: TransferenciaCombustivelFormValues) => {
     if (!canAct) return;
@@ -525,7 +525,7 @@ export default function TransferenciaForm({
           Cancelar
         </Button>
         <SubmitButton loading={isSubmitting} disabled={!isValid || !canAct}>
-          Registrar Transferência
+          {initial ? 'Salvar Alterações' : 'Registrar Transferência'}
         </SubmitButton>
       </div>
 
