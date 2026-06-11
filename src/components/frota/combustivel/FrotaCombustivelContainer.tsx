@@ -13,7 +13,7 @@ import { useDepositos, useAdicionarDeposito, useAtualizarDeposito, useExcluirDep
 // Hooks novos (Fase 3) — saídas via tabela unificada saidas_combustivel
 import { useSaidasCombustivel, useAdicionarSaidaCombustivel, useAtualizarSaidaCombustivel, useExcluirSaidaCombustivel, useRegistrarSaidaFIFO } from '../../../hooks/useSaidasCombustivel';
 import { useEntradasCombustivel, useAdicionarEntradaCombustivel, useAtualizarEntradaCombustivel, useExcluirEntradaCombustivel } from '../../../hooks/useEntradasCombustivel';
-import { useTransferenciasCombustivel, useAdicionarTransferenciaCombustivel, useExcluirTransferenciaCombustivel } from '../../../hooks/useTransferenciasCombustivel';
+import { useTransferenciasCombustivel, useAdicionarTransferenciaCombustivel, useAtualizarTransferenciaCombustivel, useExcluirTransferenciaCombustivel } from '../../../hooks/useTransferenciasCombustivel';
 import { useEquipamentos } from '../../../hooks/useEquipamentos';
 import { useFornecedores } from '../../../hooks/useFornecedores';
 import { useInsumos } from '../../../hooks/useInsumos';
@@ -201,6 +201,7 @@ function FrotaCombustivelContent() {
 
   // Transferencia mutations
   const adicionarTransferenciaMut = useAdicionarTransferenciaCombustivel();
+  const atualizarTransferenciaMut = useAtualizarTransferenciaCombustivel();
   const excluirTransferenciaMut = useExcluirTransferenciaCombustivel();
 
   // Tanque state
@@ -221,6 +222,7 @@ function FrotaCombustivelContent() {
 
   // Transferencia state
   const [modalTransferenciaOpen, setModalTransferenciaOpen] = useState(false);
+  const [editandoTransferencia, setEditandoTransferencia] = useState<TransferenciaCombustivel | null>(null);
   // F8.5.2 — Drawer read-only de detalhes da Transferência.
   const [transferenciaDetalhes, setTransferenciaDetalhes] = useState<TransferenciaCombustivel | null>(null);
 
@@ -593,11 +595,23 @@ function FrotaCombustivelContent() {
   // Transferencia handlers
   const handleSubmitTransferencia = useCallback(
     async (data: TransferenciaCombustivel) => {
-      await adicionarTransferenciaMut.mutateAsync({ ...data, criadoPor: usuario?.nome || '' });
+      if (editandoTransferencia) {
+        await atualizarTransferenciaMut.mutateAsync(data);
+      } else {
+        await adicionarTransferenciaMut.mutateAsync({ ...data, criadoPor: usuario?.nome || '' });
+      }
       setModalTransferenciaOpen(false);
+      setEditandoTransferencia(null);
     },
-    [adicionarTransferenciaMut, usuario]
+    [editandoTransferencia, atualizarTransferenciaMut, adicionarTransferenciaMut, usuario]
   );
+
+  const handleEditTransferencia = useCallback((t: TransferenciaCombustivel) => {
+    pedirSenha(() => {
+      setEditandoTransferencia(t);
+      setModalTransferenciaOpen(true);
+    });
+  }, []);
 
   const handleDeleteTransferencia = useCallback(
     async (id: string) => {
@@ -628,7 +642,7 @@ function FrotaCombustivelContent() {
         )}
         {canCreateTransferencia && (
           <Button
-            onClick={() => setModalTransferenciaOpen(true)}
+            onClick={() => { setEditandoTransferencia(null); setModalTransferenciaOpen(true); }}
             className="text-sm"
           >
             + Nova Transferência
@@ -931,6 +945,8 @@ function FrotaCombustivelContent() {
             successMessage: 'Transferência excluída.',
             errorMessage: 'Falha ao excluir transferência. Verifique sua conexão e tente novamente.',
           })}
+          onEdit={handleEditTransferencia}
+          canEdit={canEdit}
           onSelect={setTransferenciaDetalhes}
           canDelete={canDelete}
         />
@@ -1073,12 +1089,13 @@ function FrotaCombustivelContent() {
       {/* Modal Transferencia */}
       <Modal
         open={modalTransferenciaOpen}
-        onClose={() => setModalTransferenciaOpen(false)}
-        title="Nova Transferência de Combustível"
+        onClose={() => { setModalTransferenciaOpen(false); setEditandoTransferencia(null); }}
+        title={editandoTransferencia ? 'Editar Transferência de Combustível' : 'Nova Transferência de Combustível'}
       >
         <TransferenciaForm
+          initial={editandoTransferencia}
           onSubmit={handleSubmitTransferencia}
-          onCancel={() => setModalTransferenciaOpen(false)}
+          onCancel={() => { setModalTransferenciaOpen(false); setEditandoTransferencia(null); }}
           depositos={depositosOperacionais}
           onImportBatch={async (items) => {
             for (const item of items) {
