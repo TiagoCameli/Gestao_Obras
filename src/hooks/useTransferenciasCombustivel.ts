@@ -35,6 +35,29 @@ export function useAdicionarTransferenciaCombustivel() {
   });
 }
 
+export function useAtualizarTransferenciaCombustivel() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (transferencia: TransferenciaCombustivel) => {
+      const { data, error } = await supabase
+        .from('transferencias_combustivel')
+        .update(transferenciaCombustivelToDb(transferencia))
+        .eq('id', transferencia.id)
+        .select();
+      if (error) throw error;
+      if (!data || data.length === 0) {
+        throw new Error('Falha ao salvar: sem permissão ou nenhuma linha alterada.');
+      }
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['transferencias_combustivel'] });
+      qc.invalidateQueries({ queryKey: ['depositos'] });
+      // O recompute FIFO no banco reprecifica as saídas dos tanques afetados.
+      qc.invalidateQueries({ queryKey: ['saidas_combustivel'] });
+    },
+  });
+}
+
 // F10 — Lixeira
 export function useTransferenciasCombustivelDeletadas() {
   return useQuery({
