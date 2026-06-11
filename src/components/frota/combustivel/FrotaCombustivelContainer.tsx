@@ -1102,6 +1102,7 @@ function FrotaCombustivelContent() {
               await adicionarTransferenciaMut.mutateAsync({ ...item, criadoPor: usuario?.nome || '' });
             }
             setModalTransferenciaOpen(false);
+            setEditandoTransferencia(null);
           }}
         />
       </Modal>
