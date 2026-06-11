@@ -106,26 +106,28 @@ export default function TransferenciaForm({
     // Fallback pro nível atual em caso de falha da RPC — evita bloquear
     // o form quando a função do banco está quebrada (vide migration
     // 20260512230000_fix_calcular_estoque_combustivel_na_data).
-    calcularEstoqueCombustivelNaData(depositoOrigemId, dataHora)
+    // excluirId = initial.id: ao editar, tira a propria transferencia da conta do
+    // saldo "na data" (senao o proprio movimento e descontado e parece faltar estoque).
+    calcularEstoqueCombustivelNaData(depositoOrigemId, dataHora, initial?.id)
       .then(setEstoqueOrigemNaData)
       .catch((err) => {
         console.error('[TransferenciaForm] estoque origem na data falhou', err);
         setEstoqueOrigemNaData(depositoOrigem ? depositoOrigem.nivelAtualLitros : 0);
       });
-  }, [depositoOrigemId, dataHora, depositoOrigem?.nivelAtualLitros, depositoOrigem]);
+  }, [depositoOrigemId, dataHora, depositoOrigem?.nivelAtualLitros, depositoOrigem, initial?.id]);
 
   useEffect(() => {
     if (!depositoDestinoId || !dataHora) {
       setEstoqueDestinoNaData(depositoDestino ? depositoDestino.nivelAtualLitros : 0);
       return;
     }
-    calcularEstoqueCombustivelNaData(depositoDestinoId, dataHora)
+    calcularEstoqueCombustivelNaData(depositoDestinoId, dataHora, initial?.id)
       .then(setEstoqueDestinoNaData)
       .catch((err) => {
         console.error('[TransferenciaForm] estoque destino na data falhou', err);
         setEstoqueDestinoNaData(depositoDestino ? depositoDestino.nivelAtualLitros : 0);
       });
-  }, [depositoDestinoId, dataHora, depositoDestino?.nivelAtualLitros, depositoDestino]);
+  }, [depositoDestinoId, dataHora, depositoDestino?.nivelAtualLitros, depositoDestino, initial?.id]);
 
   // HF.7 — Combustível que vai ser transferido (point-in-time do tanque
   // origem na data selecionada). Usa fallback pro combustivelAtualId quando
@@ -153,11 +155,23 @@ export default function TransferenciaForm({
     : 0;
   const semEspacoDestino = depositoDestino && qtdLitros > espacoDestinoNaData;
 
+  // Edit de metadados (valor/obs/fotos) numa transferência que já existe e cujos
+  // campos físicos não mudaram. Nesse caso as validações de criação não se aplicam
+  // (a transferência já foi aceita); espelha a guarda do trigger no banco
+  // (fn_validate_transferencia_combustivel / fn_stamp_transferencia_tipo_combustivel).
+  const editMetadadosOnly =
+    !!initial?.id &&
+    depositoOrigemId === initial.depositoOrigemId &&
+    depositoDestinoId === initial.depositoDestinoId &&
+    qtdLitros === initial.quantidadeLitros &&
+    dataHora === (initial.dataHora ? initial.dataHora.slice(0, 16) : '');
+
   // F11 — Pre-check de mistura no destino. O trigger no DB é a fonte da
   // verdade, mas mostrar inline evita submit+erro feio. Bloqueia se destino
   // tem combustível ≠ do origem. Destino vazio (nivel <= 0) ou externo passa —
   // espelha o trigger fn_validate_transferencia_combustivel.
   const conflitoCombustivelDestino = (() => {
+    if (editMetadadosOnly) return null;
     if (!depositoOrigem || !depositoDestino) return null;
     if (depositoDestino.ehExterno) return null;
     if (depositoDestino.nivelAtualLitros <= 0) return null;
