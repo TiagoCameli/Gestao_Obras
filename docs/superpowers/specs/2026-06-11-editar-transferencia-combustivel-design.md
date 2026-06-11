@@ -90,9 +90,13 @@ Arquivo: `src/components/frota/combustivel/FrotaCombustivelContainer.tsx`.
 
 ### 4. Permissão / senha
 Mantém o padrão do módulo, sem nada novo:
-- **Excluir** continua pedindo senha (`pedirSenha`).
-- **Editar** abre o form direto, sem senha — igual entrada e saída fazem hoje.
-- Sem chave de ação nova → sem armadilha de backfill de templates de cargo.
+- Exibição do botão "Editar" gated em `canEdit = temAcao('editar_combustivel')`
+  (chave **já existente**, usada por entrada/saída/tanque). Sem chave de ação
+  nova → sem armadilha de backfill de templates de cargo.
+- **Editar pede senha** (`pedirSenha`), exatamente como `handleEditEntrada` e
+  `handleEditSaida` fazem hoje: o handler envolve `setEditando... + abrir modal`
+  dentro de `pedirSenha(() => { ... })`.
+- **Excluir** continua pedindo senha (`pedirSenha`), sem mudança.
 
 ## O que NÃO muda
 - `transferenciaCombustivelSchema` — já valida todos os campos.
