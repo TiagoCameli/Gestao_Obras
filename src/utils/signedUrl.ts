@@ -19,6 +19,15 @@ export function fileNameFromUrl(url: string): string {
   return last.replace(TIMESTAMP_PREFIX_RE, '')
 }
 
+/**
+ * Caminhos dos derivados gerados no upload (ver fotoStorage.ts). Guardados como
+ * irmãos do original no mesmo bucket: `<path>.thumb.jpg` e `<path>.preview.jpg`.
+ * O grid e o lightbox leem esses arquivos prontos, em vez de pedir transform ao
+ * Supabase (cota de Image Transformations: só 100/mês no plano Pro).
+ */
+export const thumbStoragePath = (path: string): string => `${path}.thumb.jpg`
+export const previewStoragePath = (path: string): string => `${path}.preview.jpg`
+
 export async function downloadSignedUrl(url: string, fileName: string): Promise<void> {
   try {
     const res = await fetch(url)

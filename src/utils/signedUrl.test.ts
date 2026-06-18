@@ -1,5 +1,11 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { pathFromSignedUrl, fileNameFromUrl, downloadSignedUrl } from './signedUrl'
+import {
+  pathFromSignedUrl,
+  fileNameFromUrl,
+  downloadSignedUrl,
+  thumbStoragePath,
+  previewStoragePath,
+} from './signedUrl'
 
 describe('pathFromSignedUrl', () => {
   it('extrai path de URL assinada padrão Supabase', () => {
@@ -31,6 +37,20 @@ describe('fileNameFromUrl', () => {
   it('lida com path sem prefixo timestamp', () => {
     const url = 'https://abc.supabase.co/storage/v1/object/sign/bucket/pasta/foto.jpg?token=xyz'
     expect(fileNameFromUrl(url)).toBe('foto.jpg')
+  })
+})
+
+describe('thumbStoragePath / previewStoragePath', () => {
+  it('deriva caminhos de derivado como irmãos do original', () => {
+    const path = 'frete-chegada/123/1700000000-foto.jpg'
+    expect(thumbStoragePath(path)).toBe('frete-chegada/123/1700000000-foto.jpg.thumb.jpg')
+    expect(previewStoragePath(path)).toBe('frete-chegada/123/1700000000-foto.jpg.preview.jpg')
+  })
+
+  it('é determinístico: mesmo original sempre gera o mesmo derivado', () => {
+    const path = 'saida_42/1700000000-doc.png'
+    expect(thumbStoragePath(path)).toBe(thumbStoragePath(path))
+    expect(previewStoragePath(path)).not.toBe(thumbStoragePath(path))
   })
 })
 
