@@ -1,20 +1,14 @@
 import { useQuery } from '@tanstack/react-query'
 import { supabase } from '../lib/supabase'
-import { pathFromSignedUrl } from '../utils/signedUrl'
+import { pathFromSignedUrl, thumbStoragePath, previewStoragePath } from '../utils/signedUrl'
 
 const BUCKET = 'abastecimento-fotos'
 const URL_TTL_SECS = 60 * 60
 
-const THUMB_SIZE = 400
-const THUMB_QUALITY = 75
-
-const PREVIEW_SIZE = 1400
-const PREVIEW_QUALITY = 85
-
 interface FotoUrls {
   /** 400x400 q75 (~30KB) — grid de thumbnails. */
   thumb: string
-  /** 1400x1400 q85 (~150KB) — lightbox. Não é o full-res original. */
+  /** 1400px q85 (~150KB) — lightbox. Não é o full-res original. */
   preview: string
 }
 
@@ -22,28 +16,30 @@ async function mintFotoUrls(url: string): Promise<FotoUrls> {
   const path = pathFromSignedUrl(url)
   if (!path) return { thumb: url, preview: url }
 
-  const [thumbRes, previewRes] = await Promise.all([
-    supabase.storage.from(BUCKET).createSignedUrl(path, URL_TTL_SECS, {
-      transform: { width: THUMB_SIZE, height: THUMB_SIZE, resize: 'cover', quality: THUMB_QUALITY },
-    }),
-    supabase.storage.from(BUCKET).createSignedUrl(path, URL_TTL_SECS, {
-      transform: { width: PREVIEW_SIZE, height: PREVIEW_SIZE, resize: 'contain', quality: PREVIEW_QUALITY },
-    }),
+  // Assina o original + os derivados (gerados no upload por fotoStorage.ts).
+  // SEM transform: zero consumo da cota de Image Transformations do Supabase.
+  const [origRes, thumbRes, previewRes] = await Promise.all([
+    supabase.storage.from(BUCKET).createSignedUrl(path, URL_TTL_SECS),
+    supabase.storage.from(BUCKET).createSignedUrl(thumbStoragePath(path), URL_TTL_SECS),
+    supabase.storage.from(BUCKET).createSignedUrl(previewStoragePath(path), URL_TTL_SECS),
   ])
 
+  // Fotos antigas (subidas antes desta mudança) não têm derivados: o sign
+  // falha e caímos no original full-res. Funciona, só pesa mais na rede.
+  const original = origRes.data?.signedUrl ?? url
   return {
-    thumb: thumbRes.data?.signedUrl ?? url,
-    preview: previewRes.data?.signedUrl ?? url,
+    thumb: thumbRes.data?.signedUrl ?? original,
+    preview: previewRes.data?.signedUrl ?? original,
   }
 }
 
 /**
- * Mintra URLs assinadas FRESCAS (com transform) a partir do path guardado no
- * banco. As URLs salvas em fotoUrls são signed URLs que expiram em 1h (JWT
- * `exp`); reaproveitá-las direto no <img> quebra com InvalidJWT. Aqui extraímos
- * o path e re-assinamos na hora, em duas versões:
+ * Mintra URLs assinadas FRESCAS a partir do path guardado no banco. As URLs
+ * salvas em fotoUrls expiram em 1h (JWT `exp`); reaproveitá-las direto no <img>
+ * quebra com InvalidJWT. Aqui extraímos o path e re-assinamos na hora, lendo os
+ * derivados gerados no upload (fotoStorage.ts):
  *  - thumb: 400x400 q75 pro grid
- *  - preview: 1400x1400 q85 pro lightbox
+ *  - preview: 1400px q85 pro lightbox
  *
  * preview tem ~150KB vs ~2MB do original, permitindo pré-carregar 8 fotos sem
  * saturar a rede. Pra download do original full-res, use mint on-demand.

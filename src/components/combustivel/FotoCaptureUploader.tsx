@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { Camera, ImagePlus, Trash2, AlertCircle, Loader2, MapPin } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
+import { uploadFotoComDerivados } from '../../utils/fotoStorage';
+import { thumbStoragePath, previewStoragePath } from '../../utils/signedUrl';
 
 const BUCKET = 'abastecimento-fotos';
 const SIGNED_URL_TTL_SECS = 60 * 60; // 1 hora (re-mint on demand)
@@ -213,22 +215,12 @@ export default function FotoCaptureUploader({ fotosUrls, onChange, pastaId, clas
       for (const file of toUpload) {
         const ts = Date.now();
         const path = `${pastaId}/${ts}-${sanitizeNome(file.name)}`;
-        const { error: upErr } = await supabase.storage.from(BUCKET).upload(path, file, {
-          contentType: file.type,
-          upsert: false,
-        });
-        if (upErr) {
-          setErros((prev) => [...prev, `Falha no upload de ${file.name}: ${upErr.message}`]);
+        const { signedUrl, error } = await uploadFotoComDerivados(BUCKET, path, file, SIGNED_URL_TTL_SECS);
+        if (error || !signedUrl) {
+          setErros((prev) => [...prev, `Falha no upload de ${file.name}: ${error ?? 'URL não gerada'}`]);
           continue;
         }
-        const { data: signed, error: signErr } = await supabase.storage
-          .from(BUCKET)
-          .createSignedUrl(path, SIGNED_URL_TTL_SECS);
-        if (signErr) {
-          setErros((prev) => [...prev, `Falha ao assinar URL de ${file.name}: ${signErr.message}`]);
-          continue;
-        }
-        novasUrls.push(signed.signedUrl);
+        novasUrls.push(signedUrl);
       }
       if (novasUrls.length > 0) onChange([...fotosUrls, ...novasUrls]);
     } finally {
@@ -241,7 +233,9 @@ export default function FotoCaptureUploader({ fotosUrls, onChange, pastaId, clas
     const path = pathFromSignedUrl(url);
     if (path) {
       try {
-        await supabase.storage.from(BUCKET).remove([path]);
+        await supabase.storage
+          .from(BUCKET)
+          .remove([path, thumbStoragePath(path), previewStoragePath(path)]);
       } catch (e) {
         console.warn('Falha ao remover do bucket:', e);
       }
