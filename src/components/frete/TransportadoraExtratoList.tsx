@@ -6,9 +6,9 @@
 // `movimentos`. Filtros locais cuidam de busca livre + tipos.
 
 import { useMemo, useState } from 'react';
-import { Search } from 'lucide-react';
+import { Search, Truck } from 'lucide-react';
 import type { TransportadoraMovimento, TipoMovimentoTransportadora } from '../../types';
-import { formatBreakdown, TIPO_LABEL, TIPOS_CREDITO } from '../../utils/extratoExport';
+import { formatBreakdown, placaMovimento, TIPO_LABEL, TIPOS_CREDITO } from '../../utils/extratoExport';
 import { fmtBRL, fmtData } from './extrato/extratoShared';
 
 interface Props {
@@ -42,7 +42,10 @@ export default function TransportadoraExtratoList({ movimentos }: Props) {
     }
     if (busca.trim()) {
       const q = busca.trim().toLowerCase();
-      filtrados = filtrados.filter((m) => (m.descricao ?? '').toLowerCase().includes(q));
+      filtrados = filtrados.filter((m) =>
+        (m.descricao ?? '').toLowerCase().includes(q) ||
+        (placaMovimento(m) ?? '').toLowerCase().includes(q)
+      );
     }
     const asc = [...filtrados].sort((a, b) => a.data.localeCompare(b.data));
     let acc = 0;
@@ -168,12 +171,24 @@ export default function TransportadoraExtratoList({ movimentos }: Props) {
               {dados.map((m) => {
                 const isCredito = TIPOS_CREDITO.has(m.tipo);
                 const breakdown = formatBreakdown(m);
+                const placa = placaMovimento(m);
                 return (
                   <tr key={m.id} className="hover:bg-gray-50">
                     <td className="px-3 py-2 text-gray-700 whitespace-nowrap align-top">{fmtData(m.data)}</td>
                     <td className="px-3 py-2 align-top">
                       <div className="text-gray-800 text-sm">{m.descricao ?? <span className="italic text-gray-400">(sem descrição)</span>}</div>
-                      <div className="text-[10px] uppercase tracking-wide text-gray-400 mt-0.5">{TIPO_LABEL[m.tipo]}</div>
+                      <div className="flex flex-wrap items-center gap-1.5 mt-0.5">
+                        <span className="text-[10px] uppercase tracking-wide text-gray-400">{TIPO_LABEL[m.tipo]}</span>
+                        {placa && (
+                          <span
+                            title="Placa da carreta"
+                            className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded border border-gray-200 bg-gray-100 text-gray-600 text-[10px] font-mono font-semibold"
+                          >
+                            <Truck aria-hidden className="w-3 h-3" />
+                            {placa}
+                          </span>
+                        )}
+                      </div>
                       {breakdown && (
                         <div className="text-[11px] font-mono text-gray-500 mt-1">{breakdown}</div>
                       )}

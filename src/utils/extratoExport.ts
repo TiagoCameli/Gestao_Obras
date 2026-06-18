@@ -406,6 +406,27 @@ export function formatBreakdown(m: TransportadoraMovimento): string {
   return '';
 }
 
+// ────────────────────────────────────────────────────────────────────
+// placaMovimento — placa da carreta que originou o crédito/débito.
+//
+// Fonte única (UI "Todos" + abas + exports). Fretes trazem a placa da
+// carreta do frete; abastecimentos trazem a placa do veículo abastecido.
+// Pagamentos e ajustes manuais não têm carreta associada → null
+// (o "quando possível" do pedido). String vazia/whitespace também vira null.
+// ────────────────────────────────────────────────────────────────────
+export function placaMovimento(m: TransportadoraMovimento): string | null {
+  switch (m.tipo) {
+    case 'credito_frete':
+      return m.fretePlacaCarreta?.trim() || null;
+    case 'debito_abastecimento_transterra':
+    case 'debito_abastecimento_emt':
+    case 'credito_abastecimento_transterra':
+      return m.saidaPlaca?.trim() || null;
+    default:
+      return null;
+  }
+}
+
 interface MovimentoComSaldo extends TransportadoraMovimento {
   saldoAcumulado: number;
 }
