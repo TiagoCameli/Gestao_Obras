@@ -27,7 +27,8 @@ import {
 } from './exportTemplate';
 
 export interface ExtratoFiltros {
-  mesReferencia: string;
+  /** Meses de referência (raw, ex "2026-06-01"). Vazio = todos os meses. */
+  meses: string[];
   tipos: TipoMovimentoTransportadora[];
   busca: string;
 }
@@ -436,8 +437,9 @@ function prepararExtrato(
   filtros: ExtratoFiltros
 ): MovimentoComSaldo[] {
   let filtrados = movimentos;
-  if (filtros.mesReferencia) {
-    filtrados = filtrados.filter((m) => m.mesReferencia === filtros.mesReferencia);
+  if (filtros.meses.length > 0) {
+    const setMeses = new Set(filtros.meses);
+    filtrados = filtrados.filter((m) => m.mesReferencia != null && setMeses.has(m.mesReferencia));
   }
   if (filtros.tipos.length > 0) {
     const setTipos = new Set(filtros.tipos);
@@ -470,7 +472,9 @@ function totaisFromList(movs: MovimentoComSaldo[]) {
 
 function filtrosToTuples(filtros: ExtratoFiltros): Array<[string, string]> {
   const out: Array<[string, string]> = [];
-  if (filtros.mesReferencia) out.push(['Mês de Referência', filtros.mesReferencia]);
+  if (filtros.meses.length > 0) {
+    out.push([filtros.meses.length === 1 ? 'Mês de Referência' : 'Meses de Referência', filtros.meses.join(', ')]);
+  }
   if (filtros.tipos.length > 0) {
     out.push(['Tipos', filtros.tipos.map((t) => TIPO_LABEL[t]).join(' · ')]);
   }
@@ -481,7 +485,7 @@ function filtrosToTuples(filtros: ExtratoFiltros): Array<[string, string]> {
 // ════════════════════════════════════════════════════════════════════
 // Excel — workbook com 6 sheets:
 //   Resumo · Todos · Fretes · Abastecimentos · Pagamentos · Ajustes
-// Cada sheet de tipo é filtrada pelo mês (filtros.mesReferencia) e
+// Cada sheet de tipo é filtrada pelos meses (filtros.meses) e
 // mostra colunas detalhadas próprias (espelha as abas da UI).
 // ════════════════════════════════════════════════════════════════════
 
@@ -500,8 +504,8 @@ export async function exportarExtratoExcel(
 
   // Subsets por tipo — só o filtro de mês importa (tipos/busca não fazem
   // sentido aqui; cada aba tem seu próprio escopo).
-  const movsMes = filtros.mesReferencia
-    ? movimentos.filter((m) => m.mesReferencia === filtros.mesReferencia)
+  const movsMes = filtros.meses.length > 0
+    ? movimentos.filter((m) => m.mesReferencia != null && filtros.meses.includes(m.mesReferencia))
     : movimentos;
 
   const sortDesc = (a: TransportadoraMovimento, b: TransportadoraMovimento) =>
@@ -1044,8 +1048,8 @@ export function exportarExtratoPDF(
   // Subset de créditos de tanque pra página dedicada (típico Areacre).
   // Em transportadoras sem tanque próprio, lista vazia → seção é
   // suprimida (sem página em branco).
-  const movsMes = filtros.mesReferencia
-    ? movimentos.filter((m) => m.mesReferencia === filtros.mesReferencia)
+  const movsMes = filtros.meses.length > 0
+    ? movimentos.filter((m) => m.mesReferencia != null && filtros.meses.includes(m.mesReferencia))
     : movimentos;
   const creditosTanque = movsMes
     .filter((m) => m.tipo === 'credito_abastecimento_transterra')

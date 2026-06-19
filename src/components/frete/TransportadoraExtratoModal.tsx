@@ -1,15 +1,15 @@
 // Wrapper sobre Modal pra abrir o extrato de uma transportadora específica.
 // Carrega os movimentos via useTransportadoraMovimentos quando abre.
 //
-// filtroMes vive aqui (lifted) — afeta saldo do header, contadores das
-// abas, conteúdo de cada aba e exports Excel/PDF. Demais filtros (busca,
-// tipo, sinal, etc.) ficam locais a cada aba.
+// mesesSel (multi-seleção, vazio = todos) vive aqui (lifted) — afeta saldo
+// do header, contadores das abas, conteúdo de cada aba e exports Excel/PDF.
+// Demais filtros (busca, tipo, sinal, etc.) ficam locais a cada aba.
 
 import { useMemo, useState } from 'react';
 import { FileSpreadsheet, FileText } from 'lucide-react';
 import Modal from '../ui/Modal';
 import Button from '../ui/Button';
-import SmartSelect from '../ui/SmartSelect';
+import MesesFilterSelect from './MesesFilterSelect';
 import { useToast } from '../ui/Toast';
 import TransportadoraExtratoList from './TransportadoraExtratoList';
 import AjusteManualTransportadoraForm from './AjusteManualTransportadoraForm';
@@ -76,7 +76,8 @@ export default function TransportadoraExtratoModal({
   const excluirAjusteMut = useExcluirAjusteManualTransportadora();
   const { showToast } = useToast();
   const [tab, setTab] = useState<TabId>('todos');
-  const [filtroMes, setFiltroMes] = useState('');
+  // Meses selecionados (subconjunto de mesesDisponiveis). Vazio = todos.
+  const [mesesSel, setMesesSel] = useState<string[]>([]);
 
   // Lookups id→nome pra resolver FKs soft no export.
   const insumosMap = useMemo(() => {
@@ -97,11 +98,13 @@ export default function TransportadoraExtratoModal({
     return Array.from(set).sort().reverse();
   }, [movimentos]);
 
-  // Movimentos restritos ao mês — base do que cada aba vê e do saldo do mês.
+  // Movimentos restritos aos meses escolhidos — base do que cada aba vê e
+  // do saldo do período. Vazio = todos.
   const movimentosDoMes = useMemo(() => {
-    if (!filtroMes) return movimentos;
-    return movimentos.filter((m) => m.mesReferencia === filtroMes);
-  }, [movimentos, filtroMes]);
+    if (mesesSel.length === 0) return movimentos;
+    const set = new Set(mesesSel);
+    return movimentos.filter((m) => m.mesReferencia != null && set.has(m.mesReferencia));
+  }, [movimentos, mesesSel]);
 
   const counts = useMemo(() => {
     let fretes = 0;
@@ -123,10 +126,10 @@ export default function TransportadoraExtratoModal({
     };
   }, [movimentosDoMes]);
 
-  // Saldo: total da conta-corrente quando sem filtro; saldo do mês
-  // (créditos − débitos do recorte) quando filtroMes ativo.
+  // Saldo: total da conta-corrente quando sem filtro; saldo do recorte
+  // (créditos − débitos dos meses escolhidos) quando há seleção.
   const saldoDisplay = useMemo(() => {
-    if (!filtroMes) {
+    if (mesesSel.length === 0) {
       return {
         valor: saldo?.saldo ?? 0,
         titulo: 'Saldo Atual',
@@ -139,12 +142,13 @@ export default function TransportadoraExtratoModal({
       if (TIPOS_CREDITO.has(m.tipo)) creditos += m.valor;
       else debitos += m.valor;
     }
+    const umMes = mesesSel.length === 1;
     return {
       valor: creditos - debitos,
-      titulo: `Saldo de ${formatMesLabel(filtroMes)}`,
-      sub: `${movimentosDoMes.length} movimento${movimentosDoMes.length !== 1 ? 's' : ''} no mês`,
+      titulo: umMes ? `Saldo de ${formatMesLabel(mesesSel[0])}` : `Saldo de ${mesesSel.length} meses`,
+      sub: `${movimentosDoMes.length} movimento${movimentosDoMes.length !== 1 ? 's' : ''} ${umMes ? 'no mês' : 'no período'}`,
     };
-  }, [filtroMes, saldo, movimentos, movimentosDoMes]);
+  }, [mesesSel, saldo, movimentos, movimentosDoMes]);
 
   return (
     <>
@@ -177,17 +181,12 @@ export default function TransportadoraExtratoModal({
               <div className="flex flex-wrap items-center gap-2 shrink-0">
                 <div className="flex items-center gap-1.5">
                   <span className="text-xs font-semibold uppercase tracking-wide text-[var(--color-fg-muted)]">Mês</span>
-                  <SmartSelect
-                    value={filtroMes}
-                    onChange={(e) => setFiltroMes(e.target.value)}
-                    wrapperClassName="relative"
-                    className="h-9 px-2.5 text-sm rounded-lg bg-white border border-[var(--color-border)] focus:outline-none focus:border-[var(--color-accent)] flex items-center min-w-[120px] text-left"
-                  >
-                    <option value="">Todos</option>
-                    {mesesDisponiveis.map((m) => (
-                      <option key={m} value={m}>{m}</option>
-                    ))}
-                  </SmartSelect>
+                  <MesesFilterSelect
+                    meses={mesesDisponiveis}
+                    selecionados={mesesSel}
+                    onChange={setMesesSel}
+                    formatLabel={formatMesLabel}
+                  />
                 </div>
                 <Button onClick={() => setAjusteOpen(true)} className="text-sm">
                   + Novo Ajuste Manual
@@ -201,7 +200,7 @@ export default function TransportadoraExtratoModal({
                         exportarExtratoExcel(
                           transportadoraNome ?? '?',
                           movimentos,
-                          { mesReferencia: filtroMes, tipos: [], busca: '' },
+                          { meses: mesesSel, tipos: [], busca: '' },
                           { insumosMap, obrasMap },
                         )
                       }
@@ -213,7 +212,7 @@ export default function TransportadoraExtratoModal({
                       className="text-xs"
                       onClick={() =>
                         exportarExtratoPDF(transportadoraNome ?? '?', movimentos, {
-                          mesReferencia: filtroMes,
+                          meses: mesesSel,
                           tipos: [],
                           busca: '',
                         })
