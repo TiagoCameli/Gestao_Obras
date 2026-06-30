@@ -36,11 +36,6 @@ import MEquipamentoInfoPage from './pages/mobile/MEquipamentoInfoPage';
 import MSaidaCombustivelPage from './pages/mobile/MSaidaCombustivelPage';
 
 const MScanPage = lazy(() => import('./pages/mobile/MScanPage'));
-const EngenhariaPage = lazy(() => import('./modules/engenharia/pages/EngenhariaPage'));
-const PastaEngenhariaPage = lazy(() => import('./modules/engenharia/pages/PastaPage'));
-const NotaEngenhariaPage = lazy(() => import('./modules/engenharia/pages/NotaPage'));
-const CalculoEngenhariaPage = lazy(() => import('./modules/engenharia/pages/CalculoPage'));
-const PranchaEngenhariaPage = lazy(() => import('./modules/engenharia/pages/PranchaPage'));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -66,7 +61,6 @@ const PAGINAS_FALLBACK: { acao: string; rota: string }[] = [
   { acao: 'ver_frota', rota: '/frota' },
   { acao: 'ver_funcionarios', rota: '/funcionarios' },
   { acao: 'ver_apontamento_rh', rota: '/apontamento' },
-  { acao: 'ver_engenharia', rota: '/engenharia' },
 ];
 
 function HomeRedirect() {
@@ -105,56 +99,6 @@ export default function App() {
             >
               <Route path="/" element={<HomeRedirect />} />
               <Route path="/obras" element={<ProtectedRoute modulo="obras"><ObrasPage /></ProtectedRoute>} />
-              <Route
-                path="/engenharia"
-                element={
-                  <ProtectedRoute acao="ver_engenharia">
-                    <Suspense fallback={<div className="p-8 text-center text-[var(--color-fg-muted)]">Carregando…</div>}>
-                      <EngenhariaPage />
-                    </Suspense>
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/engenharia/pasta/:id"
-                element={
-                  <ProtectedRoute acao="ver_engenharia">
-                    <Suspense fallback={<div className="p-8 text-center text-[var(--color-fg-muted)]">Carregando…</div>}>
-                      <PastaEngenhariaPage />
-                    </Suspense>
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/engenharia/nota/:id"
-                element={
-                  <ProtectedRoute acao="ver_engenharia">
-                    <Suspense fallback={<div className="p-8 text-center text-[var(--color-fg-muted)]">Carregando…</div>}>
-                      <NotaEngenhariaPage />
-                    </Suspense>
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/engenharia/calculo/:id"
-                element={
-                  <ProtectedRoute acao="ver_engenharia">
-                    <Suspense fallback={<div className="p-8 text-center text-[var(--color-fg-muted)]">Carregando…</div>}>
-                      <CalculoEngenhariaPage />
-                    </Suspense>
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/engenharia/prancha/:id"
-                element={
-                  <ProtectedRoute acao="ver_engenharia">
-                    <Suspense fallback={<div className="p-8 text-center text-[var(--color-fg-muted)]">Carregando…</div>}>
-                      <PranchaEngenhariaPage />
-                    </Suspense>
-                  </ProtectedRoute>
-                }
-              />
               <Route path="/cadastros" element={<ProtectedRoute modulo="cadastros"><CadastrosHub /></ProtectedRoute>} />
               <Route path="/cadastros/etapas" element={<ProtectedRoute modulo="cadastros"><EtapasPage /></ProtectedRoute>} />
               <Route path="/cadastros/usuarios" element={<ProtectedRoute modulo="funcionarios"><Funcionarios /></ProtectedRoute>} />

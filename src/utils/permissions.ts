@@ -490,30 +490,6 @@ export const ACOES_PLATAFORMA: AcaoPlataforma[] = [
   { chave: 'migrar_medicao_local', label: 'Migrar dados locais → Supabase (Medição)', grupo: 'Medição' },
 
   // ============================================================
-  // Engenharia (workspace de obras: pastas, notas, cálculos, arquivos)
-  // ============================================================
-  { chave: 'ver_engenharia', label: 'Acessar módulo Engenharia', grupo: 'Engenharia' },
-  { chave: 'criar_engenharia_pasta', label: 'Criar pasta no Engenharia', grupo: 'Engenharia' },
-  { chave: 'editar_engenharia_pasta', label: 'Renomear/mover pasta', grupo: 'Engenharia' },
-  { chave: 'excluir_engenharia_pasta', label: 'Mover pasta para lixeira', grupo: 'Engenharia' },
-  { chave: 'criar_engenharia_nota', label: 'Criar bloco de nota', grupo: 'Engenharia' },
-  { chave: 'editar_engenharia_nota', label: 'Editar/salvar bloco de nota', grupo: 'Engenharia' },
-  { chave: 'excluir_engenharia_nota', label: 'Mover nota para lixeira', grupo: 'Engenharia' },
-  { chave: 'criar_engenharia_calculo', label: 'Criar bloco de cálculo', grupo: 'Engenharia' },
-  { chave: 'editar_engenharia_calculo', label: 'Editar/salvar bloco de cálculo', grupo: 'Engenharia' },
-  { chave: 'excluir_engenharia_calculo', label: 'Mover cálculo para lixeira', grupo: 'Engenharia' },
-  { chave: 'criar_engenharia_prancha', label: 'Criar prancha (quadro livre)', grupo: 'Engenharia' },
-  { chave: 'editar_engenharia_prancha', label: 'Editar/salvar prancha', grupo: 'Engenharia' },
-  { chave: 'excluir_engenharia_prancha', label: 'Mover prancha para lixeira', grupo: 'Engenharia' },
-  { chave: 'upload_engenharia_arquivo', label: 'Subir arquivo', grupo: 'Engenharia' },
-  { chave: 'excluir_engenharia_arquivo', label: 'Excluir arquivo', grupo: 'Engenharia' },
-  { chave: 'ver_lixeira_engenharia', label: 'Visualizar lixeira da Engenharia', grupo: 'Engenharia' },
-  { chave: 'restaurar_lixeira_engenharia', label: 'Restaurar itens da lixeira', grupo: 'Engenharia' },
-  { chave: 'excluir_permanente_engenharia', label: 'Excluir permanentemente itens da lixeira', grupo: 'Engenharia' },
-  { chave: 'ver_historico_engenharia', label: 'Ver histórico de versões', grupo: 'Engenharia' },
-  { chave: 'gerenciar_locks_engenharia', label: 'Forçar liberação de lock de edição', grupo: 'Engenharia' },
-
-  // ============================================================
   // Usuários e permissões
   // ============================================================
   { chave: 'ver_funcionarios', label: 'Visualizar usuários', grupo: 'Usuários' },
@@ -872,27 +848,6 @@ export const DEPENDENCIAS_ACOES: Record<string, string[]> = {
   exportar_medicao: ['ver_medicao'],
   migrar_medicao_local: ['ver_medicao'],
 
-  // Engenharia
-  criar_engenharia_pasta: ['ver_engenharia'],
-  editar_engenharia_pasta: ['ver_engenharia'],
-  excluir_engenharia_pasta: ['ver_engenharia', 'editar_engenharia_pasta'],
-  criar_engenharia_nota: ['ver_engenharia'],
-  editar_engenharia_nota: ['ver_engenharia'],
-  excluir_engenharia_nota: ['ver_engenharia', 'editar_engenharia_nota'],
-  criar_engenharia_calculo: ['ver_engenharia'],
-  editar_engenharia_calculo: ['ver_engenharia'],
-  excluir_engenharia_calculo: ['ver_engenharia', 'editar_engenharia_calculo'],
-  criar_engenharia_prancha: ['ver_engenharia'],
-  editar_engenharia_prancha: ['ver_engenharia'],
-  excluir_engenharia_prancha: ['ver_engenharia', 'editar_engenharia_prancha'],
-  upload_engenharia_arquivo: ['ver_engenharia'],
-  excluir_engenharia_arquivo: ['ver_engenharia'],
-  ver_lixeira_engenharia: ['ver_engenharia'],
-  restaurar_lixeira_engenharia: ['ver_lixeira_engenharia'],
-  excluir_permanente_engenharia: ['ver_lixeira_engenharia', 'restaurar_lixeira_engenharia'],
-  ver_historico_engenharia: ['ver_engenharia'],
-  gerenciar_locks_engenharia: ['ver_engenharia'],
-
   // Usuários
   criar_funcionarios: ['ver_funcionarios'],
   editar_funcionarios: ['ver_funcionarios'],
@@ -995,8 +950,6 @@ export const TEMPLATES_ACOES_POR_CARGO: Record<CargoFuncionario, string[]> = {
     'lancar_adiantamento',
     'ver_medicao', 'exportar_medicao', 'fechar_medicao',
     'ver_funcionarios',
-    // Engenharia (read-only)
-    'ver_engenharia', 'ver_lixeira_engenharia',
   ],
 
   'Gerente de Compras': [
@@ -1024,8 +977,6 @@ export const TEMPLATES_ACOES_POR_CARGO: Record<CargoFuncionario, string[]> = {
     'ver_manutencao', 'ver_almoxarifado', 'criar_peca_almoxarifado',
     'criar_entrada_almoxarifado',
     'ver_funcionarios',
-    // Engenharia (read-only)
-    'ver_engenharia', 'ver_lixeira_engenharia',
   ],
 
   Gerente: [
@@ -1083,8 +1034,6 @@ export const TEMPLATES_ACOES_POR_CARGO: Record<CargoFuncionario, string[]> = {
     'trocar_periodo_medicao',
     'fechar_medicao', 'exportar_medicao',
     'ver_funcionarios',
-    // Engenharia (read-only)
-    'ver_engenharia', 'ver_lixeira_engenharia',
   ],
 
   Supervisor: [
@@ -1122,8 +1071,6 @@ export const TEMPLATES_ACOES_POR_CARGO: Record<CargoFuncionario, string[]> = {
     // Mobile
     'bater_ponto_mobile', 'executar_checklist_mobile',
     'abrir_os_mobile', 'saida_combustivel_mobile',
-    // Engenharia (read-only)
-    'ver_engenharia', 'ver_lixeira_engenharia',
   ],
 
   'Engenheiro Civil Sênior': [
@@ -1155,15 +1102,6 @@ export const TEMPLATES_ACOES_POR_CARGO: Record<CargoFuncionario, string[]> = {
     'exportar_medicao',
     // Mobile
     'executar_checklist_mobile', 'lancar_medicao_mobile', 'abrir_os_mobile',
-    // Engenharia (19 chaves — tudo menos excluir_permanente_engenharia)
-    'ver_engenharia',
-    'criar_engenharia_pasta', 'editar_engenharia_pasta', 'excluir_engenharia_pasta',
-    'criar_engenharia_nota', 'editar_engenharia_nota', 'excluir_engenharia_nota',
-    'criar_engenharia_calculo', 'editar_engenharia_calculo', 'excluir_engenharia_calculo',
-    'criar_engenharia_prancha', 'editar_engenharia_prancha', 'excluir_engenharia_prancha',
-    'upload_engenharia_arquivo', 'excluir_engenharia_arquivo',
-    'ver_lixeira_engenharia', 'restaurar_lixeira_engenharia',
-    'ver_historico_engenharia', 'gerenciar_locks_engenharia',
   ],
 
   'Engenheiro Civil': [
@@ -1182,14 +1120,6 @@ export const TEMPLATES_ACOES_POR_CARGO: Record<CargoFuncionario, string[]> = {
     'upload_fotos_medicao',
     // Mobile
     'executar_checklist_mobile', 'lancar_medicao_mobile',
-    // Engenharia (criar+editar+upload, sem excluir)
-    'ver_engenharia',
-    'criar_engenharia_pasta', 'editar_engenharia_pasta',
-    'criar_engenharia_nota', 'editar_engenharia_nota',
-    'criar_engenharia_calculo', 'editar_engenharia_calculo',
-    'criar_engenharia_prancha', 'editar_engenharia_prancha',
-    'upload_engenharia_arquivo',
-    'ver_lixeira_engenharia', 'ver_historico_engenharia',
   ],
 
   Operador: [
@@ -1234,8 +1164,6 @@ export const TEMPLATES_ACOES_POR_CARGO: Record<CargoFuncionario, string[]> = {
     'ver_apontamento_rh', 'ver_relatorios_rh',
     'lancar_adiantamento', 'fechar_folha', 'exportar_folha',
     'ver_medicao', 'exportar_medicao',
-    // Engenharia (read-only)
-    'ver_engenharia', 'ver_lixeira_engenharia',
   ],
 };
 
