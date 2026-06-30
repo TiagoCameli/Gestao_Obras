@@ -313,53 +313,6 @@ export const ACOES_PLATAFORMA: AcaoPlataforma[] = [
   { chave: 'excluir_permanente_depositos', label: 'Excluir permanentemente itens da lixeira de Depósitos', grupo: 'Material' },
 
   // ============================================================
-  // Compras
-  // ============================================================
-  { chave: 'ver_compras', label: 'Visualizar compras', grupo: 'Compras' },
-  { chave: 'criar_compra', label: 'Criar compra', grupo: 'Compras' },
-  { chave: 'editar_compra', label: 'Editar compra', grupo: 'Compras' },
-  { chave: 'excluir_compra', label: 'Excluir compra', grupo: 'Compras' },
-  // Pedido de compra
-  { chave: 'criar_pedido_material', label: 'Criar pedido de material', grupo: 'Compras' },
-  { chave: 'aprovar_pedido', label: 'Aprovar pedido de material', grupo: 'Compras' },
-  // Cotação
-  { chave: 'criar_cotacao', label: 'Criar cotação', grupo: 'Compras' },
-  { chave: 'editar_cotacao', label: 'Editar cotação', grupo: 'Compras' },
-  { chave: 'exportar_cotacao_pdf', label: 'Exportar PDF de cotação', grupo: 'Compras' },
-  { chave: 'anexar_pdf_cotacao', label: 'Anexar PDF (autofill) de cotação', grupo: 'Compras' },
-  // Ordem de Compra
-  { chave: 'criar_ordem_compra', label: 'Criar ordem de compra', grupo: 'Compras' },
-  { chave: 'editar_ordem_compra', label: 'Editar ordem de compra', grupo: 'Compras' },
-  { chave: 'aprovar_ordem_compra', label: 'Aprovar ordem de compra', grupo: 'Compras' },
-  { chave: 'reabrir_ordem_compra', label: 'Reabrir ordem de compra', grupo: 'Compras' },
-  { chave: 'gerar_entrada_estoque_oc', label: 'Gerar entrada no estoque a partir de OC', grupo: 'Compras' },
-  { chave: 'importar_oc', label: 'Importar OC via Excel', grupo: 'Compras' },
-  // Compras v2 — premium SaaS
-  { chave: 'ver_dashboard_compras', label: 'Ver dashboard de Compras', grupo: 'Compras' },
-  { chave: 'criar_pedido_compra', label: 'Criar pedido de compra (material/serviço)', grupo: 'Compras' },
-  { chave: 'editar_pedido_compra', label: 'Editar pedido de compra', grupo: 'Compras' },
-  { chave: 'enviar_cotacao_fornecedor', label: 'Enviar cotação para fornecedor (link/PDF)', grupo: 'Compras' },
-  { chave: 'cancelar_ordem_compra', label: 'Cancelar ordem de compra', grupo: 'Compras' },
-  { chave: 'marcar_oc_recebida', label: 'Marcar OC como recebida', grupo: 'Compras' },
-  { chave: 'restaurar_lixeira_compras', label: 'Restaurar itens da lixeira de Compras', grupo: 'Compras' },
-  { chave: 'excluir_permanente_compras', label: 'Excluir permanentemente itens da lixeira de Compras', grupo: 'Compras' },
-  { chave: 'ver_auditoria_compras', label: 'Ver histórico/auditoria de Compras', grupo: 'Compras' },
-  { chave: 'cadastrar_insumo_via_compra', label: 'Cadastrar novo insumo a partir de Compras', grupo: 'Compras' },
-
-  // ============================================================
-  // Financeiro (v1 — Contas a pagar)
-  // ============================================================
-  { chave: 'ver_financeiro', label: 'Acessar módulo Financeiro', grupo: 'Financeiro' },
-  { chave: 'criar_lancamento_financeiro', label: 'Criar lançamento financeiro (OC ou avulso)', grupo: 'Financeiro' },
-  { chave: 'editar_lancamento_financeiro', label: 'Editar lançamento financeiro', grupo: 'Financeiro' },
-  { chave: 'excluir_lancamento_financeiro', label: 'Excluir lançamento financeiro', grupo: 'Financeiro' },
-  { chave: 'registrar_pagamento_financeiro', label: 'Registrar pagamento de parcela', grupo: 'Financeiro' },
-  { chave: 'estornar_pagamento_financeiro', label: 'Estornar pagamento (apagar pagamento e reabrir parcela)', grupo: 'Financeiro' },
-  { chave: 'fechar_lancamento_financeiro', label: 'Fechar lançamento financeiro (trava edição)', grupo: 'Financeiro' },
-  { chave: 'reabrir_lancamento_financeiro', label: 'Reabrir lançamento financeiro fechado (destrava edição)', grupo: 'Financeiro' },
-  { chave: 'gerenciar_categorias_financeiro', label: 'Gerenciar plano de contas (categorias financeiras)', grupo: 'Financeiro' },
-
-  // ============================================================
   // Frota
   // ============================================================
   { chave: 'ver_frota', label: 'Visualizar frota', grupo: 'Frota' },
@@ -713,44 +666,6 @@ export const DEPENDENCIAS_ACOES: Record<string, string[]> = {
   restaurar_lixeira_depositos: ['ver_depositos'],
   excluir_permanente_depositos: ['ver_depositos', 'restaurar_lixeira_depositos'],
 
-  // Compras
-  criar_compra: ['ver_compras'],
-  editar_compra: ['ver_compras'],
-  excluir_compra: ['ver_compras', 'editar_compra'],
-  criar_pedido_material: ['ver_compras'],
-  aprovar_pedido: ['ver_compras', 'criar_pedido_material'],
-  criar_cotacao: ['ver_compras'],
-  editar_cotacao: ['ver_compras'],
-  exportar_cotacao_pdf: ['ver_compras', 'criar_cotacao'],
-  anexar_pdf_cotacao: ['ver_compras', 'criar_cotacao'],
-  criar_ordem_compra: ['ver_compras'],
-  editar_ordem_compra: ['ver_compras', 'criar_ordem_compra'],
-  aprovar_ordem_compra: ['ver_compras', 'criar_ordem_compra'],
-  reabrir_ordem_compra: ['ver_compras', 'aprovar_ordem_compra'],
-  gerar_entrada_estoque_oc: ['ver_compras', 'aprovar_ordem_compra'],
-  importar_oc: ['ver_compras', 'criar_ordem_compra'],
-  // Compras v2 — dependências
-  ver_dashboard_compras: ['ver_compras'],
-  criar_pedido_compra: ['ver_compras'],
-  editar_pedido_compra: ['ver_compras', 'criar_pedido_compra'],
-  enviar_cotacao_fornecedor: ['ver_compras', 'criar_cotacao'],
-  cancelar_ordem_compra: ['ver_compras', 'editar_ordem_compra'],
-  marcar_oc_recebida: ['ver_compras'],
-  restaurar_lixeira_compras: ['ver_compras'],
-  excluir_permanente_compras: ['ver_compras', 'restaurar_lixeira_compras'],
-  ver_auditoria_compras: ['ver_compras'],
-  cadastrar_insumo_via_compra: ['ver_compras'],
-
-  // Financeiro
-  criar_lancamento_financeiro: ['ver_financeiro'],
-  editar_lancamento_financeiro: ['ver_financeiro', 'criar_lancamento_financeiro'],
-  excluir_lancamento_financeiro: ['ver_financeiro', 'editar_lancamento_financeiro'],
-  registrar_pagamento_financeiro: ['ver_financeiro'],
-  estornar_pagamento_financeiro: ['ver_financeiro', 'registrar_pagamento_financeiro'],
-  fechar_lancamento_financeiro: ['ver_financeiro'],
-  reabrir_lancamento_financeiro: ['ver_financeiro', 'fechar_lancamento_financeiro'],
-  gerenciar_categorias_financeiro: ['ver_financeiro'],
-
   // Frota
   criar_veiculo: ['ver_frota'],
   editar_veiculo: ['ver_frota'],
@@ -963,16 +878,6 @@ export const TEMPLATES_ACOES_POR_CARGO: Record<CargoFuncionario, string[]> = {
     'ver_pedidos_material', 'criar_pedido_material_frete', 'editar_pedido_material_frete',
     'exportar_pedidos_material',
     'ver_combustivel', 'criar_entrada_combustivel', 'exportar_combustivel',
-    'ver_compras', 'criar_compra', 'editar_compra',
-    'criar_pedido_material', 'aprovar_pedido',
-    'criar_cotacao', 'editar_cotacao', 'exportar_cotacao_pdf', 'anexar_pdf_cotacao',
-    'criar_ordem_compra', 'editar_ordem_compra', 'aprovar_ordem_compra',
-    'gerar_entrada_estoque_oc', 'importar_oc',
-    // Compras v2
-    'ver_dashboard_compras', 'criar_pedido_compra', 'editar_pedido_compra',
-    'enviar_cotacao_fornecedor', 'cancelar_ordem_compra', 'marcar_oc_recebida',
-    'restaurar_lixeira_compras', 'ver_auditoria_compras',
-    'cadastrar_insumo_via_compra',
     'ver_frota',
     'ver_manutencao', 'ver_almoxarifado', 'criar_peca_almoxarifado',
     'criar_entrada_almoxarifado',
@@ -1345,14 +1250,11 @@ export const ACOES_PERIGOSAS_OPERACIONAL: ReadonlySet<string> = new Set([
   'excluir_batida_ponto',
   'excluir_os',
   'excluir_plano_preventivo',
-  'excluir_compra',
   'excluir_obra_medicao',
   'excluir_atividade_medicao',
   'excluir_material',
   'excluir_tanque',
   // Aprovações e operações financeiras
-  'aprovar_pedido',
-  'aprovar_ordem_compra',
   'aprovar_os',
   'aprovar_ponto_diario',
   'aprovar_lancamento_manual',
@@ -1360,8 +1262,6 @@ export const ACOES_PERIGOSAS_OPERACIONAL: ReadonlySet<string> = new Set([
   'reverter_aprovacao_rh',
   'ajustar_saldo_transportadora',
   'esvaziar_tanque',
-  'gerar_entrada_estoque_oc',
-  'reabrir_ordem_compra',
   'gerenciar_pagamentos_frete',
   // Operações de fechamento / período
   'fechar_folha',

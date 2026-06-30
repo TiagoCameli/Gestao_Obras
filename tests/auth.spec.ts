@@ -9,7 +9,7 @@
  */
 import { test, expect } from '@playwright/test'
 import {
-  hasCredentials, hasLimitedCredentials, getCredentials, getLimitedCredentials, login,
+  hasCredentials, getCredentials, login,
 } from './_fixtures'
 
 test.describe('Auth: login + permissões', () => {
@@ -41,15 +41,5 @@ test.describe('Auth: login + permissões', () => {
     }
     // Após a 5a tentativa errada, a UI mostra "bloqueado" + countdown
     await expect(page.getByText(/bloque|tentativa/i)).toBeVisible({ timeout: 5_000 })
-  })
-})
-
-test.describe('Auth: usuário com permissões limitadas', () => {
-  test.skip(!hasLimitedCredentials(), 'E2E_LIMITED_EMAIL / E2E_LIMITED_PASSWORD não setados')
-
-  test('sem ver_financeiro: URL direta /financeiro → /acesso-negado', async ({ page }) => {
-    await login(page, getLimitedCredentials())
-    await page.goto('/financeiro')
-    await expect(page).toHaveURL(/\/acesso-negado/, { timeout: 10_000 })
   })
 })

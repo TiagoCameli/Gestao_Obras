@@ -14,15 +14,12 @@ import EntityCadastroRoute from './modules/cadastros/EntityCadastroRoute';
 import EtapasPage from './modules/cadastros/EtapasPage';
 import UnificacaoPage from './modules/cadastros/UnificacaoPage';
 import Frete from './pages/Frete';
-import Compras from './pages/Compras';
-import Financeiro from './pages/Financeiro';
 import Depositos from './pages/Depositos';
 import Funcionarios from './pages/Funcionarios';
 import Frota from './pages/Frota';
 import Manutencao from './pages/Manutencao';
 import Combustivel from './pages/Combustivel';
 import Login from './pages/Login';
-import PortalCotacao from './pages/PortalCotacao';
 import AcessoNegado from './pages/AcessoNegado';
 import NotFound from './pages/NotFound';
 import RodoTrackerPage from './modules/rodotracker/RodoTrackerPage';
@@ -54,7 +51,6 @@ const queryClient = new QueryClient({
 
 const PAGINAS_FALLBACK: { acao: string; rota: string }[] = [
   { acao: 'ver_obras', rota: '/obras' },
-  { acao: 'ver_compras', rota: '/compras' },
   { acao: 'ver_depositos', rota: '/depositos' },
   { acao: 'ver_cadastros', rota: '/cadastros' },
   { acao: 'ver_frete', rota: '/frete' },
@@ -88,8 +84,6 @@ export default function App() {
           <ToastProvider>
           <Routes>
             <Route path="/login" element={<Login />} />
-            {/* Portal público do fornecedor — SEM autenticação, validação por token */}
-            <Route path="/cotacao/r/:token" element={<PortalCotacao />} />
             <Route
               element={
                 <ProtectedRoute>
@@ -104,8 +98,6 @@ export default function App() {
               <Route path="/cadastros/usuarios" element={<ProtectedRoute modulo="funcionarios"><Funcionarios /></ProtectedRoute>} />
               <Route path="/cadastros/unificacao" element={<ProtectedRoute modulo="cadastros"><UnificacaoPage /></ProtectedRoute>} />
               <Route path="/cadastros/:slug" element={<ProtectedRoute modulo="cadastros"><EntityCadastroRoute /></ProtectedRoute>} />
-              <Route path="/compras" element={<ProtectedRoute modulo="compras"><Compras /></ProtectedRoute>} />
-              <Route path="/financeiro" element={<ProtectedRoute modulo="financeiro"><Financeiro /></ProtectedRoute>} />
               <Route path="/depositos" element={<ProtectedRoute modulo="depositos"><Depositos /></ProtectedRoute>} />
               <Route path="/frete" element={<ProtectedRoute modulo="frete"><Frete /></ProtectedRoute>} />
               <Route path="/frota" element={<ProtectedRoute modulo="frota"><Frota /></ProtectedRoute>} />
