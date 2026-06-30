@@ -2,7 +2,7 @@
 ALTER TABLE public.ordens_servico ADD COLUMN IF NOT EXISTS custo_terceiros numeric(14,2) NOT NULL DEFAULT 0;
 ALTER TABLE public.ordens_servico ADD COLUMN IF NOT EXISTS custo_oleos numeric(14,2) NOT NULL DEFAULT 0;
 ALTER TABLE public.ordens_servico DROP COLUMN IF EXISTS custo_total;
-ALTER TABLE public.ordens_servico ADD COLUMN custo_total numeric(14,2)
+ALTER TABLE public.ordens_servico ADD COLUMN IF NOT EXISTS custo_total numeric(14,2)
   GENERATED ALWAYS AS (coalesce(custo_pecas,0) + coalesce(custo_terceiros,0) + coalesce(custo_oleos,0)) STORED;
 
 -- (b) Expande o CHECK de tipo (preserva os antigos)
@@ -62,6 +62,7 @@ BEGIN
   ) WHERE id = v_os;
   RETURN NULL;
 END $$;
+DROP TRIGGER IF EXISTS tg_os_terceiros_soma ON public.os_terceiros;
 CREATE TRIGGER tg_os_terceiros_soma AFTER INSERT OR UPDATE OR DELETE ON public.os_terceiros
   FOR EACH ROW EXECUTE FUNCTION public.os_recalc_custo_terceiros();
 
@@ -76,5 +77,6 @@ BEGIN
   ) WHERE id = v_os;
   RETURN NULL;
 END $$;
+DROP TRIGGER IF EXISTS tg_os_oleos_soma ON public.os_oleos;
 CREATE TRIGGER tg_os_oleos_soma AFTER INSERT OR UPDATE OR DELETE ON public.os_oleos
   FOR EACH ROW EXECUTE FUNCTION public.os_recalc_custo_oleos();
