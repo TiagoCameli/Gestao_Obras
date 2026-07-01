@@ -1,23 +1,21 @@
-// Marco 2 / PR10 — Página principal de Manutenção.
+// Task 2.4 — Caderno de serviços de manutenção.
 //
-// Por enquanto só lista de Ordens de Serviço em /manutencao/os
-// (e /manutencao redireciona pra /manutencao/os).
-// Marcos futuros: dashboard, agenda, planos, almoxarifado, relatórios.
+// Lista em modo "caderno": máquina, data, tipo, custo total.
+// Filtros: máquina, período e tipo. Sem status/prioridade.
 
 import { useMemo, useState } from 'react';
 import { useSearchParams, Navigate, useLocation, useParams, useNavigate, Link } from 'react-router-dom';
-import { Plus, ClipboardList, AlertTriangle, Clock, Wrench, BarChart3, ClipboardCheck, CalendarClock, Package, HardHat } from 'lucide-react';
+import { Plus, ClipboardList, Wrench, BarChart3, ClipboardCheck, CalendarClock, Package, HardHat } from 'lucide-react';
 import { useOrdensServico } from '../hooks/useOrdensServico';
 import { useEquipamentos } from '../hooks/useEquipamentos';
 import { useAuth } from '../contexts/AuthContext';
-import type { StatusOS, TipoOS, PrioridadeOS } from '../types';
-import { STATUS_OS_LABEL, TIPO_OS_LABEL, PRIORIDADE_OS_LABEL } from '../types';
+import type { TipoOS } from '../types';
+import { TIPO_OS_LABEL } from '../types';
 import Button from '../components/ui/Button';
 import SmartSelect from '../components/ui/SmartSelect';
 import PageHeader from '../components/ui/PageHeader';
 import LoadingState from '../components/ui/LoadingState';
 import EmptyState from '../components/ui/EmptyState';
-import OSCard from '../components/manutencao/os/OSCard';
 import NovaOSModal from '../components/manutencao/os/NovaOSModal';
 import OSDetalhe from '../components/manutencao/os/OSDetalhe';
 import DashboardManutencao from '../components/manutencao/DashboardManutencao';
@@ -28,29 +26,20 @@ import AlmoxarifadoPage from '../components/manutencao/AlmoxarifadoPage';
 import ChecklistsPage from '../components/manutencao/ChecklistsPage';
 import MobileScanShortcut from '../components/MobileScanShortcut';
 
-const STATUS_OPTS: { value: StatusOS | 'todas' | 'abertas'; label: string }[] = [
-  { value: 'abertas', label: 'Abertas' },
-  { value: 'todas', label: 'Todas' },
-  ...(Object.keys(STATUS_OS_LABEL) as StatusOS[]).map((k) => ({
-    value: k,
-    label: STATUS_OS_LABEL[k],
-  })),
-];
-
 const TIPO_OPTS: { value: TipoOS | ''; label: string }[] = [
   { value: '', label: 'Todos tipos' },
   ...(Object.keys(TIPO_OS_LABEL) as TipoOS[]).map((k) => ({ value: k, label: TIPO_OS_LABEL[k] })),
 ];
 
-const PRIORIDADE_OPTS: { value: PrioridadeOS | ''; label: string }[] = [
-  { value: '', label: 'Todas prioridades' },
-  ...(Object.keys(PRIORIDADE_OS_LABEL) as PrioridadeOS[]).map((k) => ({
-    value: k, label: PRIORIDADE_OS_LABEL[k],
-  })),
-];
-
 function fmtBRL(n: number): string {
   return n.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+}
+
+function fmtData(s: string | null): string {
+  if (!s) return '—';
+  const d = new Date(s);
+  if (isNaN(d.getTime())) return s;
+  return d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: '2-digit' });
 }
 
 export default function ManutencaoPage() {
@@ -72,7 +61,7 @@ export default function ManutencaoPage() {
   else if (pathname === '/manutencao/checklists') inner = <ChecklistsPage />;
   else if (params.id && pathname.startsWith('/manutencao/planos/')) inner = <PlanoDetalhePage />;
   else if (pathname === '/manutencao/planos') inner = <PlanosPreventivosPage />;
-  else inner = <OrdensServicoPage />;
+  else inner = <ServicosPage />;
 
   return (
     <div className="space-y-4">
@@ -85,7 +74,7 @@ export default function ManutencaoPage() {
 
 const SUB_NAV_ITEMS: { to: string; label: string; icon: typeof BarChart3; perm: string }[] = [
   { to: '/manutencao/dashboard',     label: 'Dashboard',           icon: BarChart3,      perm: 'aba_manutencao_dashboard' },
-  { to: '/manutencao/os',            label: 'Ordens de Serviço',   icon: ClipboardList,  perm: 'aba_manutencao_os' },
+  { to: '/manutencao/os',            label: 'Serviços',            icon: ClipboardList,  perm: 'aba_manutencao_os' },
   { to: '/manutencao/agenda',        label: 'Agenda preventiva',   icon: CalendarClock,  perm: 'aba_manutencao_agenda' },
   { to: '/manutencao/planos',        label: 'Planos preventivos',  icon: ClipboardCheck, perm: 'aba_manutencao_planos' },
   { to: '/manutencao/almoxarifado',  label: 'Almoxarifado',        icon: Package,        perm: 'aba_manutencao_almoxarifado' },
@@ -119,14 +108,13 @@ function SubNav({ pathname }: { pathname: string }) {
   );
 }
 
-function OrdensServicoPage() {
+function ServicosPage() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
-  const filtroStatus = (searchParams.get('status') ?? 'abertas') as StatusOS | 'todas' | 'abertas';
   const filtroTipo = (searchParams.get('tipo') ?? '') as TipoOS | '';
-  const filtroPrioridade = (searchParams.get('prio') ?? '') as PrioridadeOS | '';
   const filtroEquipamento = searchParams.get('equipamento') ?? '';
-  const filtroBusca = searchParams.get('busca') ?? '';
+  const filtroDe = searchParams.get('de') ?? '';
+  const filtroAte = searchParams.get('ate') ?? '';
 
   const setParam = (key: string, value: string) => {
     const next = new URLSearchParams(searchParams);
@@ -138,12 +126,10 @@ function OrdensServicoPage() {
   const { temAcao } = useAuth();
   const canCreate = temAcao('criar_os');
 
-  const { data: ordens = [], isLoading } = useOrdensServico({
-    abertas: filtroStatus === 'abertas',
-    status: filtroStatus !== 'abertas' ? filtroStatus : undefined,
+  const { data: servicos = [], isLoading } = useOrdensServico({
     tipo: filtroTipo || undefined,
-    prioridade: filtroPrioridade || undefined,
     equipamentoId: filtroEquipamento || undefined,
+    status: 'todas',
   });
 
   const equipamentosPorId = useMemo(() => {
@@ -152,97 +138,64 @@ function OrdensServicoPage() {
     return map;
   }, [equipamentos]);
 
-  // Filtro de busca (client-side) por numero, defeito, ou equipamento
-  const ordensFiltradas = useMemo(() => {
-    if (!filtroBusca) return ordens;
-    const q = filtroBusca.toLowerCase();
-    return ordens.filter((os) => {
-      const eq = equipamentosPorId.get(os.equipamentoId);
-      const eqStr = eq ? `${eq.codigoPatrimonio} ${eq.nome}`.toLowerCase() : '';
-      return os.numero.toLowerCase().includes(q)
-        || os.defeitoReportado.toLowerCase().includes(q)
-        || eqStr.includes(q);
-    });
-  }, [ordens, filtroBusca, equipamentosPorId]);
+  // Filtro de período (client-side sobre dataConclusao)
+  const servicosFiltrados = useMemo(() => {
+    let result = servicos;
+    if (filtroDe) {
+      const de = new Date(filtroDe + 'T00:00:00');
+      result = result.filter((s) => {
+        const d = s.dataConclusao ? new Date(s.dataConclusao) : new Date(s.dataAbertura);
+        return d >= de;
+      });
+    }
+    if (filtroAte) {
+      const ate = new Date(filtroAte + 'T23:59:59');
+      result = result.filter((s) => {
+        const d = s.dataConclusao ? new Date(s.dataConclusao) : new Date(s.dataAbertura);
+        return d <= ate;
+      });
+    }
+    return result;
+  }, [servicos, filtroDe, filtroAte]);
 
-  // KPIs (calculados sobre ordens carregadas — depende dos filtros, exceto o de busca)
-  const kpis = useMemo(() => {
-    const abertas = ordens.filter((o) => !['concluida', 'cancelada'].includes(o.status));
-    const criticas = abertas.filter((o) => o.prioridade === 'critica');
-    const atrasadas = abertas.filter((o) => {
-      if (!o.prazoAtendimento) return false;
-      return new Date(o.prazoAtendimento) < new Date();
-    });
-    const custoMes = ordens
-      .filter((o) => o.status === 'concluida' && o.dataConclusao
-        && new Date(o.dataConclusao).getMonth() === new Date().getMonth()
-        && new Date(o.dataConclusao).getFullYear() === new Date().getFullYear())
-      .reduce((s, o) => s + o.custoTotal, 0);
-    return { abertas: abertas.length, criticas: criticas.length, atrasadas: atrasadas.length, custoMes };
-  }, [ordens]);
+  const totalPeriodo = useMemo(
+    () => servicosFiltrados.reduce((acc, s) => acc + s.custoTotal, 0),
+    [servicosFiltrados]
+  );
 
-  const [novaOSOpen, setNovaOSOpen] = useState(false);
+  const [novoServicoOpen, setNovoServicoOpen] = useState(false);
 
   return (
     <div className="space-y-5">
       <PageHeader
-        title="Ordens de Serviço"
-        description="Manutenção preventiva, corretiva, preditiva e melhorias da frota."
+        title="Caderno de Serviços"
+        description="Registro de serviços de manutenção por equipamento."
         actions={canCreate && (
-          <Button onClick={() => setNovaOSOpen(true)}>
+          <Button onClick={() => setNovoServicoOpen(true)}>
             <Plus aria-hidden className="w-4 h-4" />
-            Nova OS
+            Registrar serviço
           </Button>
         )}
       />
 
-      {/* KPIs */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        <KPI
-          label="OS abertas"
-          valor={kpis.abertas}
-          icon={ClipboardList}
-          cor="bg-[var(--color-info-soft)] text-[var(--color-info-fg)]"
-        />
-        <KPI
-          label="Críticas"
-          valor={kpis.criticas}
-          icon={AlertTriangle}
-          cor="bg-[var(--color-danger-soft)] text-[var(--color-danger-fg)]"
-        />
-        <KPI
-          label="Atrasadas"
-          valor={kpis.atrasadas}
-          icon={Clock}
-          cor="bg-[var(--color-warning-soft)] text-[var(--color-warning-fg)]"
-        />
-        <KPI
-          label="Custo do mês"
-          valor={fmtBRL(kpis.custoMes)}
-          icon={Wrench}
-          cor="bg-[var(--color-surface-2)] text-[var(--color-fg)]"
-        />
-      </div>
-
       {/* Filtros */}
       <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-1)] p-3 flex flex-wrap gap-2 items-center">
-        <input
-          type="text"
-          value={filtroBusca}
-          onChange={(e) => setParam('busca', e.target.value)}
-          placeholder="Buscar por número, defeito ou equipamento…"
-          className="flex-1 min-w-[200px] h-[36px] rounded-lg px-3 py-1.5 text-sm bg-[var(--color-surface-1)] text-[var(--color-fg)] border border-[var(--color-border)] focus:outline-none focus:border-[var(--color-accent)] focus:ring-2 focus:ring-[var(--color-ring)]"
-        />
         <SmartSelect
-          value={filtroStatus}
-          onChange={(e) => setParam('status', e.target.value === 'abertas' ? '' : e.target.value)}
+          value={filtroEquipamento}
+          onChange={(e) => setParam('equipamento', e.target.value)}
           wrapperClassName="relative"
-          className="h-[36px] rounded-lg px-3 py-1.5 text-sm bg-[var(--color-surface-1)] text-[var(--color-fg)] border border-[var(--color-border)] flex items-center min-w-[140px] text-left"
+          className="h-[36px] rounded-lg px-3 py-1.5 text-sm bg-[var(--color-surface-1)] text-[var(--color-fg)] border border-[var(--color-border)] max-w-[280px] flex items-center min-w-[200px] text-left"
         >
-          {STATUS_OPTS.map((o) => (
-            <option key={o.value} value={o.value}>{o.label}</option>
-          ))}
+          <option value="">Todas as máquinas</option>
+          {equipamentos
+            .filter((e) => e.ativo !== false && e.id !== 'desconhecido')
+            .map((eq) => (
+              <option key={eq.id} value={eq.id}>
+                {eq.codigoPatrimonio ? `${eq.codigoPatrimonio} — ${eq.nome}` : eq.nome}
+              </option>
+            ))}
         </SmartSelect>
+
         <SmartSelect
           value={filtroTipo}
           onChange={(e) => setParam('tipo', e.target.value)}
@@ -253,97 +206,122 @@ function OrdensServicoPage() {
             <option key={o.value} value={o.value}>{o.label}</option>
           ))}
         </SmartSelect>
-        <SmartSelect
-          value={filtroPrioridade}
-          onChange={(e) => setParam('prio', e.target.value)}
-          wrapperClassName="relative"
-          className="h-[36px] rounded-lg px-3 py-1.5 text-sm bg-[var(--color-surface-1)] text-[var(--color-fg)] border border-[var(--color-border)] flex items-center min-w-[140px] text-left"
-        >
-          {PRIORIDADE_OPTS.map((o) => (
-            <option key={o.value} value={o.value}>{o.label}</option>
-          ))}
-        </SmartSelect>
-        <SmartSelect
-          value={filtroEquipamento}
-          onChange={(e) => setParam('equipamento', e.target.value)}
-          wrapperClassName="relative"
-          className="h-[36px] rounded-lg px-3 py-1.5 text-sm bg-[var(--color-surface-1)] text-[var(--color-fg)] border border-[var(--color-border)] max-w-[280px] flex items-center min-w-[200px] text-left"
-        >
-          <option value="">Todos equipamentos</option>
-          {equipamentos
-            .filter((e) => e.ativo !== false && e.id !== 'desconhecido')
-            .map((eq) => (
-              <option key={eq.id} value={eq.id}>
-                {eq.codigoPatrimonio ? `${eq.codigoPatrimonio} — ${eq.nome}` : eq.nome}
-              </option>
-            ))}
-        </SmartSelect>
+
+        <div className="flex items-center gap-1.5">
+          <label className="text-xs text-[var(--color-fg-muted)]">De</label>
+          <input
+            type="date"
+            value={filtroDe}
+            onChange={(e) => setParam('de', e.target.value)}
+            className="h-[36px] rounded-lg px-3 py-1.5 text-sm bg-[var(--color-surface-1)] text-[var(--color-fg)] border border-[var(--color-border)] focus:outline-none focus:border-[var(--color-accent)] focus:ring-2 focus:ring-[var(--color-ring)]"
+          />
+        </div>
+
+        <div className="flex items-center gap-1.5">
+          <label className="text-xs text-[var(--color-fg-muted)]">Até</label>
+          <input
+            type="date"
+            value={filtroAte}
+            onChange={(e) => setParam('ate', e.target.value)}
+            className="h-[36px] rounded-lg px-3 py-1.5 text-sm bg-[var(--color-surface-1)] text-[var(--color-fg)] border border-[var(--color-border)] focus:outline-none focus:border-[var(--color-accent)] focus:ring-2 focus:ring-[var(--color-ring)]"
+          />
+        </div>
+
+        {(filtroDe || filtroAte || filtroTipo || filtroEquipamento) && (
+          <Button
+            variant="ghost"
+            size="sm"
+            type="button"
+            onClick={() => {
+              setSearchParams({}, { replace: true });
+            }}
+          >
+            Limpar filtros
+          </Button>
+        )}
       </div>
 
-      {/* Lista */}
+      {/* Tabela / lista */}
       {isLoading ? (
         <LoadingState mode="list" count={5} />
-      ) : ordensFiltradas.length === 0 ? (
+      ) : servicosFiltrados.length === 0 ? (
         <EmptyState
           icon={ClipboardList}
-          title="Nenhuma OS encontrada"
-          description={ordens.length === 0
-            ? 'Comece criando a primeira ordem de serviço.'
-            : 'Ajuste os filtros ou limpe a busca.'}
-          action={ordens.length === 0 && canCreate && (
-            <Button onClick={() => setNovaOSOpen(true)}>
-              <Plus className="w-4 h-4" /> Nova OS
+          title="Nenhum serviço encontrado"
+          description={servicos.length === 0
+            ? 'Comece registrando o primeiro serviço.'
+            : 'Ajuste os filtros ou limpe o período.'}
+          action={servicos.length === 0 && canCreate && (
+            <Button onClick={() => setNovoServicoOpen(true)}>
+              <Plus className="w-4 h-4" /> Registrar serviço
             </Button>
           )}
         />
       ) : (
-        <div className="space-y-2">
-          <p className="text-xs text-[var(--color-fg-muted)]">
-            {ordensFiltradas.length} {ordensFiltradas.length === 1 ? 'OS' : 'OSs'}
-          </p>
-          {ordensFiltradas.map((os) => (
-            <OSCard
-              key={os.id}
-              os={os}
-              equipamento={equipamentosPorId.get(os.equipamentoId)}
-              onClick={() => navigate(`/manutencao/os/${os.numero}`)}
-            />
-          ))}
+        <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-1)] overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-[var(--color-border)] bg-[var(--color-surface-2)]">
+                  <th className="text-left px-4 py-2.5 text-xs font-medium text-[var(--color-fg-muted)] uppercase tracking-wide">Máquina</th>
+                  <th className="text-left px-4 py-2.5 text-xs font-medium text-[var(--color-fg-muted)] uppercase tracking-wide">Data</th>
+                  <th className="text-left px-4 py-2.5 text-xs font-medium text-[var(--color-fg-muted)] uppercase tracking-wide">Tipo</th>
+                  <th className="text-right px-4 py-2.5 text-xs font-medium text-[var(--color-fg-muted)] uppercase tracking-wide">Custo total</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-[var(--color-border)]">
+                {servicosFiltrados.map((svc) => {
+                  const eq = equipamentosPorId.get(svc.equipamentoId);
+                  const eqLabel = eq
+                    ? (eq.codigoPatrimonio ? `${eq.codigoPatrimonio} — ${eq.nome}` : eq.nome)
+                    : svc.equipamentoId;
+                  const dataRef = svc.dataConclusao ?? svc.dataAbertura;
+                  return (
+                    <tr
+                      key={svc.id}
+                      className="hover:bg-[var(--color-surface-2)] cursor-pointer transition-colors"
+                      onClick={() => navigate(`/manutencao/os/${svc.numero}`)}
+                    >
+                      <td className="px-4 py-3 font-medium text-[var(--color-fg)] truncate max-w-[220px]">
+                        {eqLabel}
+                      </td>
+                      <td className="px-4 py-3 text-[var(--color-fg-muted)] whitespace-nowrap">
+                        {fmtData(dataRef)}
+                      </td>
+                      <td className="px-4 py-3 text-[var(--color-fg-muted)]">
+                        {TIPO_OS_LABEL[svc.tipo] ?? svc.tipo}
+                      </td>
+                      <td className="px-4 py-3 text-right font-mono text-[var(--color-fg)]">
+                        {fmtBRL(svc.custoTotal)}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Rodapé com total do período */}
+          <div className="border-t border-[var(--color-border)] bg-[var(--color-surface-2)] px-4 py-2.5 flex items-center justify-between text-sm">
+            <span className="text-[var(--color-fg-muted)]">
+              {servicosFiltrados.length} {servicosFiltrados.length === 1 ? 'serviço' : 'serviços'}
+            </span>
+            <div className="flex items-center gap-2">
+              <Wrench className="w-3.5 h-3.5 text-[var(--color-fg-muted)]" />
+              <span className="text-xs text-[var(--color-fg-muted)]">Total do período:</span>
+              <span className="font-semibold font-mono text-[var(--color-fg)]">{fmtBRL(totalPeriodo)}</span>
+            </div>
+          </div>
         </div>
       )}
 
-      {novaOSOpen && (
+      {novoServicoOpen && (
         <NovaOSModal
-          open={novaOSOpen}
-          onClose={() => setNovaOSOpen(false)}
+          open={novoServicoOpen}
+          onClose={() => setNovoServicoOpen(false)}
           equipamentos={equipamentos}
         />
       )}
-    </div>
-  );
-}
-
-function KPI({
-  label, valor, icon: Icon, cor,
-}: {
-  label: string;
-  valor: string | number;
-  icon: React.ComponentType<{ className?: string; 'aria-hidden'?: boolean }>;
-  cor: string;
-}) {
-  return (
-    <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-1)] p-3 flex items-center gap-3">
-      <div className={'w-10 h-10 rounded-lg flex items-center justify-center ' + cor}>
-        <Icon className="w-5 h-5" />
-      </div>
-      <div className="min-w-0">
-        <div className="text-[11px] uppercase tracking-wider text-[var(--color-fg-muted)] truncate">
-          {label}
-        </div>
-        <div className="text-lg font-semibold text-[var(--color-fg)] truncate">
-          {valor}
-        </div>
-      </div>
     </div>
   );
 }
