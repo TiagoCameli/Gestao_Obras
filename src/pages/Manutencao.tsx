@@ -14,6 +14,7 @@ import { TIPO_OS_LABEL } from '../types';
 import Button from '../components/ui/Button';
 import { exportarRelatorioPorMaquinaPdf, exportarRelatorioMensalPdf } from '../utils/manutencaoPdfExport';
 import { exportarRelatorioPorMaquinaExcel, exportarRelatorioMensalExcel } from '../utils/manutencaoExcelExport';
+import { useToast } from '../components/ui/Toast';
 import SmartSelect from '../components/ui/SmartSelect';
 import PageHeader from '../components/ui/PageHeader';
 import LoadingState from '../components/ui/LoadingState';
@@ -116,6 +117,7 @@ function SubNav({ pathname }: { pathname: string }) {
 function ServicosPage() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
+  const { showToast } = useToast();
   const filtroTipo = (searchParams.get('tipo') ?? '') as TipoOS | '';
   const filtroEquipamento = searchParams.get('equipamento') ?? '';
   const filtroDe = searchParams.get('de') ?? '';
@@ -174,13 +176,13 @@ function ServicosPage() {
     if (!eq) return;
     setExportando('excel-maquina');
     try {
-      const inicio = filtroDe ? new Date(filtroDe) : new Date(0);
-      const fim = filtroAte ? new Date(filtroAte + 'T23:59:59') : new Date();
       await exportarRelatorioPorMaquinaExcel(
         { id: eq.id, nome: eq.codigoPatrimonio ? `${eq.codigoPatrimonio} - ${eq.nome}` : eq.nome },
-        { inicio, fim },
+        { de: filtroDe, ate: filtroAte },
         servicosFiltrados,
       );
+    } catch {
+      showToast({ kind: 'error', message: 'Falha ao gerar o relatório.' });
     } finally {
       setExportando('idle');
     }
@@ -192,13 +194,13 @@ function ServicosPage() {
     if (!eq) return;
     setExportando('pdf-maquina');
     try {
-      const inicio = filtroDe ? new Date(filtroDe) : new Date(0);
-      const fim = filtroAte ? new Date(filtroAte + 'T23:59:59') : new Date();
       exportarRelatorioPorMaquinaPdf({
         equipamento: { id: eq.id, nome: eq.nome, codigoPatrimonio: eq.codigoPatrimonio ?? undefined, tipo: eq.tipo ?? undefined },
-        periodo: { inicio, fim },
+        periodo: { de: filtroDe, ate: filtroAte },
         servicos: servicosFiltrados,
       });
+    } catch {
+      showToast({ kind: 'error', message: 'Falha ao gerar o relatório.' });
     } finally {
       setExportando('idle');
     }
@@ -215,6 +217,8 @@ function ServicosPage() {
         servicosFiltrados,
         equipamentos.map((e) => ({ id: e.id, nome: e.codigoPatrimonio ? `${e.codigoPatrimonio} - ${e.nome}` : e.nome })),
       );
+    } catch {
+      showToast({ kind: 'error', message: 'Falha ao gerar o relatório.' });
     } finally {
       setExportando('idle');
     }
@@ -230,6 +234,8 @@ function ServicosPage() {
         ordens: servicosFiltrados,
         equipamentos,
       });
+    } catch {
+      showToast({ kind: 'error', message: 'Falha ao gerar o relatório.' });
     } finally {
       setExportando('idle');
     }

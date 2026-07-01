@@ -3,6 +3,7 @@
 
 import ExcelJS from 'exceljs';
 import type { OrdemServico } from '../types';
+import { TIPO_OS_LABEL } from '../types';
 import {
   BRAND,
   createWorkbook,
@@ -14,6 +15,7 @@ import {
   renderExcelFiltros,
   renderExcelKPIs,
   renderExcelSectionTitle,
+  sanitizeFilenamePart,
   saveWorkbook,
   thinBorder,
 } from './exportTemplate';
@@ -56,10 +58,7 @@ function renderServicosDetalhamento(
         key: 'tipo',
         width: 22,
         align: 'left',
-        value: (s) => {
-          const { linhas } = montarRelatorioPorMaquina([s]);
-          return linhas[0]?.tipo ?? s.tipo;
-        },
+        value: (s) => TIPO_OS_LABEL[s.tipo] ?? s.tipo,
       },
       {
         header: 'Peças (R$)',
@@ -198,7 +197,7 @@ function renderSubtotaisTable(
 
 export async function exportarRelatorioPorMaquinaExcel(
   equipamento: { id: string; nome: string },
-  periodo: { inicio: Date; fim: Date },
+  periodo: { de: string; ate: string },
   servicos: OrdemServico[],
 ): Promise<void> {
   const { linhas, subtotais } = montarRelatorioPorMaquina(servicos);
@@ -210,7 +209,9 @@ export async function exportarRelatorioPorMaquinaExcel(
   let row = renderExcelBanner(wsResumo, TITULO, `${equipamento.nome} · ${SUBTITULO}`);
   row += 1;
 
-  const fmtPeriodo = `${formatDateBR(periodo.inicio.toISOString().slice(0, 10))} a ${formatDateBR(periodo.fim.toISOString().slice(0, 10))}`;
+  const deLabel = periodo.de ? formatDateBR(periodo.de) : '—';
+  const ateLabel = periodo.ate ? formatDateBR(periodo.ate) : '—';
+  const fmtPeriodo = `${deLabel} a ${ateLabel}`;
   row = renderExcelFiltros(wsResumo, row, [
     ['Equipamento', equipamento.nome],
     ['Período', fmtPeriodo],
@@ -231,7 +232,7 @@ export async function exportarRelatorioPorMaquinaExcel(
   // ── Sheet Serviços (detalhamento) ──
   renderServicosDetalhamento(wsDetalhe, servicos);
 
-  const nomeSanitizado = equipamento.nome.replace(/[^a-zA-Z0-9À-ú _-]/g, '').trim().slice(0, 30);
+  const nomeSanitizado = sanitizeFilenamePart(equipamento.nome).slice(0, 30);
   await saveWorkbook(wb, makeFilename(`Manutencao-${nomeSanitizado}`, 'xlsx'));
 }
 
@@ -385,10 +386,7 @@ export async function exportarRelatorioMensalExcel(
         key: 'tipo',
         width: 22,
         align: 'left',
-        value: (s) => {
-          const { linhas } = montarRelatorioPorMaquina([s]);
-          return linhas[0]?.tipo ?? s.tipo;
-        },
+        value: (s) => TIPO_OS_LABEL[s.tipo] ?? s.tipo,
       },
       {
         header: 'Peças (R$)',

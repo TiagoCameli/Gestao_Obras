@@ -27,6 +27,7 @@ import {
   fmtBRL,
   formatDateBR,
   makeFilename,
+  sanitizeFilenamePart,
 } from './exportTemplate';
 import type {
   OrdemServico,
@@ -498,7 +499,7 @@ export function exportarRelatorioEquipamentoPdf(input: RelatorioEquipamentoInput
 
 export interface RelatorioPorMaquinaPdfInput {
   equipamento: { id: string; nome: string; codigoPatrimonio?: string; tipo?: string };
-  periodo: { inicio: Date; fim: Date };
+  periodo: { de: string; ate: string };
   servicos: OrdemServico[];
 }
 
@@ -510,7 +511,9 @@ export function exportarRelatorioPorMaquinaPdf(input: RelatorioPorMaquinaPdfInpu
   const titulo = `Relatório por Máquina · ${equipamento.codigoPatrimonio ?? equipamento.nome}`;
   let y = drawPdfBanner(doc, titulo, SUBTITULO);
 
-  const fmtPeriodo = `${formatDateBR(periodo.inicio.toISOString().slice(0, 10))} a ${formatDateBR(periodo.fim.toISOString().slice(0, 10))}`;
+  const deLabel = periodo.de ? formatDateBR(periodo.de) : '—';
+  const ateLabel = periodo.ate ? formatDateBR(periodo.ate) : '—';
+  const fmtPeriodo = `${deLabel} a ${ateLabel}`;
   y = drawPdfFiltros(doc, y, [
     ['Equipamento', equipamento.nome],
     ['Período', fmtPeriodo],
@@ -578,6 +581,6 @@ export function exportarRelatorioPorMaquinaPdf(input: RelatorioPorMaquinaPdfInpu
     );
   }
 
-  const nomeFile = (equipamento.codigoPatrimonio ?? equipamento.nome).replace(/[^a-zA-Z0-9À-ú _-]/g, '').trim().slice(0, 30);
+  const nomeFile = sanitizeFilenamePart(equipamento.codigoPatrimonio ?? equipamento.nome).slice(0, 30);
   doc.save(makeFilename(`Manutencao-Maquina-${nomeFile}`, 'pdf'));
 }
