@@ -107,10 +107,16 @@ export default function TiposOleoPage() {
     setErro(null);
   }
 
-  const podeSalvar = form.nome.trim().length > 0;
+  const intervaloNum = form.intervaloMeses.trim() === '' ? null : Number(form.intervaloMeses);
+  const intervaloInvalido = intervaloNum !== null && (isNaN(intervaloNum) || intervaloNum <= 0);
+  const podeSalvar = form.nome.trim().length > 0 && !intervaloInvalido;
 
   async function salvar() {
     if (!podeSalvar || salvando) return;
+    if (intervaloInvalido) {
+      setErro('Intervalo deve ser maior que 0, ou deixe vazio para sem alerta.');
+      return;
+    }
     setErro(null);
     setSalvando(true);
     try {
@@ -141,6 +147,8 @@ export default function TiposOleoPage() {
     if (!excluirId) return;
     try {
       await excluirMut.mutateAsync(excluirId);
+    } catch {
+      setErro('Não foi possível excluir: este tipo de óleo já está em uso em algum serviço. Inative-o em vez de excluir.');
     } finally {
       setExcluirId(null);
     }
@@ -188,16 +196,23 @@ export default function TiposOleoPage() {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-end">
-            <Input
-              label="Intervalo de troca (meses)"
-              id="toIntervalo"
-              type="number"
-              min="1"
-              step="1"
-              value={form.intervaloMeses}
-              onChange={(e) => setForm((f) => ({ ...f, intervaloMeses: e.target.value }))}
-              placeholder="Vazio = sem alerta"
-            />
+            <div>
+              <Input
+                label="Intervalo de troca (meses)"
+                id="toIntervalo"
+                type="number"
+                min="1"
+                step="1"
+                value={form.intervaloMeses}
+                onChange={(e) => setForm((f) => ({ ...f, intervaloMeses: e.target.value }))}
+                placeholder="Vazio = sem alerta"
+              />
+              {intervaloInvalido && (
+                <p className="mt-1 text-xs text-[var(--color-danger)]">
+                  Intervalo deve ser maior que 0, ou deixe vazio para sem alerta.
+                </p>
+              )}
+            </div>
             <div className="flex items-center gap-2 pb-1">
               <button
                 type="button"
