@@ -92,7 +92,7 @@ export default function DashboardManutencao() {
           equipamentoId: eqId,
           equipamentoNome: eq
             ? eq.codigoPatrimonio ? `${eq.codigoPatrimonio} · ${eq.nome}` : eq.nome
-            : eqId,
+            : '(Equipamento removido)',
           custoTotal: v.total,
           numOS: v.numOS,
         };
@@ -144,8 +144,7 @@ export default function DashboardManutencao() {
   }
 
   const { kpis, topPorCusto, topPorIndisponibilidade, custoMensalPorTipo } = dash;
-  const semDados = kpis.osAbertas + kpis.osAbertas === 0
-    && custoMensalPorTipo.every((m) => Object.keys(m).filter((k) => k !== 'mes').every((k) => Number(m[k]) === 0));
+  const semDados = dash.ordens.length === 0;
 
   // Tipos com dado pra renderizar linhas do gráfico
   const tiposGrafico = Array.from(new Set(
