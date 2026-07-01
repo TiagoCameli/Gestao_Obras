@@ -5,13 +5,15 @@
 
 import { useMemo, useState } from 'react';
 import { useSearchParams, Navigate, useLocation, useParams, useNavigate, Link } from 'react-router-dom';
-import { Plus, ClipboardList, Wrench, BarChart3, ClipboardCheck, CalendarClock, Package, HardHat, Droplets } from 'lucide-react';
+import { Plus, ClipboardList, Wrench, BarChart3, ClipboardCheck, CalendarClock, Package, HardHat, Droplets, FileDown } from 'lucide-react';
 import { useOrdensServico } from '../hooks/useOrdensServico';
 import { useEquipamentos } from '../hooks/useEquipamentos';
 import { useAuth } from '../contexts/AuthContext';
 import type { TipoOS } from '../types';
 import { TIPO_OS_LABEL } from '../types';
 import Button from '../components/ui/Button';
+import { exportarRelatorioPorMaquinaPdf, exportarRelatorioMensalPdf } from '../utils/manutencaoPdfExport';
+import { exportarRelatorioPorMaquinaExcel, exportarRelatorioMensalExcel } from '../utils/manutencaoExcelExport';
 import SmartSelect from '../components/ui/SmartSelect';
 import PageHeader from '../components/ui/PageHeader';
 import LoadingState from '../components/ui/LoadingState';
@@ -128,6 +130,7 @@ function ServicosPage() {
   const { data: equipamentos = [] } = useEquipamentos();
   const { temAcao } = useAuth();
   const canCreate = temAcao('criar_os');
+  const canExport = temAcao('ver_custos') || temAcao('ver_manutencao');
 
   const { data: servicos = [], isLoading } = useOrdensServico({
     tipo: filtroTipo || undefined,
@@ -163,6 +166,74 @@ function ServicosPage() {
   );
 
   const [novoServicoOpen, setNovoServicoOpen] = useState(false);
+  const [exportando, setExportando] = useState<'idle' | 'excel-maquina' | 'pdf-maquina' | 'excel-mensal' | 'pdf-mensal'>('idle');
+
+  async function handleExportarExcelMaquina() {
+    if (exportando !== 'idle' || !filtroEquipamento) return;
+    const eq = equipamentos.find((e) => e.id === filtroEquipamento);
+    if (!eq) return;
+    setExportando('excel-maquina');
+    try {
+      const inicio = filtroDe ? new Date(filtroDe) : new Date(0);
+      const fim = filtroAte ? new Date(filtroAte + 'T23:59:59') : new Date();
+      await exportarRelatorioPorMaquinaExcel(
+        { id: eq.id, nome: eq.codigoPatrimonio ? `${eq.codigoPatrimonio} - ${eq.nome}` : eq.nome },
+        { inicio, fim },
+        servicosFiltrados,
+      );
+    } finally {
+      setExportando('idle');
+    }
+  }
+
+  async function handleExportarPdfMaquina() {
+    if (exportando !== 'idle' || !filtroEquipamento) return;
+    const eq = equipamentos.find((e) => e.id === filtroEquipamento);
+    if (!eq) return;
+    setExportando('pdf-maquina');
+    try {
+      const inicio = filtroDe ? new Date(filtroDe) : new Date(0);
+      const fim = filtroAte ? new Date(filtroAte + 'T23:59:59') : new Date();
+      exportarRelatorioPorMaquinaPdf({
+        equipamento: { id: eq.id, nome: eq.nome, codigoPatrimonio: eq.codigoPatrimonio ?? undefined, tipo: eq.tipo ?? undefined },
+        periodo: { inicio, fim },
+        servicos: servicosFiltrados,
+      });
+    } finally {
+      setExportando('idle');
+    }
+  }
+
+  async function handleExportarExcelMensal() {
+    if (exportando !== 'idle') return;
+    setExportando('excel-mensal');
+    try {
+      const mesRef = filtroDe ? filtroDe.slice(0, 7) : new Date().toISOString().slice(0, 7);
+      const [a, m] = mesRef.split('-').map(Number);
+      await exportarRelatorioMensalExcel(
+        new Date(a, m - 1, 1),
+        servicosFiltrados,
+        equipamentos.map((e) => ({ id: e.id, nome: e.codigoPatrimonio ? `${e.codigoPatrimonio} - ${e.nome}` : e.nome })),
+      );
+    } finally {
+      setExportando('idle');
+    }
+  }
+
+  async function handleExportarPdfMensal() {
+    if (exportando !== 'idle') return;
+    setExportando('pdf-mensal');
+    try {
+      const mesRef = filtroDe ? filtroDe.slice(0, 7) : new Date().toISOString().slice(0, 7);
+      exportarRelatorioMensalPdf({
+        mes: mesRef,
+        ordens: servicosFiltrados,
+        equipamentos,
+      });
+    } finally {
+      setExportando('idle');
+    }
+  }
 
   return (
     <div className="space-y-5">
@@ -300,15 +371,68 @@ function ServicosPage() {
             </table>
           </div>
 
-          {/* Rodapé com total do período */}
-          <div className="border-t border-[var(--color-border)] bg-[var(--color-surface-2)] px-4 py-2.5 flex items-center justify-between text-sm">
+          {/* Rodapé com total do período + export */}
+          <div className="border-t border-[var(--color-border)] bg-[var(--color-surface-2)] px-4 py-2.5 flex items-center justify-between text-sm flex-wrap gap-2">
             <span className="text-[var(--color-fg-muted)]">
               {servicosFiltrados.length} {servicosFiltrados.length === 1 ? 'serviço' : 'serviços'}
             </span>
-            <div className="flex items-center gap-2">
-              <Wrench className="w-3.5 h-3.5 text-[var(--color-fg-muted)]" />
-              <span className="text-xs text-[var(--color-fg-muted)]">Total do período:</span>
-              <span className="font-semibold font-mono text-[var(--color-fg)]">{fmtBRL(totalPeriodo)}</span>
+            <div className="flex items-center gap-2 flex-wrap">
+              <div className="flex items-center gap-2">
+                <Wrench className="w-3.5 h-3.5 text-[var(--color-fg-muted)]" />
+                <span className="text-xs text-[var(--color-fg-muted)]">Total do período:</span>
+                <span className="font-semibold font-mono text-[var(--color-fg)]">{fmtBRL(totalPeriodo)}</span>
+              </div>
+              {canExport && servicosFiltrados.length > 0 && (
+                <div className="flex items-center gap-1.5 border-l border-[var(--color-border)] pl-2">
+                  {filtroEquipamento ? (
+                    <>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={handleExportarExcelMaquina}
+                        disabled={exportando !== 'idle'}
+                        title="Exportar relatório por máquina (Excel)"
+                      >
+                        <FileDown className="w-3.5 h-3.5" />
+                        {exportando === 'excel-maquina' ? 'Gerando…' : 'Excel'}
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={handleExportarPdfMaquina}
+                        disabled={exportando !== 'idle'}
+                        title="Exportar relatório por máquina (PDF)"
+                      >
+                        <FileDown className="w-3.5 h-3.5" />
+                        {exportando === 'pdf-maquina' ? 'Gerando…' : 'PDF'}
+                      </Button>
+                    </>
+                  ) : (
+                    <>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={handleExportarExcelMensal}
+                        disabled={exportando !== 'idle'}
+                        title="Exportar relatório mensal (Excel)"
+                      >
+                        <FileDown className="w-3.5 h-3.5" />
+                        {exportando === 'excel-mensal' ? 'Gerando…' : 'Excel'}
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={handleExportarPdfMensal}
+                        disabled={exportando !== 'idle'}
+                        title="Exportar relatório mensal (PDF)"
+                      >
+                        <FileDown className="w-3.5 h-3.5" />
+                        {exportando === 'pdf-mensal' ? 'Gerando…' : 'PDF'}
+                      </Button>
+                    </>
+                  )}
+                </div>
+              )}
             </div>
           </div>
         </div>

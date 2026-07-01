@@ -1,14 +1,18 @@
-// Marco 6 / PR28 — Relatório mensal de manutenção em PDF.
+// Relatórios de manutenção em PDF.
 //
-// Reusa o template premium (banner verde + helpers drawPdf*). Estrutura:
+// Task 3.2: Removida seção de preventivas/naoConformidades do mensal.
+// Adicionada função exportarRelatorioPorMaquinaPdf (por máquina, com
+// breakdown por categoria: peças/terceiros/óleos + subtotais).
+// Reusa o template premium (banner verde + helpers drawPdf*).
+//
+// Estrutura do mensal (pós-Task 3.2):
 //   Página 1 (Resumo):
 //     - Banner + período
-//     - KPIs do mês (OS abertas/concluídas/custo)
-//     - Mini-tabela top 10 equipamentos por custo
-//     - Mini-tabela preventivas vencidas snapshot atual
+//     - KPIs do mês (serviços concluídos, custo)
+//     - Top 10 equipamentos por custo
+//     - Subtotais por categoria (peças/terceiros/óleos)
 //   Página 2+:
-//     - Tabela detalhada de OSs concluídas no período
-//   Página final: não-conformidades de checklists em aberto
+//     - Tabela detalhada de serviços concluídos no período
 
 import jsPDF from 'jspdf';
 import {
@@ -27,12 +31,10 @@ import {
 import type {
   OrdemServico,
   Equipamento,
-  StatusOS,
   TipoOS,
 } from '../types';
-import { STATUS_OS_LABEL, TIPO_OS_LABEL } from '../types';
-import type { ProximaPreventiva } from '../types';
-import type { ChecklistNaoConformidade } from '../hooks/useChecklistNaoConformidades';
+import { TIPO_OS_LABEL } from '../types';
+import { montarRelatorioPorMaquina } from './manutencaoRelatorio';
 
 const SUBTITULO = 'Módulo de Manutenção · Gestão de Obras';
 const FOOTER_MARCA = 'EMT Construtora · gestao-obras-rho.vercel.app';
@@ -41,14 +43,12 @@ export interface RelatorioMensalInput {
   mes: string;  // 'YYYY-MM'
   ordens: OrdemServico[];
   equipamentos: Equipamento[];
-  proximasPreventivas: ProximaPreventiva[];
-  naoConformidades: ChecklistNaoConformidade[];
 }
 
 function inicioFimDoMes(mes: string): { inicio: Date; fim: Date } {
   const [ano, mm] = mes.split('-').map(Number);
   const inicio = new Date(ano, mm - 1, 1);
-  const fim = new Date(ano, mm, 0, 23, 59, 59, 999);  // último dia
+  const fim = new Date(ano, mm, 0, 23, 59, 59, 999);
   return { inicio, fim };
 }
 
@@ -59,40 +59,23 @@ function mesPorExtenso(mes: string): string {
   return `${meses[idx] ?? mm}/${ano}`;
 }
 
-function horasEntre(inicio: string | null, fim: string | null): number {
-  if (!inicio || !fim) return 0;
-  const ms = new Date(fim).getTime() - new Date(inicio).getTime();
-  return Math.max(0, ms / 3_600_000);
-}
-
 export function exportarRelatorioMensalPdf(input: RelatorioMensalInput): void {
-  const { mes, ordens, equipamentos, proximasPreventivas, naoConformidades } = input;
+  const { mes, ordens, equipamentos } = input;
   const { inicio, fim } = inicioFimDoMes(mes);
 
   const equipMap = new Map(equipamentos.map((e) => [e.id, e]));
 
-  // --- Filtrar dados do período ---
+  // Filtra concluídas no período
   const ordensConcluidasMes = ordens.filter((o) => {
-    if (!o.dataConclusao) return false;
-    const d = new Date(o.dataConclusao);
-    return d >= inicio && d <= fim;
-  });
-  const ordensAbertasMes = ordens.filter((o) => {
-    if (!o.dataAbertura) return false;
-    const d = new Date(o.dataAbertura);
+    if (o.status !== 'concluida') return false;
+    const dataStr = (o.dataConclusao ?? o.dataAbertura ?? '').slice(0, 10);
+    if (!dataStr) return false;
+    const d = new Date(dataStr);
     return d >= inicio && d <= fim;
   });
 
-  const custoMes = ordensConcluidasMes.reduce((s, o) => s + (o.custoTotal ?? 0), 0);
-  const custoCorretivo = ordensConcluidasMes
-    .filter((o) => o.tipo === 'corretiva')
-    .reduce((s, o) => s + (o.custoTotal ?? 0), 0);
-  const percCorretivo = custoMes > 0 ? (custoCorretivo / custoMes) * 100 : 0;
-
-  const tempos = ordensConcluidasMes
-    .map((o) => horasEntre(o.dataAbertura, o.dataConclusao))
-    .filter((h) => h > 0);
-  const mttr = tempos.length > 0 ? tempos.reduce((s, h) => s + h, 0) / tempos.length : null;
+  const { subtotais } = montarRelatorioPorMaquina(ordensConcluidasMes);
+  const custoMes = subtotais.total;
 
   // Top 10 por custo no mês
   const custoPorEq = new Map<string, { total: number; numOS: number; tipo: string; nome: string }>();
@@ -112,38 +95,23 @@ export function exportarRelatorioMensalPdf(input: RelatorioMensalInput): void {
     .sort((a, b) => b.total - a.total)
     .slice(0, 10);
 
-  // Preventivas vencidas (snapshot)
-  const preventivasVencidas = proximasPreventivas
-    .filter((p) => {
-      if (p.unidadesRestantes != null && p.unidadesRestantes < 0) return true;
-      if (p.diasRestantes != null && p.diasRestantes < 0) return true;
-      return false;
-    })
-    .sort((a, b) => {
-      const va = a.unidadesRestantes ?? a.diasRestantes ?? 0;
-      const vb = b.unidadesRestantes ?? b.diasRestantes ?? 0;
-      return va - vb;
-    })
-    .slice(0, 15);
-
   // --- Início do PDF ---
   const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
   let y = drawPdfBanner(doc, `Relatório de Manutenção · ${mesPorExtenso(mes)}`, SUBTITULO);
 
-  // Filtros aplicados (mais resumo do período)
+  // Filtros / resumo do período
   y = drawPdfFiltros(doc, y, [
     ['Período', `${formatDateBR(inicio.toISOString().slice(0, 10))} a ${formatDateBR(fim.toISOString().slice(0, 10))}`],
-    ['OSs concluídas', `${ordensConcluidasMes.length}`],
-    ['OSs abertas no período', `${ordensAbertasMes.length}`],
+    ['Serviços concluídos', `${ordensConcluidasMes.length}`],
     ['Frota ativa', `${equipamentos.filter((e) => e.ativo !== false).length} equipamentos`],
   ]);
 
   // KPIs
   y = drawPdfKPIs(doc, y, [
     ['Custo do mês', fmtBRL(custoMes, 0)],
-    ['% Corretivo', custoMes > 0 ? `${percCorretivo.toFixed(0)}%` : '—'],
-    ['MTTR', mttr != null ? `${mttr.toFixed(1)} h` : '—'],
-    ['Preventivas vencidas', `${preventivasVencidas.length}`],
+    ['Peças', fmtBRL(subtotais.pecas, 0)],
+    ['Terceiros', fmtBRL(subtotais.terceiros, 0)],
+    ['Óleos', fmtBRL(subtotais.oleos, 0)],
   ]);
 
   // Mini-tabela: Top 10 por custo
@@ -152,7 +120,7 @@ export function exportarRelatorioMensalPdf(input: RelatorioMensalInput): void {
       doc,
       y,
       'TOP 10 EQUIPAMENTOS POR CUSTO NO MÊS',
-      ['#', 'Equipamento', 'Tipo', 'OSs', 'Custo'],
+      ['#', 'Equipamento', 'Tipo', 'Serviços', 'Custo'],
       top10.map((t, i) => [
         `${i + 1}`,
         t.nome,
@@ -171,114 +139,84 @@ export function exportarRelatorioMensalPdf(input: RelatorioMensalInput): void {
     );
   }
 
-  // Mini-tabela: Preventivas vencidas (snapshot)
-  if (preventivasVencidas.length > 0) {
-    y = drawPdfMiniTable(
-      doc,
-      y,
-      `PREVENTIVAS VENCIDAS (SNAPSHOT EM ${formatDateBR(new Date().toISOString().slice(0, 10))})`,
-      ['Equipamento', 'Atividade', 'Categoria', 'Atraso'],
-      preventivasVencidas.map((p) => {
-        const atrasoUnid = p.unidadesRestantes != null && p.unidadesRestantes < 0
-          ? `${Math.abs(p.unidadesRestantes).toLocaleString('pt-BR')} ${p.tipoMedicao === 'horimetro' ? 'h' : 'km'}`
-          : '';
-        const atrasoDias = p.diasRestantes != null && p.diasRestantes < 0
-          ? `${Math.abs(p.diasRestantes)} dia${Math.abs(p.diasRestantes) > 1 ? 's' : ''}`
-          : '';
-        const atraso = [atrasoUnid, atrasoDias].filter(Boolean).join(' / ');
-        return [
-          `${p.codigoPatrimonio} · ${p.equipamentoNome}`,
-          p.atividadeNome,
-          p.categoria ?? '—',
-          atraso,
-        ];
-      }),
-      ['', '', `Total: ${preventivasVencidas.length}`, ''],
-      {
-        2: { halign: 'left' },
-        3: { halign: 'right', cellWidth: 35 },
-      }
-    );
-  }
+  // Mini-tabela: Subtotais por categoria
+  y = drawPdfMiniTable(
+    doc,
+    y,
+    'CUSTO POR CATEGORIA',
+    ['Categoria', 'Valor', '% do total'],
+    [
+      ['Peças', fmtBRL(subtotais.pecas), custoMes > 0 ? `${(subtotais.pecas / custoMes * 100).toFixed(1)}%` : '—'],
+      ['Serviços de terceiros', fmtBRL(subtotais.terceiros), custoMes > 0 ? `${(subtotais.terceiros / custoMes * 100).toFixed(1)}%` : '—'],
+      ['Óleos e lubrificantes', fmtBRL(subtotais.oleos), custoMes > 0 ? `${(subtotais.oleos / custoMes * 100).toFixed(1)}%` : '—'],
+    ],
+    ['TOTAL', fmtBRL(custoMes), '100%'],
+    {
+      0: { halign: 'left', cellWidth: 70 },
+      1: { halign: 'right', cellWidth: 40 },
+      2: { halign: 'right', cellWidth: 25 },
+    }
+  );
 
-  // Não-conformidades (resumo)
-  const ncBloqueadas = naoConformidades.filter((nc) => nc.status === 'bloqueado');
-  if (ncBloqueadas.length > 0) {
-    y = drawPdfMiniTable(
-      doc,
-      y,
-      'EQUIPAMENTOS BLOQUEADOS POR CHECKLIST',
-      ['Equipamento', 'Operador', 'Não-conf.', 'Críticas', 'Data'],
-      ncBloqueadas.map((nc) => [
-        `${nc.codigoPatrimonio} · ${nc.equipamentoNome}`,
-        nc.operadorNome || '—',
-        nc.itensNao,
-        nc.itensCriticos,
-        formatDateBR(nc.concluidoEm.slice(0, 10)),
-      ]),
-      ['', `Total: ${ncBloqueadas.length}`, '', '', ''],
-      {
-        2: { halign: 'center', cellWidth: 20 },
-        3: { halign: 'center', cellWidth: 20 },
-        4: { halign: 'center', cellWidth: 22 },
-      }
-    );
-  }
-
-  // --- Página de detalhe: OSs concluídas no período ---
+  // --- Página de detalhe: serviços concluídos no período ---
   if (ordensConcluidasMes.length > 0) {
     doc.addPage();
     const startY = drawPdfDetailPageHeader(
       doc,
-      `OSs CONCLUÍDAS · ${mesPorExtenso(mes)}`,
+      `SERVIÇOS CONCLUÍDOS · ${mesPorExtenso(mes)}`,
       ordensConcluidasMes.length
     );
 
-    const ordensOrdenadas = [...ordensConcluidasMes].sort((a, b) =>
-      (b.dataConclusao ?? '').localeCompare(a.dataConclusao ?? '')
-    );
+    const ordenadas = [...ordensConcluidasMes].sort((a, b) => {
+      const da = (a.dataConclusao ?? a.dataAbertura ?? '');
+      const db = (b.dataConclusao ?? b.dataAbertura ?? '');
+      return db.localeCompare(da);
+    });
 
     drawPdfDetailTable(
       doc,
       startY,
-      ['Número', 'Equipamento', 'Tipo', 'Status', 'Defeito', 'Custo', 'Conclusão'],
-      ordensOrdenadas.map((o) => {
+      ['Número', 'Equipamento', 'Tipo', 'Data', 'Peças', 'Terceiros', 'Óleos', 'Total'],
+      ordenadas.map((o) => {
         const eq = equipMap.get(o.equipamentoId);
+        const dataStr = (o.dataConclusao ?? o.dataAbertura ?? '').slice(0, 10);
         return [
           o.numero,
           eq ? (eq.codigoPatrimonio ? `${eq.codigoPatrimonio} · ${eq.nome}` : eq.nome) : o.equipamentoId,
           TIPO_OS_LABEL[o.tipo as TipoOS] ?? o.tipo,
-          STATUS_OS_LABEL[o.status as StatusOS] ?? o.status,
-          (o.defeitoReportado ?? '').slice(0, 60) + ((o.defeitoReportado?.length ?? 0) > 60 ? '…' : ''),
+          dataStr ? formatDateBR(dataStr) : '—',
+          fmtBRL(o.custoPecas ?? 0),
+          fmtBRL(o.custoTerceiros ?? 0),
+          fmtBRL(o.custoOleos ?? 0),
           fmtBRL(o.custoTotal ?? 0),
-          o.dataConclusao ? formatDateBR(o.dataConclusao.slice(0, 10)) : '—',
         ];
       }),
-      ['', '', '', '', 'TOTAL',
-        fmtBRL(ordensConcluidasMes.reduce((s, o) => s + (o.custoTotal ?? 0), 0)),
-        ''],
+      ['', '', '', 'TOTAL',
+        fmtBRL(subtotais.pecas),
+        fmtBRL(subtotais.terceiros),
+        fmtBRL(subtotais.oleos),
+        fmtBRL(subtotais.total)],
       {
-        0: { cellWidth: 28 },
-        1: { cellWidth: 60 },
+        0: { cellWidth: 24 },
+        1: { cellWidth: 55 },
         2: { cellWidth: 22, halign: 'center' },
-        3: { cellWidth: 28, halign: 'center' },
-        5: { cellWidth: 28, halign: 'right' },
-        6: { cellWidth: 22, halign: 'center' },
+        3: { cellWidth: 20, halign: 'center' },
+        4: { cellWidth: 24, halign: 'right' },
+        5: { cellWidth: 24, halign: 'right' },
+        6: { cellWidth: 22, halign: 'right' },
+        7: { cellWidth: 24, halign: 'right' },
       },
       FOOTER_MARCA
     );
   } else {
-    // Adicionar nota de "nenhuma OS concluída no período"
     doc.setTextColor(...PDF_RGB.cinzaMedio);
     doc.setFont('helvetica', 'italic');
     doc.setFontSize(9);
-    y = drawPdfSectionTitle(doc, y + 4, 'OSs CONCLUÍDAS NO PERÍODO');
-    doc.text('Nenhuma OS concluída no período.', 10, y + 2);
+    y = drawPdfSectionTitle(doc, y + 4, 'SERVIÇOS CONCLUÍDOS NO PERÍODO');
+    doc.text('Nenhum serviço concluído no período.', 10, y + 2);
   }
 
-  // Salvar
-  const filename = makeFilename(`Manutencao-Mensal-${mes}`, 'pdf');
-  doc.save(filename);
+  doc.save(makeFilename(`Manutencao-Mensal-${mes}`, 'pdf'));
 }
 
 // =====================================================================
@@ -289,7 +227,6 @@ export interface RelatorioAnualInput {
   ano: number;
   ordens: OrdemServico[];
   equipamentos: Equipamento[];
-  /** Para comparação ano-a-ano, opcionalmente passe um snapshot ano anterior. */
   ordensAnoAnterior?: OrdemServico[];
 }
 
@@ -304,31 +241,22 @@ export function exportarRelatorioAnualPdf(input: RelatorioAnualInput): void {
 
   // Filtra concluídas do ano
   const concluidasAno = ordens.filter((o) => {
-    if (!o.dataConclusao) return false;
-    const d = new Date(o.dataConclusao);
+    if (o.status !== 'concluida') return false;
+    const dataStr = (o.dataConclusao ?? o.dataAbertura ?? '').slice(0, 10);
+    if (!dataStr) return false;
+    const d = new Date(dataStr);
     return d >= inicio && d <= fim;
   });
 
-  // KPIs anuais
-  const custoAno = concluidasAno.reduce((s, o) => s + (o.custoTotal ?? 0), 0);
-  const custoCorretivo = concluidasAno
-    .filter((o) => o.tipo === 'corretiva')
-    .reduce((s, o) => s + (o.custoTotal ?? 0), 0);
-  const custoPreventivo = concluidasAno
-    .filter((o) => o.tipo === 'preventiva')
-    .reduce((s, o) => s + (o.custoTotal ?? 0), 0);
-  const percCorretivo = custoAno > 0 ? (custoCorretivo / custoAno) * 100 : 0;
-  const tempos = concluidasAno
-    .map((o) => horasEntre(o.dataAbertura, o.dataConclusao))
-    .filter((h) => h > 0);
-  const mttrAno = tempos.length > 0 ? tempos.reduce((s, h) => s + h, 0) / tempos.length : null;
+  const { subtotais: subtotaisAno } = montarRelatorioPorMaquina(concluidasAno);
+  const custoAno = subtotaisAno.total;
 
-  // Variação ano anterior
   const custoAnoAnt = ordensAnoAnterior
     .filter((o) => {
-      if (!o.dataConclusao) return false;
-      const d = new Date(o.dataConclusao);
-      return d.getFullYear() === ano - 1;
+      if (o.status !== 'concluida') return false;
+      const dataStr = (o.dataConclusao ?? o.dataAbertura ?? '').slice(0, 10);
+      if (!dataStr) return false;
+      return new Date(dataStr).getFullYear() === ano - 1;
     })
     .reduce((s, o) => s + (o.custoTotal ?? 0), 0);
   const variacaoAno = custoAnoAnt > 0 ? ((custoAno - custoAnoAnt) / custoAnoAnt) * 100 : null;
@@ -337,8 +265,9 @@ export function exportarRelatorioAnualPdf(input: RelatorioAnualInput): void {
   const custoPorMes: number[] = new Array(12).fill(0);
   const numOSPorMes: number[] = new Array(12).fill(0);
   for (const o of concluidasAno) {
-    if (!o.dataConclusao) continue;
-    const m = new Date(o.dataConclusao).getMonth();
+    const dataStr = (o.dataConclusao ?? o.dataAbertura ?? '').slice(0, 10);
+    if (!dataStr) continue;
+    const m = new Date(dataStr).getMonth();
     custoPorMes[m] += o.custoTotal ?? 0;
     numOSPorMes[m] += 1;
   }
@@ -367,19 +296,18 @@ export function exportarRelatorioAnualPdf(input: RelatorioAnualInput): void {
 
   y = drawPdfFiltros(doc, y, [
     ['Período', `01/01/${ano} a 31/12/${ano}`],
-    ['OSs concluídas', `${concluidasAno.length}`],
+    ['Serviços concluídos', `${concluidasAno.length}`],
     ['Frota considerada', `${equipamentos.filter((e) => e.ativo !== false).length} equipamentos`],
     ['Ano anterior', custoAnoAnt > 0 ? fmtBRL(custoAnoAnt, 0) : 'sem dados'],
   ]);
 
-  // KPIs anuais
   y = drawPdfKPIs(doc, y, [
     ['Custo do ano', fmtBRL(custoAno, 0)],
     ['vs Ano anterior', variacaoAno != null
       ? `${variacaoAno > 0 ? '+' : ''}${variacaoAno.toFixed(0)}%`
       : '—'],
-    ['MTTR médio', mttrAno != null ? `${mttrAno.toFixed(1)} h` : '—'],
-    ['% Corretivo', custoAno > 0 ? `${percCorretivo.toFixed(0)}%` : '—'],
+    ['Peças', fmtBRL(subtotaisAno.pecas, 0)],
+    ['Óleos', fmtBRL(subtotaisAno.oleos, 0)],
   ]);
 
   // Mini-tabela: breakdown mensal
@@ -387,7 +315,7 @@ export function exportarRelatorioAnualPdf(input: RelatorioAnualInput): void {
     doc,
     y,
     `CUSTO MENSAL · ${ano}`,
-    ['Mês', 'OSs concluídas', 'Custo'],
+    ['Mês', 'Serviços concluídos', 'Custo'],
     custoPorMes.map((c, m) => [MESES_CURTOS[m], numOSPorMes[m], fmtBRL(c)]),
     ['TOTAL', concluidasAno.length, fmtBRL(custoAno)],
     {
@@ -397,21 +325,20 @@ export function exportarRelatorioAnualPdf(input: RelatorioAnualInput): void {
     }
   );
 
-  // Comparação corretivo vs preventivo
+  // Distribuição por categoria
   drawPdfMiniTable(
     doc,
     y,
-    'DISTRIBUIÇÃO DE CUSTO POR TIPO',
-    ['Tipo de OS', 'Custo', '% do total'],
+    'DISTRIBUIÇÃO DE CUSTO POR CATEGORIA',
+    ['Categoria', 'Custo', '% do total'],
     [
-      ['Corretiva', fmtBRL(custoCorretivo), custoAno > 0 ? `${percCorretivo.toFixed(1)}%` : '—'],
-      ['Preventiva', fmtBRL(custoPreventivo), custoAno > 0 ? `${(custoPreventivo / custoAno * 100).toFixed(1)}%` : '—'],
-      ['Outros', fmtBRL(custoAno - custoCorretivo - custoPreventivo),
-        custoAno > 0 ? `${((custoAno - custoCorretivo - custoPreventivo) / custoAno * 100).toFixed(1)}%` : '—'],
+      ['Peças', fmtBRL(subtotaisAno.pecas), custoAno > 0 ? `${(subtotaisAno.pecas / custoAno * 100).toFixed(1)}%` : '—'],
+      ['Serviços de terceiros', fmtBRL(subtotaisAno.terceiros), custoAno > 0 ? `${(subtotaisAno.terceiros / custoAno * 100).toFixed(1)}%` : '—'],
+      ['Óleos e lubrificantes', fmtBRL(subtotaisAno.oleos), custoAno > 0 ? `${(subtotaisAno.oleos / custoAno * 100).toFixed(1)}%` : '—'],
     ],
     ['TOTAL', fmtBRL(custoAno), '100%'],
     {
-      0: { halign: 'left', cellWidth: 40 },
+      0: { halign: 'left', cellWidth: 60 },
       1: { halign: 'right', cellWidth: 45 },
       2: { halign: 'right', cellWidth: 30 },
     }
@@ -424,7 +351,7 @@ export function exportarRelatorioAnualPdf(input: RelatorioAnualInput): void {
   drawPdfDetailTable(
     doc,
     startY,
-    ['#', 'Equipamento', 'Tipo', 'OSs', 'Custo', '% do total'],
+    ['#', 'Equipamento', 'Tipo', 'Serviços', 'Custo', '% do total'],
     top20.map((t, i) => [
       `${i + 1}`,
       t.nome,
@@ -454,43 +381,27 @@ export function exportarRelatorioAnualPdf(input: RelatorioAnualInput): void {
 }
 
 // =====================================================================
-// Relatório por Equipamento (Histórico completo)
+// Relatório por Equipamento (histórico completo)
 // =====================================================================
 
 export interface RelatorioEquipamentoInput {
   equipamento: Equipamento;
   ordens: OrdemServico[];
   medicaoAtual: number | null;
-  /** Snapshot atual de saldo/custo no almoxarifado se quiser detalhar peças. */
   custoPecasUltimo12m?: number;
 }
 
 export function exportarRelatorioEquipamentoPdf(input: RelatorioEquipamentoInput): void {
   const { equipamento: eq, ordens, medicaoAtual, custoPecasUltimo12m = 0 } = input;
 
-  // Filtra apenas OSs deste equipamento, ordenadas por data de abertura desc
+  // Filtra OSs deste equipamento
   const ordensEq = [...ordens]
     .filter((o) => o.equipamentoId === eq.id)
     .sort((a, b) => (b.dataAbertura ?? '').localeCompare(a.dataAbertura ?? ''));
 
   const ordensConcluidas = ordensEq.filter((o) => o.status === 'concluida');
-  const custoTotal = ordensConcluidas.reduce((s, o) => s + (o.custoTotal ?? 0), 0);
-  const custoCorretivo = ordensConcluidas
-    .filter((o) => o.tipo === 'corretiva')
-    .reduce((s, o) => s + (o.custoTotal ?? 0), 0);
-  const custoPreventivo = ordensConcluidas
-    .filter((o) => o.tipo === 'preventiva')
-    .reduce((s, o) => s + (o.custoTotal ?? 0), 0);
-
-  // Tempos de parada e MTTR
-  const tempos = ordensConcluidas
-    .map((o) => horasEntre(o.dataAbertura, o.dataConclusao))
-    .filter((h) => h > 0);
-  const mttr = tempos.length > 0 ? tempos.reduce((s, h) => s + h, 0) / tempos.length : null;
-  const horasParado = ordensEq.reduce(
-    (s, o) => s + horasEntre(o.paradaInicio, o.paradaFim ?? new Date().toISOString()),
-    0
-  );
+  const { subtotais } = montarRelatorioPorMaquina(ordensConcluidas);
+  const custoTotal = subtotais.total;
 
   const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
   const titulo = `Histórico · ${eq.codigoPatrimonio ?? eq.nome}`;
@@ -510,33 +421,30 @@ export function exportarRelatorioEquipamentoPdf(input: RelatorioEquipamentoInput
       : '—'],
   ]);
 
-  // KPIs do equipamento
+  // KPIs
   y = drawPdfKPIs(doc, y, [
-    ['OSs totais', `${ordensEq.length}`],
+    ['Serviços totais', `${ordensEq.length}`],
     ['Custo total', fmtBRL(custoTotal, 0)],
-    ['MTTR', mttr != null ? `${mttr.toFixed(1)} h` : '—'],
-    ['Horas paradas', `${horasParado.toFixed(0)} h`],
+    ['Peças', fmtBRL(subtotais.pecas, 0)],
+    ['Óleos', fmtBRL(subtotais.oleos, 0)],
   ]);
 
-  // Distribuição de custos
+  // Distribuição de custos por categoria
   drawPdfMiniTable(
     doc,
     y,
-    'DISTRIBUIÇÃO DE CUSTO',
+    'DISTRIBUIÇÃO DE CUSTO POR CATEGORIA',
     ['Categoria', 'Valor', '% do total'],
     [
-      ['Corretiva', fmtBRL(custoCorretivo),
-        custoTotal > 0 ? `${(custoCorretivo / custoTotal * 100).toFixed(1)}%` : '—'],
-      ['Preventiva', fmtBRL(custoPreventivo),
-        custoTotal > 0 ? `${(custoPreventivo / custoTotal * 100).toFixed(1)}%` : '—'],
-      ['Outros',
-        fmtBRL(custoTotal - custoCorretivo - custoPreventivo),
-        custoTotal > 0
-          ? `${((custoTotal - custoCorretivo - custoPreventivo) / custoTotal * 100).toFixed(1)}%`
-          : '—'],
+      ['Peças', fmtBRL(subtotais.pecas),
+        custoTotal > 0 ? `${(subtotais.pecas / custoTotal * 100).toFixed(1)}%` : '—'],
+      ['Serviços de terceiros', fmtBRL(subtotais.terceiros),
+        custoTotal > 0 ? `${(subtotais.terceiros / custoTotal * 100).toFixed(1)}%` : '—'],
+      ['Óleos e lubrificantes', fmtBRL(subtotais.oleos),
+        custoTotal > 0 ? `${(subtotais.oleos / custoTotal * 100).toFixed(1)}%` : '—'],
       ['Peças (últimos 12m)', fmtBRL(custoPecasUltimo12m), '—'],
     ],
-    ['TOTAL OSs CONCLUÍDAS', fmtBRL(custoTotal), '100%'],
+    ['TOTAL', fmtBRL(custoTotal), '100%'],
     {
       0: { halign: 'left', cellWidth: 70 },
       1: { halign: 'right', cellWidth: 45 },
@@ -544,35 +452,132 @@ export function exportarRelatorioEquipamentoPdf(input: RelatorioEquipamentoInput
     }
   );
 
-  // Tabela detalhada de OSs — nova página
+  // Tabela detalhada — nova página
   if (ordensEq.length > 0) {
     doc.addPage();
-    const startY = drawPdfDetailPageHeader(doc, `OSs DO EQUIPAMENTO`, ordensEq.length);
+    const startY = drawPdfDetailPageHeader(doc, 'SERVIÇOS DO EQUIPAMENTO', ordensEq.length);
     drawPdfDetailTable(
       doc,
       startY,
-      ['Número', 'Tipo', 'Status', 'Abertura', 'Conclusão', 'Defeito', 'Custo'],
+      ['Número', 'Tipo', 'Abertura', 'Conclusão', 'Peças', 'Terceiros', 'Óleos', 'Total'],
       ordensEq.map((o) => [
         o.numero,
         TIPO_OS_LABEL[o.tipo as TipoOS] ?? o.tipo,
-        STATUS_OS_LABEL[o.status as StatusOS] ?? o.status,
         o.dataAbertura ? formatDateBR(o.dataAbertura.slice(0, 10)) : '—',
         o.dataConclusao ? formatDateBR(o.dataConclusao.slice(0, 10)) : '—',
-        (o.defeitoReportado ?? '').slice(0, 70) + ((o.defeitoReportado?.length ?? 0) > 70 ? '…' : ''),
+        fmtBRL(o.custoPecas ?? 0),
+        fmtBRL(o.custoTerceiros ?? 0),
+        fmtBRL(o.custoOleos ?? 0),
         fmtBRL(o.custoTotal ?? 0),
       ]),
-      ['', '', '', '', '', 'TOTAL', fmtBRL(custoTotal)],
+      ['', '', '', 'TOTAL',
+        fmtBRL(subtotais.pecas),
+        fmtBRL(subtotais.terceiros),
+        fmtBRL(subtotais.oleos),
+        fmtBRL(custoTotal)],
       {
         0: { cellWidth: 26 },
         1: { halign: 'center', cellWidth: 24 },
-        2: { halign: 'center', cellWidth: 28 },
+        2: { halign: 'center', cellWidth: 22 },
         3: { halign: 'center', cellWidth: 22 },
-        4: { halign: 'center', cellWidth: 22 },
-        6: { halign: 'right', cellWidth: 28 },
+        4: { halign: 'right', cellWidth: 24 },
+        5: { halign: 'right', cellWidth: 24 },
+        6: { halign: 'right', cellWidth: 22 },
+        7: { halign: 'right', cellWidth: 24 },
       },
       FOOTER_MARCA
     );
   }
 
   doc.save(makeFilename(`Equipamento-${eq.codigoPatrimonio || eq.id}`, 'pdf'));
+}
+
+// =====================================================================
+// Relatório por Máquina (período específico)
+// =====================================================================
+
+export interface RelatorioPorMaquinaPdfInput {
+  equipamento: { id: string; nome: string; codigoPatrimonio?: string; tipo?: string };
+  periodo: { inicio: Date; fim: Date };
+  servicos: OrdemServico[];
+}
+
+export function exportarRelatorioPorMaquinaPdf(input: RelatorioPorMaquinaPdfInput): void {
+  const { equipamento, periodo, servicos } = input;
+  const { linhas, subtotais } = montarRelatorioPorMaquina(servicos);
+
+  const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+  const titulo = `Relatório por Máquina · ${equipamento.codigoPatrimonio ?? equipamento.nome}`;
+  let y = drawPdfBanner(doc, titulo, SUBTITULO);
+
+  const fmtPeriodo = `${formatDateBR(periodo.inicio.toISOString().slice(0, 10))} a ${formatDateBR(periodo.fim.toISOString().slice(0, 10))}`;
+  y = drawPdfFiltros(doc, y, [
+    ['Equipamento', equipamento.nome],
+    ['Período', fmtPeriodo],
+    ['Serviços concluídos', `${linhas.length}`],
+  ]);
+
+  y = drawPdfKPIs(doc, y, [
+    ['Custo total', fmtBRL(subtotais.total, 0)],
+    ['Peças', fmtBRL(subtotais.pecas, 0)],
+    ['Terceiros', fmtBRL(subtotais.terceiros, 0)],
+    ['Óleos', fmtBRL(subtotais.oleos, 0)],
+  ]);
+
+  // Subtotais por categoria
+  drawPdfMiniTable(
+    doc,
+    y,
+    'CUSTO POR CATEGORIA',
+    ['Categoria', 'Valor', '% do total'],
+    [
+      ['Peças', fmtBRL(subtotais.pecas), subtotais.total > 0 ? `${(subtotais.pecas / subtotais.total * 100).toFixed(1)}%` : '—'],
+      ['Serviços de terceiros', fmtBRL(subtotais.terceiros), subtotais.total > 0 ? `${(subtotais.terceiros / subtotais.total * 100).toFixed(1)}%` : '—'],
+      ['Óleos e lubrificantes', fmtBRL(subtotais.oleos), subtotais.total > 0 ? `${(subtotais.oleos / subtotais.total * 100).toFixed(1)}%` : '—'],
+    ],
+    ['TOTAL', fmtBRL(subtotais.total), '100%'],
+    {
+      0: { halign: 'left', cellWidth: 70 },
+      1: { halign: 'right', cellWidth: 40 },
+      2: { halign: 'right', cellWidth: 25 },
+    }
+  );
+
+  // Tabela de serviços
+  if (linhas.length > 0) {
+    doc.addPage();
+    const startY = drawPdfDetailPageHeader(doc, 'SERVIÇOS DO PERÍODO', linhas.length);
+    drawPdfDetailTable(
+      doc,
+      startY,
+      ['Número', 'Data', 'Tipo', 'Peças', 'Terceiros', 'Óleos', 'Total'],
+      linhas.map((l) => [
+        l.numero,
+        l.data ? formatDateBR(l.data) : '—',
+        l.tipo,
+        fmtBRL(l.custoPecas),
+        fmtBRL(l.custoTerceiros),
+        fmtBRL(l.custoOleos),
+        fmtBRL(l.custoTotal),
+      ]),
+      ['', 'TOTAL', '',
+        fmtBRL(subtotais.pecas),
+        fmtBRL(subtotais.terceiros),
+        fmtBRL(subtotais.oleos),
+        fmtBRL(subtotais.total)],
+      {
+        0: { cellWidth: 28 },
+        1: { halign: 'center', cellWidth: 22 },
+        2: { halign: 'left', cellWidth: 50 },
+        3: { halign: 'right', cellWidth: 28 },
+        4: { halign: 'right', cellWidth: 28 },
+        5: { halign: 'right', cellWidth: 25 },
+        6: { halign: 'right', cellWidth: 28 },
+      },
+      FOOTER_MARCA
+    );
+  }
+
+  const nomeFile = (equipamento.codigoPatrimonio ?? equipamento.nome).replace(/[^a-zA-Z0-9À-ú _-]/g, '').trim().slice(0, 30);
+  doc.save(makeFilename(`Manutencao-Maquina-${nomeFile}`, 'pdf'));
 }

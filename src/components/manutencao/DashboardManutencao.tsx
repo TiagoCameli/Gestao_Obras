@@ -161,8 +161,6 @@ export default function DashboardManutencao() {
         mes: mesExport,
         ordens: dash.ordens,
         equipamentos,
-        proximasPreventivas: [],
-        naoConformidades,
       });
     } finally {
       setExportando('idle');
