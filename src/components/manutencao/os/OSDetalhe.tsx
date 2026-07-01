@@ -5,7 +5,7 @@ import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   ArrowLeft, Pencil, ShieldCheck, Calendar,
-  Gauge, Wrench, FileText, Plus, Trash2,
+  Gauge, Wrench, FileText, Plus, Trash2, Check, X,
 } from 'lucide-react';
 import {
   useOrdemServicoByNumero,
@@ -24,12 +24,10 @@ import { useAuth } from '../../../contexts/AuthContext';
 import AdicionarPecaOSModal from './AdicionarPecaOSModal';
 import AdicionarTerceiroOSModal from './AdicionarTerceiroOSModal';
 import AdicionarOleoOSModal from './AdicionarOleoOSModal';
-import EditarDiagnosticoOSModal from './EditarDiagnosticoOSModal';
 import type { OSPeca } from '../../../types';
 import {
   TIPO_OS_LABEL, PRIORIDADE_OS_LABEL, STATUS_OS_LABEL,
 } from '../../../types';
-import type { OrdemServico } from '../../../types';
 import Button from '../../ui/Button';
 import ConfirmDialog from '../../ui/ConfirmDialog';
 import { STATUS_COLOR, PRIORIDADE_COLOR, TIPO_COLOR } from './styles';
@@ -68,12 +66,15 @@ export default function OSDetalhe() {
   const { data: insumos = [] } = useInsumos();
   const { data: depositos = [] } = useDepositosMaterial();
 
-  const canEditarDiag = temAcao('editar_diagnostico_os');
+  const canEditarDescricao = temAcao('editar_diagnostico_os');
   const canAddPeca = temAcao('adicionar_peca_os');
   const canAddTerceiro = temAcao('adicionar_terceiro_os');
   const canAddOleo = temAcao('adicionar_oleo_os');
 
-  const [diagModalOpen, setDiagModalOpen] = useState(false);
+  const [descricaoEditando, setDescricaoEditando] = useState(false);
+  const [descricaoRascunho, setDescricaoRascunho] = useState('');
+  const [descricaoSalvando, setDescricaoSalvando] = useState(false);
+
   const [pecaModalOpen, setPecaModalOpen] = useState(false);
   const [terceiroModalOpen, setTerceiroModalOpen] = useState(false);
   const [oleoModalOpen, setOleoModalOpen] = useState(false);
@@ -107,13 +108,24 @@ export default function OSDetalhe() {
   const sCor = STATUS_COLOR[os.status];
   const pCor = PRIORIDADE_COLOR[os.prioridade];
 
-  async function handleSalvarDiagnostico(patch: Partial<OrdemServico>) {
+  function iniciarEdicaoDescricao() {
+    setDescricaoRascunho(os?.solucaoAplicada ?? '');
+    setDescricaoEditando(true);
+  }
+
+  async function salvarDescricao() {
     if (!os) return;
-    await atualizarMut.mutateAsync({
-      ...os,
-      ...patch,
-      updatedBy: usuario?.nome ?? '',
-    });
+    setDescricaoSalvando(true);
+    try {
+      await atualizarMut.mutateAsync({
+        ...os,
+        solucaoAplicada: descricaoRascunho,
+        updatedBy: usuario?.nome ?? '',
+      });
+      setDescricaoEditando(false);
+    } finally {
+      setDescricaoSalvando(false);
+    }
   }
 
   async function handleAdicionarPeca(peca: OSPeca) {
@@ -211,49 +223,56 @@ export default function OSDetalhe() {
         </Bloco>
       </section>
 
-      {/* Diagnóstico */}
+      {/* Descrição do serviço */}
       <section>
         <div className="flex items-center justify-between mb-2">
           <h3 className="text-xs font-semibold uppercase tracking-wider text-[var(--color-fg-muted)]">
-            Diagnóstico
+            Descrição do serviço
           </h3>
-          {canEditarDiag && (
-            <Button size="sm" variant="secondary" onClick={() => setDiagModalOpen(true)}>
+          {canEditarDescricao && !descricaoEditando && (
+            <Button size="sm" variant="secondary" onClick={iniciarEdicaoDescricao}>
               <Pencil className="w-3.5 h-3.5" />
-              Editar diagnóstico
+              Editar
             </Button>
           )}
         </div>
-        <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-1)] p-4 space-y-3">
-          <Campo label="Defeito reportado" valor={os.defeitoReportado || '—'} />
-          {os.sintomas.length > 0 && (
-            <div>
-              <div className="text-[11px] uppercase tracking-wider text-[var(--color-fg-muted)] mb-1">Sintomas</div>
-              <div className="flex flex-wrap gap-1">
-                {os.sintomas.map((s) => (
-                  <span key={s} className="text-xs px-2 py-0.5 rounded-full bg-[var(--color-surface-2)] text-[var(--color-fg-muted)]">
-                    {s}
-                  </span>
-                ))}
+        <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-1)] p-4">
+          {descricaoEditando ? (
+            <div className="space-y-2">
+              <textarea
+                autoFocus
+                rows={4}
+                value={descricaoRascunho}
+                onChange={(e) => setDescricaoRascunho(e.target.value)}
+                className="w-full rounded-lg px-3 py-2 text-sm bg-[var(--color-surface-2)] text-[var(--color-fg)] border border-[var(--color-accent)] focus:outline-none focus:ring-2 focus:ring-[var(--color-ring)] resize-none"
+                placeholder="Descreva o serviço realizado…"
+              />
+              <div className="flex items-center justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => setDescricaoEditando(false)}
+                  disabled={descricaoSalvando}
+                  className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium text-[var(--color-fg-muted)] hover:text-[var(--color-fg)] hover:bg-[var(--color-surface-2)] disabled:opacity-50"
+                >
+                  <X className="w-3.5 h-3.5" />
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  onClick={salvarDescricao}
+                  disabled={descricaoSalvando}
+                  className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium bg-[var(--color-accent)] text-white hover:opacity-90 disabled:opacity-50"
+                >
+                  <Check className="w-3.5 h-3.5" />
+                  {descricaoSalvando ? 'Salvando…' : 'Salvar'}
+                </button>
               </div>
             </div>
+          ) : (
+            <p className="text-sm text-[var(--color-fg)] whitespace-pre-line">
+              {os.solucaoAplicada || <span className="text-[var(--color-fg-subtle)]">Nenhuma descrição registrada.</span>}
+            </p>
           )}
-          {os.sistemasAfetados.length > 0 && (
-            <div>
-              <div className="text-[11px] uppercase tracking-wider text-[var(--color-fg-muted)] mb-1">Sistemas afetados</div>
-              <div className="flex flex-wrap gap-1">
-                {os.sistemasAfetados.map((s) => (
-                  <span key={s} className="text-xs px-2 py-0.5 rounded-full bg-[var(--color-warning-soft)] text-[var(--color-warning-fg)] capitalize">
-                    {s.replace('_', ' ')}
-                  </span>
-                ))}
-              </div>
-            </div>
-          )}
-          {os.causaRaiz && <Campo label="Causa raiz" valor={os.causaRaiz} />}
-          {os.solucaoAplicada && <Campo label="Solução aplicada" valor={os.solucaoAplicada} />}
-          {os.recomendacoes && <Campo label="Recomendações" valor={os.recomendacoes} />}
-          {os.observacoes && <Campo label="Observações" valor={os.observacoes} />}
         </div>
       </section>
 
@@ -468,15 +487,6 @@ export default function OSDetalhe() {
       )}
 
       {/* Modais */}
-      {diagModalOpen && (
-        <EditarDiagnosticoOSModal
-          open={diagModalOpen}
-          onClose={() => setDiagModalOpen(false)}
-          os={os}
-          onSubmit={handleSalvarDiagnostico}
-        />
-      )}
-
       {pecaModalOpen && (
         <AdicionarPecaOSModal
           open={pecaModalOpen}
@@ -590,15 +600,6 @@ function Linha({
           valor
         )}
       </dd>
-    </div>
-  );
-}
-
-function Campo({ label, valor }: { label: string; valor: string }) {
-  return (
-    <div>
-      <div className="text-[11px] uppercase tracking-wider text-[var(--color-fg-muted)] mb-0.5">{label}</div>
-      <p className="text-sm text-[var(--color-fg)] whitespace-pre-line">{valor}</p>
     </div>
   );
 }
