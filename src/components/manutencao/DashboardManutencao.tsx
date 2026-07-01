@@ -2,12 +2,13 @@
 //
 // Página com KPIs agregados, tops, curva de custo e alertas de óleos. Read-only.
 // Task 3.3: removidos widgets de preventivas/planos; adicionado OleosVencendoPanel.
+// Task 3.3 (complement): widgets de custo por máquina e por tipo de serviço.
 
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   ClipboardList, AlertTriangle, Clock, Wrench, TrendingUp,
-  Activity, BarChart3, DollarSign, Package, HardHat, FileDown,
+  Activity, BarChart3, DollarSign, Package, HardHat, FileDown, Layers,
 } from 'lucide-react';
 import Button from '../ui/Button';
 import { exportarRelatorioMensalPdf, exportarRelatorioAnualPdf } from '../../utils/manutencaoPdfExport';
@@ -20,6 +21,8 @@ import { useSaldoEstoqueTotal } from '../../hooks/useSaldoEstoque';
 import { useCustoPecasEquipamento } from '../../hooks/useCustoPecasEquipamento';
 import { useChecklistsNaoConformidades } from '../../hooks/useChecklistNaoConformidades';
 import OleosVencendoPanel from './OleosVencendoPanel';
+import { TIPO_OS_LABEL } from '../../types';
+import type { TipoOS } from '../../types';
 
 function fmtBRL(n: number): string {
   return n.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 });
@@ -65,6 +68,65 @@ export default function DashboardManutencao() {
     }
     return { criticas: zeradas + abaixoMin, zeradas, abaixoMin, total: saldosEstoque.length };
   }, [saldosEstoque]);
+
+  // ── Custo por máquina (concluídas no ano, top 8) ─────────────────
+  const custoPorMaquina = useMemo(() => {
+    if (!dash) return [];
+    const anoAtual = new Date().getFullYear();
+    const concluidas = dash.ordens.filter(
+      (o) => o.status === 'concluida' && o.dataConclusao &&
+        new Date(o.dataConclusao).getFullYear() === anoAtual,
+    );
+    const map = new Map<string, { total: number; numOS: number }>();
+    for (const o of concluidas) {
+      const v = map.get(o.equipamentoId) ?? { total: 0, numOS: 0 };
+      v.total += o.custoTotal;
+      v.numOS += 1;
+      map.set(o.equipamentoId, v);
+    }
+    const equipMap = new Map(equipamentos.map((e) => [e.id, e]));
+    return Array.from(map.entries())
+      .map(([eqId, v]) => {
+        const eq = equipMap.get(eqId);
+        return {
+          equipamentoId: eqId,
+          equipamentoNome: eq
+            ? eq.codigoPatrimonio ? `${eq.codigoPatrimonio} · ${eq.nome}` : eq.nome
+            : eqId,
+          custoTotal: v.total,
+          numOS: v.numOS,
+        };
+      })
+      .filter((it) => it.custoTotal > 0)
+      .sort((a, b) => b.custoTotal - a.custoTotal)
+      .slice(0, 8);
+  }, [dash, equipamentos]);
+
+  // ── Custo por tipo de serviço (concluídas no ano) ─────────────────
+  const custoPorTipo = useMemo(() => {
+    if (!dash) return [];
+    const anoAtual = new Date().getFullYear();
+    const concluidas = dash.ordens.filter(
+      (o) => o.status === 'concluida' && o.dataConclusao &&
+        new Date(o.dataConclusao).getFullYear() === anoAtual,
+    );
+    const map = new Map<TipoOS, { total: number; numOS: number }>();
+    for (const o of concluidas) {
+      const v = map.get(o.tipo) ?? { total: 0, numOS: 0 };
+      v.total += o.custoTotal;
+      v.numOS += 1;
+      map.set(o.tipo, v);
+    }
+    return Array.from(map.entries())
+      .map(([tipo, v]) => ({
+        tipo,
+        label: TIPO_OS_LABEL[tipo] ?? tipo,
+        custoTotal: v.total,
+        numOS: v.numOS,
+      }))
+      .filter((it) => it.custoTotal > 0)
+      .sort((a, b) => b.custoTotal - a.custoTotal);
+  }, [dash]);
 
   // Seletores de export (mês e ano)
   const hoje = new Date();
@@ -333,6 +395,75 @@ export default function DashboardManutencao() {
               legenda={(it) => `${it.numOs} OS · ${it.numPecas} peças · ${it.tipo}`}
               vazio="Nenhum consumo de peças registrado nos últimos 12 meses."
             />
+          </section>
+
+          {/* Custo por máquina e por tipo de serviço (ano corrente) */}
+          <section className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+            {/* Custo por máquina */}
+            <div>
+              <h3 className="text-xs font-semibold uppercase tracking-wider text-[var(--color-fg-muted)] mb-2 flex items-center gap-1.5">
+                <DollarSign aria-hidden className="w-3.5 h-3.5" />
+                Custo por máquina · ano
+              </h3>
+              {custoPorMaquina.length === 0 ? (
+                <div className="rounded-xl border border-dashed border-[var(--color-border)] bg-[var(--color-surface-1)] p-4 text-center text-sm text-[var(--color-fg-muted)]">
+                  Nenhum serviço concluído com custo registrado este ano.
+                </div>
+              ) : (
+                <ul className="space-y-1">
+                  {custoPorMaquina.map((it, i) => (
+                    <li
+                      key={it.equipamentoId}
+                      className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-1)] p-2.5 flex items-center justify-between gap-2"
+                    >
+                      <div className="flex items-center gap-2 min-w-0 flex-1">
+                        <span className="text-xs font-mono text-[var(--color-fg-subtle)] w-5 text-right">
+                          {i + 1}
+                        </span>
+                        <div className="min-w-0">
+                          <p className="text-sm text-[var(--color-fg)] truncate">{it.equipamentoNome}</p>
+                          <p className="text-xs text-[var(--color-fg-muted)] truncate">{it.numOS} OS</p>
+                        </div>
+                      </div>
+                      <strong className="text-sm font-mono shrink-0">{fmtBRL(it.custoTotal)}</strong>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+
+            {/* Custo por tipo de serviço */}
+            <div>
+              <h3 className="text-xs font-semibold uppercase tracking-wider text-[var(--color-fg-muted)] mb-2 flex items-center gap-1.5">
+                <Layers aria-hidden className="w-3.5 h-3.5" />
+                Custo por tipo de serviço · ano
+              </h3>
+              {custoPorTipo.length === 0 ? (
+                <div className="rounded-xl border border-dashed border-[var(--color-border)] bg-[var(--color-surface-1)] p-4 text-center text-sm text-[var(--color-fg-muted)]">
+                  Nenhum serviço concluído com custo registrado este ano.
+                </div>
+              ) : (
+                <ul className="space-y-1">
+                  {custoPorTipo.map((it, i) => (
+                    <li
+                      key={it.tipo}
+                      className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-1)] p-2.5 flex items-center justify-between gap-2"
+                    >
+                      <div className="flex items-center gap-2 min-w-0 flex-1">
+                        <span className="text-xs font-mono text-[var(--color-fg-subtle)] w-5 text-right">
+                          {i + 1}
+                        </span>
+                        <div className="min-w-0">
+                          <p className="text-sm text-[var(--color-fg)] truncate">{it.label}</p>
+                          <p className="text-xs text-[var(--color-fg-muted)] truncate">{it.numOS} OS</p>
+                        </div>
+                      </div>
+                      <strong className="text-sm font-mono shrink-0">{fmtBRL(it.custoTotal)}</strong>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
           </section>
 
           {/* Alertas de óleos vencendo */}
