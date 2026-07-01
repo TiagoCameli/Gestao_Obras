@@ -1,61 +1,44 @@
-// Marco 2 / PR11 — Página de detalhe da OS.
-//
-// Acessada via /manutencao/os/:numero. Mostra:
-//   - Header: voltar, numero, equipamento, status, ações
-//   - Resumo: tipo, prioridade, datas, medições, custos
-//   - Diagnóstico: defeito, sintomas, sistemas, causa raiz, solução, recomendações
-//   - Peças e mão de obra (read-only — PR12 trará UI de gestão)
-//   - Anexos (galeria)
-//   - Timeline de transições
+// Task 2.3 — Detalhe do serviço com peças, terceiros e óleos.
+// Status/timeline e mão de obra removidos da UI (banco fica pra Fase 4).
 
 import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
-  ArrowLeft, Pencil, ShieldCheck, Calendar, Clock,
-  Gauge, Wrench, FileText, ChevronRight, Activity, Plus, Trash2,
+  ArrowLeft, Pencil, ShieldCheck, Calendar,
+  Gauge, Wrench, FileText, Plus, Trash2,
 } from 'lucide-react';
 import {
   useOrdemServicoByNumero,
   usePecasOS,
-  useMaoObraOS,
-  useTransicoesOS,
   useAtualizarOS,
-  useMudarStatusOS,
   useAdicionarPecaOS,
   useExcluirPecaOS,
-  useAdicionarMaoObraOS,
-  useExcluirMaoObraOS,
 } from '../../../hooks/useOrdensServico';
+import { useTerceirosOS, useExcluirTerceiroOS } from '../../../hooks/useOSTerceiros';
+import { useOleosOS, useExcluirOleoOS } from '../../../hooks/useOSOleos';
+import { useTiposOleo } from '../../../hooks/useTiposOleo';
 import { useEquipamentos } from '../../../hooks/useEquipamentos';
 import { useInsumos } from '../../../hooks/useInsumos';
-import { useColaboradores } from '../../../hooks/useColaboradores';
 import { useDepositosMaterial } from '../../../hooks/useDepositosMaterial';
 import { useAuth } from '../../../contexts/AuthContext';
 import AdicionarPecaOSModal from './AdicionarPecaOSModal';
-import AdicionarMaoObraOSModal from './AdicionarMaoObraOSModal';
-import type { OSPeca, OSMaoObra } from '../../../types';
+import AdicionarTerceiroOSModal from './AdicionarTerceiroOSModal';
+import AdicionarOleoOSModal from './AdicionarOleoOSModal';
+import EditarDiagnosticoOSModal from './EditarDiagnosticoOSModal';
+import type { OSPeca } from '../../../types';
 import {
   TIPO_OS_LABEL, PRIORIDADE_OS_LABEL, STATUS_OS_LABEL,
 } from '../../../types';
-import type { OrdemServico, StatusOS } from '../../../types';
+import type { OrdemServico } from '../../../types';
 import Button from '../../ui/Button';
 import ConfirmDialog from '../../ui/ConfirmDialog';
 import { STATUS_COLOR, PRIORIDADE_COLOR, TIPO_COLOR } from './styles';
-import MudarStatusOSModal from './MudarStatusOSModal';
-import EditarDiagnosticoOSModal from './EditarDiagnosticoOSModal';
 
 function fmtDataHora(s: string | null): string {
   if (!s) return '—';
   const d = new Date(s);
   if (isNaN(d.getTime())) return s;
   return d.toLocaleString('pt-BR', { day: '2-digit', month: 'short', year: '2-digit', hour: '2-digit', minute: '2-digit' });
-}
-
-function fmtData(s: string | null): string {
-  if (!s) return '—';
-  const d = new Date(s);
-  if (isNaN(d.getTime())) return s.slice(0, 10);
-  return d.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: '2-digit' });
 }
 
 function fmtBRL(n: number): string {
@@ -72,37 +55,37 @@ export default function OSDetalhe() {
   const equipamento = os ? equipamentos.find((e) => e.id === os.equipamentoId) : null;
 
   const { data: pecas = [] } = usePecasOS(os?.id);
-  const { data: maoObra = [] } = useMaoObraOS(os?.id);
-  const { data: transicoes = [] } = useTransicoesOS(os?.id);
+  const { data: terceiros = [] } = useTerceirosOS(os?.id);
+  const { data: oleos = [] } = useOleosOS(os?.id);
+  const { data: tiposOleo = [] } = useTiposOleo();
 
   const atualizarMut = useAtualizarOS();
-  const mudarStatusMut = useMudarStatusOS();
   const adicionarPecaMut = useAdicionarPecaOS();
   const excluirPecaMut = useExcluirPecaOS();
-  const adicionarMOMut = useAdicionarMaoObraOS();
-  const excluirMOMut = useExcluirMaoObraOS();
+  const excluirTerceiroMut = useExcluirTerceiroOS();
+  const excluirOleoMut = useExcluirOleoOS();
 
   const { data: insumos = [] } = useInsumos();
-  const { data: colaboradores = [] } = useColaboradores();
   const { data: depositos = [] } = useDepositosMaterial();
 
-  const canMudarStatus = temAcao('mudar_status_os');
   const canEditarDiag = temAcao('editar_diagnostico_os');
   const canAddPeca = temAcao('adicionar_peca_os');
-  const canAddMO = temAcao('adicionar_mao_obra_os');
+  const canAddTerceiro = temAcao('adicionar_terceiro_os');
+  const canAddOleo = temAcao('adicionar_oleo_os');
 
-  const [statusModalOpen, setStatusModalOpen] = useState(false);
   const [diagModalOpen, setDiagModalOpen] = useState(false);
-  // ConfirmDialog state pra exclusão de peças e mão de obra
-  const [excluirPecaId, setExcluirPecaId] = useState<string | null>(null);
-  const [excluirMoId, setExcluirMoId] = useState<string | null>(null);
   const [pecaModalOpen, setPecaModalOpen] = useState(false);
-  const [moModalOpen, setMOModalOpen] = useState(false);
+  const [terceiroModalOpen, setTerceiroModalOpen] = useState(false);
+  const [oleoModalOpen, setOleoModalOpen] = useState(false);
+
+  const [excluirPecaId, setExcluirPecaId] = useState<string | null>(null);
+  const [excluirTerceiroId, setExcluirTerceiroId] = useState<string | null>(null);
+  const [excluirOleoId, setExcluirOleoId] = useState<string | null>(null);
 
   if (isLoading) {
     return (
       <div className="text-center py-16">
-        <p className="text-sm text-[var(--color-fg-muted)]">Carregando OS…</p>
+        <p className="text-sm text-[var(--color-fg-muted)]">Carregando serviço…</p>
       </div>
     );
   }
@@ -110,7 +93,7 @@ export default function OSDetalhe() {
   if (!os) {
     return (
       <div className="rounded-xl border border-dashed border-[var(--color-border)] bg-[var(--color-surface-1)] p-12 text-center">
-        <p className="text-sm font-medium text-[var(--color-fg)]">OS não encontrada</p>
+        <p className="text-sm font-medium text-[var(--color-fg)]">Serviço não encontrado</p>
         <p className="text-xs text-[var(--color-fg-muted)] mt-1">
           O número {numero} não existe ou foi excluído.
         </p>
@@ -123,26 +106,6 @@ export default function OSDetalhe() {
 
   const sCor = STATUS_COLOR[os.status];
   const pCor = PRIORIDADE_COLOR[os.prioridade];
-
-  async function handleMudarStatus(novoStatus: StatusOS, observacao: string) {
-    if (!os) return;
-    await mudarStatusMut.mutateAsync({
-      osId: os.id,
-      novoStatus,
-      usuarioNome: usuario?.nome ?? '',
-    });
-    if (observacao) {
-      // Se houve observação, anexa às recomendações/observações (auditoria fica em os_transicoes via trigger)
-      await atualizarMut.mutateAsync({
-        ...os,
-        status: novoStatus,
-        observacoes: os.observacoes
-          ? `${os.observacoes}\n\n[${new Date().toLocaleString('pt-BR')}] ${observacao}`
-          : `[${new Date().toLocaleString('pt-BR')}] ${observacao}`,
-        updatedBy: usuario?.nome ?? '',
-      });
-    }
-  }
 
   async function handleSalvarDiagnostico(patch: Partial<OrdemServico>) {
     if (!os) return;
@@ -157,24 +120,8 @@ export default function OSDetalhe() {
     await adicionarPecaMut.mutateAsync(peca);
   }
 
-  async function handleAdicionarMO(mo: OSMaoObra) {
-    await adicionarMOMut.mutateAsync(mo);
-  }
-
-  function handleExcluirPeca(pecaId: string) {
-    if (!os) return;
-    if (!canAddPeca) return;
-    setExcluirPecaId(pecaId);
-  }
-
-  function handleExcluirMO(moId: string) {
-    if (!os) return;
-    if (!canAddMO) return;
-    setExcluirMoId(moId);
-  }
-
   const insumoNome = (id: string) => insumos.find((i) => i.id === id)?.nome ?? id;
-  const colabNome = (id: string) => colaboradores.find((c) => c.id === id)?.nome ?? id;
+  const tipoOleoNome = (id: string) => tiposOleo.find((t) => t.id === id)?.nome ?? id;
 
   return (
     <div className="space-y-5">
@@ -186,7 +133,7 @@ export default function OSDetalhe() {
           className="text-sm text-[var(--color-fg-muted)] hover:text-[var(--color-fg)] inline-flex items-center gap-1 mb-2"
         >
           <ArrowLeft className="w-4 h-4" />
-          Voltar para Ordens de Serviço
+          Voltar para Serviços
         </button>
         <div className={'rounded-2xl border-l-4 ' + TIPO_COLOR[os.tipo] + ' border border-[var(--color-border)] bg-[var(--color-surface-1)] p-4 sm:p-5'}>
           <div className="flex items-start justify-between gap-3 flex-wrap">
@@ -230,14 +177,6 @@ export default function OSDetalhe() {
                 <p className="text-sm text-[var(--color-fg-muted)] mt-0.5">{equipamento.tipo}</p>
               )}
             </div>
-            <div className="flex items-center gap-2 flex-wrap">
-              {canMudarStatus && (
-                <Button variant="secondary" size="sm" onClick={() => setStatusModalOpen(true)}>
-                  <ChevronRight className="w-3.5 h-3.5" />
-                  Avançar status
-                </Button>
-              )}
-            </div>
           </div>
         </div>
       </div>
@@ -266,8 +205,8 @@ export default function OSDetalhe() {
 
         <Bloco titulo="Custos" icon={Wrench}>
           <Linha label="Peças" valor={fmtBRL(os.custoPecas)} />
-          <Linha label="Serviço terceiro" valor={fmtBRL(os.custoServicoTerceiro)} />
-          <Linha label="Mão de obra própria" valor={fmtBRL(os.custoMaoObraPropria)} />
+          <Linha label="Terceiros" valor={fmtBRL(os.custoTerceiros)} />
+          <Linha label="Óleos" valor={fmtBRL(os.custoOleos)} />
           <Linha label="Total" valor={<strong className="text-[var(--color-fg)]">{fmtBRL(os.custoTotal)}</strong>} destaque />
         </Bloco>
       </section>
@@ -318,162 +257,178 @@ export default function OSDetalhe() {
         </div>
       </section>
 
-      {/* Peças e mão de obra */}
-      <section className="grid grid-cols-1 lg:grid-cols-2 gap-3">
-        {/* PEÇAS */}
-        <div>
-          <div className="flex items-center justify-between mb-2">
-            <h3 className="text-xs font-semibold uppercase tracking-wider text-[var(--color-fg-muted)]">
-              Peças utilizadas
-              {pecas.length > 0 && (
-                <span className="ml-2 text-[var(--color-fg-subtle)] font-normal">({pecas.length})</span>
-              )}
-            </h3>
+      {/* Peças */}
+      <section>
+        <div className="flex items-center justify-between mb-2">
+          <h3 className="text-xs font-semibold uppercase tracking-wider text-[var(--color-fg-muted)]">
+            Peças utilizadas
+            {pecas.length > 0 && (
+              <span className="ml-2 text-[var(--color-fg-subtle)] font-normal">({pecas.length})</span>
+            )}
+          </h3>
+          {canAddPeca && (
+            <Button size="sm" variant="secondary" onClick={() => setPecaModalOpen(true)}>
+              <Plus className="w-3.5 h-3.5" />
+              Adicionar
+            </Button>
+          )}
+        </div>
+        {pecas.length === 0 ? (
+          <div className="rounded-xl border border-dashed border-[var(--color-border)] bg-[var(--color-surface-1)] p-4 text-center text-sm text-[var(--color-fg-muted)]">
+            Nenhuma peça registrada.
             {canAddPeca && (
-              <Button size="sm" variant="secondary" onClick={() => setPecaModalOpen(true)}>
-                <Plus className="w-3.5 h-3.5" />
-                Adicionar
-              </Button>
+              <p className="text-xs text-[var(--color-fg-subtle)] mt-1">
+                Clique em Adicionar pra registrar a 1ª peça.
+              </p>
             )}
           </div>
-          {pecas.length === 0 ? (
-            <div className="rounded-xl border border-dashed border-[var(--color-border)] bg-[var(--color-surface-1)] p-4 text-center text-sm text-[var(--color-fg-muted)]">
-              Nenhuma peça registrada.
-              {canAddPeca && (
-                <p className="text-xs text-[var(--color-fg-subtle)] mt-1">
-                  Clique em Adicionar pra registrar a 1ª peça.
-                </p>
-              )}
-            </div>
-          ) : (
-            <ul className="space-y-1">
-              {pecas.map((p) => (
-                <li
-                  key={p.id}
-                  className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-1)] p-2.5 flex items-center justify-between gap-2"
-                >
-                  <div className="min-w-0 flex-1">
-                    <p className="text-sm text-[var(--color-fg)] truncate">{insumoNome(p.insumoId)}</p>
-                    <p className="text-xs text-[var(--color-fg-muted)]">
-                      {p.quantidade} × {fmtBRL(p.custoUnitario)}
-                      {' · '}
-                      <span className="capitalize">{p.status}</span>
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-1.5 shrink-0">
-                    <strong className="text-sm font-mono">{fmtBRL(p.custoTotal)}</strong>
-                    {canAddPeca && (
-                      <button
-                        type="button"
-                        onClick={() => handleExcluirPeca(p.id)}
-                        className="w-7 h-7 inline-flex items-center justify-center rounded-md text-[var(--color-fg-subtle)] hover:text-[var(--color-danger)] hover:bg-[var(--color-surface-2)]"
-                        aria-label="Remover peça"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
-                    )}
-                  </div>
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
-
-        {/* MÃO DE OBRA */}
-        <div>
-          <div className="flex items-center justify-between mb-2">
-            <h3 className="text-xs font-semibold uppercase tracking-wider text-[var(--color-fg-muted)]">
-              Mão de obra própria
-              {maoObra.length > 0 && (
-                <span className="ml-2 text-[var(--color-fg-subtle)] font-normal">({maoObra.length})</span>
-              )}
-            </h3>
-            {canAddMO && (
-              <Button size="sm" variant="secondary" onClick={() => setMOModalOpen(true)}>
-                <Plus className="w-3.5 h-3.5" />
-                Apontar horas
-              </Button>
-            )}
-          </div>
-          {maoObra.length === 0 ? (
-            <div className="rounded-xl border border-dashed border-[var(--color-border)] bg-[var(--color-surface-1)] p-4 text-center text-sm text-[var(--color-fg-muted)]">
-              Nenhuma hora apontada.
-              {canAddMO && (
-                <p className="text-xs text-[var(--color-fg-subtle)] mt-1">
-                  Clique em Apontar horas pra registrar a 1ª.
-                </p>
-              )}
-            </div>
-          ) : (
-            <ul className="space-y-1">
-              {maoObra.map((m) => (
-                <li
-                  key={m.id}
-                  className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-1)] p-2.5 flex items-center justify-between gap-2"
-                >
-                  <div className="min-w-0 flex-1">
-                    <p className="text-sm text-[var(--color-fg)] truncate">{colabNome(m.colaboradorId)}</p>
-                    <p className="text-xs text-[var(--color-fg-muted)]">
-                      {fmtData(m.data)} · {m.horas} h
-                      {m.custoHora != null && <> · {fmtBRL(m.custoHora)}/h</>}
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-1.5 shrink-0">
-                    <strong className="text-sm font-mono">{fmtBRL(m.custoTotal)}</strong>
-                    {canAddMO && (
-                      <button
-                        type="button"
-                        onClick={() => handleExcluirMO(m.id)}
-                        className="w-7 h-7 inline-flex items-center justify-center rounded-md text-[var(--color-fg-subtle)] hover:text-[var(--color-danger)] hover:bg-[var(--color-surface-2)]"
-                        aria-label="Remover apontamento"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
-                    )}
-                  </div>
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
+        ) : (
+          <ul className="space-y-1">
+            {pecas.map((p) => (
+              <li
+                key={p.id}
+                className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-1)] p-2.5 flex items-center justify-between gap-2"
+              >
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm text-[var(--color-fg)] truncate">{insumoNome(p.insumoId)}</p>
+                  <p className="text-xs text-[var(--color-fg-muted)]">
+                    {p.quantidade} × {fmtBRL(p.custoUnitario)}
+                    {' · '}
+                    <span className="capitalize">{p.status}</span>
+                  </p>
+                </div>
+                <div className="flex items-center gap-1.5 shrink-0">
+                  <strong className="text-sm font-mono">{fmtBRL(p.custoTotal)}</strong>
+                  {canAddPeca && (
+                    <button
+                      type="button"
+                      onClick={() => setExcluirPecaId(p.id)}
+                      className="w-7 h-7 inline-flex items-center justify-center rounded-md text-[var(--color-fg-subtle)] hover:text-[var(--color-danger)] hover:bg-[var(--color-surface-2)]"
+                      aria-label="Remover peça"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  )}
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
       </section>
 
-      {/* Timeline de transições */}
+      {/* Terceiros */}
       <section>
-        <h3 className="text-xs font-semibold uppercase tracking-wider text-[var(--color-fg-muted)] mb-2">
-          Histórico de status
-          <span className="ml-2 text-[var(--color-fg-subtle)] font-normal">({transicoes.length})</span>
-        </h3>
-        {transicoes.length === 0 ? (
-          <p className="text-sm text-[var(--color-fg-muted)] py-2">Sem transições.</p>
+        <div className="flex items-center justify-between mb-2">
+          <h3 className="text-xs font-semibold uppercase tracking-wider text-[var(--color-fg-muted)]">
+            Serviços de terceiros
+            {terceiros.length > 0 && (
+              <span className="ml-2 text-[var(--color-fg-subtle)] font-normal">({terceiros.length})</span>
+            )}
+          </h3>
+          {canAddTerceiro && (
+            <Button size="sm" variant="secondary" onClick={() => setTerceiroModalOpen(true)}>
+              <Plus className="w-3.5 h-3.5" />
+              Adicionar
+            </Button>
+          )}
+        </div>
+        {terceiros.length === 0 ? (
+          <div className="rounded-xl border border-dashed border-[var(--color-border)] bg-[var(--color-surface-1)] p-4 text-center text-sm text-[var(--color-fg-muted)]">
+            Nenhum serviço de terceiro registrado.
+            {canAddTerceiro && (
+              <p className="text-xs text-[var(--color-fg-subtle)] mt-1">
+                Clique em Adicionar pra registrar o 1º serviço de terceiro.
+              </p>
+            )}
+          </div>
         ) : (
-          <ul className="relative space-y-2">
-            <span aria-hidden className="absolute left-3.5 top-2 bottom-2 w-px bg-[var(--color-border)]" />
-            {transicoes.map((t) => {
-              const sCor = STATUS_COLOR[t.statusPara];
-              return (
-                <li key={t.id} className="relative pl-10">
-                  <span
-                    aria-hidden
-                    className="absolute left-0 top-1.5 w-7 h-7 rounded-full inline-flex items-center justify-center"
-                    style={{ backgroundColor: sCor.bg }}
-                  >
-                    <Activity className="w-3.5 h-3.5" style={{ color: sCor.fg }} />
-                  </span>
-                  <div className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-1)] p-2.5">
-                    <div className="text-sm font-medium text-[var(--color-fg)]">
-                      {t.statusDe ? STATUS_OS_LABEL[t.statusDe] : 'Criação'} → {STATUS_OS_LABEL[t.statusPara]}
-                    </div>
-                    {t.motivo && <p className="text-xs text-[var(--color-fg-muted)] mt-0.5">{t.motivo}</p>}
-                    <div className="flex items-center gap-2 mt-1 text-[11px] text-[var(--color-fg-subtle)]">
-                      <Clock className="w-3 h-3" />
-                      {fmtDataHora(t.createdAt)}
-                      {t.createdBy && <span>· {t.createdBy}</span>}
-                    </div>
-                  </div>
-                </li>
-              );
-            })}
+          <ul className="space-y-1">
+            {terceiros.map((t) => (
+              <li
+                key={t.id}
+                className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-1)] p-2.5 flex items-center justify-between gap-2"
+              >
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm text-[var(--color-fg)] truncate">{t.prestador}</p>
+                  {t.descricao && (
+                    <p className="text-xs text-[var(--color-fg-muted)] truncate">{t.descricao}</p>
+                  )}
+                  {t.notaFiscal && (
+                    <p className="text-xs text-[var(--color-fg-subtle)]">NF: {t.notaFiscal}</p>
+                  )}
+                </div>
+                <div className="flex items-center gap-1.5 shrink-0">
+                  <strong className="text-sm font-mono">{fmtBRL(t.valor)}</strong>
+                  {canAddTerceiro && (
+                    <button
+                      type="button"
+                      onClick={() => setExcluirTerceiroId(t.id)}
+                      className="w-7 h-7 inline-flex items-center justify-center rounded-md text-[var(--color-fg-subtle)] hover:text-[var(--color-danger)] hover:bg-[var(--color-surface-2)]"
+                      aria-label="Remover terceiro"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  )}
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+
+      {/* Óleos */}
+      <section>
+        <div className="flex items-center justify-between mb-2">
+          <h3 className="text-xs font-semibold uppercase tracking-wider text-[var(--color-fg-muted)]">
+            Óleos e lubrificantes
+            {oleos.length > 0 && (
+              <span className="ml-2 text-[var(--color-fg-subtle)] font-normal">({oleos.length})</span>
+            )}
+          </h3>
+          {canAddOleo && (
+            <Button size="sm" variant="secondary" onClick={() => setOleoModalOpen(true)}>
+              <Plus className="w-3.5 h-3.5" />
+              Adicionar
+            </Button>
+          )}
+        </div>
+        {oleos.length === 0 ? (
+          <div className="rounded-xl border border-dashed border-[var(--color-border)] bg-[var(--color-surface-1)] p-4 text-center text-sm text-[var(--color-fg-muted)]">
+            Nenhuma troca de óleo registrada.
+            {canAddOleo && (
+              <p className="text-xs text-[var(--color-fg-subtle)] mt-1">
+                Clique em Adicionar pra registrar a 1ª troca.
+              </p>
+            )}
+          </div>
+        ) : (
+          <ul className="space-y-1">
+            {oleos.map((o) => (
+              <li
+                key={o.id}
+                className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-1)] p-2.5 flex items-center justify-between gap-2"
+              >
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm text-[var(--color-fg)] truncate">{tipoOleoNome(o.tipoOleoId)}</p>
+                  <p className="text-xs text-[var(--color-fg-muted)]">
+                    {o.quantidade} {o.unidade} × {fmtBRL(o.valorUnitario)}/{o.unidade}
+                  </p>
+                </div>
+                <div className="flex items-center gap-1.5 shrink-0">
+                  <strong className="text-sm font-mono">{fmtBRL(o.valorTotal)}</strong>
+                  {canAddOleo && (
+                    <button
+                      type="button"
+                      onClick={() => setExcluirOleoId(o.id)}
+                      className="w-7 h-7 inline-flex items-center justify-center rounded-md text-[var(--color-fg-subtle)] hover:text-[var(--color-danger)] hover:bg-[var(--color-surface-2)]"
+                      aria-label="Remover óleo"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  )}
+                </div>
+              </li>
+            ))}
           </ul>
         )}
       </section>
@@ -512,16 +467,7 @@ export default function OSDetalhe() {
         </section>
       )}
 
-      {statusModalOpen && (
-        <MudarStatusOSModal
-          open={statusModalOpen}
-          onClose={() => setStatusModalOpen(false)}
-          numero={os.numero}
-          statusAtual={os.status}
-          onConfirm={handleMudarStatus}
-        />
-      )}
-
+      {/* Modais */}
       {diagModalOpen && (
         <EditarDiagnosticoOSModal
           open={diagModalOpen}
@@ -543,17 +489,21 @@ export default function OSDetalhe() {
         />
       )}
 
-      {moModalOpen && (
-        <AdicionarMaoObraOSModal
-          open={moModalOpen}
-          onClose={() => setMOModalOpen(false)}
+      {terceiroModalOpen && (
+        <AdicionarTerceiroOSModal
           osId={os.id}
-          colaboradores={colaboradores}
-          onSubmit={handleAdicionarMO}
-          usuarioNome={usuario?.nome ?? ''}
+          onClose={() => setTerceiroModalOpen(false)}
         />
       )}
 
+      {oleoModalOpen && (
+        <AdicionarOleoOSModal
+          osId={os.id}
+          onClose={() => setOleoModalOpen(false)}
+        />
+      )}
+
+      {/* ConfirmDialogs */}
       <ConfirmDialog
         open={excluirPecaId !== null}
         onClose={() => setExcluirPecaId(null)}
@@ -566,23 +516,39 @@ export default function OSDetalhe() {
           }
         }}
         title="Excluir peça"
-        message="Confirma a exclusão desta peça da OS?"
+        message="Confirma a exclusão desta peça do serviço?"
         requirePassword={false}
       />
 
       <ConfirmDialog
-        open={excluirMoId !== null}
-        onClose={() => setExcluirMoId(null)}
+        open={excluirTerceiroId !== null}
+        onClose={() => setExcluirTerceiroId(null)}
         onConfirm={async () => {
-          if (!excluirMoId) return;
+          if (!excluirTerceiroId) return;
           try {
-            await excluirMOMut.mutateAsync({ moId: excluirMoId, osId: os.id });
+            await excluirTerceiroMut.mutateAsync({ id: excluirTerceiroId, osId: os.id });
           } finally {
-            setExcluirMoId(null);
+            setExcluirTerceiroId(null);
           }
         }}
-        title="Excluir mão de obra"
-        message="Confirma a exclusão deste lançamento de mão de obra?"
+        title="Excluir serviço de terceiro"
+        message="Confirma a exclusão deste serviço de terceiro?"
+        requirePassword={false}
+      />
+
+      <ConfirmDialog
+        open={excluirOleoId !== null}
+        onClose={() => setExcluirOleoId(null)}
+        onConfirm={async () => {
+          if (!excluirOleoId) return;
+          try {
+            await excluirOleoMut.mutateAsync({ id: excluirOleoId, osId: os.id });
+          } finally {
+            setExcluirOleoId(null);
+          }
+        }}
+        title="Excluir troca de óleo"
+        message="Confirma a exclusão desta troca de óleo?"
         requirePassword={false}
       />
     </div>
@@ -636,4 +602,3 @@ function Campo({ label, valor }: { label: string; valor: string }) {
     </div>
   );
 }
-
