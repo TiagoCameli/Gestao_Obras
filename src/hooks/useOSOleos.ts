@@ -33,7 +33,6 @@ function osOleoToDb(o: OSOleo) {
     quantidade: o.quantidade,
     unidade: o.unidade,
     valor_unitario: o.valorUnitario,
-    valor_total: o.valorTotal,
     created_by: o.createdBy,
   };
 }
@@ -97,7 +96,9 @@ export function useAdicionarOleoOS() {
       return dbToOSOleo(data[0]);
     },
     onSuccess: (_data, variables) => {
-      qc.invalidateQueries({ queryKey: ['os', variables.osId] });
+      qc.invalidateQueries({ queryKey: ['ordem_servico', variables.osId] });
+      qc.invalidateQueries({ queryKey: ['ordem_servico_numero'] });
+      qc.invalidateQueries({ queryKey: ['ordens_servico'] });
       qc.invalidateQueries({ queryKey: ['os-oleos', variables.osId] });
       qc.invalidateQueries({ queryKey: ['oleos-vencendo'] });
     },
@@ -108,11 +109,18 @@ export function useExcluirOleoOS() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (params: { id: string; osId: string }) => {
-      const { error } = await supabase.from('os_oleos').delete().eq('id', params.id);
+      const { data, error } = await supabase
+        .from('os_oleos')
+        .delete()
+        .eq('id', params.id)
+        .select();
       if (error) throw error;
+      if (!data || data.length === 0) throw new Error('Sem permissão ou linha não excluída');
     },
     onSuccess: (_data, variables) => {
-      qc.invalidateQueries({ queryKey: ['os', variables.osId] });
+      qc.invalidateQueries({ queryKey: ['ordem_servico', variables.osId] });
+      qc.invalidateQueries({ queryKey: ['ordem_servico_numero'] });
+      qc.invalidateQueries({ queryKey: ['ordens_servico'] });
       qc.invalidateQueries({ queryKey: ['os-oleos', variables.osId] });
       qc.invalidateQueries({ queryKey: ['oleos-vencendo'] });
     },

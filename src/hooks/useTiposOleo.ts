@@ -15,7 +15,7 @@ function dbToTipoOleo(row: any): TipoOleo {
   return {
     id: row.id,
     nome: row.nome ?? '',
-    aplicacao: row.aplicacao ?? [],
+    aplicacao: row.aplicacao,
     intervaloMeses: row.intervalo_meses != null ? Number(row.intervalo_meses) : null,
     ativo: !!row.ativo,
     createdAt: row.created_at ?? '',
@@ -72,11 +72,13 @@ export function useAtualizarTipoOleo() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (t: Omit<TipoOleo, 'createdAt'>) => {
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from('tipos_oleo')
         .update(tipoOleoToDb(t))
-        .eq('id', t.id);
+        .eq('id', t.id)
+        .select();
       if (error) throw error;
+      if (!data || data.length === 0) throw new Error('Sem permissão ou linha não atualizada');
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['tipos-oleo'] });
@@ -88,8 +90,13 @@ export function useExcluirTipoOleo() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase.from('tipos_oleo').delete().eq('id', id);
+      const { data, error } = await supabase
+        .from('tipos_oleo')
+        .delete()
+        .eq('id', id)
+        .select();
       if (error) throw error;
+      if (!data || data.length === 0) throw new Error('Sem permissão ou linha não excluída');
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['tipos-oleo'] });

@@ -68,7 +68,9 @@ export function useAdicionarTerceiroOS() {
       return dbToOSTerceiro(data[0]);
     },
     onSuccess: (_data, variables) => {
-      qc.invalidateQueries({ queryKey: ['os', variables.osId] });
+      qc.invalidateQueries({ queryKey: ['ordem_servico', variables.osId] });
+      qc.invalidateQueries({ queryKey: ['ordem_servico_numero'] });
+      qc.invalidateQueries({ queryKey: ['ordens_servico'] });
       qc.invalidateQueries({ queryKey: ['os-terceiros', variables.osId] });
     },
   });
@@ -78,11 +80,18 @@ export function useExcluirTerceiroOS() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (params: { id: string; osId: string }) => {
-      const { error } = await supabase.from('os_terceiros').delete().eq('id', params.id);
+      const { data, error } = await supabase
+        .from('os_terceiros')
+        .delete()
+        .eq('id', params.id)
+        .select();
       if (error) throw error;
+      if (!data || data.length === 0) throw new Error('Sem permissão ou linha não excluída');
     },
     onSuccess: (_data, variables) => {
-      qc.invalidateQueries({ queryKey: ['os', variables.osId] });
+      qc.invalidateQueries({ queryKey: ['ordem_servico', variables.osId] });
+      qc.invalidateQueries({ queryKey: ['ordem_servico_numero'] });
+      qc.invalidateQueries({ queryKey: ['ordens_servico'] });
       qc.invalidateQueries({ queryKey: ['os-terceiros', variables.osId] });
     },
   });

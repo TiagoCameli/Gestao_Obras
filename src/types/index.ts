@@ -1807,7 +1807,7 @@ export interface ChecklistResposta {
 export interface TipoOleo {
   id: string;
   nome: string;
-  aplicacao: ('motor' | 'hidraulico' | 'transmissao' | 'diferencial' | 'graxa' | 'outro')[];
+  aplicacao: 'motor' | 'hidraulico' | 'transmissao' | 'diferencial' | 'graxa' | 'outro';
   intervaloMeses: number | null;
   ativo: boolean;
   createdAt: string;
