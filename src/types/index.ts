@@ -1417,7 +1417,7 @@ export interface ProximaPreventiva {
 
 // === Ordens de Serviço (PR9 - Marco 2) ===
 
-export type TipoOS = 'preventiva' | 'corretiva' | 'preditiva' | 'melhoria' | 'garantia' | 'recall';
+export type TipoOS = 'preventiva' | 'corretiva' | 'preditiva' | 'melhoria' | 'garantia' | 'recall' | 'troca_oleo' | 'lubrificacao' | 'pneu' | 'solda' | 'eletrica' | 'revisao_geral' | 'outro';
 export type PrioridadeOS = 'baixa' | 'media' | 'alta' | 'critica';
 export type StatusOS =
   | 'rascunho' | 'aberta' | 'aguardando_pecas' | 'em_execucao'
@@ -1432,6 +1432,13 @@ export const TIPO_OS_LABEL: Record<TipoOS, string> = {
   melhoria: 'Melhoria',
   garantia: 'Garantia',
   recall: 'Recall',
+  troca_oleo: 'Troca de óleo',
+  lubrificacao: 'Lubrificação',
+  pneu: 'Pneu',
+  solda: 'Solda',
+  eletrica: 'Elétrica',
+  revisao_geral: 'Revisão geral',
+  outro: 'Outro',
 };
 
 export const PRIORIDADE_OS_LABEL: Record<PrioridadeOS, string> = {
@@ -1483,6 +1490,8 @@ export interface OrdemServico {
   custoPecas: number;
   custoServicoTerceiro: number;
   custoMaoObraPropria: number;
+  custoTerceiros: number;
+  custoOleos: number;
   custoTotal: number;
   aprovadoPor: string;
   aprovadoEm: string | null;
@@ -1791,4 +1800,52 @@ export interface ChecklistResposta {
   resposta: RespostaChecklist;
   observacao: string;
   fotoUrl: string | null;
+}
+
+// === Manutenção — Óleos, Serviços Terceiros (Task 2.1) ===
+
+export interface TipoOleo {
+  id: string;
+  nome: string;
+  aplicacao: ('motor' | 'hidraulico' | 'transmissao' | 'diferencial' | 'graxa' | 'outro')[];
+  intervaloMeses: number | null;
+  ativo: boolean;
+  createdAt: string;
+  createdBy: string;
+}
+
+export interface OSTerceiro {
+  id: string;
+  osId: string;
+  prestador: string;
+  descricao: string;
+  valor: number;
+  notaFiscal: string | null;
+  createdAt: string;
+  createdBy: string;
+}
+
+export interface OSOleo {
+  id: string;
+  osId: string;
+  tipoOleoId: string;
+  quantidade: number;
+  unidade: 'L' | 'kg';
+  valorUnitario: number;
+  valorTotal: number;
+  createdAt: string;
+  createdBy: string;
+}
+
+export interface OleoVencendo {
+  equipamentoId: string;
+  equipamentoNome: string;
+  tipoOleoId: string;
+  tipoOleoNome: string;
+  aplicacao: string;
+  ultimaTroca: string;
+  intervaloMeses: number;
+  dataVencimento: string;
+  diasParaVencer: number;
+  situacao: 'vencido' | 'a_vencer' | 'ok';
 }

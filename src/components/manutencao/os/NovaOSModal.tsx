@@ -120,6 +120,8 @@ export default function NovaOSModal({ open, onClose, equipamentos, equipamentoId
           custoPecas: 0,
           custoServicoTerceiro: 0,
           custoMaoObraPropria: 0,
+          custoTerceiros: 0,
+          custoOleos: 0,
           aprovadoPor: '',
           aprovadoEm: null,
           garantiaAcionada: false,

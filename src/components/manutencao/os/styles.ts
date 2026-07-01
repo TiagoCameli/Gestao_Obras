@@ -35,10 +35,17 @@ export const PRIORIDADE_COLOR: Record<PrioridadeOS, { bg: string; fg: string }> 
 };
 
 export const TIPO_COLOR: Record<TipoOS, string> = {
-  preventiva: 'border-l-emerald-500',
-  corretiva:  'border-l-rose-500',
-  preditiva:  'border-l-violet-500',
-  melhoria:   'border-l-sky-500',
-  garantia:   'border-l-amber-500',
-  recall:     'border-l-orange-600',
+  preventiva:   'border-l-emerald-500',
+  corretiva:    'border-l-rose-500',
+  preditiva:    'border-l-violet-500',
+  melhoria:     'border-l-sky-500',
+  garantia:     'border-l-amber-500',
+  recall:       'border-l-orange-600',
+  troca_oleo:   'border-l-yellow-500',
+  lubrificacao: 'border-l-lime-500',
+  pneu:         'border-l-stone-500',
+  solda:        'border-l-red-700',
+  eletrica:     'border-l-blue-500',
+  revisao_geral:'border-l-teal-500',
+  outro:        'border-l-gray-400',
 };

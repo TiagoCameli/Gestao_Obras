@@ -1327,6 +1327,8 @@ export function dbToOrdemServico(row: any): OrdemServico {
     custoPecas: Number(row.custo_pecas ?? 0),
     custoServicoTerceiro: Number(row.custo_servico_terceiro ?? 0),
     custoMaoObraPropria: Number(row.custo_mao_obra_propria ?? 0),
+    custoTerceiros: Number(row.custo_terceiros ?? 0),
+    custoOleos: Number(row.custo_oleos ?? 0),
     custoTotal: Number(row.custo_total ?? 0),
     aprovadoPor: row.aprovado_por ?? '',
     aprovadoEm: row.aprovado_em ?? null,
