@@ -176,8 +176,14 @@ export function useCriarOS() {
         dataAbertura: new Date().toISOString(),
       };
       const payload = { ...ordemServicoToDb(osCompleta), numero, id };
-      const { error } = await supabase.from('ordens_servico').insert(payload);
+      const { data: inserted, error } = await supabase
+        .from('ordens_servico')
+        .insert(payload)
+        .select();
       if (error) throw error;
+      if (!inserted || inserted.length === 0) {
+        throw new Error('OS não foi criada — possível negação de permissão (RLS).');
+      }
       return osCompleta;
     },
     onSuccess: () => {

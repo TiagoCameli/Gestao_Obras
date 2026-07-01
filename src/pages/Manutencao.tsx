@@ -129,7 +129,7 @@ function ServicosPage() {
   const { data: servicos = [], isLoading } = useOrdensServico({
     tipo: filtroTipo || undefined,
     equipamentoId: filtroEquipamento || undefined,
-    status: 'todas',
+    status: 'concluida',
   });
 
   const equipamentosPorId = useMemo(() => {
@@ -138,21 +138,17 @@ function ServicosPage() {
     return map;
   }, [equipamentos]);
 
-  // Filtro de período (client-side sobre dataConclusao)
+  // Filtro de período (client-side sobre dataConclusao/dataAbertura).
+  // Usa comparação de strings YYYY-MM-DD (mesmo padrão de PagamentoFreteList)
+  // para evitar problemas de fuso horário com objetos Date.
   const servicosFiltrados = useMemo(() => {
     let result = servicos;
-    if (filtroDe) {
-      const de = new Date(filtroDe + 'T00:00:00');
+    if (filtroDe || filtroAte) {
       result = result.filter((s) => {
-        const d = s.dataConclusao ? new Date(s.dataConclusao) : new Date(s.dataAbertura);
-        return d >= de;
-      });
-    }
-    if (filtroAte) {
-      const ate = new Date(filtroAte + 'T23:59:59');
-      result = result.filter((s) => {
-        const d = s.dataConclusao ? new Date(s.dataConclusao) : new Date(s.dataAbertura);
-        return d <= ate;
+        const dataStr = (s.dataConclusao ?? s.dataAbertura ?? '').slice(0, 10);
+        if (filtroDe && dataStr < filtroDe) return false;
+        if (filtroAte && dataStr > filtroAte) return false;
+        return true;
       });
     }
     return result;

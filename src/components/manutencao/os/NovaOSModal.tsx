@@ -45,7 +45,11 @@ export default function NovaOSModal({ open, onClose, equipamentos, equipamentoId
     [equipamentos]
   );
 
-  const medicaoNum = medicaoAbertura ? parseFloat(medicaoAbertura.replace(',', '.')) || null : null;
+  const medicaoNum = (() => {
+    if (medicaoAbertura.trim() === '') return null;
+    const parsed = parseFloat(medicaoAbertura.replace(',', '.'));
+    return Number.isNaN(parsed) ? null : parsed;
+  })();
 
   const podeSalvar = !!equipamentoId && !!tipo && !!descricao.trim();
 
@@ -85,7 +89,7 @@ export default function NovaOSModal({ open, onClose, equipamentos, equipamentoId
           medicaoConclusao: null,
           paradaInicio: null,
           paradaFim: null,
-          defeitoReportado: descricao.trim(),
+          defeitoReportado: '',
           sintomas: [],
           sistemasAfetados: [],
           causaRaiz: '',
