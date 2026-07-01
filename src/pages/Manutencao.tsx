@@ -5,7 +5,7 @@
 
 import { useMemo, useState } from 'react';
 import { useSearchParams, Navigate, useLocation, useParams, useNavigate, Link } from 'react-router-dom';
-import { Plus, ClipboardList, Wrench, BarChart3, ClipboardCheck, CalendarClock, Package, HardHat } from 'lucide-react';
+import { Plus, ClipboardList, Wrench, BarChart3, ClipboardCheck, CalendarClock, Package, HardHat, Droplets } from 'lucide-react';
 import { useOrdensServico } from '../hooks/useOrdensServico';
 import { useEquipamentos } from '../hooks/useEquipamentos';
 import { useAuth } from '../contexts/AuthContext';
@@ -24,6 +24,7 @@ import PlanoDetalhePage from '../components/manutencao/planos/PlanoDetalhePage';
 import AgendaPreventivasPage from '../components/manutencao/AgendaPreventivasPage';
 import AlmoxarifadoPage from '../components/manutencao/AlmoxarifadoPage';
 import ChecklistsPage from '../components/manutencao/ChecklistsPage';
+import TiposOleoPage from '../components/manutencao/TiposOleoPage';
 import MobileScanShortcut from '../components/MobileScanShortcut';
 
 const TIPO_OPTS: { value: TipoOS | ''; label: string }[] = [
@@ -59,6 +60,7 @@ export default function ManutencaoPage() {
   else if (pathname === '/manutencao/agenda') inner = <AgendaPreventivasPage />;
   else if (pathname === '/manutencao/almoxarifado') inner = <AlmoxarifadoPage />;
   else if (pathname === '/manutencao/checklists') inner = <ChecklistsPage />;
+  else if (pathname === '/manutencao/tipos-oleo') inner = <TiposOleoPage />;
   else if (params.id && pathname.startsWith('/manutencao/planos/')) inner = <PlanoDetalhePage />;
   else if (pathname === '/manutencao/planos') inner = <PlanosPreventivosPage />;
   else inner = <ServicosPage />;
@@ -79,6 +81,7 @@ const SUB_NAV_ITEMS: { to: string; label: string; icon: typeof BarChart3; perm: 
   { to: '/manutencao/planos',        label: 'Planos preventivos',  icon: ClipboardCheck, perm: 'aba_manutencao_planos' },
   { to: '/manutencao/almoxarifado',  label: 'Almoxarifado',        icon: Package,        perm: 'aba_manutencao_almoxarifado' },
   { to: '/manutencao/checklists',    label: 'Checklists pré-uso',  icon: HardHat,        perm: 'aba_manutencao_checklists' },
+  { to: '/manutencao/tipos-oleo',    label: 'Tipos de óleo',       icon: Droplets,       perm: 'gerenciar_tipos_oleo' },
 ];
 
 function SubNav({ pathname }: { pathname: string }) {
