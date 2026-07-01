@@ -12,6 +12,7 @@ import { useAuth } from '../../../contexts/AuthContext';
 import Select from '../../ui/Select';
 import Button from '../../ui/Button';
 import FilterCombobox from '../../ui/FilterCombobox';
+import { parseNum } from '../../../utils/parseNum';
 
 interface Props {
   open: boolean;
@@ -32,10 +33,6 @@ const STATUS_PECA_OPTIONS = [
 
 function gerarId() {
   return Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
-}
-
-function parseNum(s: string): number {
-  return parseFloat(s.replace(',', '.')) || 0;
 }
 
 export default function AdicionarPecaOSModal({

@@ -6,10 +6,7 @@ import Button from '../../ui/Button';
 import { useAdicionarOleoOS } from '../../../hooks/useOSOleos';
 import { useTiposOleo } from '../../../hooks/useTiposOleo';
 import { useAuth } from '../../../contexts/AuthContext';
-
-function parseNum(s: string): number {
-  return parseFloat(s.replace(',', '.')) || 0;
-}
+import { parseNum } from '../../../utils/parseNum';
 
 const UNIDADE_OPTIONS = [
   { value: 'L', label: 'Litros (L)' },

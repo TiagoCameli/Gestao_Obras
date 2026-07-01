@@ -4,10 +4,7 @@ import Input from '../../ui/Input';
 import Button from '../../ui/Button';
 import { useAdicionarTerceiroOS } from '../../../hooks/useOSTerceiros';
 import { useAuth } from '../../../contexts/AuthContext';
-
-function parseNum(s: string): number {
-  return parseFloat(s.replace(',', '.')) || 0;
-}
+import { parseNum } from '../../../utils/parseNum';
 
 interface Props {
   osId: string;
