@@ -8,7 +8,7 @@ import { useState, useMemo } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   Package, Plus, AlertTriangle, Search, Settings2, Factory, FileInput,
-  Warehouse, MapPin, User, ArrowRight,
+  Warehouse, MapPin, User, ArrowRight, Upload,
 } from 'lucide-react';
 import Button from '../ui/Button';
 import SmartSelect from '../ui/SmartSelect';
@@ -23,6 +23,7 @@ import type { SaldoEstoque, Insumo, StatusEstoque } from '../../types';
 import PecaFormModal from './almoxarifado/PecaFormModal';
 import PecaDetalheModal from './almoxarifado/PecaDetalheModal';
 import NovaEntradaModal from './almoxarifado/NovaEntradaModal';
+import ImportPecasModal from './almoxarifado/ImportPecasModal';
 
 const STATUS_LABEL: Record<StatusEstoque, string> = {
   zerada: 'Zerada',
@@ -88,9 +89,11 @@ export default function AlmoxarifadoPage() {
   };
 
   const [novoOpen, setNovoOpen] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
   const [editarInsumo, setEditarInsumo] = useState<Insumo | null>(null);
   const [detalheInsumoId, setDetalheInsumoId] = useState<string | null>(null);
   const [entradaOpen, setEntradaOpen] = useState<{ open: boolean; insumoId?: string }>({ open: false });
+  const canImportar = temAcao('criar_peca_almoxarifado');
 
   // Mapa insumoId → Insumo completo (para abrir edição com dados)
   const insumosById = useMemo(() => {
@@ -149,6 +152,11 @@ export default function AlmoxarifadoPage() {
         </div>
         {canCreate && (
           <div className="flex gap-2">
+            {canImportar && (
+              <Button variant="secondary" onClick={() => setImportOpen(true)}>
+                <Upload className="w-4 h-4" /> Importar Excel
+              </Button>
+            )}
             <Button variant="secondary" onClick={() => setEntradaOpen({ open: true })}>
               <FileInput className="w-4 h-4" /> Nova entrada
             </Button>
@@ -349,6 +357,7 @@ export default function AlmoxarifadoPage() {
       {novoOpen && (
         <PecaFormModal open={novoOpen} onClose={() => setNovoOpen(false)} />
       )}
+      <ImportPecasModal open={importOpen} onClose={() => setImportOpen(false)} insumos={insumos} />
       {editarInsumo && (
         <PecaFormModal
           open={!!editarInsumo}

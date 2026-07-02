@@ -46,3 +46,22 @@ export function useExcluirInsumo() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['insumos'] }),
   });
 }
+
+/** Insere vários insumos de uma vez (import de planilha). Lança erro se 0 linhas (RLS silencioso). */
+export function useImportarInsumos() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (insumos: Insumo[]) => {
+      if (insumos.length === 0) return;
+      const { data, error } = await supabase
+        .from('insumos')
+        .insert(insumos.map(insumoToDb))
+        .select();
+      if (error) throw error;
+      if (!data || data.length === 0) {
+        throw new Error('Nenhuma peça foi importada — possível negação de permissão (RLS).');
+      }
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['insumos'] }),
+  });
+}
