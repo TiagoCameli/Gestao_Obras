@@ -5,7 +5,7 @@
 
 import { useMemo, useState } from 'react';
 import { useSearchParams, Navigate, useLocation, useParams, useNavigate, Link } from 'react-router-dom';
-import { Plus, ClipboardList, Wrench, BarChart3, ClipboardCheck, CalendarClock, Package, HardHat, Droplets, FileDown } from 'lucide-react';
+import { Plus, ClipboardList, Wrench, BarChart3, Package, Droplets, FileDown } from 'lucide-react';
 import { useOrdensServico } from '../hooks/useOrdensServico';
 import { useEquipamentos } from '../hooks/useEquipamentos';
 import { useAuth } from '../contexts/AuthContext';
@@ -22,11 +22,7 @@ import EmptyState from '../components/ui/EmptyState';
 import NovaOSModal from '../components/manutencao/os/NovaOSModal';
 import OSDetalhe from '../components/manutencao/os/OSDetalhe';
 import DashboardManutencao from '../components/manutencao/DashboardManutencao';
-import PlanosPreventivosPage from '../components/manutencao/PlanosPreventivosPage';
-import PlanoDetalhePage from '../components/manutencao/planos/PlanoDetalhePage';
-import AgendaPreventivasPage from '../components/manutencao/AgendaPreventivasPage';
 import AlmoxarifadoPage from '../components/manutencao/AlmoxarifadoPage';
-import ChecklistsPage from '../components/manutencao/ChecklistsPage';
 import TiposOleoPage from '../components/manutencao/TiposOleoPage';
 import MobileScanShortcut from '../components/MobileScanShortcut';
 
@@ -57,15 +53,10 @@ export default function ManutencaoPage() {
   if (params.numero) {
     return <OSDetalhe />;
   }
-  // /manutencao/planos/:id → detalhe do plano (com sub-nav)
   let inner: React.ReactNode;
   if (pathname === '/manutencao/dashboard') inner = <DashboardManutencao />;
-  else if (pathname === '/manutencao/agenda') inner = <AgendaPreventivasPage />;
   else if (pathname === '/manutencao/almoxarifado') inner = <AlmoxarifadoPage />;
-  else if (pathname === '/manutencao/checklists') inner = <ChecklistsPage />;
   else if (pathname === '/manutencao/tipos-oleo') inner = <TiposOleoPage />;
-  else if (params.id && pathname.startsWith('/manutencao/planos/')) inner = <PlanoDetalhePage />;
-  else if (pathname === '/manutencao/planos') inner = <PlanosPreventivosPage />;
   else inner = <ServicosPage />;
 
   return (
@@ -80,10 +71,7 @@ export default function ManutencaoPage() {
 const SUB_NAV_ITEMS: { to: string; label: string; icon: typeof BarChart3; perm: string }[] = [
   { to: '/manutencao/dashboard',     label: 'Dashboard',           icon: BarChart3,      perm: 'aba_manutencao_dashboard' },
   { to: '/manutencao/os',            label: 'Serviços',            icon: ClipboardList,  perm: 'aba_manutencao_os' },
-  { to: '/manutencao/agenda',        label: 'Agenda preventiva',   icon: CalendarClock,  perm: 'aba_manutencao_agenda' },
-  { to: '/manutencao/planos',        label: 'Planos preventivos',  icon: ClipboardCheck, perm: 'aba_manutencao_planos' },
   { to: '/manutencao/almoxarifado',  label: 'Almoxarifado',        icon: Package,        perm: 'aba_manutencao_almoxarifado' },
-  { to: '/manutencao/checklists',    label: 'Checklists pré-uso',  icon: HardHat,        perm: 'aba_manutencao_checklists' },
   { to: '/manutencao/tipos-oleo',    label: 'Tipos de óleo',       icon: Droplets,       perm: 'gerenciar_tipos_oleo' },
 ];
 

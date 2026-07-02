@@ -333,9 +333,6 @@ export const ACOES_PLATAFORMA: AcaoPlataforma[] = [
   // Histórico / Custos
   { chave: 'ver_historico_equipamento', label: 'Ver histórico do equipamento', grupo: 'Frota' },
   { chave: 'ver_custos_pecas_equipamento', label: 'Ver custos de peças por equipamento', grupo: 'Frota' },
-  // Checklists e planos preventivos (Frota)
-  { chave: 'gerenciar_checklists', label: 'Gerenciar checklists e inspeções', grupo: 'Frota' },
-  { chave: 'aplicar_plano_preventivo_equip', label: 'Aplicar plano preventivo a equipamento', grupo: 'Frota' },
 
   // ============================================================
   // Manutenção
@@ -345,32 +342,17 @@ export const ACOES_PLATAFORMA: AcaoPlataforma[] = [
   { chave: 'criar_os', label: 'Criar Ordem de Serviço', grupo: 'Manutenção' },
   { chave: 'editar_os', label: 'Editar Ordem de Serviço', grupo: 'Manutenção' },
   { chave: 'excluir_os', label: 'Excluir Ordem de Serviço', grupo: 'Manutenção' },
-  { chave: 'aprovar_os', label: 'Aprovar Ordem de Serviço', grupo: 'Manutenção' },
-  { chave: 'cancelar_os', label: 'Cancelar Ordem de Serviço', grupo: 'Manutenção' },
-  { chave: 'mudar_status_os', label: 'Mudar status da OS', grupo: 'Manutenção' },
   { chave: 'editar_diagnostico_os', label: 'Editar diagnóstico da OS', grupo: 'Manutenção' },
   { chave: 'adicionar_peca_os', label: 'Adicionar peça à OS', grupo: 'Manutenção' },
-  { chave: 'adicionar_mao_obra_os', label: 'Adicionar mão de obra à OS', grupo: 'Manutenção' },
   { chave: 'adicionar_terceiro_os', label: 'Adicionar serviço de terceiro à OS', grupo: 'Manutenção' },
   { chave: 'adicionar_oleo_os', label: 'Adicionar troca de óleo à OS', grupo: 'Manutenção' },
   { chave: 'gerenciar_tipos_oleo', label: 'Gerenciar tipos de óleo', grupo: 'Manutenção' },
   { chave: 'ver_custos', label: 'Visualizar custos de manutenção', grupo: 'Manutenção' },
-  // Planos preventivos
-  { chave: 'ver_planos_preventivos', label: 'Visualizar planos preventivos', grupo: 'Manutenção' },
-  { chave: 'criar_plano_preventivo', label: 'Criar plano preventivo', grupo: 'Manutenção' },
-  { chave: 'editar_plano_preventivo', label: 'Editar plano preventivo', grupo: 'Manutenção' },
-  { chave: 'excluir_plano_preventivo', label: 'Excluir plano preventivo', grupo: 'Manutenção' },
-  { chave: 'ver_agenda_preventiva', label: 'Visualizar agenda preventiva', grupo: 'Manutenção' },
   // Almoxarifado de peças
   { chave: 'ver_almoxarifado', label: 'Visualizar almoxarifado', grupo: 'Manutenção' },
   { chave: 'criar_peca_almoxarifado', label: 'Cadastrar peça no almoxarifado', grupo: 'Manutenção' },
   { chave: 'editar_peca_almoxarifado', label: 'Editar peça no almoxarifado', grupo: 'Manutenção' },
   { chave: 'criar_entrada_almoxarifado', label: 'Lançar entrada no almoxarifado', grupo: 'Manutenção' },
-  // Checklists pré-uso
-  { chave: 'ver_checklists', label: 'Visualizar checklists pré-uso', grupo: 'Manutenção' },
-  { chave: 'criar_checklist', label: 'Criar modelo de checklist', grupo: 'Manutenção' },
-  { chave: 'executar_checklist', label: 'Executar checklist pré-uso', grupo: 'Manutenção' },
-  { chave: 'bloquear_equipamento_checklist', label: 'Bloquear equipamento via checklist crítico', grupo: 'Manutenção' },
 
   // ============================================================
   // Apontamento RH
@@ -464,7 +446,6 @@ export const ACOES_PLATAFORMA: AcaoPlataforma[] = [
   { chave: 'bater_ponto_mobile', label: 'Bater ponto pelo mobile', grupo: 'Mobile' },
   { chave: 'saida_combustivel_mobile', label: 'Lançar saída de combustível pelo mobile', grupo: 'Mobile' },
   { chave: 'abrir_os_mobile', label: 'Abrir OS pelo mobile', grupo: 'Mobile' },
-  { chave: 'executar_checklist_mobile', label: 'Executar checklist pelo mobile', grupo: 'Mobile' },
   { chave: 'lancar_medicao_mobile', label: 'Lançar atividade de medição pelo mobile', grupo: 'Mobile' },
   { chave: 'scan_qr_equipamento', label: 'Escanear QR de equipamento (Hub)', grupo: 'Mobile' },
 
@@ -499,10 +480,7 @@ export const ACOES_PLATAFORMA: AcaoPlataforma[] = [
   // --- Manutenção ---
   { chave: 'aba_manutencao_dashboard', label: 'Aba: Dashboard de Manutenção', grupo: 'Abas · Manutenção' },
   { chave: 'aba_manutencao_os', label: 'Aba: Ordens de Serviço', grupo: 'Abas · Manutenção' },
-  { chave: 'aba_manutencao_agenda', label: 'Aba: Agenda Preventiva', grupo: 'Abas · Manutenção' },
-  { chave: 'aba_manutencao_planos', label: 'Aba: Planos Preventivos', grupo: 'Abas · Manutenção' },
   { chave: 'aba_manutencao_almoxarifado', label: 'Aba: Almoxarifado', grupo: 'Abas · Manutenção' },
-  { chave: 'aba_manutencao_checklists', label: 'Aba: Checklists pré-uso', grupo: 'Abas · Manutenção' },
 
   // --- Combustível ---
   { chave: 'aba_combustivel_visao_geral', label: 'Aba: Visão Geral', grupo: 'Abas · Combustível' },
@@ -684,36 +662,21 @@ export const DEPENDENCIAS_ACOES: Record<string, string[]> = {
   editar_financeiro_equipamento: ['ver_financeiro_equipamento'],
   ver_historico_equipamento: ['ver_frota'],
   ver_custos_pecas_equipamento: ['ver_frota'],
-  gerenciar_checklists: ['ver_frota'],
-  aplicar_plano_preventivo_equip: ['ver_frota'],
 
   // Manutenção
   criar_os: ['ver_manutencao'],
   editar_os: ['ver_manutencao'],
   excluir_os: ['ver_manutencao', 'editar_os'],
-  aprovar_os: ['ver_manutencao'],
-  cancelar_os: ['ver_manutencao', 'editar_os'],
-  mudar_status_os: ['ver_manutencao', 'editar_os'],
   editar_diagnostico_os: ['ver_manutencao', 'editar_os'],
   adicionar_peca_os: ['ver_manutencao', 'editar_os'],
-  adicionar_mao_obra_os: ['ver_manutencao', 'editar_os'],
   adicionar_terceiro_os: ['ver_manutencao'],
   adicionar_oleo_os: ['ver_manutencao'],
   gerenciar_tipos_oleo: ['ver_manutencao'],
   ver_custos: ['ver_manutencao'],
-  ver_planos_preventivos: ['ver_manutencao'],
-  criar_plano_preventivo: ['ver_planos_preventivos'],
-  editar_plano_preventivo: ['ver_planos_preventivos'],
-  excluir_plano_preventivo: ['ver_planos_preventivos', 'editar_plano_preventivo'],
-  ver_agenda_preventiva: ['ver_manutencao'],
   ver_almoxarifado: ['ver_manutencao'],
   criar_peca_almoxarifado: ['ver_almoxarifado'],
   editar_peca_almoxarifado: ['ver_almoxarifado'],
   criar_entrada_almoxarifado: ['ver_almoxarifado'],
-  ver_checklists: ['ver_manutencao'],
-  criar_checklist: ['ver_checklists'],
-  executar_checklist: ['ver_checklists'],
-  bloquear_equipamento_checklist: ['ver_checklists', 'executar_checklist'],
 
   // Apontamento RH
   criar_func_rh: ['ver_apontamento_rh'],
@@ -782,7 +745,6 @@ export const DEPENDENCIAS_ACOES: Record<string, string[]> = {
   bater_ponto_mobile: ['usar_app_mobile', 'registrar_ponto'],
   saida_combustivel_mobile: ['usar_app_mobile', 'criar_saida_combustivel'],
   abrir_os_mobile: ['usar_app_mobile', 'criar_os'],
-  executar_checklist_mobile: ['usar_app_mobile', 'executar_checklist'],
   lancar_medicao_mobile: ['usar_app_mobile', 'criar_atividade_medicao'],
   scan_qr_equipamento: ['usar_app_mobile', 'ver_frota'],
 };
@@ -919,15 +881,11 @@ export const TEMPLATES_ACOES_POR_CARGO: Record<CargoFuncionario, string[]> = {
     'gerenciar_fotos_equipamento',
     'ver_financeiro_equipamento', 'editar_financeiro_equipamento',
     'ver_historico_equipamento', 'ver_custos_pecas_equipamento',
-    'gerenciar_checklists', 'aplicar_plano_preventivo_equip',
-    'ver_manutencao', 'criar_os', 'editar_os', 'aprovar_os',
-    'mudar_status_os', 'editar_diagnostico_os',
-    'adicionar_peca_os', 'adicionar_mao_obra_os', 'adicionar_terceiro_os', 'adicionar_oleo_os', 'gerenciar_tipos_oleo', 'ver_custos',
-    'ver_planos_preventivos', 'criar_plano_preventivo', 'editar_plano_preventivo',
-    'ver_agenda_preventiva',
+    'ver_manutencao', 'criar_os', 'editar_os',
+    'editar_diagnostico_os',
+    'adicionar_peca_os', 'adicionar_terceiro_os', 'adicionar_oleo_os', 'gerenciar_tipos_oleo', 'ver_custos',
     'ver_almoxarifado', 'criar_peca_almoxarifado', 'editar_peca_almoxarifado',
     'criar_entrada_almoxarifado',
-    'ver_checklists', 'criar_checklist',
     'ver_apontamento_rh', 'gerenciar_equipes',
     'criar_equipe', 'editar_equipe', 'alocar_funcionarios_equipe', 'transferir_equipe_obra',
     'registrar_ponto', 'aprovar_lancamento_manual', 'aprovar_ponto_diario',
@@ -960,14 +918,13 @@ export const TEMPLATES_ACOES_POR_CARGO: Record<CargoFuncionario, string[]> = {
     'criar_transferencia_combustivel', 'editar_combustivel',
     'criar_abastecimento_carreta', 'anexar_documentos_combustivel',
     'ver_anomalias_combustivel', 'salvar_views_combustivel',
-    'ver_frota', 'gerenciar_checklists', 'mudar_status_equipamento',
+    'ver_frota', 'mudar_status_equipamento',
     'ver_documentos_equipamento', 'gerenciar_fotos_equipamento',
     'ver_historico_equipamento',
     'ver_manutencao', 'criar_os', 'editar_os',
-    'mudar_status_os', 'editar_diagnostico_os',
-    'adicionar_peca_os', 'adicionar_mao_obra_os', 'adicionar_terceiro_os', 'adicionar_oleo_os', 'gerenciar_tipos_oleo',
+    'editar_diagnostico_os',
+    'adicionar_peca_os', 'adicionar_terceiro_os', 'adicionar_oleo_os', 'gerenciar_tipos_oleo',
     'ver_almoxarifado', 'criar_entrada_almoxarifado',
-    'ver_checklists', 'executar_checklist',
     'ver_apontamento_rh', 'gerenciar_equipes',
     'criar_equipe', 'editar_equipe', 'alocar_funcionarios_equipe',
     'registrar_ponto', 'registrar_ponto_lote', 'captura_facial_ponto',
@@ -980,7 +937,7 @@ export const TEMPLATES_ACOES_POR_CARGO: Record<CargoFuncionario, string[]> = {
     'ver_medicao', 'criar_atividade_medicao', 'editar_atividade_medicao',
     'upload_fotos_medicao',
     // Mobile
-    'bater_ponto_mobile', 'executar_checklist_mobile',
+    'bater_ponto_mobile',
     'abrir_os_mobile', 'saida_combustivel_mobile',
   ],
 
@@ -995,11 +952,7 @@ export const TEMPLATES_ACOES_POR_CARGO: Record<CargoFuncionario, string[]> = {
     'ver_pedidos_material',
     'ver_combustivel', 'ver_anomalias_combustivel',
     'ver_frota', 'ver_documentos_equipamento', 'ver_historico_equipamento',
-    'gerenciar_checklists',
-    'ver_manutencao', 'aprovar_os', 'ver_custos',
-    'mudar_status_os',
-    'ver_planos_preventivos', 'ver_agenda_preventiva',
-    'ver_checklists', 'executar_checklist',
+    'ver_manutencao', 'ver_custos',
     'ver_apontamento_rh', 'aprovar_ponto_diario',
     'ver_aprovacoes_rh', 'aprovar_apontamento_rh',
     'ver_relatorios_rh', 'ver_historico_apontamentos',
@@ -1012,7 +965,7 @@ export const TEMPLATES_ACOES_POR_CARGO: Record<CargoFuncionario, string[]> = {
     'trocar_periodo_medicao',
     'exportar_medicao',
     // Mobile
-    'executar_checklist_mobile', 'lancar_medicao_mobile', 'abrir_os_mobile',
+    'lancar_medicao_mobile', 'abrir_os_mobile',
   ],
 
   'Engenheiro Civil': [
@@ -1022,15 +975,13 @@ export const TEMPLATES_ACOES_POR_CARGO: Record<CargoFuncionario, string[]> = {
     'ver_cadastros', 'ver_etapas',
     'ver_combustivel',
     'ver_frota', 'ver_documentos_equipamento',
-    'gerenciar_checklists',
-    'ver_manutencao', 'ver_planos_preventivos',
-    'ver_checklists', 'executar_checklist',
+    'ver_manutencao',
     'ver_apontamento_rh', 'aprovar_ponto_diario',
     'ver_aprovacoes_rh',
     'ver_medicao', 'criar_atividade_medicao', 'editar_atividade_medicao',
     'upload_fotos_medicao',
     // Mobile
-    'executar_checklist_mobile', 'lancar_medicao_mobile',
+    'lancar_medicao_mobile',
   ],
 
   Operador: [
@@ -1038,25 +989,23 @@ export const TEMPLATES_ACOES_POR_CARGO: Record<CargoFuncionario, string[]> = {
     'ver_frete', 'criar_frete', 'anexar_documentos_frete',
     'ver_combustivel', 'criar_entrada_combustivel', 'criar_saida_combustivel',
     'criar_abastecimento_carreta', 'anexar_documentos_combustivel',
-    'ver_frota', 'gerenciar_checklists',
+    'ver_frota',
     'ver_documentos_equipamento',
-    'ver_checklists', 'executar_checklist',
     // Mobile
-    'executar_checklist_mobile', 'saida_combustivel_mobile',
+    'saida_combustivel_mobile',
   ],
 
   Apontador: [
     'ver_dashboard', ...T_MOBILE_OPERACIONAL,
     'ver_combustivel', 'criar_entrada_combustivel', 'criar_saida_combustivel',
     'criar_abastecimento_carreta', 'anexar_documentos_combustivel',
-    'ver_frota', 'gerenciar_checklists',
-    'ver_checklists', 'executar_checklist',
+    'ver_frota',
     'ver_apontamento_rh',
     'registrar_ponto', 'registrar_ponto_lote', 'captura_facial_ponto',
     'sincronizar_fila_offline',
     'lancar_apontamento_servico',
     // Mobile
-    'bater_ponto_mobile', 'executar_checklist_mobile', 'saida_combustivel_mobile',
+    'bater_ponto_mobile', 'saida_combustivel_mobile',
   ],
 
   Financeiro: [
@@ -1255,13 +1204,11 @@ export const ACOES_PERIGOSAS_OPERACIONAL: ReadonlySet<string> = new Set([
   'excluir_apontamentos',
   'excluir_batida_ponto',
   'excluir_os',
-  'excluir_plano_preventivo',
   'excluir_obra_medicao',
   'excluir_atividade_medicao',
   'excluir_material',
   'excluir_tanque',
   // Aprovações e operações financeiras
-  'aprovar_os',
   'aprovar_ponto_diario',
   'aprovar_lancamento_manual',
   'aprovar_apontamento_rh',
@@ -1277,7 +1224,6 @@ export const ACOES_PERIGOSAS_OPERACIONAL: ReadonlySet<string> = new Set([
   'restaurar_lixeira_frete',
   'restaurar_lixeira_combustivel',
   // Bloqueio operacional
-  'bloquear_equipamento_checklist',
   'mudar_status_equipamento',
   // Gestão de usuários
   'gerenciar_permissoes',

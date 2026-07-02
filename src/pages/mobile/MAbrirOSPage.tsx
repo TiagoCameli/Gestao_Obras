@@ -13,7 +13,7 @@ import Button from '../../components/ui/Button';
 import { useEquipamentos } from '../../hooks/useEquipamentos';
 import { useMedicaoAtual } from '../../hooks/useMedicoesEquipamento';
 import { enqueueOSNova } from '../../lib/offlineQueue';
-import { indexedDBSuportado } from '../../lib/checklistsQueue';
+import { indexedDBSuportado } from '../../lib/offlineQueue';
 import { useAuth } from '../../contexts/AuthContext';
 import { useToast } from '../../components/ui/Toast';
 import type { PrioridadeOS } from '../../types';

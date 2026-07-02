@@ -8,7 +8,7 @@ import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   ClipboardList, AlertTriangle, Clock, Wrench, TrendingUp,
-  Activity, BarChart3, DollarSign, Package, HardHat, FileDown, Layers,
+  Activity, BarChart3, DollarSign, Package, FileDown, Layers,
 } from 'lucide-react';
 import Button from '../ui/Button';
 import { exportarRelatorioMensalPdf, exportarRelatorioAnualPdf } from '../../utils/manutencaoPdfExport';
@@ -19,7 +19,6 @@ import { useEquipamentos } from '../../hooks/useEquipamentos';
 import { useDashboardManutencao } from '../../hooks/useDashboardManutencao';
 import { useSaldoEstoqueTotal } from '../../hooks/useSaldoEstoque';
 import { useCustoPecasEquipamento } from '../../hooks/useCustoPecasEquipamento';
-import { useChecklistsNaoConformidades } from '../../hooks/useChecklistNaoConformidades';
 import OleosVencendoPanel from './OleosVencendoPanel';
 import { TIPO_OS_LABEL } from '../../types';
 import type { TipoOS } from '../../types';
@@ -46,19 +45,6 @@ export default function DashboardManutencao() {
   const { data: dash, isLoading } = useDashboardManutencao(equipamentos);
   const { data: saldosEstoque = [] } = useSaldoEstoqueTotal({ apenasManutencao: true });
   const { data: topPorPecas = [] } = useCustoPecasEquipamento(10);
-  const { data: naoConformidades = [] } = useChecklistsNaoConformidades();
-
-  const checklistsMetricas = useMemo(() => {
-    let bloqueados = 0;
-    let comPendencias = 0;
-    let totalCriticos = 0;
-    for (const nc of naoConformidades) {
-      if (nc.status === 'bloqueado') bloqueados++;
-      else if (nc.status === 'concluido_com_pendencias') comPendencias++;
-      totalCriticos += nc.itensCriticos;
-    }
-    return { total: naoConformidades.length, bloqueados, comPendencias, totalCriticos };
-  }, [naoConformidades]);
 
   const pecasMetricas = useMemo(() => {
     let zeradas = 0, abaixoMin = 0;
@@ -280,21 +266,6 @@ export default function DashboardManutencao() {
             : kpis.percCorretivoAno > 30
               ? 'bg-[var(--color-warning-soft)] text-[var(--color-warning-fg)]'
               : 'bg-[var(--color-success-soft)] text-[var(--color-success-fg)]'}
-        />
-        <KPI
-          label="Não-conformidades"
-          valor={checklistsMetricas.total}
-          legenda={checklistsMetricas.bloqueados > 0
-            ? `${checklistsMetricas.bloqueados} bloqueado(s) · ${checklistsMetricas.totalCriticos} crítico(s)`
-            : checklistsMetricas.comPendencias > 0 ? `${checklistsMetricas.comPendencias} com pendências`
-            : 'todos os checklists OK'}
-          icon={HardHat}
-          cor={checklistsMetricas.bloqueados > 0
-            ? 'bg-[var(--color-danger-soft)] text-[var(--color-danger-fg)]'
-            : checklistsMetricas.total > 0
-              ? 'bg-[var(--color-warning-soft)] text-[var(--color-warning-fg)]'
-              : 'bg-[var(--color-success-soft)] text-[var(--color-success-fg)]'}
-          onClick={() => navigate('/manutencao/checklists?aba=nao_conformidades')}
         />
         <KPI
           label="Peças críticas"

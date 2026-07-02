@@ -1,11 +1,9 @@
-// Marco 5 / PR27 — Fila offline genérica para medições e OS abertas pelo mobile.
+// Marco 5 / PR27 — Fila offline genérica do mobile (IndexedDB 'emt-obras-offline').
 //
-// Mesma DB do checklistsQueue (emt-obras-offline) com 2 stores adicionais:
+// Stores:
 //   - 'medicoes': apontamentos de horímetro/km
 //   - 'os_novas': OSs criadas pelo mobile (defeito + foto opcional)
-//
-// Schema bump pra v2; checklistsQueue continua funcionando (store 'checklists'
-// não é tocado no upgrade).
+//   - 'batidas_ponto': batidas de ponto manuais em lote
 
 import type { OrigemMedicao, TipoMedicao, TipoOS, PrioridadeOS } from '../types';
 
@@ -13,8 +11,12 @@ const DB_NAME = 'emt-obras-offline';
 const DB_VERSION = 3;
 const STORE_MEDICOES = 'medicoes';
 const STORE_OS = 'os_novas';
-const STORE_CHECKLISTS = 'checklists';
 const STORE_BATIDAS = 'batidas_ponto'; // PR-PWA1 — fila de batidas manuais em lote
+
+/** Conveniência: verifica suporte a IndexedDB (usado pelo mobile e pelo sync). */
+export function indexedDBSuportado(): boolean {
+  return typeof window !== 'undefined' && 'indexedDB' in window;
+}
 
 // ── Tipos das filas ──────────────────────────────────────────────
 
@@ -87,9 +89,6 @@ function openDB(): Promise<IDBDatabase> {
     req.onsuccess = () => resolve(req.result);
     req.onupgradeneeded = () => {
       const db = req.result;
-      if (!db.objectStoreNames.contains(STORE_CHECKLISTS)) {
-        db.createObjectStore(STORE_CHECKLISTS, { keyPath: 'localId' });
-      }
       if (!db.objectStoreNames.contains(STORE_MEDICOES)) {
         db.createObjectStore(STORE_MEDICOES, { keyPath: 'localId' });
       }

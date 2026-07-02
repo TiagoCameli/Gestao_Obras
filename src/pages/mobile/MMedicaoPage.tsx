@@ -12,7 +12,7 @@ import {
   useMedicaoAtual, useAdicionarMedicao,
 } from '../../hooks/useMedicoesEquipamento';
 import { enqueueMedicao } from '../../lib/offlineQueue';
-import { indexedDBSuportado } from '../../lib/checklistsQueue';
+import { indexedDBSuportado } from '../../lib/offlineQueue';
 import { useAuth } from '../../contexts/AuthContext';
 import { useToast } from '../../components/ui/Toast';
 import type { MedicaoEquipamento } from '../../types';

@@ -25,7 +25,6 @@ import NotFound from './pages/NotFound';
 import RodoTrackerPage from './modules/rodotracker/RodoTrackerPage';
 import ApontamentoPage from './modules/apontamento/ApontamentoPage';
 import MobileLayout from './layouts/MobileLayout';
-import MChecklistPage from './pages/mobile/MChecklistPage';
 import MMedicaoPage from './pages/mobile/MMedicaoPage';
 import MAbrirOSPage from './pages/mobile/MAbrirOSPage';
 import MEquipamentoHubPage from './pages/mobile/MEquipamentoHubPage';
@@ -105,11 +104,7 @@ export default function App() {
               <Route path="/manutencao/dashboard" element={<ProtectedRoute modulo="frota"><Manutencao /></ProtectedRoute>} />
               <Route path="/manutencao/os" element={<ProtectedRoute modulo="frota"><Manutencao /></ProtectedRoute>} />
               <Route path="/manutencao/os/:numero" element={<ProtectedRoute modulo="frota"><Manutencao /></ProtectedRoute>} />
-              <Route path="/manutencao/planos" element={<ProtectedRoute modulo="frota"><Manutencao /></ProtectedRoute>} />
-              <Route path="/manutencao/planos/:id" element={<ProtectedRoute modulo="frota"><Manutencao /></ProtectedRoute>} />
-              <Route path="/manutencao/agenda" element={<ProtectedRoute modulo="frota"><Manutencao /></ProtectedRoute>} />
               <Route path="/manutencao/almoxarifado" element={<ProtectedRoute modulo="frota"><Manutencao /></ProtectedRoute>} />
-              <Route path="/manutencao/checklists" element={<ProtectedRoute modulo="frota"><Manutencao /></ProtectedRoute>} />
               <Route path="/combustivel" element={<ProtectedRoute modulo="frota"><Combustivel /></ProtectedRoute>} />
               <Route path="/funcionarios" element={<ProtectedRoute modulo="funcionarios"><Funcionarios /></ProtectedRoute>} />
               <Route path="/apontamento" element={<ProtectedRoute modulo="apontamento_rh"><ApontamentoPage /></ProtectedRoute>} />
@@ -156,7 +151,6 @@ export default function App() {
               />
               <Route path="/m/eq/:equipamentoId" element={<MEquipamentoHubPage />} />
               <Route path="/m/eq/:equipamentoId/info" element={<MEquipamentoInfoPage />} />
-              <Route path="/m/checklist/:equipamentoId" element={<ProtectedRoute acao="executar_checklist_mobile"><MChecklistPage /></ProtectedRoute>} />
               <Route path="/m/medicao/:equipamentoId" element={<ProtectedRoute acao="lancar_medicao_mobile"><MMedicaoPage /></ProtectedRoute>} />
               <Route path="/m/abrir-os/:equipamentoId" element={<ProtectedRoute acao="abrir_os_mobile"><MAbrirOSPage /></ProtectedRoute>} />
               <Route path="/m/saida-combustivel/:equipamentoId" element={<ProtectedRoute acao="saida_combustivel_mobile"><MSaidaCombustivelPage /></ProtectedRoute>} />

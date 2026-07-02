@@ -3,7 +3,7 @@
 
 import { useState, useMemo } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { Search, ClipboardCheck, ChevronRight, Wrench, QrCode, ArrowLeft } from 'lucide-react';
+import { Search, ChevronRight, Wrench, QrCode, ArrowLeft } from 'lucide-react';
 import { useEquipamentos } from '../../hooks/useEquipamentos';
 import { getCategoriaFrota } from '../../lib/frotaConstants';
 
@@ -50,9 +50,9 @@ export default function MEquipamentosPage() {
         </Link>
       )}
       <div>
-        <h1 className="text-xl font-semibold text-[var(--color-fg)]">Pré-uso</h1>
+        <h1 className="text-xl font-semibold text-[var(--color-fg)]">Equipamentos</h1>
         <p className="text-xs text-[var(--color-fg-muted)] mt-0.5">
-          Toque no equipamento para fazer o checklist diário, apontar horímetro/km ou abrir OS.
+          Toque no equipamento para apontar horímetro/km ou abrir OS.
         </p>
       </div>
 
@@ -117,17 +117,6 @@ export default function MEquipamentosPage() {
           })}
         </div>
       )}
-
-      <div className="mt-6 rounded-xl bg-[var(--color-info-soft)] text-[var(--color-info-fg)] p-3 text-xs">
-        <p className="flex items-start gap-2">
-          <ClipboardCheck className="w-4 h-4 mt-0.5 shrink-0" />
-          <span>
-            Faça o checklist diário antes de iniciar a operação. Se algum item
-            estiver com problema, marque "Não" e tire uma foto — sua resposta
-            ajuda a abrir manutenção rápido.
-          </span>
-        </p>
-      </div>
     </div>
   );
 }

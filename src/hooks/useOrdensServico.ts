@@ -3,11 +3,9 @@ import { supabase } from '../lib/supabase';
 import {
   dbToOrdemServico, ordemServicoToDb,
   dbToOSPeca, osPecaToDb,
-  dbToOSMaoObra, osMaoObraToDb,
-  dbToOSTransicao,
 } from '../lib/mappers';
 import type {
-  OrdemServico, OSPeca, OSMaoObra, OSTransicao, StatusOS,
+  OrdemServico, OSPeca, StatusOS,
 } from '../types';
 
 // ── Listas ──────────────────────────────────────────────────────────
@@ -109,38 +107,6 @@ export function usePecasOS(osId: string | null | undefined) {
   });
 }
 
-export function useMaoObraOS(osId: string | null | undefined) {
-  return useQuery<OSMaoObra[]>({
-    queryKey: ['os_mao_obra', osId ?? ''],
-    enabled: !!osId,
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('os_mao_obra')
-        .select('*')
-        .eq('os_id', osId!)
-        .order('data', { ascending: false });
-      if (error) throw error;
-      return (data ?? []).map(dbToOSMaoObra);
-    },
-  });
-}
-
-export function useTransicoesOS(osId: string | null | undefined) {
-  return useQuery<OSTransicao[]>({
-    queryKey: ['os_transicoes', osId ?? ''],
-    enabled: !!osId,
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('os_transicoes')
-        .select('*')
-        .eq('os_id', osId!)
-        .order('created_at');
-      if (error) throw error;
-      return (data ?? []).map(dbToOSTransicao);
-    },
-  });
-}
-
 // ── Mutations ───────────────────────────────────────────────────────
 
 function gerarId(): string {
@@ -206,53 +172,6 @@ export function useAtualizarOS() {
       qc.invalidateQueries({ queryKey: ['ordens_servico'] });
       qc.invalidateQueries({ queryKey: ['ordem_servico', variables.id] });
       qc.invalidateQueries({ queryKey: ['ordem_servico_numero'] });
-      qc.invalidateQueries({ queryKey: ['os_transicoes', variables.id] });
-    },
-  });
-}
-
-/**
- * Muda apenas o status da OS. Trigger no DB grava transição.
- * Quando vai pra concluida, popular dataConclusao automaticamente
- * caso ainda não tenha.
- */
-export function useMudarStatusOS() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: async (params: {
-      osId: string;
-      novoStatus: StatusOS;
-      usuarioNome: string;
-      paradaFim?: string;
-    }) => {
-      const updates: Record<string, unknown> = {
-        status: params.novoStatus,
-        updated_by: params.usuarioNome,
-      };
-      if (params.novoStatus === 'em_execucao') {
-        updates.data_inicio_execucao = new Date().toISOString();
-      }
-      if (params.novoStatus === 'concluida') {
-        updates.data_conclusao = new Date().toISOString();
-        if (params.paradaFim) updates.parada_fim = params.paradaFim;
-      }
-      const { error } = await supabase
-        .from('ordens_servico')
-        .update(updates)
-        .eq('id', params.osId);
-      if (error) throw error;
-    },
-    onSuccess: (_data, variables) => {
-      qc.invalidateQueries({ queryKey: ['ordens_servico'] });
-      qc.invalidateQueries({ queryKey: ['ordem_servico', variables.osId] });
-      // Invalida todas as queries de detalhe por numero (não temos o numero aqui)
-      qc.invalidateQueries({ queryKey: ['ordem_servico_numero'] });
-      qc.invalidateQueries({ queryKey: ['os_transicoes', variables.osId] });
-      // Frota/Manut audit #1: trigger no DB pode ter mudado equipamentos.status
-      qc.invalidateQueries({ queryKey: ['equipamentos'] });
-      qc.invalidateQueries({
-        predicate: (q) => q.queryKey[0] === 'historico_status_equipamento',
-      });
     },
   });
 }
@@ -278,9 +197,9 @@ export function useExcluirOS() {
   });
 }
 
-// ── Peças e mão de obra ─────────────────────────────────────────────
+// ── Peças ────────────────────────────────────────────────────────────
 
-/** Invalida queries afetadas por mudança em peças/MO (custos da OS recalculados via trigger). */
+/** Invalida queries afetadas por mudança em peças (custos da OS recalculados via trigger). */
 function invalidateOSCustos(qc: ReturnType<typeof useQueryClient>, osId: string) {
   qc.invalidateQueries({ queryKey: ['ordem_servico', osId] });
   qc.invalidateQueries({ queryKey: ['ordem_servico_numero'] });
@@ -310,34 +229,6 @@ export function useExcluirPecaOS() {
     },
     onSuccess: (_data, variables) => {
       qc.invalidateQueries({ queryKey: ['os_pecas', variables.osId] });
-      invalidateOSCustos(qc, variables.osId);
-    },
-  });
-}
-
-export function useAdicionarMaoObraOS() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: async (mo: OSMaoObra) => {
-      const { error } = await supabase.from('os_mao_obra').insert(osMaoObraToDb(mo));
-      if (error) throw error;
-    },
-    onSuccess: (_data, variables) => {
-      qc.invalidateQueries({ queryKey: ['os_mao_obra', variables.osId] });
-      invalidateOSCustos(qc, variables.osId);
-    },
-  });
-}
-
-export function useExcluirMaoObraOS() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: async (params: { moId: string; osId: string }) => {
-      const { error } = await supabase.from('os_mao_obra').delete().eq('id', params.moId);
-      if (error) throw error;
-    },
-    onSuccess: (_data, variables) => {
-      qc.invalidateQueries({ queryKey: ['os_mao_obra', variables.osId] });
       invalidateOSCustos(qc, variables.osId);
     },
   });
