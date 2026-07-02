@@ -124,7 +124,7 @@ export async function exportarEtiquetaEquipamentoPdf(eq: Equipamento): Promise<v
   doc.text('ESCANEIE COM A CÂMERA', textX + 3, textY);
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(7.5);
-  doc.text('Checklist · Saída combustível · Abrir OS', textX + 3, textY + 4.5);
+  doc.text('Medição · Saída combustível · Abrir OS', textX + 3, textY + 4.5);
 
   // Bloco de instruções (parte inferior da página)
   const instrY = etiquetaY + etiquetaH + 15;
@@ -251,7 +251,7 @@ async function desenharEtiqueta(
   doc.text('ESCANEIE COM A CÂMERA', textX + 2.5, chamadaY + 4);
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(6.5);
-  doc.text('Checklist · Saída combustível · Abrir OS', textX + 2.5, chamadaY + 8.5);
+  doc.text('Medição · Saída combustível · Abrir OS', textX + 2.5, chamadaY + 8.5);
 }
 
 /** Gera 1 PDF com TODAS as etiquetas (6 por página A4 paisagem, 2×3). */

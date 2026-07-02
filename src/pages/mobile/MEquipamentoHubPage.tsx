@@ -6,7 +6,7 @@
 import { Link } from 'react-router-dom';
 import { useParams } from 'react-router-dom';
 import {
-  ArrowLeft, ClipboardList, Gauge, FilePlus, Droplet, BookOpen, Info,
+  ArrowLeft, Gauge, FilePlus, Droplet, BookOpen, Info,
   ChevronRight, Wrench, AlertTriangle,
 } from 'lucide-react';
 import { useEquipamentos } from '../../hooks/useEquipamentos';
@@ -33,7 +33,6 @@ export default function MEquipamentoHubPage() {
   const { data: documentos = [] } = useDocumentosEquipamento(equipamentoId ?? null);
 
   // Permissões: chaves específicas do grupo Mobile (audit Fase 5 #19/#20).
-  const podeChecklist = temAcao('executar_checklist_mobile');
   const podeMedicao = temAcao('lancar_medicao_mobile');
   const podeAbrirOS = temAcao('abrir_os_mobile');
   const podeSaidaCombustivel = temAcao('saida_combustivel_mobile');
@@ -77,16 +76,6 @@ export default function MEquipamentoHubPage() {
     icon: Info,
     cor: 'bg-[var(--color-info-soft)] text-[var(--color-info-fg)]',
   });
-
-  if (podeChecklist) {
-    acoes.push({
-      to: `/m/checklist/${equipamento.id}`,
-      titulo: 'Checklist pré-uso',
-      descricao: 'Inspeção diária antes de operar',
-      icon: ClipboardList,
-      cor: 'bg-[var(--color-accent-soft)] text-[var(--color-accent-fg)]',
-    });
-  }
 
   if (podeMedicao) {
     acoes.push({

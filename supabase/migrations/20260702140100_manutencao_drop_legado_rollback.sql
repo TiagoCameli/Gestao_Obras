@@ -1,0 +1,24 @@
+-- ROLLBACK (advisory) — drop do legado de Manutenção (20260702140000).
+--
+-- Este drop é DESTRUTIVO e NÃO tem rollback automático: recria estrutura e dados
+-- não é trivial. Para reverter:
+--
+-- 1) Estrutura: re-aplicar as migrations originais que criaram
+--    planos_preventivos, plano_atividades, plano_atividade_pecas, equipamento_plano,
+--    execucoes_atividade, checklists_template, checklist_perguntas, checklist_respostas,
+--    checklist_execucoes, os_mao_obra, os_transicoes + views v_proximas_preventivas e
+--    v_checklists_nao_conformidades + funções/triggers tg_os_grava_transicao,
+--    registra_execucao_atividade_em_conclusao, tg_sync_custo_mao_obra_os.
+--
+-- 2) Dados: reimportar de
+--    outputs/gestao-obras-manutencao-drop/2026-07-02/backup-legado/*.json
+--    (840 linhas). Ordem por FK: templates -> perguntas; planos -> atividades ->
+--    (plano_atividade_pecas, equipamento_plano, execucoes_atividade); checklists_template
+--    -> checklist_perguntas -> (checklist_execucoes -> checklist_respostas).
+--
+-- 3) Permissões: reintroduzir as chaves em src/utils/permissions.ts e rodar backfill.
+--
+-- Alternativa: PITR do Supabase (janela de 7 dias a partir de 2026-07-02).
+--
+-- Nenhuma operação executável aqui de propósito.
+SELECT 'rollback advisory — ver comentário acima' AS aviso;

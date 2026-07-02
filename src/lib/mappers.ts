@@ -37,9 +37,6 @@ import type {
   FinanceiroEquipamento,
   OrdemServico,
   OSPeca,
-  OSMaoObra,
-  OSTransicao,
-  StatusOS,
   StatusEquipamento,
   SaidaCombustivel,
   TransportadoraMovimento,
@@ -1327,6 +1324,8 @@ export function dbToOrdemServico(row: any): OrdemServico {
     custoPecas: Number(row.custo_pecas ?? 0),
     custoServicoTerceiro: Number(row.custo_servico_terceiro ?? 0),
     custoMaoObraPropria: Number(row.custo_mao_obra_propria ?? 0),
+    custoTerceiros: Number(row.custo_terceiros ?? 0),
+    custoOleos: Number(row.custo_oleos ?? 0),
     custoTotal: Number(row.custo_total ?? 0),
     aprovadoPor: row.aprovado_por ?? '',
     aprovadoEm: row.aprovado_em ?? null,
@@ -1416,48 +1415,6 @@ export function osPecaToDb(p: OSPeca) {
     saida_material_id: p.saidaMaterialId,
     observacoes: p.observacoes,
     created_by: p.createdBy,
-  };
-}
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export function dbToOSMaoObra(row: any): OSMaoObra {
-  return {
-    id: row.id,
-    osId: row.os_id ?? '',
-    colaboradorId: row.colaborador_id ?? '',
-    data: row.data ?? '',
-    horas: Number(row.horas ?? 0),
-    custoHora: row.custo_hora != null ? Number(row.custo_hora) : null,
-    custoTotal: Number(row.custo_total ?? 0),
-    observacoes: row.observacoes ?? '',
-    createdAt: row.created_at ?? '',
-    createdBy: row.created_by ?? '',
-  };
-}
-
-export function osMaoObraToDb(m: OSMaoObra) {
-  return {
-    id: m.id,
-    os_id: m.osId,
-    colaborador_id: m.colaboradorId,
-    data: m.data,
-    horas: m.horas,
-    custo_hora: m.custoHora,
-    observacoes: m.observacoes,
-    created_by: m.createdBy,
-  };
-}
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export function dbToOSTransicao(row: any): OSTransicao {
-  return {
-    id: row.id,
-    osId: row.os_id ?? '',
-    statusDe: (row.status_de ?? null) as StatusOS | null,
-    statusPara: (row.status_para ?? 'aberta') as StatusOS,
-    motivo: row.motivo ?? '',
-    createdAt: row.created_at ?? '',
-    createdBy: row.created_by ?? '',
   };
 }
 

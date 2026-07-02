@@ -1,12 +1,14 @@
 // Marco 2 / PR13 — Dashboard de Manutenção.
 //
-// Página com KPIs agregados, tops e curva de custo. Read-only.
+// Página com KPIs agregados, tops, curva de custo e alertas de óleos. Read-only.
+// Task 3.3: removidos widgets de preventivas/planos; adicionado OleosVencendoPanel.
+// Task 3.3 (complement): widgets de custo por máquina e por tipo de serviço.
 
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   ClipboardList, AlertTriangle, Clock, Wrench, TrendingUp,
-  Activity, BarChart3, DollarSign, CalendarClock, Package, HardHat, FileDown,
+  Activity, BarChart3, DollarSign, Package, FileDown, Layers,
 } from 'lucide-react';
 import Button from '../ui/Button';
 import { exportarRelatorioMensalPdf, exportarRelatorioAnualPdf } from '../../utils/manutencaoPdfExport';
@@ -15,19 +17,11 @@ import {
 } from 'recharts';
 import { useEquipamentos } from '../../hooks/useEquipamentos';
 import { useDashboardManutencao } from '../../hooks/useDashboardManutencao';
-import { useProximasPreventivas } from '../../hooks/usePlanosPreventivos';
 import { useSaldoEstoqueTotal } from '../../hooks/useSaldoEstoque';
 import { useCustoPecasEquipamento } from '../../hooks/useCustoPecasEquipamento';
-import { useChecklistsNaoConformidades } from '../../hooks/useChecklistNaoConformidades';
-import type { ProximaPreventiva } from '../../types';
-
-function statusPreventiva(pp: ProximaPreventiva): 'vencida' | 'proxima' | 'futura' {
-  if (pp.unidadesRestantes != null && pp.unidadesRestantes < 0) return 'vencida';
-  if (pp.diasRestantes != null && pp.diasRestantes < 0) return 'vencida';
-  if (pp.diasRestantes != null && pp.diasRestantes <= 30) return 'proxima';
-  if (pp.unidadesRestantes != null && pp.unidadesRestantes <= 50) return 'proxima';
-  return 'futura';
-}
+import OleosVencendoPanel from './OleosVencendoPanel';
+import { TIPO_OS_LABEL } from '../../types';
+import type { TipoOS } from '../../types';
 
 function fmtBRL(n: number): string {
   return n.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 });
@@ -49,22 +43,8 @@ export default function DashboardManutencao() {
   const navigate = useNavigate();
   const { data: equipamentos = [] } = useEquipamentos();
   const { data: dash, isLoading } = useDashboardManutencao(equipamentos);
-  const { data: proximas = [] } = useProximasPreventivas();
   const { data: saldosEstoque = [] } = useSaldoEstoqueTotal({ apenasManutencao: true });
   const { data: topPorPecas = [] } = useCustoPecasEquipamento(10);
-  const { data: naoConformidades = [] } = useChecklistsNaoConformidades();
-
-  const checklistsMetricas = useMemo(() => {
-    let bloqueados = 0;
-    let comPendencias = 0;
-    let totalCriticos = 0;
-    for (const nc of naoConformidades) {
-      if (nc.status === 'bloqueado') bloqueados++;
-      else if (nc.status === 'concluido_com_pendencias') comPendencias++;
-      totalCriticos += nc.itensCriticos;
-    }
-    return { total: naoConformidades.length, bloqueados, comPendencias, totalCriticos };
-  }, [naoConformidades]);
 
   const pecasMetricas = useMemo(() => {
     let zeradas = 0, abaixoMin = 0;
@@ -75,16 +55,64 @@ export default function DashboardManutencao() {
     return { criticas: zeradas + abaixoMin, zeradas, abaixoMin, total: saldosEstoque.length };
   }, [saldosEstoque]);
 
-  const preventivasMetricas = useMemo(() => {
-    let vencidas = 0;
-    let proximas30 = 0;
-    for (const p of proximas) {
-      const s = statusPreventiva(p);
-      if (s === 'vencida') vencidas++;
-      else if (s === 'proxima') proximas30++;
+  // ── Custo por máquina (concluídas no ano, top 8) ─────────────────
+  const custoPorMaquina = useMemo(() => {
+    if (!dash) return [];
+    const anoAtual = new Date().getFullYear();
+    const concluidas = dash.ordens.filter(
+      (o) => o.status === 'concluida' && o.dataConclusao &&
+        new Date(o.dataConclusao).getFullYear() === anoAtual,
+    );
+    const map = new Map<string, { total: number; numOS: number }>();
+    for (const o of concluidas) {
+      const v = map.get(o.equipamentoId) ?? { total: 0, numOS: 0 };
+      v.total += o.custoTotal;
+      v.numOS += 1;
+      map.set(o.equipamentoId, v);
     }
-    return { vencidas, proximas30, total: proximas.length };
-  }, [proximas]);
+    const equipMap = new Map(equipamentos.map((e) => [e.id, e]));
+    return Array.from(map.entries())
+      .map(([eqId, v]) => {
+        const eq = equipMap.get(eqId);
+        return {
+          equipamentoId: eqId,
+          equipamentoNome: eq
+            ? eq.codigoPatrimonio ? `${eq.codigoPatrimonio} · ${eq.nome}` : eq.nome
+            : '(Equipamento removido)',
+          custoTotal: v.total,
+          numOS: v.numOS,
+        };
+      })
+      .filter((it) => it.custoTotal > 0)
+      .sort((a, b) => b.custoTotal - a.custoTotal)
+      .slice(0, 8);
+  }, [dash, equipamentos]);
+
+  // ── Custo por tipo de serviço (concluídas no ano) ─────────────────
+  const custoPorTipo = useMemo(() => {
+    if (!dash) return [];
+    const anoAtual = new Date().getFullYear();
+    const concluidas = dash.ordens.filter(
+      (o) => o.status === 'concluida' && o.dataConclusao &&
+        new Date(o.dataConclusao).getFullYear() === anoAtual,
+    );
+    const map = new Map<TipoOS, { total: number; numOS: number }>();
+    for (const o of concluidas) {
+      const v = map.get(o.tipo) ?? { total: 0, numOS: 0 };
+      v.total += o.custoTotal;
+      v.numOS += 1;
+      map.set(o.tipo, v);
+    }
+    return Array.from(map.entries())
+      .map(([tipo, v]) => ({
+        tipo,
+        label: TIPO_OS_LABEL[tipo] ?? tipo,
+        custoTotal: v.total,
+        numOS: v.numOS,
+      }))
+      .filter((it) => it.custoTotal > 0)
+      .sort((a, b) => b.custoTotal - a.custoTotal);
+  }, [dash]);
 
   // Seletores de export (mês e ano)
   const hoje = new Date();
@@ -102,8 +130,7 @@ export default function DashboardManutencao() {
   }
 
   const { kpis, topPorCusto, topPorIndisponibilidade, custoMensalPorTipo } = dash;
-  const semDados = kpis.osAbertas + kpis.osAbertas === 0
-    && custoMensalPorTipo.every((m) => Object.keys(m).filter((k) => k !== 'mes').every((k) => Number(m[k]) === 0));
+  const semDados = dash.ordens.length === 0;
 
   // Tipos com dado pra renderizar linhas do gráfico
   const tiposGrafico = Array.from(new Set(
@@ -120,8 +147,6 @@ export default function DashboardManutencao() {
         mes: mesExport,
         ordens: dash.ordens,
         equipamentos,
-        proximasPreventivas: proximas,
-        naoConformidades,
       });
     } finally {
       setExportando('idle');
@@ -156,7 +181,7 @@ export default function DashboardManutencao() {
             Dashboard de Manutenção
           </h1>
           <p className="text-sm text-[var(--color-fg-muted)] mt-0.5">
-            Visão consolidada de OS, custos e disponibilidade da frota.
+            Visão consolidada de OS, custos, disponibilidade e alertas de óleo da frota.
           </p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
@@ -241,41 +266,6 @@ export default function DashboardManutencao() {
             : kpis.percCorretivoAno > 30
               ? 'bg-[var(--color-warning-soft)] text-[var(--color-warning-fg)]'
               : 'bg-[var(--color-success-soft)] text-[var(--color-success-fg)]'}
-        />
-        <KPI
-          label="Preventivas vencidas"
-          valor={preventivasMetricas.vencidas}
-          legenda={preventivasMetricas.total > 0 ? `de ${preventivasMetricas.total} programadas` : 'aplique planos para popular'}
-          icon={AlertTriangle}
-          cor={preventivasMetricas.vencidas > 0
-            ? 'bg-[var(--color-danger-soft)] text-[var(--color-danger-fg)]'
-            : 'bg-[var(--color-success-soft)] text-[var(--color-success-fg)]'}
-          onClick={() => navigate('/manutencao/agenda?status=vencidas')}
-        />
-        <KPI
-          label="Preventivas próximas"
-          valor={preventivasMetricas.proximas30}
-          legenda="próximos 30 dias / 50 unid."
-          icon={CalendarClock}
-          cor={preventivasMetricas.proximas30 > 0
-            ? 'bg-[var(--color-warning-soft)] text-[var(--color-warning-fg)]'
-            : 'bg-[var(--color-surface-2)] text-[var(--color-fg-muted)]'}
-          onClick={() => navigate('/manutencao/agenda?status=proximas')}
-        />
-        <KPI
-          label="Não-conformidades"
-          valor={checklistsMetricas.total}
-          legenda={checklistsMetricas.bloqueados > 0
-            ? `${checklistsMetricas.bloqueados} bloqueado(s) · ${checklistsMetricas.totalCriticos} crítico(s)`
-            : checklistsMetricas.comPendencias > 0 ? `${checklistsMetricas.comPendencias} com pendências`
-            : 'todos os checklists OK'}
-          icon={HardHat}
-          cor={checklistsMetricas.bloqueados > 0
-            ? 'bg-[var(--color-danger-soft)] text-[var(--color-danger-fg)]'
-            : checklistsMetricas.total > 0
-              ? 'bg-[var(--color-warning-soft)] text-[var(--color-warning-fg)]'
-              : 'bg-[var(--color-success-soft)] text-[var(--color-success-fg)]'}
-          onClick={() => navigate('/manutencao/checklists?aba=nao_conformidades')}
         />
         <KPI
           label="Peças críticas"
@@ -373,6 +363,80 @@ export default function DashboardManutencao() {
               legenda={(it) => `${it.numOs} OS · ${it.numPecas} peças · ${it.tipo}`}
               vazio="Nenhum consumo de peças registrado nos últimos 12 meses."
             />
+          </section>
+
+          {/* Custo por máquina e por tipo de serviço (ano corrente) */}
+          <section className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+            {/* Custo por máquina */}
+            <div>
+              <h3 className="text-xs font-semibold uppercase tracking-wider text-[var(--color-fg-muted)] mb-2 flex items-center gap-1.5">
+                <DollarSign aria-hidden className="w-3.5 h-3.5" />
+                Custo por máquina · ano
+              </h3>
+              {custoPorMaquina.length === 0 ? (
+                <div className="rounded-xl border border-dashed border-[var(--color-border)] bg-[var(--color-surface-1)] p-4 text-center text-sm text-[var(--color-fg-muted)]">
+                  Nenhum serviço concluído com custo registrado este ano.
+                </div>
+              ) : (
+                <ul className="space-y-1">
+                  {custoPorMaquina.map((it, i) => (
+                    <li
+                      key={it.equipamentoId}
+                      className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-1)] p-2.5 flex items-center justify-between gap-2"
+                    >
+                      <div className="flex items-center gap-2 min-w-0 flex-1">
+                        <span className="text-xs font-mono text-[var(--color-fg-subtle)] w-5 text-right">
+                          {i + 1}
+                        </span>
+                        <div className="min-w-0">
+                          <p className="text-sm text-[var(--color-fg)] truncate">{it.equipamentoNome}</p>
+                          <p className="text-xs text-[var(--color-fg-muted)] truncate">{it.numOS} OS</p>
+                        </div>
+                      </div>
+                      <strong className="text-sm font-mono shrink-0">{fmtBRL(it.custoTotal)}</strong>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+
+            {/* Custo por tipo de serviço */}
+            <div>
+              <h3 className="text-xs font-semibold uppercase tracking-wider text-[var(--color-fg-muted)] mb-2 flex items-center gap-1.5">
+                <Layers aria-hidden className="w-3.5 h-3.5" />
+                Custo por tipo de serviço · ano
+              </h3>
+              {custoPorTipo.length === 0 ? (
+                <div className="rounded-xl border border-dashed border-[var(--color-border)] bg-[var(--color-surface-1)] p-4 text-center text-sm text-[var(--color-fg-muted)]">
+                  Nenhum serviço concluído com custo registrado este ano.
+                </div>
+              ) : (
+                <ul className="space-y-1">
+                  {custoPorTipo.map((it, i) => (
+                    <li
+                      key={it.tipo}
+                      className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-1)] p-2.5 flex items-center justify-between gap-2"
+                    >
+                      <div className="flex items-center gap-2 min-w-0 flex-1">
+                        <span className="text-xs font-mono text-[var(--color-fg-subtle)] w-5 text-right">
+                          {i + 1}
+                        </span>
+                        <div className="min-w-0">
+                          <p className="text-sm text-[var(--color-fg)] truncate">{it.label}</p>
+                          <p className="text-xs text-[var(--color-fg-muted)] truncate">{it.numOS} OS</p>
+                        </div>
+                      </div>
+                      <strong className="text-sm font-mono shrink-0">{fmtBRL(it.custoTotal)}</strong>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          </section>
+
+          {/* Alertas de óleos vencendo */}
+          <section className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-1)] p-4">
+            <OleosVencendoPanel compacto />
           </section>
         </>
       )}

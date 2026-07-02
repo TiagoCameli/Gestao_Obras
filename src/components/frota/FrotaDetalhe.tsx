@@ -14,7 +14,6 @@ import FotosEquipamentoGaleria from './FotosEquipamentoGaleria';
 import EspecificacoesEquipamentoSection from './especificacoes/EspecificacoesEquipamentoSection';
 import FinanceiroEquipamentoSection from './financeiro/FinanceiroEquipamentoSection';
 import HistoricoEquipamentoSection from './historico/HistoricoEquipamentoSection';
-import PlanoPreventivoEquipamentoSection from './planos/PlanoPreventivoEquipamentoSection';
 import CustoPecasEquipamentoSection from './pecas/CustoPecasEquipamentoSection';
 import { useAuth } from '../../contexts/AuthContext';
 
@@ -224,8 +223,6 @@ export default function FrotaDetalhe({ equipamento: eq, empresas, fornecedores, 
         equipamentoId={eq.id}
         fornecedores={fornecedores}
       />
-
-      <PlanoPreventivoEquipamentoSection equipamento={eq} />
 
       <CustoPecasEquipamentoSection equipamentoId={eq.id} />
 

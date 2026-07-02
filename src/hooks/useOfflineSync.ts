@@ -1,18 +1,11 @@
 // Marco 5 / PR27 — Hook unificado de sincronização offline.
 //
-// Substitui o useChecklistSync (PR25b) por uma versão que orquestra as 3
-// filas: checklists, medições e OS criadas pelo mobile.
+// Orquestra as filas offline do mobile: medições, OS criadas pelo mobile
+// e batidas de ponto.
 
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { supabase } from '../lib/supabase';
-import {
-  listPendingChecklists,
-  countPendingChecklists,
-  removeChecklist,
-  markChecklistAttempt,
-  indexedDBSuportado,
-} from '../lib/checklistsQueue';
 import {
   listPendingMedicoes,
   countPendingMedicoes,
@@ -26,16 +19,15 @@ import {
   countPendingBatidas,
   removeBatida,
   markBatidaAttempt,
+  indexedDBSuportado,
 } from '../lib/offlineQueue';
 import { registrarBatida } from '../modules/apontamento/utils/pontoApi';
-import { useEnviarChecklist } from './useChecklists';
 import type { MedicaoEquipamento } from '../types';
 
 export type SyncStatus = 'idle' | 'syncing' | 'error';
 
 export interface UseOfflineSyncResult {
   totalPendentes: number;
-  countChecklists: number;
   countMedicoes: number;
   countOS: number;
   countBatidas: number;
@@ -51,8 +43,6 @@ function gerarId(prefix: string) {
 
 export function useOfflineSync(): UseOfflineSyncResult {
   const qc = useQueryClient();
-  const enviarChecklist = useEnviarChecklist();
-  const [countChecklists, setCountChecklists] = useState(0);
   const [countMedicoes, setCountMedicoes] = useState(0);
   const [countOS, setCountOS] = useState(0);
   const [countBatidas, setCountBatidas] = useState(0);
@@ -65,13 +55,11 @@ export function useOfflineSync(): UseOfflineSyncResult {
   const refresh = useCallback(async () => {
     if (!indexedDBSuportado()) return;
     try {
-      const [c, m, o, b] = await Promise.all([
-        countPendingChecklists(),
+      const [m, o, b] = await Promise.all([
         countPendingMedicoes(),
         countPendingOSNovas(),
         countPendingBatidas(),
       ]);
-      setCountChecklists(c);
       setCountMedicoes(m);
       setCountOS(o);
       setCountBatidas(b);
@@ -79,35 +67,6 @@ export function useOfflineSync(): UseOfflineSyncResult {
       console.error('[offline-sync] refresh falhou', err);
     }
   }, []);
-
-  const syncChecklists = useCallback(async () => {
-    const fila = await listPendingChecklists();
-    for (const item of fila) {
-      try {
-        await enviarChecklist.mutateAsync({
-          templateId: item.templateId,
-          templateVersao: item.templateVersao,
-          equipamentoId: item.equipamentoId,
-          operadorFuncionarioId: item.operadorFuncionarioId,
-          operadorNome: item.operadorNome,
-          medicaoAtual: item.medicaoAtual,
-          status: item.status,
-          observacoesGerais: item.observacoesGerais,
-          respostas: item.respostas.map((r) => ({
-            perguntaId: r.perguntaId,
-            perguntaSnapshot: r.perguntaSnapshot,
-            resposta: r.resposta,
-            observacao: r.observacao,
-            fotoBlob: r.fotoBlob,
-          })),
-        });
-        await removeChecklist(item.localId);
-      } catch (err) {
-        const msg = err instanceof Error ? err.message : 'Erro';
-        await markChecklistAttempt(item.localId, msg);
-      }
-    }
-  }, [enviarChecklist]);
 
   const syncMedicoes = useCallback(async () => {
     const fila = await listPendingMedicoes();
@@ -267,7 +226,6 @@ export function useOfflineSync(): UseOfflineSyncResult {
     syncingRef.current = true;
     setStatus('syncing');
     try {
-      await syncChecklists();
       await syncMedicoes();
       await syncOSNovas();
       await syncBatidas();
@@ -279,7 +237,7 @@ export function useOfflineSync(): UseOfflineSyncResult {
       syncingRef.current = false;
       await refresh();
     }
-  }, [syncChecklists, syncMedicoes, syncOSNovas, syncBatidas, refresh]);
+  }, [syncMedicoes, syncOSNovas, syncBatidas, refresh]);
 
   useEffect(() => {
     refresh();
@@ -304,8 +262,7 @@ export function useOfflineSync(): UseOfflineSyncResult {
   }, [refresh]);
 
   return {
-    totalPendentes: countChecklists + countMedicoes + countOS + countBatidas,
-    countChecklists,
+    totalPendentes: countMedicoes + countOS + countBatidas,
     countMedicoes,
     countOS,
     countBatidas,

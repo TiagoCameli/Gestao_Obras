@@ -1314,110 +1314,9 @@ export interface CotacaoRespostaFornecedor {
   ipOrigem?: string;
 }
 
-// === Planos Preventivos (PR14 - Marco 3) ===
-
-export type CategoriaAtividade =
-  | 'lubrificacao' | 'filtros' | 'pneus' | 'eletrica' | 'mecanica'
-  | 'hidraulica' | 'inspecao' | 'limpeza' | 'analise_laboratorio';
-
-export const CATEGORIA_ATIVIDADE_LABEL: Record<CategoriaAtividade, string> = {
-  lubrificacao: 'Lubrificação',
-  filtros: 'Filtros',
-  pneus: 'Pneus',
-  eletrica: 'Elétrica',
-  mecanica: 'Mecânica',
-  hidraulica: 'Hidráulica',
-  inspecao: 'Inspeção',
-  limpeza: 'Limpeza',
-  analise_laboratorio: 'Análise laboratório',
-};
-
-export interface PlanoPreventivo {
-  id: string;
-  nome: string;
-  tipoEquipamento: string;
-  fabricante: string;
-  modeloReferencia: string;
-  ativo: boolean;
-  observacoes: string;
-  createdAt: string;
-  createdBy: string;
-  updatedAt: string;
-  updatedBy: string;
-}
-
-export interface PlanoAtividade {
-  id: string;
-  planoId: string;
-  nome: string;
-  categoria: CategoriaAtividade | null;
-  periodicidadeHorimetro: number | null;
-  periodicidadeKm: number | null;
-  periodicidadeDias: number | null;
-  toleranciaPercentual: number;
-  tempoEstimadoH: number | null;
-  custoEstimado: number | null;
-  procedimento: string;
-  obrigatoria: boolean;
-  ordem: number;
-  exigeOficinaExterna: boolean;
-  epiNecessario: string[];
-  arquivoUrls: string[];
-  createdAt: string;
-  createdBy: string;
-}
-
-export interface EquipamentoPlano {
-  id: string;
-  equipamentoId: string;
-  planoId: string;
-  ativo: boolean;
-  dataInicio: string;
-  observacoes: string;
-  createdAt: string;
-  createdBy: string;
-}
-
-export interface ExecucaoAtividade {
-  id: string;
-  equipamentoId: string;
-  atividadeId: string;
-  osId: string | null;
-  dataExecucao: string;
-  medicaoExecucao: number | null;
-  custo: number;
-  observacoes: string;
-  createdAt: string;
-  createdBy: string;
-}
-
-/** Linha da view v_proximas_preventivas. */
-export interface ProximaPreventiva {
-  equipamentoId: string;
-  codigoPatrimonio: string;
-  equipamentoNome: string;
-  equipamentoTipo: string;
-  tipoMedicao: TipoMedicao;
-  atividadeId: string;
-  atividadeNome: string;
-  categoria: CategoriaAtividade | null;
-  periodicidadeHorimetro: number | null;
-  periodicidadeKm: number | null;
-  periodicidadeDias: number | null;
-  toleranciaPercentual: number;
-  obrigatoria: boolean;
-  ultimaExecucaoData: string | null;
-  ultimaExecucaoMedicao: number | null;
-  medicaoAtual: number | null;
-  proximaMedicao: number | null;
-  unidadesRestantes: number | null;
-  proximaData: string | null;
-  diasRestantes: number | null;
-}
-
 // === Ordens de Serviço (PR9 - Marco 2) ===
 
-export type TipoOS = 'preventiva' | 'corretiva' | 'preditiva' | 'melhoria' | 'garantia' | 'recall';
+export type TipoOS = 'preventiva' | 'corretiva' | 'preditiva' | 'melhoria' | 'garantia' | 'recall' | 'troca_oleo' | 'lubrificacao' | 'pneu' | 'solda' | 'eletrica' | 'revisao_geral' | 'outro';
 export type PrioridadeOS = 'baixa' | 'media' | 'alta' | 'critica';
 export type StatusOS =
   | 'rascunho' | 'aberta' | 'aguardando_pecas' | 'em_execucao'
@@ -1432,6 +1331,13 @@ export const TIPO_OS_LABEL: Record<TipoOS, string> = {
   melhoria: 'Melhoria',
   garantia: 'Garantia',
   recall: 'Recall',
+  troca_oleo: 'Troca de óleo',
+  lubrificacao: 'Lubrificação',
+  pneu: 'Pneu',
+  solda: 'Solda',
+  eletrica: 'Elétrica',
+  revisao_geral: 'Revisão geral',
+  outro: 'Outro',
 };
 
 export const PRIORIDADE_OS_LABEL: Record<PrioridadeOS, string> = {
@@ -1483,6 +1389,8 @@ export interface OrdemServico {
   custoPecas: number;
   custoServicoTerceiro: number;
   custoMaoObraPropria: number;
+  custoTerceiros: number;
+  custoOleos: number;
   custoTotal: number;
   aprovadoPor: string;
   aprovadoEm: string | null;
@@ -1508,29 +1416,6 @@ export interface OSPeca {
   status: 'reservada' | 'consumida' | 'devolvida';
   saidaMaterialId: string | null;
   observacoes: string;
-  createdAt: string;
-  createdBy: string;
-}
-
-export interface OSMaoObra {
-  id: string;
-  osId: string;
-  colaboradorId: string;
-  data: string;
-  horas: number;
-  custoHora: number | null;
-  custoTotal: number;
-  observacoes: string;
-  createdAt: string;
-  createdBy: string;
-}
-
-export interface OSTransicao {
-  id: string;
-  osId: string;
-  statusDe: StatusOS | null;
-  statusPara: StatusOS;
-  motivo: string;
   createdAt: string;
   createdBy: string;
 }
@@ -1725,70 +1610,50 @@ export interface MedicaoAtualEquipamento {
   origemIdUltimaLeitura: string | null;
 }
 
-// === Checklists pré-uso (Marco 5 / PR24) ===
+// === Manutenção — Óleos, Serviços Terceiros (Task 2.1) ===
 
-export type CategoriaPergunta = 'motor' | 'hidraulico' | 'freios' | 'pneus' | 'eletrica' | 'mecanica' | 'geral';
-export type RespostaChecklist = 'sim' | 'nao' | 'nao_aplica';
-export type StatusExecucaoChecklist = 'concluido' | 'concluido_com_pendencias' | 'bloqueado';
-
-export const CATEGORIA_PERGUNTA_LABEL: Record<CategoriaPergunta, string> = {
-  motor: 'Motor',
-  hidraulico: 'Hidráulico',
-  freios: 'Freios',
-  pneus: 'Pneus',
-  eletrica: 'Elétrica',
-  mecanica: 'Mecânica',
-  geral: 'Geral',
-};
-
-export interface ChecklistTemplate {
+export interface TipoOleo {
   id: string;
   nome: string;
-  tipoEquipamento: string;
-  versao: number;
+  aplicacao: 'motor' | 'hidraulico' | 'transmissao' | 'diferencial' | 'graxa' | 'outro';
+  intervaloMeses: number | null;
   ativo: boolean;
-  observacoes: string;
   createdAt: string;
   createdBy: string;
-  updatedAt: string;
-  updatedBy: string;
 }
 
-export interface ChecklistPergunta {
+export interface OSTerceiro {
   id: string;
-  templateId: string;
-  ordem: number;
-  categoria: CategoriaPergunta;
-  pergunta: string;
+  osId: string;
+  prestador: string;
   descricao: string;
-  obrigatoria: boolean;
-  critica: boolean;
-}
-
-export interface ChecklistExecucao {
-  id: string;
-  templateId: string;
-  templateVersao: number;
-  equipamentoId: string;
-  operadorFuncionarioId: string | null;
-  operadorNome: string;
-  medicaoAtual: number | null;
-  status: StatusExecucaoChecklist;
-  observacoesGerais: string;
-  osGeradaId: string | null;
-  iniciadoEm: string;
-  concluidoEm: string;
-  sincronizadoEm: string;
+  valor: number;
+  notaFiscal: string | null;
   createdAt: string;
   createdBy: string;
 }
 
-export interface ChecklistResposta {
+export interface OSOleo {
   id: string;
-  execucaoId: string;
-  perguntaId: string;
-  perguntaSnapshot: string;
-  resposta: RespostaChecklist;
-  observacao: string;
-  fotoUrl: string | null;
+  osId: string;
+  tipoOleoId: string;
+  quantidade: number;
+  unidade: 'L' | 'kg';
+  valorUnitario: number;
+  valorTotal: number;
+  createdAt: string;
+  createdBy: string;
+}
+
+export interface OleoVencendo {
+  equipamentoId: string;
+  equipamentoNome: string;
+  tipoOleoId: string;
+  tipoOleoNome: string;
+  aplicacao: string;
+  ultimaTroca: string;
+  intervaloMeses: number;
+  dataVencimento: string;
+  diasParaVencer: number;
+  situacao: 'vencido' | 'a_vencer' | 'ok';
 }
