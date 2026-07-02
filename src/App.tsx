@@ -105,6 +105,7 @@ export default function App() {
               <Route path="/manutencao/os" element={<ProtectedRoute modulo="frota"><Manutencao /></ProtectedRoute>} />
               <Route path="/manutencao/os/:numero" element={<ProtectedRoute modulo="frota"><Manutencao /></ProtectedRoute>} />
               <Route path="/manutencao/almoxarifado" element={<ProtectedRoute modulo="frota"><Manutencao /></ProtectedRoute>} />
+              <Route path="/manutencao/tipos-oleo" element={<ProtectedRoute modulo="frota"><Manutencao /></ProtectedRoute>} />
               <Route path="/combustivel" element={<ProtectedRoute modulo="frota"><Combustivel /></ProtectedRoute>} />
               <Route path="/funcionarios" element={<ProtectedRoute modulo="funcionarios"><Funcionarios /></ProtectedRoute>} />
               <Route path="/apontamento" element={<ProtectedRoute modulo="apontamento_rh"><ApontamentoPage /></ProtectedRoute>} />
