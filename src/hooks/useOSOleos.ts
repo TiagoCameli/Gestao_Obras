@@ -16,6 +16,8 @@ function dbToOSOleo(row: any): OSOleo {
     id: row.id,
     osId: row.os_id ?? '',
     tipoOleoId: row.tipo_oleo_id ?? '',
+    insumoId: row.insumo_id ?? null,
+    depositoId: row.deposito_id ?? null,
     quantidade: Number(row.quantidade ?? 0),
     unidade: row.unidade ?? 'L',
     valorUnitario: Number(row.valor_unitario ?? 0),
@@ -30,6 +32,8 @@ function osOleoToDb(o: OSOleo) {
     id: o.id,
     os_id: o.osId,
     tipo_oleo_id: o.tipoOleoId,
+    insumo_id: o.insumoId ?? null,
+    deposito_id: o.depositoId ?? null,
     quantidade: o.quantidade,
     unidade: o.unidade,
     valor_unitario: o.valorUnitario,
@@ -101,6 +105,9 @@ export function useAdicionarOleoOS() {
       qc.invalidateQueries({ queryKey: ['ordens_servico'] });
       qc.invalidateQueries({ queryKey: ['os-oleos', variables.osId] });
       qc.invalidateQueries({ queryKey: ['oleos-vencendo'] });
+      // baixa/estorno de estoque reflete no saldo do almoxarifado
+      qc.invalidateQueries({ predicate: (q) => q.queryKey[0] === 'saldo_estoque_total' });
+      qc.invalidateQueries({ predicate: (q) => q.queryKey[0] === 'saldo_estoque_deposito' });
     },
   });
 }
@@ -123,6 +130,9 @@ export function useExcluirOleoOS() {
       qc.invalidateQueries({ queryKey: ['ordens_servico'] });
       qc.invalidateQueries({ queryKey: ['os-oleos', variables.osId] });
       qc.invalidateQueries({ queryKey: ['oleos-vencendo'] });
+      // baixa/estorno de estoque reflete no saldo do almoxarifado
+      qc.invalidateQueries({ predicate: (q) => q.queryKey[0] === 'saldo_estoque_total' });
+      qc.invalidateQueries({ predicate: (q) => q.queryKey[0] === 'saldo_estoque_deposito' });
     },
   });
 }

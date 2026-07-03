@@ -266,6 +266,7 @@ export function dbToInsumo(row: any): Insumo {
     equipamentosCompativeis: row.equipamentos_compativeis ?? [],
     fotoUrl: row.foto_url ?? '',
     aplicacaoTecnica: row.aplicacao_tecnica ?? '',
+    tipoOleoId: row.tipo_oleo_id ?? null,
   };
 }
 
@@ -290,6 +291,7 @@ export function insumoToDb(i: Insumo) {
     equipamentos_compativeis: i.equipamentosCompativeis ?? [],
     foto_url: i.fotoUrl || null,
     aplicacao_tecnica: i.aplicacaoTecnica || null,
+    tipo_oleo_id: i.tipoOleoId || null,
   };
 }
 

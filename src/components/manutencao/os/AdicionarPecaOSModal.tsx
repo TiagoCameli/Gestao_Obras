@@ -1,84 +1,95 @@
-// Marco 2 / PR12 — Modal para adicionar peça em uma OS.
-//
-// Operador escolhe o insumo (do catálogo geral), informa quantidade,
-// custo unitário e opcionalmente depósito. Status default 'reservada'
-// (vira 'consumida' no fechamento da OS — fluxo do PR13).
+// Adicionar peça em uma OS — agora com baixa de estoque.
+// Só peças com saldo aparecem; escolhe o almoxarifado de saída (obrigatório);
+// unidade e custo (= custo médio da entrada) vêm automáticos; quantidade é
+// validada contra o saldo. A baixa é feita pela view v_saldo_estoque (que
+// desconta os_pecas ativas com depósito) + trigger tg_os_pecas_valida_saldo.
 
 import { useState, useCallback, useMemo, type FormEvent } from 'react';
-import type { Insumo, OSPeca, DepositoMaterial } from '../../../types';
+import type { OSPeca } from '../../../types';
 import Modal from '../../ui/Modal';
 import Input from '../../ui/Input';
-import { useAuth } from '../../../contexts/AuthContext';
 import Select from '../../ui/Select';
 import Button from '../../ui/Button';
 import FilterCombobox from '../../ui/FilterCombobox';
 import { parseNum } from '../../../utils/parseNum';
+import { useAuth } from '../../../contexts/AuthContext';
+import { useSaldoEstoqueTotal, useSaldoEstoquePorDeposito } from '../../../hooks/useSaldoEstoque';
+import { depositosComSaldo, acharSaldoDeposito, validarQtdContraSaldo } from '../../../utils/estoqueServico';
 
 interface Props {
   open: boolean;
   onClose: () => void;
   osId: string;
-  insumos: Insumo[];
-  depositos: DepositoMaterial[];
   initial?: OSPeca | null;
   onSubmit: (peca: OSPeca) => Promise<void>;
   usuarioNome: string;
 }
 
-const STATUS_PECA_OPTIONS = [
-  { value: 'reservada', label: 'Reservada' },
-  { value: 'consumida', label: 'Consumida' },
-  { value: 'devolvida', label: 'Devolvida' },
-];
-
 function gerarId() {
   return Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
 }
 
+function fmtQty(n: number): string {
+  return n.toLocaleString('pt-BR', { maximumFractionDigits: 3 });
+}
+
 export default function AdicionarPecaOSModal({
-  open, onClose, osId, insumos, depositos, initial, onSubmit, usuarioNome,
+  open, onClose, osId, initial, onSubmit, usuarioNome,
 }: Props) {
+  const { temAcao } = useAuth();
+  const canAddPeca = temAcao('adicionar_peca_os');
+
   const [insumoId, setInsumoId] = useState(initial?.insumoId ?? '');
   const [depositoId, setDepositoId] = useState(initial?.depositoId ?? '');
   const [quantidade, setQuantidade] = useState(initial?.quantidade?.toString() ?? '1');
-  const [custoUnitario, setCustoUnitario] = useState(initial?.custoUnitario?.toString() ?? '');
-  const [status, setStatus] = useState<OSPeca['status']>(initial?.status ?? 'reservada');
   const [observacoes, setObservacoes] = useState(initial?.observacoes ?? '');
   const [submitting, setSubmitting] = useState(false);
 
-  // Filtra insumos: tipo 'peca', 'filtro', 'lubrificante', 'fluido' (qualquer
-  // não-combustível). Lista geral também aceita.
-  const insumosFiltrados = useMemo(() => {
-    return insumos.filter((i) => i.ativo !== false);
-  }, [insumos]);
+  // Só insumos de manutenção COM saldo em algum depósito.
+  const { data: saldosTotais = [] } = useSaldoEstoqueTotal({ apenasManutencao: true });
+  const opcoesPeca = useMemo(
+    () => saldosTotais
+      .filter((s) => s.saldoTotal > 0)
+      .map((s) => ({ value: s.insumoId, label: `${s.insumoNome} (${fmtQty(s.saldoTotal)} ${s.unidade})` })),
+    [saldosTotais],
+  );
+
+  // Saldo por depósito do insumo escolhido.
+  const { data: saldosDep = [] } = useSaldoEstoquePorDeposito(insumoId || null);
+  const depOpcoes = useMemo(() => depositosComSaldo(saldosDep), [saldosDep]);
+
+  // Ao trocar de insumo, zera o depósito escolhido (evita depósito de outro item).
+  const escolherInsumo = (id: string) => { setInsumoId(id); setDepositoId(''); };
+
+  const saldoDep = depositoId ? acharSaldoDeposito(saldosDep, depositoId) : null;
+  const unidade = saldoDep?.unidade ?? '';
+  const custoMedio = saldoDep?.custoMedio ?? null;
+  const saldoDisponivel = saldoDep?.saldo ?? 0;
 
   const quantidadeNum = parseNum(quantidade);
-  const custoUnitarioNum = parseNum(custoUnitario);
-  const custoTotal = quantidadeNum * custoUnitarioNum;
+  const erroQtd = depositoId ? validarQtdContraSaldo(quantidadeNum, saldoDisponivel) : null;
+  const custoTotal = quantidadeNum * (custoMedio ?? 0);
 
-  const podeSalvar = !!insumoId && quantidadeNum > 0 && custoUnitarioNum >= 0;
+  const podeSalvar = !!insumoId && !!depositoId && custoMedio != null && !erroQtd;
 
-  const { temAcao } = useAuth();
-  const canAddPeca = temAcao('adicionar_peca_os');
   const handleSubmit = useCallback(async (e: FormEvent) => {
     e.preventDefault();
-    if (!canAddPeca) return;
-    if (!podeSalvar || submitting) return;
+    if (!canAddPeca || !podeSalvar || submitting || custoMedio == null) return;
     setSubmitting(true);
     try {
-      const insumo = insumos.find((i) => i.id === insumoId);
+      const nome = saldoDep?.insumoNome ?? '';
       await onSubmit({
         id: initial?.id ?? gerarId(),
         osId,
         insumoId,
-        depositoId: depositoId || null,
+        depositoId,
         quantidade: quantidadeNum,
         unidadeMedidaId: null,
-        custoUnitario: custoUnitarioNum,
-        custoTotal: quantidadeNum * custoUnitarioNum,
-        status,
+        custoUnitario: custoMedio,
+        custoTotal: quantidadeNum * custoMedio,
+        status: initial?.status ?? 'reservada',
         saidaMaterialId: null,
-        observacoes: observacoes.trim() || (insumo ? `Insumo: ${insumo.nome}` : ''),
+        observacoes: observacoes.trim() || (nome ? `Insumo: ${nome}` : ''),
         createdAt: initial?.createdAt ?? new Date().toISOString(),
         createdBy: initial?.createdBy ?? usuarioNome,
       });
@@ -87,8 +98,8 @@ export default function AdicionarPecaOSModal({
       setSubmitting(false);
     }
   }, [
-    podeSalvar, submitting, insumoId, depositoId, quantidadeNum, custoUnitarioNum,
-    status, observacoes, osId, initial, insumos, usuarioNome, onSubmit, onClose,
+    canAddPeca, podeSalvar, submitting, custoMedio, saldoDep, insumoId, depositoId,
+    quantidadeNum, observacoes, osId, initial, usuarioNome, onSubmit, onClose,
   ]);
 
   return (
@@ -100,52 +111,55 @@ export default function AdicionarPecaOSModal({
           </label>
           <FilterCombobox
             value={insumoId}
-            onChange={setInsumoId}
-            options={insumosFiltrados.map((i) => ({ value: i.id, label: i.nome }))}
-            placeholder="Buscar peça por nome…"
+            onChange={escolherInsumo}
+            options={opcoesPeca}
+            placeholder="Buscar peça com saldo…"
           />
+          {opcoesPeca.length === 0 && (
+            <p className="text-xs text-[var(--color-fg-muted)] mt-1">
+              Nenhuma peça com saldo. Cadastre a peça no almoxarifado e lance a entrada.
+            </p>
+          )}
         </div>
 
-        <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+        <Select
+          label="Almoxarifado (de onde sai)"
+          id="osPecaDeposito"
+          value={depositoId}
+          onChange={(e) => setDepositoId(e.target.value)}
+          options={depOpcoes.map((d) => ({ value: d.depositoId, label: `${d.depositoNome} — ${fmtQty(d.saldo)} ${d.unidade}` }))}
+          placeholder={insumoId ? 'Selecione o almoxarifado' : 'Escolha a peça primeiro'}
+          disabled={!insumoId}
+          required
+        />
+
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <Input
+              label={`Quantidade${unidade ? ` (${unidade})` : ''}`}
+              id="osPecaQtd"
+              type="number"
+              step="any"
+              min="0"
+              value={quantidade}
+              onChange={(e) => setQuantidade(e.target.value)}
+              required
+            />
+            {depositoId && (
+              <p className={`text-xs mt-1 ${erroQtd ? 'text-[var(--color-danger)]' : 'text-[var(--color-fg-muted)]'}`}>
+                {erroQtd ?? `Disponível: ${fmtQty(saldoDisponivel)} ${unidade}`}
+              </p>
+            )}
+          </div>
           <Input
-            label="Quantidade"
-            id="osPecaQtd"
-            type="number"
-            step="any"
-            min="0"
-            value={quantidade}
-            onChange={(e) => setQuantidade(e.target.value)}
-            required
-          />
-          <Input
-            label="Custo unitário (R$)"
+            label="Custo unitário (R$) — da entrada"
             id="osPecaCusto"
-            type="number"
-            step="0.01"
-            min="0"
-            value={custoUnitario}
-            onChange={(e) => setCustoUnitario(e.target.value)}
-            required
-          />
-          <Select
-            label="Status"
-            id="osPecaStatus"
-            value={status}
-            onChange={(e) => setStatus(e.target.value as OSPeca['status'])}
-            options={STATUS_PECA_OPTIONS}
+            type="text"
+            value={custoMedio != null ? custoMedio.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) : '—'}
+            readOnly
+            disabled
           />
         </div>
-
-        {depositos.length > 0 && (
-          <Select
-            label="Depósito (opcional)"
-            id="osPecaDeposito"
-            value={depositoId}
-            onChange={(e) => setDepositoId(e.target.value)}
-            options={depositos.filter((d) => d.ativo !== false).map((d) => ({ value: d.id, label: d.nome }))}
-            placeholder="—"
-          />
-        )}
 
         <div>
           <label htmlFor="osPecaObs" className="block text-xs font-medium text-[var(--color-fg-muted)] mb-1.5 tracking-wide">
@@ -161,7 +175,7 @@ export default function AdicionarPecaOSModal({
           />
         </div>
 
-        {custoTotal > 0 && (
+        {custoTotal > 0 && !erroQtd && (
           <div className="rounded-lg bg-[var(--color-surface-2)] p-3 text-sm">
             Total da linha:{' '}
             <strong className="font-mono">

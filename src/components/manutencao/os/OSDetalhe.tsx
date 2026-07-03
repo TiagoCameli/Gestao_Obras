@@ -19,7 +19,6 @@ import { useOleosOS, useExcluirOleoOS } from '../../../hooks/useOSOleos';
 import { useTiposOleo } from '../../../hooks/useTiposOleo';
 import { useEquipamentos } from '../../../hooks/useEquipamentos';
 import { useInsumos } from '../../../hooks/useInsumos';
-import { useDepositosMaterial } from '../../../hooks/useDepositosMaterial';
 import { useAuth } from '../../../contexts/AuthContext';
 import AdicionarPecaOSModal from './AdicionarPecaOSModal';
 import AdicionarTerceiroOSModal from './AdicionarTerceiroOSModal';
@@ -64,7 +63,6 @@ export default function OSDetalhe() {
   const excluirOleoMut = useExcluirOleoOS();
 
   const { data: insumos = [] } = useInsumos();
-  const { data: depositos = [] } = useDepositosMaterial();
 
   const canEditarDescricao = temAcao('editar_diagnostico_os');
   const canAddPeca = temAcao('adicionar_peca_os');
@@ -492,8 +490,6 @@ export default function OSDetalhe() {
           open={pecaModalOpen}
           onClose={() => setPecaModalOpen(false)}
           osId={os.id}
-          insumos={insumos}
-          depositos={depositos}
           onSubmit={handleAdicionarPeca}
           usuarioNome={usuario?.nome ?? ''}
         />

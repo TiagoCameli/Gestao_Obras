@@ -181,6 +181,8 @@ export interface Insumo {
   equipamentosCompativeis?: string[];
   fotoUrl?: string;
   aplicacaoTecnica?: string;
+  // Marca o insumo como óleo de um tipo (pro modal de óleo do serviço + alerta de vencimento)
+  tipoOleoId?: string | null;
 }
 
 // View v_saldo_estoque_total: snapshot atual de estoque + custo médio.
@@ -1637,6 +1639,9 @@ export interface OSOleo {
   id: string;
   osId: string;
   tipoOleoId: string;
+  // Origem no almoxarifado (baixa de estoque + custo da entrada). Nullable p/ compat.
+  insumoId?: string | null;
+  depositoId?: string | null;
   quantidade: number;
   unidade: 'L' | 'kg';
   valorUnitario: number;

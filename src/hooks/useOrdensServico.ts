@@ -204,6 +204,9 @@ function invalidateOSCustos(qc: ReturnType<typeof useQueryClient>, osId: string)
   qc.invalidateQueries({ queryKey: ['ordem_servico', osId] });
   qc.invalidateQueries({ queryKey: ['ordem_servico_numero'] });
   qc.invalidateQueries({ queryKey: ['ordens_servico'] });
+  // baixa/estorno de estoque da peça reflete no saldo do almoxarifado
+  qc.invalidateQueries({ predicate: (q) => q.queryKey[0] === 'saldo_estoque_total' });
+  qc.invalidateQueries({ predicate: (q) => q.queryKey[0] === 'saldo_estoque_deposito' });
 }
 
 export function useAdicionarPecaOS() {

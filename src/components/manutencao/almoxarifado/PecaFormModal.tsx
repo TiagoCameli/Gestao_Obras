@@ -12,6 +12,7 @@ import Input from '../../ui/Input';
 import Select from '../../ui/Select';
 import { useAdicionarInsumo, useAtualizarInsumo } from '../../../hooks/useInsumos';
 import { useUnidades } from '../../../hooks/useUnidades';
+import { useTiposOleo } from '../../../hooks/useTiposOleo';
 import { useAuth } from '../../../contexts/AuthContext';
 
 interface Props {
@@ -36,6 +37,7 @@ export default function PecaFormModal({ open, onClose, insumoExistente }: Props)
   const adicionar = useAdicionarInsumo();
   const atualizar = useAtualizarInsumo();
   const { data: unidades = [] } = useUnidades();
+  const { data: tiposOleo = [] } = useTiposOleo(true);
 
   const [nome, setNome] = useState(insumoExistente?.nome ?? '');
   const [unidade, setUnidade] = useState(insumoExistente?.unidade ?? 'un');
@@ -52,6 +54,7 @@ export default function PecaFormModal({ open, onClose, insumoExistente }: Props)
     (insumoExistente?.equipamentosCompativeis ?? []).join(', ')
   );
   const [ativo, setAtivo] = useState(insumoExistente?.ativo ?? true);
+  const [tipoOleoId, setTipoOleoId] = useState(insumoExistente?.tipoOleoId ?? '');
   const [submitting, setSubmitting] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
 
@@ -88,6 +91,7 @@ export default function PecaFormModal({ open, onClose, insumoExistente }: Props)
         equipamentosCompativeis: eqCompativeis,
         fotoUrl: fotoUrl.trim(),
         aplicacaoTecnica: aplicacaoTecnica.trim(),
+        tipoOleoId: tipoOleoId || null,
       };
 
       if (insumoExistente) {
@@ -201,6 +205,17 @@ export default function PecaFormModal({ open, onClose, insumoExistente }: Props)
             placeholder="Ex.: 7"
           />
         </div>
+
+        <Select
+          label="Tipo de óleo (deixe vazio se não for óleo)"
+          id="pecaTipoOleo"
+          value={tipoOleoId}
+          onChange={(e) => setTipoOleoId(e.target.value)}
+          options={[
+            { value: '', label: '— não é óleo —' },
+            ...tiposOleo.filter((t) => t.ativo).map((t) => ({ value: t.id, label: t.nome })),
+          ]}
+        />
 
         <Input
           label="Equipamentos compatíveis (separar por vírgula)"
