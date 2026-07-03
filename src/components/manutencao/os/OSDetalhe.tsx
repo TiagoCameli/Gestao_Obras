@@ -13,6 +13,7 @@ import {
   useAtualizarOS,
   useAdicionarPecaOS,
   useExcluirPecaOS,
+  useExcluirOS,
 } from '../../../hooks/useOrdensServico';
 import { useTerceirosOS, useExcluirTerceiroOS } from '../../../hooks/useOSTerceiros';
 import { useOleosOS, useExcluirOleoOS } from '../../../hooks/useOSOleos';
@@ -23,6 +24,7 @@ import { useAuth } from '../../../contexts/AuthContext';
 import AdicionarPecaOSModal from './AdicionarPecaOSModal';
 import AdicionarTerceiroOSModal from './AdicionarTerceiroOSModal';
 import AdicionarOleoOSModal from './AdicionarOleoOSModal';
+import EditarOSModal from './EditarOSModal';
 import type { OSPeca } from '../../../types';
 import {
   TIPO_OS_LABEL, PRIORIDADE_OS_LABEL, STATUS_OS_LABEL,
@@ -61,10 +63,13 @@ export default function OSDetalhe() {
   const excluirPecaMut = useExcluirPecaOS();
   const excluirTerceiroMut = useExcluirTerceiroOS();
   const excluirOleoMut = useExcluirOleoOS();
+  const excluirOSMut = useExcluirOS();
 
   const { data: insumos = [] } = useInsumos();
 
   const canEditarDescricao = temAcao('editar_diagnostico_os');
+  const canEditarOS = temAcao('editar_os');
+  const canExcluirOS = temAcao('excluir_os');
   const canAddPeca = temAcao('adicionar_peca_os');
   const canAddTerceiro = temAcao('adicionar_terceiro_os');
   const canAddOleo = temAcao('adicionar_oleo_os');
@@ -80,6 +85,9 @@ export default function OSDetalhe() {
   const [excluirPecaId, setExcluirPecaId] = useState<string | null>(null);
   const [excluirTerceiroId, setExcluirTerceiroId] = useState<string | null>(null);
   const [excluirOleoId, setExcluirOleoId] = useState<string | null>(null);
+
+  const [editModalOpen, setEditModalOpen] = useState(false);
+  const [confirmExcluirOpen, setConfirmExcluirOpen] = useState(false);
 
   if (isLoading) {
     return (
@@ -187,6 +195,23 @@ export default function OSDetalhe() {
                 <p className="text-sm text-[var(--color-fg-muted)] mt-0.5">{equipamento.tipo}</p>
               )}
             </div>
+
+            {(canEditarOS || canExcluirOS) && (
+              <div className="flex items-center gap-2 shrink-0">
+                {canEditarOS && (
+                  <Button size="sm" variant="secondary" onClick={() => setEditModalOpen(true)}>
+                    <Pencil className="w-3.5 h-3.5" />
+                    Editar
+                  </Button>
+                )}
+                {canExcluirOS && (
+                  <Button size="sm" variant="danger" onClick={() => setConfirmExcluirOpen(true)}>
+                    <Trash2 className="w-3.5 h-3.5" />
+                    Excluir
+                  </Button>
+                )}
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -485,6 +510,15 @@ export default function OSDetalhe() {
       )}
 
       {/* Modais */}
+      {editModalOpen && (
+        <EditarOSModal
+          open={editModalOpen}
+          onClose={() => setEditModalOpen(false)}
+          os={os}
+          equipamentos={equipamentos}
+        />
+      )}
+
       {pecaModalOpen && (
         <AdicionarPecaOSModal
           open={pecaModalOpen}
@@ -510,6 +544,17 @@ export default function OSDetalhe() {
       )}
 
       {/* ConfirmDialogs */}
+      <ConfirmDialog
+        open={confirmExcluirOpen}
+        onClose={() => setConfirmExcluirOpen(false)}
+        onConfirm={async () => {
+          await excluirOSMut.mutateAsync({ id: os.id, deletedBy: usuario?.nome ?? '' });
+          navigate('/manutencao/os');
+        }}
+        title="Excluir serviço"
+        message="Confirma a exclusão deste serviço? As peças e óleos lançados voltam pro estoque. O serviço fica recuperável no banco, mas some da lista."
+      />
+
       <ConfirmDialog
         open={excluirPecaId !== null}
         onClose={() => setExcluirPecaId(null)}

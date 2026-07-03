@@ -172,6 +172,9 @@ export function useAtualizarOS() {
       qc.invalidateQueries({ queryKey: ['ordens_servico'] });
       qc.invalidateQueries({ queryKey: ['ordem_servico', variables.id] });
       qc.invalidateQueries({ queryKey: ['ordem_servico_numero'] });
+      // Defensivo: trocar a máquina da OS pode disparar o sync de status do
+      // equipamento (tg_os_sync_equipamento_status).
+      qc.invalidateQueries({ queryKey: ['equipamentos'] });
     },
   });
 }
