@@ -125,7 +125,9 @@ export function parseRowEntrada(row: unknown[], index: number, ctx: EntradasImpo
       const k = chave(fornecedor.id, notaFiscal, insumo.id);
       if (ctx.vistosNoArquivo.has(k)) {
         erros.push('Peça repetida na mesma NF dentro do arquivo');
-      } else {
+      } else if (erros.length === 0) {
+        // Só registra linha sem outros erros: linha inválida não deve
+        // bloquear uma linha corrigida mais adiante no mesmo arquivo.
         ctx.vistosNoArquivo.add(k);
       }
     }

@@ -157,6 +157,14 @@ describe('parseRowEntrada', () => {
     expect(r2.erros.join(' ')).toMatch(/repetida/i);
   });
 
+  it('linha inválida não registra a chave: linha corrigida depois é válida', () => {
+    const c = ctx();
+    const invalida = parseRowEntrada(['Almoxarifado Central', 'Auto Peças Acre', '123', '06/07/2026', 'FO-173', '', '0', '1'], 0, c);
+    expect(invalida.valido).toBe(false);
+    const corrigida = parseRowEntrada(ROW_OK, 1, c);
+    expect(corrigida.valido).toBe(true);
+  });
+
   it('index 0 reseta o acumulador do arquivo (novo upload)', () => {
     const c = ctx();
     parseRowEntrada(ROW_OK, 0, c);
