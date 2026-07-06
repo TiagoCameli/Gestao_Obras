@@ -49,3 +49,27 @@ export function useExcluirEntradaMaterial() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['entradas_material'] }),
   });
 }
+
+/** Insert em lote pro import via Excel. Um único .insert(array) — não N chamadas. */
+export function useImportarEntradasMaterial() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (entradas: EntradaMaterial[]) => {
+      if (entradas.length === 0) return;
+      const { data, error } = await supabase
+        .from('entradas_material')
+        .insert(entradas.map(entradaMaterialToDb))
+        .select();
+      if (error) throw error;
+      if (!data || data.length === 0) {
+        throw new Error('Nenhuma entrada foi importada — possível negação de permissão (RLS).');
+      }
+    },
+    onSuccess: () =>
+      Promise.all([
+        qc.invalidateQueries({ queryKey: ['entradas_material'] }),
+        qc.invalidateQueries({ queryKey: ['saldo_estoque_total'] }),
+        qc.invalidateQueries({ queryKey: ['saldo_estoque_deposito'] }),
+      ]),
+  });
+}
