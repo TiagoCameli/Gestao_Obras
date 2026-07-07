@@ -24,6 +24,7 @@ import PecaFormModal from './almoxarifado/PecaFormModal';
 import PecaDetalheModal from './almoxarifado/PecaDetalheModal';
 import NovaEntradaModal from './almoxarifado/NovaEntradaModal';
 import ImportPecasModal from './almoxarifado/ImportPecasModal';
+import ImportEntradasModal from './almoxarifado/ImportEntradasModal';
 
 const STATUS_LABEL: Record<StatusEstoque, string> = {
   zerada: 'Zerada',
@@ -90,10 +91,12 @@ export default function AlmoxarifadoPage() {
 
   const [novoOpen, setNovoOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
+  const [importEntradasOpen, setImportEntradasOpen] = useState(false);
   const [editarInsumo, setEditarInsumo] = useState<Insumo | null>(null);
   const [detalheInsumoId, setDetalheInsumoId] = useState<string | null>(null);
   const [entradaOpen, setEntradaOpen] = useState<{ open: boolean; insumoId?: string }>({ open: false });
   const canImportar = temAcao('criar_peca_almoxarifado');
+  const canEntrada = temAcao('criar_entrada_almoxarifado');
 
   // Mapa insumoId → Insumo completo (para abrir edição com dados)
   const insumosById = useMemo(() => {
@@ -155,6 +158,11 @@ export default function AlmoxarifadoPage() {
             {canImportar && (
               <Button variant="secondary" onClick={() => setImportOpen(true)}>
                 <Upload className="w-4 h-4" /> Importar Excel
+              </Button>
+            )}
+            {canEntrada && (
+              <Button variant="secondary" onClick={() => setImportEntradasOpen(true)}>
+                <Upload className="w-4 h-4" /> Importar entradas
               </Button>
             )}
             <Button variant="secondary" onClick={() => setEntradaOpen({ open: true })}>
@@ -358,6 +366,7 @@ export default function AlmoxarifadoPage() {
         <PecaFormModal open={novoOpen} onClose={() => setNovoOpen(false)} />
       )}
       <ImportPecasModal open={importOpen} onClose={() => setImportOpen(false)} insumos={insumos} />
+      <ImportEntradasModal open={importEntradasOpen} onClose={() => setImportEntradasOpen(false)} />
       {editarInsumo && (
         <PecaFormModal
           open={!!editarInsumo}
