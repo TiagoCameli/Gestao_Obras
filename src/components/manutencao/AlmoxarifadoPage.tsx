@@ -366,7 +366,9 @@ export default function AlmoxarifadoPage() {
         <PecaFormModal open={novoOpen} onClose={() => setNovoOpen(false)} />
       )}
       <ImportPecasModal open={importOpen} onClose={() => setImportOpen(false)} insumos={insumos} />
-      <ImportEntradasModal open={importEntradasOpen} onClose={() => setImportEntradasOpen(false)} />
+      {importEntradasOpen && (
+        <ImportEntradasModal open={importEntradasOpen} onClose={() => setImportEntradasOpen(false)} />
+      )}
       {editarInsumo && (
         <PecaFormModal
           open={!!editarInsumo}
