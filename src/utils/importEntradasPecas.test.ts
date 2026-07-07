@@ -171,6 +171,24 @@ describe('parseRowEntrada', () => {
     const r = parseRowEntrada(ROW_OK, 0, c);
     expect(r.valido).toBe(true);
   });
+
+  it('data de calendário inexistente (31/06) é inválida', () => {
+    const r = parseRowEntrada(['Almoxarifado Central', 'Auto Peças Acre', '123', '31/06/2026', 'FO-173', '', '1', '1'], 0, ctx());
+    expect(r.valido).toBe(false);
+    expect(r.erros.join(' ')).toMatch(/data/i);
+  });
+
+  it('quantidade negativa é inválida', () => {
+    const r = parseRowEntrada(['Almoxarifado Central', 'Auto Peças Acre', '123', '06/07/2026', 'FO-173', '', '-1', '1'], 0, ctx());
+    expect(r.valido).toBe(false);
+    expect(r.erros.join(' ')).toMatch(/quantidade/i);
+  });
+
+  it('valor unitário negativo é inválido', () => {
+    const r = parseRowEntrada(['Almoxarifado Central', 'Auto Peças Acre', '123', '06/07/2026', 'FO-173', '', '1', '-1'], 0, ctx());
+    expect(r.valido).toBe(false);
+    expect(r.erros.join(' ')).toMatch(/valor/i);
+  });
 });
 
 describe('entradaRowToEntradaMaterial', () => {

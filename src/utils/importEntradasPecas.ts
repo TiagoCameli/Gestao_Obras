@@ -101,7 +101,23 @@ export function parseRowEntrada(row: unknown[], index: number, ctx: EntradasImpo
 
   if (!notaFiscal) erros.push('Nota fiscal é obrigatória');
 
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(data)) erros.push('Data inválida (use dd/mm/aaaa)');
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(data)) {
+    erros.push('Data inválida (use dd/mm/aaaa)');
+  } else {
+    // Regex só garante o formato — datas de calendário inexistentes (ex.: 31/06)
+    // passam pela regex e o JS "rola" pro mês seguinte (ou vira Invalid Date no
+    // Safari). Round-trip: reconstrói a data a partir das partes e confere se
+    // bate com o que foi parseado.
+    const [ano, mes, dia] = data.split('-').map(Number);
+    const roundTrip = new Date(ano, mes - 1, dia);
+    if (
+      roundTrip.getFullYear() !== ano ||
+      roundTrip.getMonth() + 1 !== mes ||
+      roundTrip.getDate() !== dia
+    ) {
+      erros.push('Data inválida (use dd/mm/aaaa)');
+    }
+  }
 
   let insumo: Insumo | undefined;
   if (sku) {
