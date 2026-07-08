@@ -679,6 +679,31 @@ export default function FreteDashboard({
       });
     });
   });
+  // Fornecedor de material (não-transportadora) escolhido nos cards do dashboard
+  // aparece na tabela mesmo antes do 1º pedido/frete (ex.: pedreira nova).
+  const fornecedoresCardsMaterial = new Set(
+    fornecedorIds.filter((id) => {
+      const f = fornecedorById.get(id);
+      return !!f && !f.ehTransportadora;
+    })
+  );
+  fornecedoresCardsMaterial.forEach((id) => {
+    if (!pedidosPorFornecedor.has(id)) pedidosPorFornecedor.set(id, new Map());
+  });
+  // Une aos insumos do pedido os que só têm transporte (frete sem pedido lançado),
+  // senão material transportado sem pedido fica invisível na tabela.
+  function unirInsumosTransportados(
+    fornecedorId: string,
+    materiaisMap: Map<string, { qtd: number; valor: number }>,
+    transpMap: Map<string, number>
+  ): Map<string, { qtd: number; valor: number }> {
+    const unido = new Map(materiaisMap);
+    transpMap.forEach((_, key) => {
+      const [fId, insumoId] = key.split('|');
+      if (fId === fornecedorId && !unido.has(insumoId)) unido.set(insumoId, { qtd: 0, valor: 0 });
+    });
+    return unido;
+  }
   // Flatten para lista de linhas agrupadas por fornecedor
   interface PedidoFornRow { fornecedorId: string; fornecedorNome: string; insumoId: string; qtd: number; qtdTransportada: number; saldoQtd: number; vlrMedio: number; custoMedioFrete: number; valor: number; valorMaterialTransp: number; saldoValor: number }
   const pedidosFornecedorRows: PedidoFornRow[] = [];
@@ -702,7 +727,7 @@ export default function FreteDashboard({
       let fornSaldoValor = 0;
       let fornValorMaterialTransp = 0;
       const fornecedorNome = fornecedoresMap.get(fornecedorId) || fornecedorId;
-      Array.from(materiaisMap.entries())
+      Array.from(unirInsumosTransportados(fornecedorId, materiaisMap, transporteMap).entries())
         .sort((a, b) => b[1].valor - a[1].valor)
         .forEach(([insumoId, dados]) => {
           const vlrMedio = dados.qtd > 0 ? dados.valor / dados.qtd : 0;
@@ -1345,7 +1370,7 @@ export default function FreteDashboard({
             .forEach(([fornecedorId, materiaisMap]) => {
               let fQtd = 0, fQtdT = 0, fVal = 0, fFrete = 0, fSaldo = 0, fMatTransp = 0;
               const fornecedorNome = fornecedoresMap.get(fornecedorId) || fornecedorId;
-              Array.from(materiaisMap.entries())
+              Array.from(unirInsumosTransportados(fornecedorId, materiaisMap, pmfTranspMap).entries())
                 .filter(([insumoId]) => pmfMaterialFiltro.length === 0 || pmfMaterialFiltro.includes(insumoId))
                 .sort((a, b) => b[1].valor - a[1].valor)
                 .forEach(([insumoId, dados]) => {
@@ -1362,12 +1387,12 @@ export default function FreteDashboard({
                   pmfRows.push({ fornecedorId, fornecedorNome, insumoId, qtd: dados.qtd, qtdTransportada, saldoQtd, vlrMedio, custoMedioFrete, valor: dados.valor, valorMaterialTransp, saldoValor });
                   fQtd += dados.qtd; fQtdT += qtdTransportada; fVal += dados.valor; fFrete += freteValor; fSaldo += saldoValor; fMatTransp += valorMaterialTransp;
                 });
-              if (fQtd > 0 || fQtdT > 0) {
+              if (fQtd > 0 || fQtdT > 0 || fornecedoresCardsMaterial.has(fornecedorId)) {
                 pmfTotForn.push({ fornecedorId, fornecedorNome, totalQtd: fQtd, totalQtdTransp: fQtdT, totalValor: fVal, totalFreteValor: fFrete, totalSaldoValor: fSaldo, totalValorMaterialTransp: fMatTransp });
                 pmfTotalQtd += fQtd; pmfTotalQtdTransp += fQtdT; pmfTotalPedidos += fVal; pmfTotalFreteValor += fFrete; pmfTotalSaldoValor += fSaldo; pmfTotalMatTransp += fMatTransp;
               }
             });
-          if (pmfRows.length === 0) return <p className="text-gray-400 text-sm">Sem dados</p>;
+          if (pmfRows.length === 0 && pmfTotForn.length === 0) return <p className="text-gray-400 text-sm">Sem dados</p>;
           return (
             <div className="overflow-x-auto">
               <table className="w-full text-sm border-collapse">
