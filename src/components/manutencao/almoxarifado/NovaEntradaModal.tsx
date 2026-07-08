@@ -226,15 +226,18 @@ export default function NovaEntradaModal({ open, onClose, insumoIdInicial }: Pro
               primeiro pelo botão "Nova peça".
             </div>
           ) : (
-            <div className="rounded-xl border border-[var(--color-border)] overflow-hidden">
+            // Sem overflow-hidden no wrapper: ele clipava o dropdown absoluto
+            // do FilterCombobox de peça (só a 1ª linha aparecia). Cantos
+            // arredondados ficam nas células de canto.
+            <div className="rounded-xl border border-[var(--color-border)]">
               <table className="w-full text-sm">
-                <thead className="bg-[var(--color-surface-2)] text-[var(--color-fg-muted)] text-xs uppercase">
+                <thead className="text-[var(--color-fg-muted)] text-xs uppercase">
                   <tr>
-                    <th className="text-left px-3 py-2 w-2/5">Peça</th>
-                    <th className="text-right px-3 py-2 w-1/6">Quantidade</th>
-                    <th className="text-right px-3 py-2 w-1/6">Valor unitário</th>
-                    <th className="text-right px-3 py-2 w-1/6">Total</th>
-                    <th className="w-10" />
+                    <th className="text-left px-3 py-2 w-2/5 bg-[var(--color-surface-2)] rounded-tl-xl">Peça</th>
+                    <th className="text-right px-3 py-2 w-1/6 bg-[var(--color-surface-2)]">Quantidade</th>
+                    <th className="text-right px-3 py-2 w-1/6 bg-[var(--color-surface-2)]">Valor unitário</th>
+                    <th className="text-right px-3 py-2 w-1/6 bg-[var(--color-surface-2)]">Total</th>
+                    <th className="w-10 bg-[var(--color-surface-2)] rounded-tr-xl" />
                   </tr>
                 </thead>
                 <tbody>
@@ -301,14 +304,14 @@ export default function NovaEntradaModal({ open, onClose, insumoIdInicial }: Pro
                   })}
                 </tbody>
                 <tfoot>
-                  <tr className="border-t-2 border-[var(--color-border)] bg-[var(--color-surface-2)]">
-                    <td colSpan={3} className="px-3 py-2 text-right text-xs uppercase tracking-wider text-[var(--color-fg-muted)]">
+                  <tr className="border-t-2 border-[var(--color-border)]">
+                    <td colSpan={3} className="px-3 py-2 text-right text-xs uppercase tracking-wider text-[var(--color-fg-muted)] bg-[var(--color-surface-2)] rounded-bl-xl">
                       Total da nota
                     </td>
-                    <td className="px-3 py-2 text-right font-mono font-semibold text-[var(--color-fg)]">
+                    <td className="px-3 py-2 text-right font-mono font-semibold text-[var(--color-fg)] bg-[var(--color-surface-2)]">
                       {fmtBRL(totalNF)}
                     </td>
-                    <td />
+                    <td className="bg-[var(--color-surface-2)] rounded-br-xl" />
                   </tr>
                 </tfoot>
               </table>
