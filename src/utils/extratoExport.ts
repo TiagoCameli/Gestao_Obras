@@ -41,8 +41,10 @@ const MARCA = 'Gestão de Obras · Conta Corrente Transportadora';
 export const TIPO_LABEL: Record<TipoMovimentoTransportadora, string> = {
   credito_frete: 'Crédito · Frete',
   debito_pagamento_frete: 'Débito · Pagamento',
-  credito_abastecimento_transterra: 'Crédito · Abast. (Transterra)',
-  debito_abastecimento_transterra: 'Débito · Abast. (Transterra)',
+  // Enum "transterra" ficou por compat; hoje significa qualquer tanque
+  // externo com dona (Transterra/Areacre, Posto Progresso).
+  credito_abastecimento_transterra: 'Crédito · Abast. (Tanque externo)',
+  debito_abastecimento_transterra: 'Débito · Abast. (Tanque externo)',
   debito_abastecimento_emt: 'Débito · Abast. (EMT)',
   ajuste_manual_credito: 'Crédito · Ajuste manual',
   ajuste_manual_debito: 'Débito · Ajuste manual',
@@ -64,7 +66,7 @@ const METODO_LABEL: Record<MetodoPagamentoFrete, string> = {
 };
 
 function categoriaAbastecimento(tipo: TipoMovimentoTransportadora): string {
-  if (tipo === 'debito_abastecimento_transterra') return 'Transterra';
+  if (tipo === 'debito_abastecimento_transterra') return 'Tanque externo';
   if (tipo === 'debito_abastecimento_emt') return 'EMT';
   return '';
 }
@@ -569,7 +571,7 @@ export async function exportarExtratoExcel(
     { cells: ['Resumo', 'Painel', 'Painel de bordo com os números finais do mês', '—', '—', '—'] },
     { cells: ['Todos', 'Extrato', 'Extrato completo com todos os lançamentos do mês, em ordem cronológica decrescente', 'Consolida as demais abas', dadosTodos.length, totais.saldoFinal] },
     { cells: ['Fretes', 'Crédito', 'Cada viagem de carreta (pedreira → usina), com NF, placa e motorista', 'Peso (t) × KM × R$/tkm', fretes.length, fretes.reduce((s, m) => s + m.valor, 0)] },
-    { cells: ['Abastecimentos', 'Débito', 'Abastecimentos da própria transportadora em tanques externos (Transterra/EMT)', 'Litros × Preço/L', abastecimentos.length, abastecimentos.reduce((s, m) => s + m.valor, 0)] },
+    { cells: ['Abastecimentos', 'Débito', 'Abastecimentos da própria transportadora em tanques de terceiros e da EMT', 'Litros × Preço/L', abastecimentos.length, abastecimentos.reduce((s, m) => s + m.valor, 0)] },
     { cells: ['Abast. Tanque', 'Crédito', 'Combustível fornecido pela transportadora no próprio tanque (quando aplicável)', 'Litros × Preço/L (tanque)', creditosTanque.length, creditosTanque.reduce((s, m) => s + m.valor, 0)] },
     { cells: ['Pagamentos', 'Débito', 'Pagamentos recebidos da EMT Construtora', 'Valor da NF de cada pagamento', pagamentos.length, pagamentos.reduce((s, m) => s + m.valor, 0)] },
     { cells: ['Ajustes', '—', 'Correções manuais (ex: diferença de preço de combustível de mês anterior)', 'Valor lançado manualmente', ajustes.length, ajustes.reduce((s, m) => s + (TIPOS_CREDITO.has(m.tipo) ? m.valor : -m.valor), 0)] },
@@ -804,7 +806,7 @@ export async function exportarExtratoExcel(
       ],
       [
         { cells: ['Total de abastecimentos', abastecimentos.length, 'Quantidade de lançamentos na aba'] },
-        { cells: ['Categoria Transterra', transterraN, 'Abastecimentos no tanque da Areacre'] },
+        { cells: ['Categoria Tanque externo', transterraN, 'Abastecimentos em tanque de terceiro (Transterra/Areacre, Posto Progresso)'] },
         { cells: ['Categoria EMT', emtN, 'Abastecimentos em tanque interno EMT'] },
         { cells: ['Litros totais', litrosTotalAb, 'Soma da coluna "Litros"'] },
         { cells: ['Preço médio por litro', precoMedioAb, 'Valor total ÷ Litros totais'] },
@@ -819,7 +821,7 @@ export async function exportarExtratoExcel(
     row = renderColoredTitle(wsResumo, row, '⛽  Aba Abastecimentos — Em tanques externos', TEMA.abast.title);
     wsResumo.mergeCells(`A${row}:F${row + 1}`);
     const c = wsResumo.getCell(`A${row}`);
-    c.value = 'Status no mês: vazia — 0 registros. Esta aba registra abastecimentos da transportadora em tanques de terceiros (Transterra/EMT).';
+    c.value = 'Status no mês: vazia — 0 registros. Esta aba registra abastecimentos da transportadora em tanques de terceiros e da EMT.';
     c.alignment = { vertical: 'top', horizontal: 'left', wrapText: true, indent: 1 };
     c.font = { name: 'Calibri', size: 10, italic: true, color: { argb: BRAND.cinzaMedio } };
     c.fill = fillSolid(TEMA.abast.cell);

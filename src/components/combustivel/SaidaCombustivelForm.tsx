@@ -18,7 +18,7 @@
 // ~16 useState de campos → useForm com zodResolver.
 // Regras condicionais via superRefine no schema.
 
-import { useMemo, useState, useEffect } from 'react';
+import { useCallback, useMemo, useState, useEffect } from 'react';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Link } from 'react-router-dom';
@@ -96,6 +96,9 @@ interface Props {
   /** Equipamentos ativos. Sentinel 'desconhecido' deve ser filtrado fora. */
   equipamentos: Equipamento[];
   transportadoras: Fornecedor[];
+  /** Donas de tanque externo (nem toda dona é transportadora, ex.: Posto
+   *  Progresso). Usada só pro lookup de nome da proprietária. */
+  donasDeTanque?: Fornecedor[];
   combustiveis: Insumo[];
   /** Pra cálculo de preço médio do tanque. */
   entradasCombustivel: EntradaCombustivel[];
@@ -129,6 +132,7 @@ export default function SaidaCombustivelForm({
   depositos,
   equipamentos,
   transportadoras,
+  donasDeTanque = [],
   combustiveis,
   entradasCombustivel,
 }: Props) {
@@ -452,12 +456,19 @@ export default function SaidaCombustivelForm({
     ? (listaCombustiveis.find((c) => c.id === tipoCombustivelDoTanque)?.nome ?? '—')
     : '';
 
-  // Tanque com proprietária externa (Transterra/Areacre): split de preço.
+  // Tanque com proprietária externa (Transterra/Areacre, Posto Progresso):
+  // split de preço. Dona pode não ser transportadora, então o lookup de nome
+  // olha donasDeTanque primeiro e cai pra transportadoras (compat).
   const tanqueExterno = !!tanqueSelecionado?.transportadoraProprietariaId;
+  const nomeProprietaria = useCallback(
+    (id: string | null | undefined): string =>
+      donasDeTanque.find((f) => f.id === id)?.nome ??
+      transportadoras.find((f) => f.id === id)?.nome ??
+      '?',
+    [donasDeTanque, transportadoras]
+  );
   const proprietariaNomeAtual = tanqueExterno
-    ? (transportadoras.find(
-        (t) => t.id === tanqueSelecionado!.transportadoraProprietariaId
-      )?.nome ?? '?')
+    ? nomeProprietaria(tanqueSelecionado!.transportadoraProprietariaId)
     : '';
   const creditoAreacreValor = tanqueExterno
     ? litros * (precoCombustivelAreacre + taxaLitro)
@@ -489,10 +500,9 @@ export default function SaidaCombustivelForm({
       const transpNome =
         transportadoras.find((t) => t.id === transportadoraId)?.nome ?? '?';
       if (tanqueSelecionado.transportadoraProprietariaId) {
-        const proprietariaNome =
-          transportadoras.find(
-            (t) => t.id === tanqueSelecionado.transportadoraProprietariaId
-          )?.nome ?? '?';
+        const proprietariaNome = nomeProprietaria(
+          tanqueSelecionado.transportadoraProprietariaId
+        );
         linhas.push({
           sinal: '▲',
           texto: `Crédito ${proprietariaNome}: ${fmtBRL(creditoAreacreValor)}`,
@@ -534,7 +544,7 @@ export default function SaidaCombustivelForm({
     }
 
     return linhas;
-  }, [tipoConsumidor, tanqueSelecionado, litros, valorTotal, origem, creditoAreacreValor, margemEmt, transportadoras]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [tipoConsumidor, tanqueSelecionado, litros, valorTotal, origem, creditoAreacreValor, margemEmt, transportadoras, nomeProprietaria]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // F5.B.2 — sanity warnings
   const sanityWarnings = useMemo(() => {

@@ -1283,11 +1283,11 @@ export default function FreteDashboard({
         </Card>
       )}
 
-      {/* Abastecimentos na Transterra */}
+      {/* Abastecimentos em tanque externo (Transterra, Posto Progresso, ...) */}
       {listaAbastEmpresa.length > 0 && (
         <Card>
           <h3 className="text-sm font-semibold text-gray-700 mb-3">
-            Abastecimentos na Transterra
+            Abastecimentos em Tanque Externo
           </h3>
           <div className="overflow-x-auto">
             <table className="w-full text-sm border-collapse">

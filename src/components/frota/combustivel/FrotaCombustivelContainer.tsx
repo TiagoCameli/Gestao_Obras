@@ -176,6 +176,14 @@ function FrotaCombustivelContent() {
     [todosFornecedores]
   );
 
+  // Donas de tanque externo. Nem toda dona é transportadora (ex.: Posto
+  // Progresso), então o lookup de nome da proprietária não pode usar só
+  // a lista de transportadoras.
+  const donasDeTanque = useMemo(
+    () => todosFornecedores.filter((f) => f.ehDonaDeTanque && f.ativo !== false),
+    [todosFornecedores]
+  );
+
   // Combustíveis = insumos tipo 'combustivel' ativos
   const combustiveis = useMemo(
     () => todosInsumos.filter((i) => i.tipo === 'combustivel' && i.ativo !== false),
@@ -1060,6 +1068,7 @@ function FrotaCombustivelContent() {
           depositos={depositosTodos}
           equipamentos={todosEquipamentos}
           transportadoras={transportadoras}
+          donasDeTanque={donasDeTanque}
           combustiveis={combustiveis}
           entradasCombustivel={todasEntradas}
         />

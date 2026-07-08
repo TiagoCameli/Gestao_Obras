@@ -23,7 +23,7 @@ function categoriaDoTipo(tipo: string): Categoria | null {
 }
 
 const CATEGORIA_LABEL: Record<Categoria, string> = {
-  transterra: 'Transterra',
+  transterra: 'Tanque externo',
   emt: 'EMT',
 };
 

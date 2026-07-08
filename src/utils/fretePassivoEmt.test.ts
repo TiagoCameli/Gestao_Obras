@@ -2,15 +2,16 @@
 import { describe, it, expect } from 'vitest';
 import { calcularPassivoEmt } from './fretePassivoEmt';
 
-type Transp = { id: string; nome: string; ehTransportadora: boolean };
+type Transp = { id: string; nome: string; ehTransportadora: boolean; ehDonaDeTanque?: boolean };
 
 const TRANSP: Transp[] = [
-  { id: 'areacre', nome: 'Areacre', ehTransportadora: true },
+  { id: 'areacre', nome: 'Areacre', ehTransportadora: true, ehDonaDeTanque: true },
   { id: 'lmc', nome: 'LMC Transportadora', ehTransportadora: true },
   { id: 'andrade', nome: 'Andrade Transporte', ehTransportadora: true },
   { id: 'emt', nome: 'EMT TRANSPORTES', ehTransportadora: true },
   { id: 'etam', nome: 'ETAM Construtora', ehTransportadora: true },
   { id: 'pedreira', nome: 'Pedreira X', ehTransportadora: false },
+  { id: 'posto', nome: 'Posto Progresso', ehTransportadora: false, ehDonaDeTanque: true },
 ];
 
 const saldos = (m: Record<string, number>) =>
@@ -54,6 +55,17 @@ describe('calcularPassivoEmt', () => {
       'EMT TRANSPORTES',
       'Andrade Transporte',
       'LMC Transportadora',
+      'Posto Progresso',
     ]);
+  });
+
+  it('inclui dona de tanque que não é transportadora (Posto Progresso)', () => {
+    const r = calcularPassivoEmt(
+      TRANSP,
+      saldos({ posto: 1200, areacre: 100 }),
+      'ETAM Construtora',
+    );
+    expect(r.linhas.find((l) => l.nome === 'Posto Progresso')?.saldo).toBe(1200);
+    expect(r.total).toBe(1300);
   });
 });
