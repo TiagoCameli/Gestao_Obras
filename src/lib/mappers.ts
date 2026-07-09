@@ -504,7 +504,9 @@ export function entradaMaterialToDb(e: EntradaMaterial) {
     insumo_id: e.insumoId,
     obra_id: e.obraId || null,
     quantidade: e.quantidade,
-    valor_unitario: e.valorUnitario ?? null,
+    // Coluna é NOT NULL (default 0) no banco: nunca mandar null explícito,
+    // senão o insert quebra mesmo com a coluna tendo default.
+    valor_unitario: e.valorUnitario ?? 0,
     valor_total: e.valorTotal,
     fornecedor_id: e.fornecedorId,
     nota_fiscal: e.notaFiscal,

@@ -143,6 +143,7 @@ export default function NovaEntradaModal({ open, onClose, insumoIdInicial }: Pro
           insumoId: l.insumoId,
           obraId,
           quantidade: qty,
+          valorUnitario: vUnit,
           valorTotal: qty * vUnit,
           fornecedorId,
           notaFiscal: notaFiscal.trim(),
