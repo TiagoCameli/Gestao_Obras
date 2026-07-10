@@ -26,7 +26,6 @@ import NovaEntradaModal from './almoxarifado/NovaEntradaModal';
 import ImportPecasModal from './almoxarifado/ImportPecasModal';
 import ImportEntradasModal from './almoxarifado/ImportEntradasModal';
 import MovimentacoesAlmoxarifado from './almoxarifado/MovimentacoesAlmoxarifado';
-import { Tabs, TabsList, TabsTrigger } from '../shadcn/tabs';
 
 const STATUS_LABEL: Record<StatusEstoque, string> = {
   zerada: 'Zerada',
@@ -185,12 +184,24 @@ export default function AlmoxarifadoPage() {
         )}
       </div>
 
-      <Tabs value={aba} onValueChange={mudarAba}>
-        <TabsList variant="line">
-          <TabsTrigger value="pecas">Peças</TabsTrigger>
-          <TabsTrigger value="movimentacoes">Movimentações</TabsTrigger>
-        </TabsList>
-      </Tabs>
+      {/* Seletor de aba (Peças | Movimentações). Segmentado explícito com
+          tokens do tema — o Tabs "line" do shadcn ficava invisível no escuro. */}
+      <div className="inline-flex rounded-lg border border-[var(--color-border)] p-0.5 bg-[var(--color-surface-2)]">
+        {([['pecas', 'Peças'], ['movimentacoes', 'Movimentações']] as const).map(([key, label]) => (
+          <button
+            key={key}
+            type="button"
+            onClick={() => mudarAba(key)}
+            className={`px-4 py-1.5 text-sm font-medium rounded-md transition-colors ${
+              aba === key
+                ? 'bg-[var(--color-surface-1)] text-[var(--color-fg)] shadow-sm'
+                : 'text-[var(--color-fg-muted)] hover:text-[var(--color-fg)]'
+            }`}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
 
       {aba === 'movimentacoes' ? (
         <MovimentacoesAlmoxarifado />
