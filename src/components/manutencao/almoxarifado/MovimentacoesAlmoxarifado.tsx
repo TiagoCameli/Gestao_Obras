@@ -123,9 +123,10 @@ export default function MovimentacoesAlmoxarifado() {
         </div>
       </div>
 
-      {/* Tabela */}
-      <div className="rounded-xl border border-[var(--color-border)] overflow-hidden">
-        <table className="w-full text-sm">
+      {/* Tabela — overflow-x-auto (não hidden): em tela estreita a coluna de
+          ações fica alcançável rolando na horizontal, em vez de cortada. */}
+      <div className="rounded-xl border border-[var(--color-border)] overflow-x-auto">
+        <table className="w-full min-w-[640px] text-sm">
           <thead className="text-[var(--color-fg-muted)] text-xs uppercase bg-[var(--color-surface-2)]">
             <tr>
               <th className="text-left px-3 py-2">Data</th>
