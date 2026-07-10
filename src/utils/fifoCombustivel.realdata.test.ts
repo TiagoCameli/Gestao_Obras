@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { calcularPrecoFIFO } from './fifoCombustivel'
+import { calcularPrecoFIFO, montarConsumosAnteriores } from './fifoCombustivel'
 import type { EntradaCombustivel, SaidaCombustivel } from '../types'
 
 // Dados REAIS do tanque mpllf6ahb5s9p (extraídos do banco em 2026-05-28).
@@ -63,9 +63,15 @@ describe('FIFO real-data — tanque mpllf6ahb5s9p', () => {
         dataHora: data,
         litros,
         entradas,
-        transferencias: [],
+        transferenciasIn: [],
         // como o form faz: todas exceto a própria; a função filtra data < dataHora
-        saidasAnteriores: todasSaidas.filter((s) => s.id !== `s${i}`),
+        consumosAnteriores: montarConsumosAnteriores({
+          tanqueId: TANQUE,
+          saidas: todasSaidas,
+          transferencias: [],
+          esvaziamentos: [],
+          excluirSaidaId: `s${i}`,
+        }),
       })
       const fifo = Number(r.precoMedio.toFixed(4))
       const flag = Math.abs(fifo - armazenado) > 0.0001 ? '  <-- DIVERGE' : ''

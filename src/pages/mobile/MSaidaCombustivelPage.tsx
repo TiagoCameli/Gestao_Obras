@@ -31,7 +31,8 @@ import AnexosUploader from '../../components/combustivel/AnexosUploader';
 import { useRegistrarSaidaFIFO, useSaidasCombustivel } from '../../hooks/useSaidasCombustivel';
 import { useEntradasCombustivel } from '../../hooks/useEntradasCombustivel';
 import { useTransferenciasCombustivel } from '../../hooks/useTransferenciasCombustivel';
-import { calcularPrecoFIFO } from '../../utils/fifoCombustivel';
+import { calcularPrecoFIFO, montarConsumosAnteriores } from '../../utils/fifoCombustivel';
+import { useEsvaziamentosTanque } from '../../hooks/useEsvaziamentosTanque';
 import { calcularEstoqueCombustivelNaData } from '../../hooks/useEstoque';
 import { nowAsLocalInput, inputLocalToWallClock, fmtBRL } from '../../components/combustivel/v2/shared/formatters';
 
@@ -61,6 +62,8 @@ export default function MSaidaCombustivelPage() {
   const { data: insumos = [] } = useInsumos();
   // FI.5 — saídas existentes pro replay FIFO + mutation atômica via RPC.
   const { data: saidasExistentes = [] } = useSaidasCombustivel();
+  // Esvaziamentos também drenam o tanque e entram no replay FIFO.
+  const { data: esvaziamentos = [] } = useEsvaziamentosTanque();
   const registrarSaidaFIFOMut = useRegistrarSaidaFIFO();
 
   const tanquesAtivos = useMemo(
@@ -105,16 +108,23 @@ export default function MSaidaCombustivelPage() {
     if (!Number.isFinite(litrosNum) || litrosNum <= 0) {
       return { precoMedio: 0, detalhamento: [], litrosSemSuprimento: 0 };
     }
+    const tipoComb = tanqueSelecionado?.combustivelAtualId ?? '';
     return calcularPrecoFIFO({
       tanqueId,
       dataHora: new Date().toISOString().slice(0, 19),
       litros: litrosNum,
       entradas: entradasCombustivel,
-      transferencias,
-      tipoCombustivel: tanqueSelecionado?.combustivelAtualId ?? '',
-      saidasAnteriores: saidasExistentes.filter((s) => s.tanqueId === tanqueId),
+      transferenciasIn: transferencias,
+      tipoCombustivel: tipoComb,
+      consumosAnteriores: montarConsumosAnteriores({
+        tanqueId,
+        tipoCombustivel: tipoComb,
+        saidas: saidasExistentes,
+        transferencias,
+        esvaziamentos,
+      }),
     });
-  }, [tanqueId, litros, entradasCombustivel, transferencias, saidasExistentes, tanqueSelecionado?.combustivelAtualId]);
+  }, [tanqueId, litros, entradasCombustivel, transferencias, saidasExistentes, esvaziamentos, tanqueSelecionado?.combustivelAtualId]);
   const precoMedioTanque = fifoPreview.precoMedio;
 
   const combustivelDoTanque = tanqueSelecionado?.combustivelAtualId ?? '';
@@ -193,9 +203,15 @@ export default function MSaidaCombustivelPage() {
         dataHora: agoraWallClock,
         litros: litrosNum,
         entradas: entradasCombustivel,
-        transferencias,
+        transferenciasIn: transferencias,
         tipoCombustivel: combustivelDoTanque,
-        saidasAnteriores: saidasExistentes.filter((s) => s.tanqueId === tanqueId),
+        consumosAnteriores: montarConsumosAnteriores({
+          tanqueId,
+          tipoCombustivel: combustivelDoTanque,
+          saidas: saidasExistentes,
+          transferencias,
+          esvaziamentos,
+        }),
       });
       const precoFIFO = fifo.precoMedio;
       const valorTotal = litrosNum * precoFIFO;

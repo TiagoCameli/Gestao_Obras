@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
-import { calcularPrecoFIFO, type ConsumoAnterior } from './fifoCombustivel'
-import type { EntradaCombustivel, TransferenciaCombustivel } from '../types'
+import { calcularPrecoFIFO, montarConsumosAnteriores, type ConsumoAnterior } from './fifoCombustivel'
+import type { EntradaCombustivel, TransferenciaCombustivel, SaidaCombustivel, EsvaziamentoTanque } from '../types'
 
 const ent = (id: string, depositoId: string, dataHora: string, litros: number, valor: number): EntradaCombustivel => ({
   id, dataHora, depositoId,
@@ -198,5 +198,65 @@ describe('calcularPrecoFIFO', () => {
       entradas, transferenciasIn: [], consumosAnteriores,
     })
     expect(r.detalhamento[0].saldoAntesDoConsumo).toBe(1000)
+  })
+
+  it('esvaziamento não dreno lote que chegou DEPOIS dele (troca de combustível)', () => {
+    // Tanque tinha diesel, foi esvaziado, recebeu gasolina depois. A saída de
+    // gasolina não pode ter seus lotes drenados pelo esvaziamento do diesel.
+    const entradas = [
+      ent('DIESEL', 't1', '2026-01-01T08:00:00', 1000, 5000),
+      { ...ent('GASOL', 't1', '2026-01-10T08:00:00', 500, 3000), tipoCombustivel: 'g' } as EntradaCombustivel,
+    ]
+    const consumosAnteriores = [consumo('esvaziamento', 't1', '2026-01-05T08:00:00', 1000)]
+    const r = calcularPrecoFIFO({
+      tanqueId: 't1', dataHora: '2026-01-15T08:00:00', litros: 200,
+      entradas, transferenciasIn: [], consumosAnteriores, tipoCombustivel: 'g',
+    })
+    expect(r.litrosSemSuprimento).toBe(0)
+    expect(r.detalhamento[0].fonteId).toBe('GASOL')
+    expect(r.detalhamento[0].preco).toBe(6.0)
+    expect(r.detalhamento[0].saldoAntesDoConsumo).toBe(500)
+  })
+})
+
+describe('montarConsumosAnteriores', () => {
+  const saida = (id: string, tanqueId: string, data: string, litros: number, tipo = 'd'): SaidaCombustivel => ({
+    id, data, litros, tanqueId, tipoCombustivel: tipo,
+  }) as SaidaCombustivel
+  const esvaz = (id: string, depositoId: string, dataHora: string, litros: number): EsvaziamentoTanque => ({
+    id, depositoId, dataHora, litrosDescartados: litros, motivo: '', criadoPor: '',
+  })
+
+  it('une os 3 drenos e filtra por tanque + tipo', () => {
+    const out = montarConsumosAnteriores({
+      tanqueId: 't1',
+      tipoCombustivel: 'd',
+      saidas: [
+        saida('s1', 't1', '2026-01-02T08:00:00', 100, 'd'),
+        saida('s2', 't2', '2026-01-02T08:00:00', 999, 'd'),   // outro tanque
+        saida('s3', 't1', '2026-01-03T08:00:00', 50, 'g'),     // outro tipo
+      ],
+      transferencias: [
+        { id: 'tOut', depositoOrigemId: 't1', depositoDestinoId: 'x', dataHora: '2026-01-04T08:00:00', quantidadeLitros: 30, valorTotal: 0, tipoCombustivel: 'd', observacoes: '', criadoPor: '' } as TransferenciaCombustivel,
+        { id: 'tIn', depositoOrigemId: 'x', depositoDestinoId: 't1', dataHora: '2026-01-04T08:00:00', quantidadeLitros: 999, valorTotal: 0, tipoCombustivel: 'd', observacoes: '', criadoPor: '' } as TransferenciaCombustivel,
+      ],
+      esvaziamentos: [esvaz('e1', 't1', '2026-01-05T08:00:00', 20)],
+    })
+    expect(out).toEqual([
+      { tipo: 'saida', tanqueId: 't1', data: '2026-01-02T08:00:00', litros: 100 },
+      { tipo: 'transferencia_out', tanqueId: 't1', data: '2026-01-04T08:00:00', litros: 30 },
+      { tipo: 'esvaziamento', tanqueId: 't1', data: '2026-01-05T08:00:00', litros: 20 },
+    ])
+  })
+
+  it('exclui a própria saída (modo edição)', () => {
+    const out = montarConsumosAnteriores({
+      tanqueId: 't1',
+      saidas: [saida('atual', 't1', '2026-01-02T08:00:00', 100), saida('outra', 't1', '2026-01-01T08:00:00', 50)],
+      transferencias: [],
+      esvaziamentos: [],
+      excluirSaidaId: 'atual',
+    })
+    expect(out.map((c) => c.litros)).toEqual([50])
   })
 })

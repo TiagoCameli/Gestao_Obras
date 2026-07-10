@@ -47,7 +47,8 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useTransferenciasCombustivel } from '../../hooks/useTransferenciasCombustivel';
 import { useSaidasCombustivel } from '../../hooks/useSaidasCombustivel';
 import { calcularPrecoMedioTanque } from '../../utils/precoMedioTanque';
-import { calcularPrecoFIFO } from '../../utils/fifoCombustivel';
+import { calcularPrecoFIFO, montarConsumosAnteriores } from '../../utils/fifoCombustivel';
+import { useEsvaziamentosTanque } from '../../hooks/useEsvaziamentosTanque';
 import { calcularEstoqueCombustivelNaData, inicioCicloAbertoTanque } from '../../hooks/useEstoque';
 import {
   saidaCombustivelSchema,
@@ -205,6 +206,8 @@ export default function SaidaCombustivelForm({
   // FI.4 — saídas existentes pro replay FIFO (consome lotes em ordem
   // cronológica antes desta nova saída).
   const { data: saidasExistentes = [] } = useSaidasCombustivel();
+  // Esvaziamentos também drenam o tanque e entram no replay FIFO.
+  const { data: esvaziamentos = [] } = useEsvaziamentosTanque();
 
   // Medição (gerida por watch no RHF — campo medicaoLeitura)
   const medicaoStr = watch('medicaoLeitura');
@@ -306,14 +309,20 @@ export default function SaidaCombustivelForm({
       dataHora: dataValue,
       litros,
       entradas: entradasCombustivel,
-      transferencias,
+      transferenciasIn: transferencias,
       tipoCombustivel: tipoCombustivelSaida,
-      // Em edit mode exclui ESTA saída do replay (senão consumiria 2x).
-      saidasAnteriores: saidasExistentes.filter(
-        (s) => s.tanqueId === tanqueId && s.id !== initial?.id,
-      ),
+      // Replay dos 3 drenos (saída/transf-out/esvaziamento). Em edit mode
+      // exclui ESTA saída do replay (senão consumiria 2x).
+      consumosAnteriores: montarConsumosAnteriores({
+        tanqueId,
+        tipoCombustivel: tipoCombustivelSaida,
+        saidas: saidasExistentes,
+        transferencias,
+        esvaziamentos,
+        excluirSaidaId: initial?.id,
+      }),
     });
-  }, [origem, tanqueId, data, litros, entradasCombustivel, transferencias, saidasExistentes, initial?.id, tipoCombustivelSaida]);
+  }, [origem, tanqueId, data, litros, entradasCombustivel, transferencias, saidasExistentes, esvaziamentos, initial?.id, tipoCombustivelSaida]);
 
   // Preço médio CORRENTE do tanque (FIFO). Usado no preview da UI.
   const precoMedioTanqueCorrente = fifoResult.precoMedio;
