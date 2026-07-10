@@ -75,6 +75,33 @@ export function useOleosOS(osId: string | null | undefined) {
   });
 }
 
+/**
+ * Todos os óleos de todas as OS (pra tela de movimentações do almoxarifado).
+ * Paginado em blocos de 1000 com tiebreaker por id, igual useTodasPecasOS.
+ */
+export function useTodosOleosOS() {
+  return useQuery<OSOleo[]>({
+    queryKey: ['os_oleos_todos'],
+    queryFn: async () => {
+      const PAGINA = 1000;
+      const todos: unknown[] = [];
+      for (let from = 0; ; from += PAGINA) {
+        const { data, error } = await supabase
+          .from('os_oleos')
+          .select('*')
+          .order('created_at', { ascending: false })
+          .order('id', { ascending: false })
+          .range(from, from + PAGINA - 1);
+        if (error) throw error;
+        const lote = data ?? [];
+        todos.push(...lote);
+        if (lote.length < PAGINA) break;
+      }
+      return todos.map(dbToOSOleo);
+    },
+  });
+}
+
 export function useOleosVencendo() {
   return useQuery<OleoVencendo[]>({
     queryKey: ['oleos-vencendo'],

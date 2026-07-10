@@ -107,6 +107,34 @@ export function usePecasOS(osId: string | null | undefined) {
   });
 }
 
+/**
+ * Todas as peças de todas as OS (pra tela de movimentações do almoxarifado).
+ * Paginado em blocos de 1000 (limite default do PostgREST); tiebreaker por id
+ * estabiliza a borda das páginas. Mesmo padrão de useEntradasMaterial.
+ */
+export function useTodasPecasOS() {
+  return useQuery<OSPeca[]>({
+    queryKey: ['os_pecas_todas'],
+    queryFn: async () => {
+      const PAGINA = 1000;
+      const todas: unknown[] = [];
+      for (let from = 0; ; from += PAGINA) {
+        const { data, error } = await supabase
+          .from('os_pecas')
+          .select('*')
+          .order('created_at', { ascending: false })
+          .order('id', { ascending: false })
+          .range(from, from + PAGINA - 1);
+        if (error) throw error;
+        const lote = data ?? [];
+        todas.push(...lote);
+        if (lote.length < PAGINA) break;
+      }
+      return todas.map(dbToOSPeca);
+    },
+  });
+}
+
 // ── Mutations ───────────────────────────────────────────────────────
 
 function gerarId(): string {

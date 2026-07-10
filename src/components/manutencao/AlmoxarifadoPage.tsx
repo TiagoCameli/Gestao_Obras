@@ -25,6 +25,8 @@ import PecaDetalheModal from './almoxarifado/PecaDetalheModal';
 import NovaEntradaModal from './almoxarifado/NovaEntradaModal';
 import ImportPecasModal from './almoxarifado/ImportPecasModal';
 import ImportEntradasModal from './almoxarifado/ImportEntradasModal';
+import MovimentacoesAlmoxarifado from './almoxarifado/MovimentacoesAlmoxarifado';
+import { Tabs, TabsList, TabsTrigger } from '../shadcn/tabs';
 
 const STATUS_LABEL: Record<StatusEstoque, string> = {
   zerada: 'Zerada',
@@ -86,6 +88,14 @@ export default function AlmoxarifadoPage() {
   const setFiltroStatus = (s: StatusEstoque | 'todos' | 'criticos') => {
     const next = new URLSearchParams(searchParams);
     if (s === 'todos') next.delete('status'); else next.set('status', s);
+    setSearchParams(next, { replace: true });
+  };
+
+  // Aba ativa (Peças | Movimentações) também vive na URL pra deep link e back/forward.
+  const aba: 'pecas' | 'movimentacoes' = searchParams.get('aba') === 'movimentacoes' ? 'movimentacoes' : 'pecas';
+  const mudarAba = (a: string) => {
+    const next = new URLSearchParams(searchParams);
+    if (a === 'movimentacoes') next.set('aba', 'movimentacoes'); else next.delete('aba');
     setSearchParams(next, { replace: true });
   };
 
@@ -175,6 +185,17 @@ export default function AlmoxarifadoPage() {
         )}
       </div>
 
+      <Tabs value={aba} onValueChange={mudarAba}>
+        <TabsList variant="line">
+          <TabsTrigger value="pecas">Peças</TabsTrigger>
+          <TabsTrigger value="movimentacoes">Movimentações</TabsTrigger>
+        </TabsList>
+      </Tabs>
+
+      {aba === 'movimentacoes' ? (
+        <MovimentacoesAlmoxarifado />
+      ) : (
+      <>
       {/* KPIs */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <KPI label="Itens cadastrados" valor={kpis.total} icon={Package}
@@ -360,6 +381,9 @@ export default function AlmoxarifadoPage() {
             />
           ))}
         </div>
+      )}
+
+      </>
       )}
 
       {novoOpen && (
