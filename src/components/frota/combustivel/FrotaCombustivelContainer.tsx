@@ -16,6 +16,7 @@ import { useEntradasCombustivel, useAdicionarEntradaCombustivel, useAtualizarEnt
 import { useTransferenciasCombustivel, useAdicionarTransferenciaCombustivel, useAtualizarTransferenciaCombustivel, useExcluirTransferenciaCombustivel } from '../../../hooks/useTransferenciasCombustivel';
 import { useEquipamentos } from '../../../hooks/useEquipamentos';
 import { useFornecedores } from '../../../hooks/useFornecedores';
+import { useFretes } from '../../../hooks/useFretes';
 import { useInsumos } from '../../../hooks/useInsumos';
 import { useAuth } from '../../../contexts/AuthContext';
 import Modal from '../../ui/Modal';
@@ -169,12 +170,24 @@ function FrotaCombustivelContent() {
   const { data: todosEquipamentos = [] } = useEquipamentos();
   const { data: todosFornecedores = [] } = useFornecedores();
   const { data: todosInsumos = [] } = useInsumos();
+  const { data: todosFretes = [] } = useFretes();
 
-  // Transportadoras filtradas pra forms/lists de saídas
-  const transportadoras = useMemo(
-    () => todosFornecedores.filter((f) => f.ehTransportadora && f.ativo !== false),
-    [todosFornecedores]
-  );
+  // Transportadoras filtradas pra forms/lists de saídas.
+  // Inclui os fornecedores marcados com a flag `ehTransportadora` E também
+  // quem de fato roda frete de material pra gente (aparece na tabela de
+  // fretes), mesmo sem a flag ligada no cadastro. Assim o dropdown da saída
+  // de carreta cobre toda transportadora que faz frete de pedra, sem depender
+  // de alguém lembrar de marcar a flag. Só ativos.
+  const transportadoras = useMemo(() => {
+    const nomesEmFretes = new Set(
+      todosFretes.map((f) => (f.transportadora ?? '').trim().toLowerCase()).filter(Boolean)
+    );
+    return todosFornecedores.filter(
+      (f) =>
+        f.ativo !== false &&
+        (f.ehTransportadora || nomesEmFretes.has((f.nome ?? '').trim().toLowerCase()))
+    );
+  }, [todosFornecedores, todosFretes]);
 
   // Donas de tanque externo. Nem toda dona é transportadora (ex.: Posto
   // Progresso), então o lookup de nome da proprietária não pode usar só
