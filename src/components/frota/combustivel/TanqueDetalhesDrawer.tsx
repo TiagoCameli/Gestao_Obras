@@ -9,6 +9,7 @@ import {
 import Button from '../../ui/Button';
 import HistoricoTimeline from '../../combustivel/HistoricoTimeline';
 import FotoGaleria from '../../shared/FotoGaleria';
+import ArquivosLista from '../../shared/ArquivosLista';
 
 interface Props {
   tanque: Deposito | null;
@@ -20,13 +21,6 @@ interface Props {
   canDelete?: boolean;
 }
 
-function fileNameFromUrl(url: string): string {
-  const m = url.match(/\/object\/sign\/[^/]+\/([^?]+)/);
-  if (!m) return url;
-  const path = decodeURIComponent(m[1]);
-  const last = path.split('/').pop() || path;
-  return last.replace(/^\d+-/, '');
-}
 
 interface FieldProps {
   icon: React.ComponentType<{ className?: string }>;
@@ -198,25 +192,7 @@ export default function TanqueDetalhesDrawer({
                 <Paperclip className="w-3 h-3" />
                 Arquivos ({tanque.arquivoUrls.length})
               </div>
-              <ul className="space-y-1.5">
-                {tanque.arquivoUrls.map((url, i) => (
-                  <li
-                    key={url + i}
-                    className="flex items-center gap-2 px-3 py-2 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-1)] hover:bg-[var(--color-surface-2)] transition-colors"
-                  >
-                    <FileText className="w-4 h-4 text-[var(--color-fg-muted)] shrink-0" />
-                    <a
-                      href={url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex-1 min-w-0 text-sm text-[var(--color-fg)] hover:text-[var(--color-accent)] truncate"
-                      title={fileNameFromUrl(url)}
-                    >
-                      {fileNameFromUrl(url)}
-                    </a>
-                  </li>
-                ))}
-              </ul>
+              <ArquivosLista arquivoUrls={tanque.arquivoUrls} />
             </div>
           )}
         </div>

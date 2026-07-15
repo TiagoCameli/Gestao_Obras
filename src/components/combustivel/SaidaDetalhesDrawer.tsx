@@ -27,6 +27,7 @@ import {
 import Button from '../ui/Button';
 import HistoricoTimeline from './HistoricoTimeline';
 import FotoGaleria from '../shared/FotoGaleria';
+import ArquivosLista from '../shared/ArquivosLista';
 import { fmtDataHora } from './v2/shared/formatters';
 
 interface Props {
@@ -59,16 +60,6 @@ function fmtBRL(n: number): string {
 function fmtBRLDec4(n: number): string {
   return `R$ ${n.toLocaleString('pt-BR', { minimumFractionDigits: 4, maximumFractionDigits: 4 })}`;
 }
-/** F9 — Extrai nome do arquivo a partir da signed URL do Supabase Storage.
- *  Path inclui timestamp prefix "1234567890-" que removemos pra display. */
-function fileNameFromUrl(url: string): string {
-  const m = url.match(/\/object\/sign\/[^/]+\/([^?]+)/);
-  if (!m) return url;
-  const path = decodeURIComponent(m[1]);
-  const last = path.split('/').pop() || path;
-  return last.replace(/^\d+-/, '');
-}
-
 interface FieldProps {
   icon: React.ComponentType<{ className?: string }>;
   label: string;
@@ -374,25 +365,7 @@ export default function SaidaDetalhesDrawer({
               <Paperclip className="w-3 h-3" />
               Arquivos ({saida.arquivoUrls.length})
             </div>
-            <ul className="space-y-1.5">
-              {saida.arquivoUrls.map((url, i) => (
-                <li
-                  key={url + i}
-                  className="flex items-center gap-2 px-3 py-2 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-1)] hover:bg-[var(--color-surface-2)] transition-colors"
-                >
-                  <FileText aria-hidden className="w-4 h-4 text-[var(--color-fg-muted)] shrink-0" />
-                  <a
-                    href={url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex-1 min-w-0 text-sm text-[var(--color-fg)] hover:text-[var(--color-accent)] truncate"
-                    title={fileNameFromUrl(url)}
-                  >
-                    {fileNameFromUrl(url)}
-                  </a>
-                </li>
-              ))}
-            </ul>
+            <ArquivosLista arquivoUrls={saida.arquivoUrls} />
           </div>
         )}
       </div>
