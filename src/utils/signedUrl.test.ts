@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import {
   pathFromSignedUrl,
+  storagePathOf,
   fileNameFromUrl,
   downloadSignedUrl,
   thumbStoragePath,
@@ -21,6 +22,26 @@ describe('pathFromSignedUrl', () => {
   it('retorna null pra URL não-assinada', () => {
     expect(pathFromSignedUrl('https://example.com/foo.jpg')).toBeNull()
     expect(pathFromSignedUrl('')).toBeNull()
+  })
+})
+
+describe('storagePathOf', () => {
+  it('extrai path da signed URL (formato legado guardado no banco)', () => {
+    const url = 'https://abc.supabase.co/storage/v1/object/sign/abastecimento-fotos/equipamento/mr2misv08056r/1785000000-manual.pdf?token=EXPIRADO'
+    expect(storagePathOf(url)).toBe('equipamento/mr2misv08056r/1785000000-manual.pdf')
+  })
+
+  it('aceita path puro e devolve ele mesmo', () => {
+    expect(storagePathOf('equipamento/abc/1785000000-manual.pdf'))
+      .toBe('equipamento/abc/1785000000-manual.pdf')
+    expect(storagePathOf('/equipamento/abc/foto.jpg')).toBe('equipamento/abc/foto.jpg')
+  })
+
+  it('retorna null pra URL externa, blob e vazio (não é path de bucket)', () => {
+    expect(storagePathOf('https://example.com/foo.jpg')).toBeNull()
+    expect(storagePathOf('blob:http://localhost/abc')).toBeNull()
+    expect(storagePathOf('data:image/png;base64,AAA')).toBeNull()
+    expect(storagePathOf('')).toBeNull()
   })
 })
 

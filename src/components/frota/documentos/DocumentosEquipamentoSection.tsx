@@ -3,7 +3,7 @@
 
 import { useState } from 'react';
 import {
-  FileText, Pencil, Trash2, Plus, AlertTriangle, Paperclip, ExternalLink,
+  FileText, Pencil, Trash2, Plus, AlertTriangle, Paperclip,
 } from 'lucide-react';
 import type { DocumentoEquipamento, Fornecedor } from '../../../types';
 import { TIPO_DOCUMENTO_LABEL } from '../../../types';
@@ -17,6 +17,7 @@ import { useAuth } from '../../../contexts/AuthContext';
 import Button from '../../ui/Button';
 import ConfirmDialog from '../../ui/ConfirmDialog';
 import DocumentoFormModal from './DocumentoFormModal';
+import AnexosAbrirButton from '../../shared/AnexosAbrirButton';
 
 interface Props {
   equipamentoId: string;
@@ -208,20 +209,15 @@ export default function DocumentosEquipamentoSection({ equipamentoId, fornecedor
                     )}
                   </div>
                   <div className="flex items-center gap-1 shrink-0">
-                    {/* PR44 — atalho "Abrir" no card pro 1º anexo. Antes só dava
-                        pra acessar via lápis → scroll até embaixo do modal. */}
-                    {d.arquivoUrls.length > 0 && (
-                      <a
-                        href={d.arquivoUrls[0]}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="w-8 h-8 inline-flex items-center justify-center rounded-lg text-[var(--color-fg-subtle)] hover:text-[var(--color-accent)] hover:bg-[var(--color-surface-2)] transition-colors"
-                        aria-label="Abrir primeiro anexo em nova aba"
-                        title="Abrir anexo"
-                      >
-                        <ExternalLink aria-hidden className="w-3.5 h-3.5" />
-                      </a>
-                    )}
+                    {/* PR44 — atalho "Abrir" no card pros anexos. Antes só dava
+                        pra acessar via lápis → scroll até embaixo do modal.
+                        Abre todos (fotos + arquivos) no visualizador, com URL
+                        re-assinada na hora. */}
+                    <AnexosAbrirButton
+                      fotoUrls={d.fotoUrls}
+                      arquivoUrls={d.arquivoUrls}
+                      label="Abrir anexos do documento"
+                    />
                     {canEdit && (
                       <button
                         type="button"

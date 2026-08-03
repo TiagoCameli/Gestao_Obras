@@ -11,6 +11,8 @@ import type { PedidoMaterial, Fornecedor, Insumo } from '../../types';
 import Drawer from '../ui/Drawer';
 import Button from '../ui/Button';
 import HistoricoTimeline from '../combustivel/HistoricoTimeline';
+import FotoGaleria from '../shared/FotoGaleria';
+import ArquivosLista from '../shared/ArquivosLista';
 
 interface Props {
   pedido: PedidoMaterial | null;
@@ -33,14 +35,6 @@ function fmtData(iso: string): string {
   if (m) return `${m[3]}/${m[2]}/${m[1]}`;
   return iso;
 }
-function fileNameFromUrl(url: string): string {
-  const m = url.match(/\/object\/sign\/[^/]+\/([^?]+)/);
-  if (!m) return url;
-  const path = decodeURIComponent(m[1]);
-  const last = path.split('/').pop() || path;
-  return last.replace(/^\d+-/, '');
-}
-
 interface FieldProps {
   icon: React.ComponentType<{ className?: string }>;
   label: string;
@@ -235,19 +229,7 @@ export default function PedidoMaterialDetalhesDrawer({
                 <Paperclip className="w-3 h-3" />
                 Fotos ({pedido.fotoUrls.length})
               </div>
-              <div className="grid grid-cols-3 gap-2">
-                {pedido.fotoUrls.map((url, i) => (
-                  <a
-                    key={url + i}
-                    href={url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="block aspect-square rounded-lg overflow-hidden border border-[var(--color-border)] hover:border-[var(--color-accent)] transition-colors"
-                  >
-                    <img src={url} alt={`Foto ${i + 1}`} className="w-full h-full object-cover" loading="lazy" />
-                  </a>
-                ))}
-              </div>
+              <FotoGaleria fotoUrls={pedido.fotoUrls} canDelete={false} canDownload />
             </div>
           )}
 
@@ -257,25 +239,7 @@ export default function PedidoMaterialDetalhesDrawer({
                 <Paperclip className="w-3 h-3" />
                 Arquivos ({pedido.arquivoUrls.length})
               </div>
-              <ul className="space-y-1.5">
-                {pedido.arquivoUrls.map((url, i) => (
-                  <li
-                    key={url + i}
-                    className="flex items-center gap-2 px-3 py-2 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-1)] hover:bg-[var(--color-surface-2)] transition-colors"
-                  >
-                    <FileText className="w-4 h-4 text-[var(--color-fg-muted)] shrink-0" />
-                    <a
-                      href={url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex-1 min-w-0 text-sm text-[var(--color-fg)] hover:text-[var(--color-accent)] truncate"
-                      title={fileNameFromUrl(url)}
-                    >
-                      {fileNameFromUrl(url)}
-                    </a>
-                  </li>
-                ))}
-              </ul>
+              <ArquivosLista arquivoUrls={pedido.arquivoUrls} />
             </div>
           )}
         </div>

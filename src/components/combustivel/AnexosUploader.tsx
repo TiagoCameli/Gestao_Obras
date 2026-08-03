@@ -12,10 +12,12 @@
 // - HEIC pula stamp (incompat browser)
 
 import { useEffect, useRef, useState } from 'react';
-import { Camera, ImagePlus, Trash2, AlertCircle, Loader2, MapPin, FileText, Paperclip } from 'lucide-react';
+import { Camera, ImagePlus, AlertCircle, Loader2, MapPin, Paperclip } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
-import { pathFromSignedUrl, fileNameFromUrl, thumbStoragePath, previewStoragePath } from '../../utils/signedUrl';
+import { storagePathOf, thumbStoragePath, previewStoragePath } from '../../utils/signedUrl';
 import { uploadFotoComDerivados } from '../../utils/fotoStorage';
+import FotoGaleria from '../shared/FotoGaleria';
+import ArquivosLista from '../shared/ArquivosLista';
 
 const BUCKET = 'abastecimento-fotos';
 const SIGNED_URL_TTL_SECS = 60 * 60; // 1 hora (re-mint on demand)
@@ -452,7 +454,7 @@ export default function AnexosUploader({
 
   async function removerFoto(idx: number) {
     const url = fotoUrls[idx];
-    const path = pathFromSignedUrl(url);
+    const path = storagePathOf(url);
     if (path) {
       try {
         await supabase.storage
@@ -467,7 +469,7 @@ export default function AnexosUploader({
 
   async function removerArquivo(idx: number) {
     const url = arquivoUrls[idx];
-    const path = pathFromSignedUrl(url);
+    const path = storagePathOf(url);
     if (path) {
       try {
         await supabase.storage.from(BUCKET).remove([path]);
@@ -554,30 +556,13 @@ export default function AnexosUploader({
           </div>
 
           {fotoUrls.length > 0 && (
-            <div className="grid gap-2 grid-cols-3 sm:grid-cols-4 mt-3">
-              {fotoUrls.map((url, i) => (
-                <div
-                  key={url}
-                  className="relative aspect-square rounded-lg border border-[var(--color-border)] overflow-hidden group"
-                >
-                  <a href={url} target="_blank" rel="noopener noreferrer" className="block w-full h-full">
-                    <img
-                      src={url}
-                      alt={`Foto ${i + 1}`}
-                      loading="lazy"
-                      className="w-full h-full object-cover"
-                    />
-                  </a>
-                  <button
-                    type="button"
-                    onClick={() => removerFoto(i)}
-                    aria-label={`Remover foto ${i + 1}`}
-                    className="absolute top-1 right-1 w-7 h-7 rounded-full bg-black/60 text-white opacity-0 group-hover:opacity-100 hover:bg-[var(--color-danger)] transition-all flex items-center justify-center"
-                  >
-                    <Trash2 aria-hidden className="w-3.5 h-3.5" />
-                  </button>
-                </div>
-              ))}
+            <div className="mt-3">
+              <FotoGaleria
+                fotoUrls={fotoUrls}
+                canDelete
+                canDownload
+                onDelete={removerFoto}
+              />
             </div>
           )}
         </div>
@@ -620,33 +605,9 @@ export default function AnexosUploader({
           </div>
 
           {arquivoUrls.length > 0 && (
-            <ul className="mt-3 space-y-1.5">
-              {arquivoUrls.map((url, i) => (
-                <li
-                  key={url}
-                  className="flex items-center gap-2 px-3 py-2 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-1)] hover:bg-[var(--color-surface-2)] transition-colors group"
-                >
-                  <FileText aria-hidden className="w-4 h-4 text-[var(--color-fg-muted)] shrink-0" />
-                  <a
-                    href={url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex-1 min-w-0 text-sm text-[var(--color-fg)] hover:text-[var(--color-accent)] truncate"
-                    title={fileNameFromUrl(url)}
-                  >
-                    {fileNameFromUrl(url)}
-                  </a>
-                  <button
-                    type="button"
-                    onClick={() => removerArquivo(i)}
-                    aria-label={`Remover arquivo ${i + 1}`}
-                    className="w-7 h-7 rounded-md text-[var(--color-fg-subtle)] hover:text-[var(--color-danger)] hover:bg-[var(--color-danger-soft)] opacity-0 group-hover:opacity-100 transition-all flex items-center justify-center shrink-0"
-                  >
-                    <Trash2 aria-hidden className="w-3.5 h-3.5" />
-                  </button>
-                </li>
-              ))}
-            </ul>
+            <div className="mt-3">
+              <ArquivosLista arquivoUrls={arquivoUrls} canDelete onDelete={removerArquivo} />
+            </div>
           )}
         </div>
       )}

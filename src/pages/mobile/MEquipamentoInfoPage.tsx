@@ -9,6 +9,7 @@ import { useMedicaoAtual } from '../../hooks/useMedicoesEquipamento';
 import { useEmpresas } from '../../hooks/useEmpresas';
 import { getCategoriaFrota } from '../../lib/frotaConstants';
 import { STATUS_EQUIPAMENTO_LABEL } from '../../types';
+import FotoGaleria from '../../components/shared/FotoGaleria';
 
 function Linha({
   icon: Icon, label, valor,
@@ -83,19 +84,11 @@ export default function MEquipamentoInfoPage() {
       {/* Galeria de fotos (se houver) */}
       {(equipamento.fotoUrls ?? []).length > 0 && (
         <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-1)] p-2">
-          <div className="grid grid-cols-3 gap-2">
-            {(equipamento.fotoUrls ?? []).slice(0, 6).map((url, i) => (
-              <a
-                key={i}
-                href={url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="aspect-square rounded-lg overflow-hidden bg-[var(--color-surface-2)]"
-              >
-                <img src={url} alt={`Foto ${i + 1}`} className="w-full h-full object-cover" />
-              </a>
-            ))}
-          </div>
+          <FotoGaleria
+            fotoUrls={equipamento.fotoUrls ?? []}
+            canDelete={false}
+            canDownload
+          />
         </div>
       )}
 

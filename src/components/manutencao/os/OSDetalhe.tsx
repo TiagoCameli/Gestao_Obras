@@ -5,7 +5,7 @@ import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   ArrowLeft, Pencil, ShieldCheck, Calendar,
-  Gauge, Wrench, FileText, Plus, Trash2, Check, X,
+  Gauge, Wrench, Plus, Trash2, Check, X,
 } from 'lucide-react';
 import {
   useOrdemServicoByNumero,
@@ -32,6 +32,8 @@ import {
 import Button from '../../ui/Button';
 import ConfirmDialog from '../../ui/ConfirmDialog';
 import { STATUS_COLOR, PRIORIDADE_COLOR, TIPO_COLOR } from './styles';
+import FotoGaleria from '../../shared/FotoGaleria';
+import ArquivosLista from '../../shared/ArquivosLista';
 
 function fmtDataHora(s: string | null): string {
   if (!s) return '—';
@@ -483,27 +485,12 @@ export default function OSDetalhe() {
           </h3>
           <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-1)] p-3">
             {os.fotoUrls.length > 0 && (
-              <div className="flex gap-2 overflow-x-auto pb-2">
-                {os.fotoUrls.map((url, i) => (
-                  <a key={url + i} href={url} target="_blank" rel="noopener noreferrer"
-                    className="shrink-0 w-24 h-24 rounded-lg overflow-hidden border border-[var(--color-border)]">
-                    <img src={url} alt={`Anexo ${i + 1}`} className="w-full h-full object-cover" loading="lazy" />
-                  </a>
-                ))}
-              </div>
+              <FotoGaleria fotoUrls={os.fotoUrls} canDelete={false} canDownload size="compact" />
             )}
             {os.arquivoUrls.length > 0 && (
-              <ul className="space-y-1 mt-2">
-                {os.arquivoUrls.map((url) => (
-                  <li key={url}>
-                    <a href={url} target="_blank" rel="noopener noreferrer"
-                      className="text-sm text-[var(--color-accent-fg, var(--color-info-fg))] hover:underline inline-flex items-center gap-1">
-                      <FileText className="w-3.5 h-3.5" />
-                      {url.split('/').pop()}
-                    </a>
-                  </li>
-                ))}
-              </ul>
+              <div className="mt-2">
+                <ArquivosLista arquivoUrls={os.arquivoUrls} />
+              </div>
             )}
           </div>
         </section>

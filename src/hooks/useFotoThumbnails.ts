@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { supabase } from '../lib/supabase'
-import { pathFromSignedUrl, thumbStoragePath, previewStoragePath } from '../utils/signedUrl'
+import { storagePathOf, thumbStoragePath, previewStoragePath } from '../utils/signedUrl'
 
 const BUCKET = 'abastecimento-fotos'
 const URL_TTL_SECS = 60 * 60
@@ -10,11 +10,13 @@ interface FotoUrls {
   thumb: string
   /** 1400px q85 (~150KB) — lightbox. Não é o full-res original. */
   preview: string
+  /** Full-res original — download e fallback. */
+  original: string
 }
 
 async function mintFotoUrls(url: string): Promise<FotoUrls> {
-  const path = pathFromSignedUrl(url)
-  if (!path) return { thumb: url, preview: url }
+  const path = storagePathOf(url)
+  if (!path) return { thumb: url, preview: url, original: url }
 
   // Assina o original + os derivados (gerados no upload por fotoStorage.ts).
   // SEM transform: zero consumo da cota de Image Transformations do Supabase.
@@ -30,6 +32,7 @@ async function mintFotoUrls(url: string): Promise<FotoUrls> {
   return {
     thumb: thumbRes.data?.signedUrl ?? original,
     preview: previewRes.data?.signedUrl ?? original,
+    original,
   }
 }
 
@@ -40,13 +43,14 @@ async function mintFotoUrls(url: string): Promise<FotoUrls> {
  * derivados gerados no upload (fotoStorage.ts):
  *  - thumb: 400x400 q75 pro grid
  *  - preview: 1400px q85 pro lightbox
+ *  - original: full-res, usado no download
  *
  * preview tem ~150KB vs ~2MB do original, permitindo pré-carregar 8 fotos sem
- * saturar a rede. Pra download do original full-res, use mint on-demand.
+ * saturar a rede. Assinar o original não baixa nada — só gera a URL.
  *
  * Cache 30min via React Query (URLs duram 1h, re-mint antes de expirar).
  *
- * Genérico — usado por frete e combustível (mesmo bucket abastecimento-fotos).
+ * Genérico — usado por frete, combustível, frota e manutenção (mesmo bucket).
  */
 export function useFotoThumbnails(urls: string[]) {
   return useQuery({

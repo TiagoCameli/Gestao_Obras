@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
-import { Camera, ImagePlus, Trash2, AlertCircle, Loader2, MapPin } from 'lucide-react';
+import { Camera, ImagePlus, AlertCircle, Loader2, MapPin } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { uploadFotoComDerivados } from '../../utils/fotoStorage';
 import { thumbStoragePath, previewStoragePath } from '../../utils/signedUrl';
+import FotoGaleria from '../shared/FotoGaleria';
 
 const BUCKET = 'abastecimento-fotos';
 const SIGNED_URL_TTL_SECS = 60 * 60; // 1 hora (re-mint on demand)
@@ -319,31 +320,7 @@ export default function FotoCaptureUploader({ fotosUrls, onChange, pastaId, clas
       )}
 
       {fotosUrls.length > 0 && (
-        <div className="grid gap-2 grid-cols-3 sm:grid-cols-4">
-          {fotosUrls.map((url, i) => (
-            <div
-              key={url}
-              className="relative aspect-square rounded-lg border border-[var(--color-border)] overflow-hidden group"
-            >
-              <a href={url} target="_blank" rel="noopener noreferrer" className="block w-full h-full">
-                <img
-                  src={url}
-                  alt={`Foto ${i + 1}`}
-                  loading="lazy"
-                  className="w-full h-full object-cover"
-                />
-              </a>
-              <button
-                type="button"
-                onClick={() => removerFoto(i)}
-                aria-label={`Remover foto ${i + 1}`}
-                className="absolute top-1 right-1 w-7 h-7 rounded-full bg-black/60 text-white opacity-0 group-hover:opacity-100 hover:bg-[var(--color-danger)] transition-all flex items-center justify-center"
-              >
-                <Trash2 aria-hidden className="w-3.5 h-3.5" />
-              </button>
-            </div>
-          ))}
-        </div>
+        <FotoGaleria fotoUrls={fotosUrls} canDelete canDownload onDelete={removerFoto} />
       )}
     </div>
   );

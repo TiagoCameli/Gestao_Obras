@@ -12,8 +12,26 @@ export function pathFromSignedUrl(url: string): string | null {
   return m ? decodeURIComponent(m[1]) : null
 }
 
+/**
+ * Path no bucket a partir do que está guardado no banco. Tolera as duas formas:
+ *  - signed URL completa (formato legado, o que está gravado hoje) -> extrai o path
+ *  - path puro ("entrada/abc/123-nota.pdf") -> devolve ele mesmo
+ *
+ * Guardar signed URL no banco é a origem do InvalidJWT: o JWT expira em 1h e a
+ * string fica velha pra sempre. Toda exibição re-assina a partir deste path.
+ * Aceitar path puro deixa o caminho aberto pra gravar só o path no futuro sem
+ * quebrar nada que já foi salvo.
+ */
+export function storagePathOf(valor: string): string | null {
+  if (!valor) return null
+  const doUrl = pathFromSignedUrl(valor)
+  if (doUrl) return doUrl
+  if (/^(https?:|blob:|data:)/i.test(valor)) return null
+  return valor.replace(/^\/+/, '')
+}
+
 export function fileNameFromUrl(url: string): string {
-  const path = pathFromSignedUrl(url)
+  const path = storagePathOf(url)
   if (!path) return url
   const last = path.split('/').pop() || path
   return last.replace(TIMESTAMP_PREFIX_RE, '')

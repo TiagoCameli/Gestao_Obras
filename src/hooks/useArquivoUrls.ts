@@ -1,12 +1,12 @@
 import { useQuery } from '@tanstack/react-query'
 import { supabase } from '../lib/supabase'
-import { pathFromSignedUrl } from '../utils/signedUrl'
+import { storagePathOf } from '../utils/signedUrl'
 
 const BUCKET = 'abastecimento-fotos'
 const URL_TTL_SECS = 60 * 60
 
 async function mintArquivoUrl(url: string): Promise<string> {
-  const path = pathFromSignedUrl(url)
+  const path = storagePathOf(url)
   if (!path) return url
   const { data } = await supabase.storage.from(BUCKET).createSignedUrl(path, URL_TTL_SECS)
   return data?.signedUrl ?? url

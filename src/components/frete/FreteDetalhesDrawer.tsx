@@ -19,7 +19,7 @@ import HistoricoTimeline from '../combustivel/HistoricoTimeline';
 import FreteFotoChegadaBlock from './FreteFotoChegadaBlock';
 import { useAtualizarFrete } from '../../hooks/useFretes';
 import { useToast } from '../ui/Toast';
-import { fileNameFromUrl } from '../../utils/signedUrl';
+import ArquivosLista from '../shared/ArquivosLista';
 
 interface Props {
   frete: Frete | null;
@@ -310,25 +310,7 @@ export default function FreteDetalhesDrawer({
                 <Paperclip className="w-3 h-3" />
                 Arquivos ({frete.arquivoUrls.length})
               </div>
-              <ul className="space-y-1.5">
-                {frete.arquivoUrls.map((url, i) => (
-                  <li
-                    key={url + i}
-                    className="flex items-center gap-2 px-3 py-2 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-1)] hover:bg-[var(--color-surface-2)] transition-colors"
-                  >
-                    <FileText className="w-4 h-4 text-[var(--color-fg-muted)] shrink-0" />
-                    <a
-                      href={url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex-1 min-w-0 text-sm text-[var(--color-fg)] hover:text-[var(--color-accent)] truncate"
-                      title={fileNameFromUrl(url)}
-                    >
-                      {fileNameFromUrl(url)}
-                    </a>
-                  </li>
-                ))}
-              </ul>
+              <ArquivosLista arquivoUrls={frete.arquivoUrls} />
             </div>
           )}
             </div>
