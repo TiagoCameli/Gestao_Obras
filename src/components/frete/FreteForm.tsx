@@ -18,7 +18,8 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import type { Frete, Obra, Insumo, Localidade } from '../../types';
+import type { Frete, Obra, Insumo, Localidade, TipoFrete } from '../../types';
+import { tipoDoFrete } from '../../utils/freteTipo';
 import Input from '../ui/Input';
 import Select from '../ui/Select';
 import Button from '../ui/Button';
@@ -31,6 +32,14 @@ import { freteFormSchema, type FreteFormValues } from '../../schemas/frete/frete
 
 interface FreteFormProps {
   initial?: Frete | null;
+  /**
+   * Modo do formulário. 'transferencia' esconde os campos que a transferência
+   * não pergunta (NF, NF2, valor de material) e afrouxa a obra. Em edição o
+   * tipo vem de `initial` e este prop é ignorado — não dá pra converter um
+   * frete de material em transferência pela tela, porque isso mudaria o saldo
+   * de uma pedreira sem deixar rastro.
+   */
+  tipo?: TipoFrete;
   onSubmit: (data: Frete) => void | Promise<void>;
   onCancel: () => void;
   obras: Obra[];
@@ -50,8 +59,9 @@ const FRETE_TEMPLATE = [
 ];
 
 /** Default values derivados do `initial` (modo edit) ou vazios (criação). */
-function buildDefaults(initial: Frete | null | undefined): FreteFormValues {
+function buildDefaults(initial: Frete | null | undefined, tipo: TipoFrete): FreteFormValues {
   return {
+    tipo: initial ? tipoDoFrete(initial) : tipo,
     data: initial?.data || '',
     dataChegada: initial?.dataChegada || '',
     obraId: initial?.obraId || '',
@@ -76,6 +86,7 @@ function buildDefaults(initial: Frete | null | undefined): FreteFormValues {
 
 export default function FreteForm({
   initial,
+  tipo = 'material',
   onSubmit,
   onCancel,
   obras,
@@ -117,13 +128,17 @@ export default function FreteForm({
   } = useForm<FreteFormValues>({
     resolver: zodResolver(freteFormSchema),
     mode: 'onChange',
-    defaultValues: buildDefaults(initial),
+    defaultValues: buildDefaults(initial, tipo),
   });
+
+  // Em edição manda o tipo gravado; em criação, o modo escolhido no botão.
+  const tipoAtual: TipoFrete = initial ? tipoDoFrete(initial) : tipo;
+  const ehTransferenciaForm = tipoAtual === 'transferencia';
 
   // Reset quando initial muda (e.g. trocar de "novo" pra "editar")
   useEffect(() => {
-    reset(buildDefaults(initial));
-  }, [initial, reset]);
+    reset(buildDefaults(initial, tipo));
+  }, [initial, tipo, reset]);
 
   // Sync de localidades quando a prop muda (mutation invalidation no caller)
   useEffect(() => {
@@ -160,9 +175,10 @@ export default function FreteForm({
     if (!canAct) return;
     const payload: Frete = {
       id: initial?.id || gerarId(),
+      tipo: values.tipo,
       data: values.data,
       dataChegada: values.dataChegada || '',
-      obraId: values.obraId,
+      obraId: values.obraId || '',
       origem: values.origem,
       destino: values.destino,
       transportadora: values.transportadora,
@@ -171,9 +187,14 @@ export default function FreteForm({
       kmRodados: values.kmRodados,
       valorTkm: values.valorTkm,
       valorTotal: values.pesoToneladas * values.kmRodados * values.valorTkm,
-      valorMaterial: (values.valorUnitarioMaterial ?? 0) * values.pesoToneladas,
-      notaFiscal: values.notaFiscal || '',
-      notaFiscal2: values.notaFiscal2 || '',
+      // Transferência não compra material nem emite NF: os campos ficam
+      // escondidos na UI e zerados aqui, senão um valor digitado antes de
+      // trocar de modo entraria escondido e mexeria no Saldo na Pedreira.
+      valorMaterial: values.tipo === 'transferencia'
+        ? 0
+        : (values.valorUnitarioMaterial ?? 0) * values.pesoToneladas,
+      notaFiscal: values.tipo === 'transferencia' ? '' : (values.notaFiscal || ''),
+      notaFiscal2: values.tipo === 'transferencia' ? '' : (values.notaFiscal2 || ''),
       placaCarreta: values.placaCarreta || '',
       motorista: values.motorista,
       observacoes: values.observacoes || '',
@@ -251,6 +272,9 @@ export default function FreteForm({
     const tkm = d.tkm as number;
     return {
       id: gerarId(),
+      // A planilha de importação é de frete de pedreira (tem NF e material).
+      // Explícito para não depender do fallback do mapper.
+      tipo: 'material',
       data: d.data,
       dataChegada: d.dataChegada || '',
       obraId: d.obraId,
@@ -285,7 +309,14 @@ export default function FreteForm({
 
   return (
     <form onSubmit={rhfHandleSubmit(onValidSubmit)} className="space-y-4">
-      {!initial && onImportBatch && (
+      <input type="hidden" {...register('tipo')} />
+      {ehTransferenciaForm && (
+        <div className="rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+          <strong>Transferência de material.</strong> Não desconta saldo de pedreira —
+          só gera crédito para a transportadora.
+        </div>
+      )}
+      {!initial && onImportBatch && !ehTransferenciaForm && (
         <div className="flex justify-end">
           <Button type="button" variant="secondary" className="text-xs px-3 py-1.5" onClick={() => setImportModalOpen(true)}>
             Importar do Excel
@@ -306,7 +337,7 @@ export default function FreteForm({
           control={control}
           render={({ field }) => (
             <Select
-              label="Obra (opcional)"
+              label={ehTransferenciaForm ? 'Obra (opcional)' : 'Obra'}
               id="freteObraId"
               value={field.value}
               onChange={(e) => field.onChange(e.target.value)}
@@ -324,7 +355,7 @@ export default function FreteForm({
             control={control}
             render={({ field }) => (
               <Select
-                label="Origem"
+                label={ehTransferenciaForm ? 'De (origem)' : 'Origem'}
                 id="freteOrigem"
                 value={field.value}
                 onChange={(e) => field.onChange(e.target.value)}
@@ -399,7 +430,7 @@ export default function FreteForm({
             control={control}
             render={({ field }) => (
               <Select
-                label="Destino"
+                label={ehTransferenciaForm ? 'Para (destino)' : 'Destino'}
                 id="freteDestino"
                 value={field.value}
                 onChange={(e) => field.onChange(e.target.value)}
@@ -519,7 +550,7 @@ export default function FreteForm({
           {...register('pesoToneladas', { valueAsNumber: true })}
         />
         <Input
-          label="KM Rodados"
+          label={ehTransferenciaForm ? 'Distância (KM)' : 'KM Rodados'}
           id="freteKm"
           type="number"
           step="0.0001"
@@ -547,41 +578,47 @@ export default function FreteForm({
           </div>
           <p className="text-xs text-[var(--color-fg-subtle)] mt-1">KM × Peso × R$/TKM</p>
         </div>
-        <Input
-          label="Valor Unitário do Material (R$)"
-          id="freteValorUnitMaterial"
-          type="number"
-          step="0.0001"
-          min="0"
-          placeholder="Ex: 45.0000"
-          error={errors.valorUnitarioMaterial?.message}
-          {...register('valorUnitarioMaterial', { valueAsNumber: true })}
-        />
-        <div>
-          <label className="block text-sm font-medium text-[var(--color-fg)] mb-1">
-            Preço do Material (R$)
-          </label>
-          <div className="w-full border border-[var(--color-border)] bg-[var(--color-surface-2)] rounded-lg px-3 py-2 text-sm font-semibold text-[var(--color-accent)] tabular-nums font-mono">
-            {valorMaterial.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
-          </div>
-          <p className="text-xs text-[var(--color-fg-subtle)] mt-1">Valor Unitário × Peso</p>
-        </div>
-        <Input
-          label="Nota Fiscal (opcional)"
-          id="freteNF"
-          type="text"
-          placeholder="Ex: NF-e 12345"
-          error={errors.notaFiscal?.message}
-          {...register('notaFiscal')}
-        />
-        <Input
-          label="Nota Fiscal 2 (opcional)"
-          id="freteNF2"
-          type="text"
-          placeholder="Ex: NF-e 67890"
-          error={errors.notaFiscal2?.message}
-          {...register('notaFiscal2')}
-        />
+        {/* Material comprado e nota fiscal só existem no frete de pedreira.
+            Na transferência o material já é da EMT: não há compra nem NF. */}
+        {!ehTransferenciaForm && (
+          <>
+            <Input
+              label="Valor Unitário do Material (R$)"
+              id="freteValorUnitMaterial"
+              type="number"
+              step="0.0001"
+              min="0"
+              placeholder="Ex: 45.0000"
+              error={errors.valorUnitarioMaterial?.message}
+              {...register('valorUnitarioMaterial', { valueAsNumber: true })}
+            />
+            <div>
+              <label className="block text-sm font-medium text-[var(--color-fg)] mb-1">
+                Preço do Material (R$)
+              </label>
+              <div className="w-full border border-[var(--color-border)] bg-[var(--color-surface-2)] rounded-lg px-3 py-2 text-sm font-semibold text-[var(--color-accent)] tabular-nums font-mono">
+                {valorMaterial.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+              </div>
+              <p className="text-xs text-[var(--color-fg-subtle)] mt-1">Valor Unitário × Peso</p>
+            </div>
+            <Input
+              label="Nota Fiscal (opcional)"
+              id="freteNF"
+              type="text"
+              placeholder="Ex: NF-e 12345"
+              error={errors.notaFiscal?.message}
+              {...register('notaFiscal')}
+            />
+            <Input
+              label="Nota Fiscal 2 (opcional)"
+              id="freteNF2"
+              type="text"
+              placeholder="Ex: NF-e 67890"
+              error={errors.notaFiscal2?.message}
+              {...register('notaFiscal2')}
+            />
+          </>
+        )}
         <Input
           label="Placa da Carreta (opcional)"
           id="fretePlacaCarreta"
@@ -645,7 +682,11 @@ export default function FreteForm({
           Cancelar
         </Button>
         <SubmitButton loading={isSubmitting} disabled={!isValid || !canAct}>
-          {initial ? 'Salvar Alterações' : 'Registrar Frete'}
+          {initial
+            ? 'Salvar Alterações'
+            : ehTransferenciaForm
+              ? 'Registrar Transferência'
+              : 'Registrar Frete'}
         </SubmitButton>
       </div>
 

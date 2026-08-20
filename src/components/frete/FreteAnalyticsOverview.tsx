@@ -25,6 +25,7 @@ import {
   Mountain,
 } from 'lucide-react';
 import type { Frete, PagamentoFrete } from '../../types';
+import { apenasFretesDePedreira } from '../../utils/freteTipo';
 import { formatCurrency } from '../../utils/formatters';
 import type { CrossFilters, CrossDim } from './crossFilterTypes';
 
@@ -188,7 +189,9 @@ export default function FreteAnalyticsOverview({
   const fretesPorPedreira = useMemo(() => applyCrossFretes(fretesBase, 'origem'), [fretesBase, applyCrossFretes]);
   const topPedreiras = useMemo(() => {
     const map = new Map<string, { valor: number; toneladas: number }>();
-    fretesPorPedreira.forEach((f) => {
+    // Transferência fora: a origem dela não é pedreira, entraria no ranking
+    // como uma pedreira que não existe.
+    apenasFretesDePedreira(fretesPorPedreira).forEach((f) => {
       const key = (f.origem || '').trim();
       if (!key) return;
       const prev = map.get(key) || { valor: 0, toneladas: 0 };

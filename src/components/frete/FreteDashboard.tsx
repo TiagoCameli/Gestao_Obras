@@ -8,6 +8,7 @@ import { useFornecedores } from '../../hooks/useFornecedores';
 import { useFreteDashboardCards, useSalvarFreteDashboardCards } from '../../hooks/useFreteDashboardCards';
 import { montarLinhasSaldoCard, SALDO_ZERO } from '../../utils/freteSaldoCard';
 import { calcularPassivoEmt } from '../../utils/fretePassivoEmt';
+import { apenasFretesDePedreira } from '../../utils/freteTipo';
 import { formatCurrency } from '../../utils/formatters';
 import Card from '../ui/Card';
 import SmartSelect from '../ui/SmartSelect';
@@ -383,6 +384,17 @@ export default function FreteDashboard({
 
   // Versões totalmente cross-filtradas (usadas por todas as tabelas/saldos abaixo)
   const fretesF = applyCrossFretes(fretesBase);
+  /**
+   * Recorte para TUDO que é por pedreira: Saldo na Pedreira, Custo Material +
+   * Frete por Pedreira, Gasto com Transporte por Material e Pedreira.
+   *
+   * Frete de transferência move material que a EMT já tem — a origem dele é um
+   * ponto qualquer, não uma pedreira. Se entrasse nesses blocos ele (a)
+   * descontaria tonelada de um pedido que nunca existiu e (b) apareceria como
+   * "pedreira" fantasma nas tabelas de custo. Nos KPIs gerais e no crédito da
+   * transportadora ele continua contando: é dinheiro devido de verdade.
+   */
+  const fretesPedreira = apenasFretesDePedreira(fretesF);
   const pagamentosF = applyCrossPag(pagamentosBase);
   const abastCarretaF = applyCrossAbast(abastCarretaBase);
   const pedidosF = applyCrossPedidos(pedidosBase);
@@ -513,7 +525,7 @@ export default function FreteDashboard({
 
   // ── Gasto com transporte por material e pedreira (origem) ──
   const gastoTranspMatPedreira = new Map<string, Map<string, { valor: number; peso: number }>>();
-  fretesF.forEach((f) => {
+  fretesPedreira.forEach((f) => {
     if (!f.insumoId || !f.origem) return;
     const origem = f.origem.trim();
     let matMap = gastoTranspMatPedreira.get(origem);
@@ -653,7 +665,7 @@ export default function FreteDashboard({
   const transporteMap = new Map<string, number>();
   const freteValorMap = new Map<string, number>();
   const materialValorMap = new Map<string, number>();
-  fretesF.forEach((f) => {
+  fretesPedreira.forEach((f) => {
     if (!f.origem || !f.insumoId) return;
     const fornecedorId = findFornecedorByOrigem(f.origem);
     if (!fornecedorId) return;
@@ -769,7 +781,7 @@ export default function FreteDashboard({
     custoTotal: number;
   }
   const custoMatFreteAgg = new Map<string, Map<string, Map<string, { qtdTon: number; custoFrete: number }>>>();
-  fretesF.forEach((f) => {
+  fretesPedreira.forEach((f) => {
     if (!f.origem || !f.destino || !f.insumoId) return;
     const origem = f.origem.trim();
     const destino = f.destino.trim();
@@ -846,8 +858,12 @@ export default function FreteDashboard({
     });
 
   // ── Último preço de frete por material ──
+  // Só frete de pedreira: esta tabela cruza o preço do material (que vem do
+  // pedido, sempre de uma pedreira) com o frete daquela rota. Uma
+  // transferência traria um R$/t de outra rota e uma "origem" que não é
+  // pedreira, quebrando a comparação de posto-na-obra.
   const ultimoFretePorMaterial = new Map<string, { custoPorTon: number; data: string; transportadora: string; origem: string }>();
-  [...fretesF]
+  [...fretesPedreira]
     .sort((a, b) => a.data.localeCompare(b.data))
     .forEach((f) => {
       if (!f.insumoId || f.pesoToneladas <= 0) return;
@@ -1344,7 +1360,7 @@ export default function FreteDashboard({
           )}
         </div>
         {(() => {
-          const pmfFretesFiltr = fretesF.filter((f) => {
+          const pmfFretesFiltr = fretesPedreira.filter((f) => {
             if (!matchFiltro(f.destino, pmfDestinoFiltro)) return false;
             return true;
           });

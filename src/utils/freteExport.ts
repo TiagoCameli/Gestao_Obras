@@ -1,5 +1,6 @@
 import jsPDF from 'jspdf';
-import type { Frete, Insumo } from '../types';
+import type { Frete, Insumo, TipoFrete } from '../types';
+import { tipoDoFrete, TIPO_FRETE_LABEL } from './freteTipo';
 import {
   BRAND,
   createWorkbook,
@@ -22,6 +23,7 @@ import {
 } from './exportTemplate';
 
 interface FiltrosExport {
+  tipo: TipoFrete | '';
   obraId: string;
   transportadora: string;
   motorista: string;
@@ -41,6 +43,7 @@ const SCOPE = 'fretes';
 function filtrarFretes(fretes: Frete[], filtros: FiltrosExport): Frete[] {
   return fretes
     .filter((f) => {
+      if (filtros.tipo && tipoDoFrete(f) !== filtros.tipo) return false;
       if (filtros.obraId && f.obraId !== filtros.obraId) return false;
       if (filtros.transportadora && f.transportadora !== filtros.transportadora) return false;
       if (filtros.motorista) {
@@ -67,6 +70,7 @@ function buildFiltrosList(
   obrasMap?: Map<string, string>,
 ): Array<[string, string]> {
   const list: Array<[string, string]> = [];
+  if (filtros.tipo) list.push(['Tipo', TIPO_FRETE_LABEL[filtros.tipo]]);
   if (filtros.obraId) list.push(['Obra', obrasMap?.get(filtros.obraId) || filtros.obraId]);
   if (filtros.transportadora) list.push(['Transportadora', filtros.transportadora]);
   if (filtros.motorista) list.push(['Motorista', filtros.motorista]);
@@ -193,6 +197,7 @@ export async function exportarFretesExcel(
     [
       { header: 'Saída', key: 'data', width: 12, align: 'center', value: (f) => formatDateBR(f.data) },
       { header: 'Chegada', key: 'dataChegada', width: 12, align: 'center', value: (f) => formatDateBR(f.dataChegada) },
+      { header: 'Tipo', key: 'tipo', width: 14, align: 'center', value: (f) => TIPO_FRETE_LABEL[tipoDoFrete(f)] },
       { header: 'Origem', key: 'origem', width: 20, align: 'left', value: (f) => f.origem || '-' },
       { header: 'Destino', key: 'destino', width: 20, align: 'left', value: (f) => f.destino || '-' },
       { header: 'Transportadora', key: 'transportadora', width: 24, align: 'left', value: (f) => f.transportadora || '-' },
@@ -296,6 +301,7 @@ export function exportarFretesPDF(
   const detRows = dados.map((f) => [
     formatDateBR(f.data),
     formatDateBR(f.dataChegada),
+    TIPO_FRETE_LABEL[tipoDoFrete(f)],
     `${f.origem || '-'} → ${f.destino || '-'}`,
     f.transportadora || '-',
     f.motorista || '-',
@@ -313,10 +319,12 @@ export function exportarFretesPDF(
   drawPdfDetailTable(
     doc,
     detailStartY,
-    ['Saída', 'Chegada', 'Origem → Destino', 'Transportadora', 'Motorista', 'Placa', 'Material', 'Peso (t)', 'KM', 'R$/TKM', 'Total', 'Preço Material', 'NF', 'NF 2'],
+    ['Saída', 'Chegada', 'Tipo', 'Origem → Destino', 'Transportadora', 'Motorista', 'Placa', 'Material', 'Peso (t)', 'KM', 'R$/TKM', 'Total', 'Preço Material', 'NF', 'NF 2'],
     detRows,
+    // Rodapé posicional: 15 células, uma por cabeçalho acima. A coluna Tipo
+    // entrou no índice 2 e empurrou todo o resto uma casa para a direita.
     [
-      '', '',
+      '', '', '',
       `TOTAL (${dados.length})`,
       '', '', '', '',
       fmtNum(totals.totalPeso), '', '',
@@ -325,20 +333,21 @@ export function exportarFretesPDF(
       '', '',
     ],
     {
-      0: { halign: 'center', cellWidth: 18 },
-      1: { halign: 'center', cellWidth: 18 },
-      2: { halign: 'left', cellWidth: 40 },
-      3: { halign: 'left', cellWidth: 32 },
-      4: { halign: 'left', cellWidth: 26 },
-      5: { halign: 'center', cellWidth: 18 },
-      6: { halign: 'left', cellWidth: 30 },
-      7: { halign: 'right', cellWidth: 18 },
-      8: { halign: 'right', cellWidth: 16 },
-      9: { halign: 'right', cellWidth: 18 },
-      10: { halign: 'right', cellWidth: 24 },
-      11: { halign: 'right', cellWidth: 24 },
-      12: { halign: 'center', cellWidth: 16 },
-      13: { halign: 'center', cellWidth: 16 },
+      0: { halign: 'center', cellWidth: 18 },   // Saída
+      1: { halign: 'center', cellWidth: 18 },   // Chegada
+      2: { halign: 'center', cellWidth: 22 },   // Tipo
+      3: { halign: 'left', cellWidth: 38 },     // Origem → Destino
+      4: { halign: 'left', cellWidth: 30 },     // Transportadora
+      5: { halign: 'left', cellWidth: 24 },     // Motorista
+      6: { halign: 'center', cellWidth: 18 },   // Placa
+      7: { halign: 'left', cellWidth: 28 },     // Material
+      8: { halign: 'right', cellWidth: 18 },    // Peso (t)
+      9: { halign: 'right', cellWidth: 16 },    // KM
+      10: { halign: 'right', cellWidth: 18 },   // R$/TKM
+      11: { halign: 'right', cellWidth: 24 },   // Total
+      12: { halign: 'right', cellWidth: 24 },   // Preço Material
+      13: { halign: 'center', cellWidth: 16 },  // NF
+      14: { halign: 'center', cellWidth: 16 },  // NF 2
     },
     MARCA,
     margin,

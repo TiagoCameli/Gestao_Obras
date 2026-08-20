@@ -11,6 +11,9 @@ import { z } from 'zod';
  *  - placaCarreta tem regex permissivo (Mercosul OU formato antigo). Vazia OK.
  *  - Validação cross-field (peso × km × tkm > 0) é checada no submit handler,
  *    fora do schema (regra de negócio, não regra de formato).
+ *  - `obraId` deixou de ser obrigatório no schema base: no frete de
+ *    transferência a obra é opcional. A exigência voltou como .superRefine
+ *    condicionado a `tipo`, para o erro continuar aparecendo no campo certo.
  *
  * Não inclui:
  *  - fotoChegadaUrl / fotoUrls / arquivoUrls — gerenciados em useState fora do
@@ -18,9 +21,14 @@ import { z } from 'zod';
  *    upload do Storage. Submit handler injeta esses no payload final.
  */
 export const freteFormSchema = z.object({
+  // 'material' = tira material da pedreira; 'transferencia' = move material que
+  // a EMT já tem. Ver src/utils/freteTipo.ts.
+  tipo: z.enum(['material', 'transferencia']),
   data: z.string().min(1, 'Data de saída obrigatória'),
   dataChegada: z.string().optional().or(z.literal('')),
-  obraId: z.string().min(1, 'Selecione a obra'),
+  // Obrigatória no frete de material, opcional na transferência (regra
+  // cross-field no .superRefine abaixo, porque depende de `tipo`).
+  obraId: z.string().optional().or(z.literal('')),
   origem: z.string().min(2, 'Origem obrigatória'),
   destino: z.string().min(2, 'Destino obrigatório'),
   transportadora: z.string().min(1, 'Selecione a transportadora'),
@@ -37,6 +45,10 @@ export const freteFormSchema = z.object({
   // Aceita ABC-1D34 (Mercosul) ou ABC-1234 (antigo). Sem hífen também ok.
   placaCarreta: z.string().regex(/^$|^[A-Z]{3}-?\d[A-Z\d]\d{2}$/i, 'Placa inválida (ex: ABC-1D34)').optional().or(z.literal('')),
   observacoes: z.string().max(500, 'Máximo 500 caracteres').optional().or(z.literal('')),
+}).superRefine((v, ctx) => {
+  if (v.tipo === 'material' && !v.obraId) {
+    ctx.addIssue({ code: 'custom', path: ['obraId'], message: 'Selecione a obra' });
+  }
 });
 
 export type FreteFormValues = z.infer<typeof freteFormSchema>;

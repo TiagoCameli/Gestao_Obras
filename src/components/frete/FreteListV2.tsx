@@ -5,8 +5,10 @@ import {
 import {
   ChevronRight, ChevronDown, MoreVertical, Pencil, Trash2, Truck,
 } from 'lucide-react';
-import type { Frete, Obra, Insumo } from '../../types';
+import type { Frete, Obra, Insumo, FiltrosFrete } from '../../types';
 import { useAtualizarFrete } from '../../hooks/useFretes';
+import { tipoDoFrete, ehTransferencia } from '../../utils/freteTipo';
+import { calcularTotaisFrete } from '../../utils/freteTotais';
 import { useToast } from '../ui/Toast';
 import DataTable from '../ui/DataTable';
 import FreteRowExpanded from './FreteRowExpanded';
@@ -18,7 +20,7 @@ interface Props {
   fretes: Frete[];
   obras: Obra[];
   insumos: Insumo[];
-  filtros: { obraId: string; transportadora: string; motorista: string; insumoId: string; origem: string; destino: string; dataInicio: string; dataFim: string; notaFiscal: string };
+  filtros: FiltrosFrete;
   filtroSemChegada?: boolean;
   onEdit: (frete: Frete) => void;
   onDelete: (id: string) => void;
@@ -63,6 +65,7 @@ export default function FreteListV2({
   // Filtros client-side
   const filtrados = useMemo(() => {
     return fretes.filter((f) => {
+      if (filtros.tipo && tipoDoFrete(f) !== filtros.tipo) return false;
       if (filtros.obraId && f.obraId !== filtros.obraId) return false;
       if (filtros.transportadora && f.transportadora !== filtros.transportadora) return false;
       if (filtros.motorista) {
@@ -142,6 +145,11 @@ export default function FreteListV2({
         <div className="flex flex-col leading-tight">
           <span className="font-medium truncate max-w-[200px]">{row.original.origem || '—'}</span>
           <span className="text-xs text-[var(--color-fg-muted)] truncate max-w-[200px]">→ {row.original.destino || '—'}</span>
+          {ehTransferencia(row.original) && (
+            <span className="mt-0.5 inline-flex w-fit items-center rounded-full bg-amber-100 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-800">
+              Transferência
+            </span>
+          )}
         </div>
       ),
     },
@@ -233,15 +241,7 @@ export default function FreteListV2({
 
   // Totais (footer) — calcula sobre TODAS as linhas filtradas, não só a página
   const totals = useMemo(() => {
-    return filtrados.reduce(
-      (acc, f) => {
-        acc.peso += f.pesoToneladas ?? 0;
-        acc.valor += f.valorTotal ?? 0;
-        acc.valorMaterial += f.valorMaterial ?? 0;
-        return acc;
-      },
-      { peso: 0, valor: 0, valorMaterial: 0 },
-    );
+    return calcularTotaisFrete(filtrados);
   }, [filtrados]);
 
   return (
@@ -265,7 +265,9 @@ export default function FreteListV2({
         description: 'Ajuste os filtros acima ou registre um novo frete.',
       }}
       renderFooter={() => {
-        const precoMedio = totals.peso > 0 ? totals.valorMaterial / totals.peso : 0;
+        // Ponderado só pela tonelagem que carrega material — transferência tem
+        // peso e valor de material zero, e diluiria o R$/t sem motivo.
+        const precoMedio = totals.precoMedioMaterial;
         return (
           <tr>
             <td colSpan={6} className="px-3 py-2 text-2xs label-eyebrow">Totais</td>

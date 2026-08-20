@@ -74,7 +74,9 @@ async function preencherCamposObrigatorios(user: ReturnType<typeof userEvent.set
   await user.type(screen.getByLabelText(/Valor Unitário do Material/i), '45');
 
   // SmartSelects: o nome acessível do botão vem do <label htmlFor> associado.
-  await selecionar(user, /^obra \(opcional\)/i, 'Obra Teste');
+  // O rótulo é "Obra" no frete de material e "Obra (opcional)" na
+  // transferência — a obra só é dispensável nesta última.
+  await selecionar(user, /^obra\b/i, 'Obra Teste');
   await selecionar(user, /^origem/i, 'Pedreira Central');
   await selecionar(user, /^destino/i, 'Obra Norte');
   await selecionar(user, /^transportadora/i, 'Andrade Transporte');

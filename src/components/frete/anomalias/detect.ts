@@ -1,4 +1,5 @@
 import type { Frete, PedidoMaterial, Fornecedor } from '../../../types';
+import { apenasFretesDePedreira, ehTransferencia } from '../../../utils/freteTipo';
 
 export type Severidade = 'info' | 'warning' | 'critical';
 export type FreteDetectorId = 'F1' | 'F2' | 'F3' | 'F4' | 'F5' | 'F6';
@@ -81,12 +82,21 @@ type Ctx = {
   input: DetectFreteInput;
   findForn: (o?: string | null) => string | undefined;
   pedidoInfo: Map<string, { precos: number[]; qtd: number }>;
+  /**
+   * Recortes sem frete de transferência, para os detectores que raciocinam em
+   * cima de pedido de material (F1, F2, F3). Transferência move material que a
+   * EMT já tem: não tem pedido, não tem preço de pedreira e não desconta saldo.
+   * Sem este recorte, TODA transferência viraria um F2 "frete sem pedido" e
+   * puxaria o saldo da pedreira mais parecida com a origem para o negativo.
+   */
+  pedreiraNoPeriodo: Frete[];
+  pedreiraTodos: Frete[];
 };
 
 function detectF1(ctx: Ctx): AnomaliaFrete[] {
   const { input, findForn, pedidoInfo } = ctx;
   const out: AnomaliaFrete[] = [];
-  for (const f of input.fretesNoPeriodo) {
+  for (const f of ctx.pedreiraNoPeriodo) {
     if (!f.insumoId || !(f.pesoToneladas > 0) || !(f.valorMaterial > 0)) continue;
     const fornId = findForn(f.origem);
     if (!fornId) continue; // origem sem fornecedor -> F5
@@ -115,7 +125,7 @@ function detectF1(ctx: Ctx): AnomaliaFrete[] {
 function detectF2(ctx: Ctx): AnomaliaFrete[] {
   const { input, findForn, pedidoInfo } = ctx;
   const out: AnomaliaFrete[] = [];
-  for (const f of input.fretesNoPeriodo) {
+  for (const f of ctx.pedreiraNoPeriodo) {
     if (!f.insumoId) continue;
     const fornId = findForn(f.origem);
     if (!fornId) continue; // origem sem fornecedor -> F5
@@ -143,7 +153,7 @@ function detectF3(ctx: Ctx): AnomaliaFrete[] {
   const { input, findForn, pedidoInfo } = ctx;
   // soma transportada por fornecedorId|insumoId (todos os fretes, saldo cumulativo)
   const transp = new Map<string, number>();
-  for (const f of input.fretesTodos) {
+  for (const f of ctx.pedreiraTodos) {
     if (!f.insumoId || !(f.pesoToneladas > 0)) continue;
     const fornId = findForn(f.origem);
     if (!fornId) continue;
@@ -235,17 +245,22 @@ function detectF5(ctx: Ctx): AnomaliaFrete[] {
   for (const f of input.fretesNoPeriodo) {
     const motivos: string[] = [];
     let grave = false;
+    const transf = ehTransferencia(f);
     if (!(f.pesoToneladas > 0)) { motivos.push('sem peso'); grave = true; }
-    if (!(f.valorMaterial > 0)) { motivos.push('sem valor de material'); grave = true; }
-    if (!(f.notaFiscal ?? '').trim()) motivos.push('sem nota fiscal');
+    // Valor de material, NF e origem-fornecedor só fazem sentido no frete de
+    // pedreira. A transferência não compra material, não emite NF e sai de um
+    // ponto qualquer — cobrar isso dela alertaria em 100% dos casos.
+    if (!transf && !(f.valorMaterial > 0)) { motivos.push('sem valor de material'); grave = true; }
+    if (!transf && !(f.notaFiscal ?? '').trim()) motivos.push('sem nota fiscal');
     if (!(f.placaCarreta ?? '').trim()) motivos.push('sem placa');
-    if (!findForn(f.origem)) motivos.push('origem não casa com nenhum fornecedor');
+    if (!transf && !findForn(f.origem)) motivos.push('origem não casa com nenhum fornecedor');
+    if (transf && !(f.destino ?? '').trim()) { motivos.push('sem destino'); grave = true; }
     if (motivos.length === 0) continue;
     out.push({
       id: `F5-${f.id}`,
       severity: grave ? 'warning' : 'info',
       detector: 'F5',
-      title: `Frete com cadastro incompleto${f.notaFiscal ? ` (NF ${f.notaFiscal})` : ''}`,
+      title: `${transf ? 'Transferência' : 'Frete'} com cadastro incompleto${f.notaFiscal ? ` (NF ${f.notaFiscal})` : ''}`,
       description: `Problemas: ${motivos.join(', ')}.`,
       affectedFreteIds: [f.id],
       affectedInsumoId: f.insumoId || undefined,
@@ -260,6 +275,9 @@ function detectF6(ctx: Ctx): AnomaliaFrete[] {
   const { input } = ctx;
   const out: AnomaliaFrete[] = [];
   for (const f of input.fretesNoPeriodo) {
+    // Transferência não pergunta data de chegada no formulário; sem esta linha
+    // toda transferência com mais de 7 dias viraria alerta permanente.
+    if (ehTransferencia(f)) continue;
     if ((f.dataChegada ?? '').trim()) continue;
     if (!f.data) continue;
     if (diasEntre(f.data, input.hoje) <= F6_DIAS) continue;
@@ -282,6 +300,8 @@ export function detectAnomaliasFrete(input: DetectFreteInput): AnomaliaFrete[] {
     input,
     findForn: makeFindFornecedor(input.fornecedores),
     pedidoInfo: buildPedidoInfo(input.pedidos),
+    pedreiraNoPeriodo: apenasFretesDePedreira(input.fretesNoPeriodo),
+    pedreiraTodos: apenasFretesDePedreira(input.fretesTodos),
   };
   const all: AnomaliaFrete[] = [
     ...detectF1(ctx),

@@ -11,6 +11,7 @@ import {
   FileText, Paperclip, History, User, ArrowRight,
 } from 'lucide-react';
 import type { Frete, Obra, Insumo } from '../../types';
+import { ehTransferencia } from '../../utils/freteTipo';
 import {
   Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription, SheetFooter,
 } from '../shadcn/sheet';
@@ -215,13 +216,24 @@ export default function FreteDetalhesDrawer({
             <div className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-2)]/40 p-3">
               <div className="flex items-center gap-1.5 text-[10px] uppercase tracking-wide text-[var(--color-fg-muted)] font-semibold">
                 <Package className="w-3 h-3" />
-                Valor Material
+                {ehTransferencia(frete) ? 'Tipo' : 'Valor Material'}
               </div>
               <div className="text-base font-bold tabular-nums mt-1">
-                {fmtBRL(frete.valorMaterial || 0)}
+                {ehTransferencia(frete) ? (
+                  <span className="text-sm font-semibold text-amber-700">Transferência</span>
+                ) : (
+                  fmtBRL(frete.valorMaterial || 0)
+                )}
               </div>
             </div>
           </div>
+
+          {ehTransferencia(frete) && (
+            <div className="rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-900">
+              Transferência de material: não desconta saldo de pedreira — só gera
+              crédito para a transportadora.
+            </div>
+          )}
 
           {/* Diagrama origem → destino */}
           <div className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-1)] p-4 flex items-center justify-center gap-3">

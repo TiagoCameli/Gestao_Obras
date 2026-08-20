@@ -1,6 +1,7 @@
 import { useState, useCallback, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import type { Frete as FreteType, FiltrosFrete, Localidade, PagamentoFrete, PedidoMaterial } from '../types';
+import type { Frete as FreteType, FiltrosFrete, Localidade, PagamentoFrete, PedidoMaterial, TipoFrete } from '../types';
+import { TIPOS_FRETE, TIPO_FRETE_LABEL } from '../utils/freteTipo';
 import { useFretes, useAdicionarFrete, useAtualizarFrete, useExcluirFrete } from '../hooks/useFretes';
 import { usePagamentosFrete, useAdicionarPagamentoFrete, useAtualizarPagamentoFrete, useExcluirPagamentoFrete } from '../hooks/usePagamentosFrete';
 // FreteDashboard agora lê saidas de carreta direto via useSaidasCombustivel
@@ -41,7 +42,7 @@ import { exportarPedidosMaterialExcel, exportarPedidosMaterialPDF } from '../uti
 import FilterBar from '../components/frete/FilterBar';
 import FretePresets, { type PresetKey } from '../components/frete/FretePresets';
 import { presetEstaSemana, presetEsteMes, presetMesPassado } from '../utils/dateRangePresets';
-import { Truck, BarChart3, Wallet, Wallet2, PackageSearch, Trash2, AlertTriangle } from 'lucide-react';
+import { Truck, BarChart3, Wallet, Wallet2, PackageSearch, Trash2, AlertTriangle, ArrowLeftRight } from 'lucide-react';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '../components/shadcn/tabs';
 import AnomaliasFreteTab from '../components/frete/anomalias/AnomaliasFreteTab';
 import { useAnomaliasFreteChecks, useMarcarAnomaliaFreteVerificada, useDesfazerVerificacaoAnomaliaFrete } from '../hooks/useAnomaliasFreteChecks';
@@ -171,8 +172,13 @@ export default function Frete() {
   // Import atualização modal
   const [importAtualizacaoOpen, setImportAtualizacaoOpen] = useState(false);
 
+  // Tipo do frete que o botão do cabeçalho abre. Só vale na criação — em
+  // edição o FreteForm usa o tipo já gravado no registro.
+  const [tipoNovoFrete, setTipoNovoFrete] = useState<TipoFrete>('material');
+
   // Frete filters
   const [filtros, setFiltros] = useState<FiltrosFrete>({
+    tipo: '',
     obraId: '',
     transportadora: '',
     motorista: '',
@@ -425,7 +431,10 @@ export default function Frete() {
             <Button variant="secondary" onClick={() => { setPagEditando(null); setPagModalOpen(true); }}>
               Novo Pagamento
             </Button>
-            <Button onClick={() => { setEditando(null); setModalOpen(true); }}>
+            <Button variant="secondary" onClick={() => { setEditando(null); setTipoNovoFrete('transferencia'); setModalOpen(true); }}>
+              <ArrowLeftRight className="w-4 h-4" /> Nova Transferência
+            </Button>
+            <Button onClick={() => { setEditando(null); setTipoNovoFrete('material'); setModalOpen(true); }}>
               <Truck className="w-4 h-4" /> Novo Frete
             </Button>
           </>
@@ -511,6 +520,7 @@ export default function Frete() {
               placeholder: 'Buscar por nota fiscal...',
             }}
             fields={[
+              { key: 'tipo', label: 'Tipo', value: filtros.tipo, onChange: (v) => setFiltros((f) => ({ ...f, tipo: v as FiltrosFrete['tipo'] })), options: TIPOS_FRETE.map((t) => ({ value: t, label: TIPO_FRETE_LABEL[t] })), placeholder: 'Todos os tipos' },
               { key: 'obraId', label: 'Obra', value: filtros.obraId, onChange: (v) => setFiltros((f) => ({ ...f, obraId: v })), options: obras.map((o) => ({ value: o.id, label: o.nome })), placeholder: 'Todas as obras' },
               { key: 'transportadora', label: 'Transportadora', value: filtros.transportadora, onChange: (v) => setFiltros((f) => ({ ...f, transportadora: v })), options: transportadoras.map((t) => ({ value: t, label: t })), placeholder: 'Todas as transportadoras' },
               { key: 'dataInicio', label: 'De', value: filtros.dataInicio, onChange: (v) => setFiltros((f) => ({ ...f, dataInicio: v })), type: 'date', placeholder: 'Data início' },
@@ -521,7 +531,7 @@ export default function Frete() {
               { key: 'destino', label: 'Local de Entrega', value: filtros.destino, onChange: (v) => setFiltros((f) => ({ ...f, destino: v })), options: destinos.map((d) => ({ value: d, label: d })), placeholder: 'Todos os locais', collapsed: true },
             ]}
             onClearAll={() => {
-              setFiltros({ obraId: '', transportadora: '', motorista: '', insumoId: '', origem: '', destino: '', dataInicio: '', dataFim: '', notaFiscal: '' });
+              setFiltros({ tipo: '', obraId: '', transportadora: '', motorista: '', insumoId: '', origem: '', destino: '', dataInicio: '', dataFim: '', notaFiscal: '' });
               setPresetAtivo(null);
             }}
           />
@@ -793,10 +803,15 @@ export default function Frete() {
       <Modal
         open={modalOpen}
         onClose={() => { setModalOpen(false); setEditando(null); }}
-        title={editando ? 'Editar Frete' : 'Novo Frete'}
+        title={
+          editando
+            ? (editando.tipo === 'transferencia' ? 'Editar Transferência' : 'Editar Frete')
+            : (tipoNovoFrete === 'transferencia' ? 'Nova Transferência de Material' : 'Novo Frete')
+        }
       >
         <FreteForm
           initial={editando}
+          tipo={tipoNovoFrete}
           onSubmit={handleSubmit}
           onCancel={() => { setModalOpen(false); setEditando(null); }}
           obras={obras}

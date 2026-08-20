@@ -456,8 +456,18 @@ export interface Localidade {
   criadoPor: string;
 }
 
+export type { TipoFrete } from '../utils/freteTipo';
+import type { TipoFrete } from '../utils/freteTipo';
+
 export interface Frete {
   id: string;
+  /**
+   * 'material' = viagem que tira material de uma pedreira (desconta o Saldo na
+   * Pedreira). 'transferencia' = viagem que move material que a EMT já tem
+   * entre dois pontos: não mexe em saldo de pedreira, só credita a
+   * transportadora. Ver src/utils/freteTipo.ts.
+   */
+  tipo: TipoFrete;
   data: string;
   dataChegada: string;
   obraId: string;
@@ -490,6 +500,8 @@ export interface Frete {
 }
 
 export interface FiltrosFrete {
+  /** '' = todos os tipos. */
+  tipo: TipoFrete | '';
   obraId: string;
   transportadora: string;
   motorista: string;

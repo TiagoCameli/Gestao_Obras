@@ -53,6 +53,7 @@ import type {
   TipoDestinoRateio,
   StatusParcelaLancamento,
 } from '../types';
+import { tipoDoFrete } from '../utils/freteTipo';
 
 // ── Obras ──
 
@@ -650,6 +651,9 @@ export function dbToFrete(row: any): Frete {
     valorMaterial: Number(row.valor_material ?? 0),
     observacoes: row.observacoes,
     criadoPor: row.criado_por ?? '',
+    // Frete gravado antes da migration 20260820163500 vem sem o campo; o
+    // fallback mantém ele contando como material (ver utils/freteTipo.ts).
+    tipo: tipoDoFrete(row as { tipo?: string | null }),
     // FF.3 — anexos + foto chegada.
     fotoUrls: Array.isArray(row.foto_urls) ? row.foto_urls : [],
     arquivoUrls: Array.isArray(row.arquivo_urls) ? row.arquivo_urls : [],
@@ -685,6 +689,7 @@ export function freteToDb(f: Frete) {
     valor_material: f.valorMaterial,
     observacoes: f.observacoes,
     criado_por: f.criadoPor,
+    tipo: tipoDoFrete(f),
     // FF.3 — anexos + foto chegada.
     foto_urls: f.fotoUrls ?? [],
     arquivo_urls: f.arquivoUrls ?? [],

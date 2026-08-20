@@ -1,4 +1,5 @@
 import type { Frete, Insumo } from '../../types';
+import { ehTransferencia } from '../../utils/freteTipo';
 import FreteFotoChegadaBlock from './FreteFotoChegadaBlock';
 import { useAtualizarFrete } from '../../hooks/useFretes';
 import { useToast } from '../ui/Toast';
@@ -75,9 +76,17 @@ export default function FreteRowExpanded({ frete, insumos: _insumos, canEdit }: 
           <Field label="KM rodados" value={`${(frete.kmRodados ?? 0).toLocaleString('pt-BR')} km`} />
           <Field label="R$ / TKM" value={`${fmtBRL(frete.valorTkm)} (TKM=${tkmCalc.toLocaleString('pt-BR')})`} />
           <Field label="Valor frete" value={fmtBRL(frete.valorTotal)} />
-          <Field label="Valor material (total)" value={fmtBRL(frete.valorMaterial || 0)} />
-          {valorMaterialUnit > 0 && (
-            <Field label="Valor material (R$/t)" value={fmtBRL(valorMaterialUnit) + '/t'} />
+          {/* Transferência não compra material: mostrar "R$ 0,00" aqui leria
+              como material de graça, e não como material que não foi comprado. */}
+          {ehTransferencia(frete) ? (
+            <Field label="Material" value={<span className="text-[var(--color-fg-muted)]">Transferência — material já era da EMT</span>} />
+          ) : (
+            <>
+              <Field label="Valor material (total)" value={fmtBRL(frete.valorMaterial || 0)} />
+              {valorMaterialUnit > 0 && (
+                <Field label="Valor material (R$/t)" value={fmtBRL(valorMaterialUnit) + '/t'} />
+              )}
+            </>
           )}
         </div>
       </div>

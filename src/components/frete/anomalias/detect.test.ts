@@ -194,3 +194,101 @@ describe('F6 — frete sem chegada', () => {
     expect(res.filter((a) => a.detector === 'F6')).toHaveLength(1);
   });
 });
+
+describe('Frete de transferência — fica fora dos detectores de pedreira', () => {
+  // Cada teste carrega uma LINHA DE CONTROLE: o mesmo cenário com tipo
+  // 'material' TEM que disparar. Sem ela, um detector quebrado por completo
+  // passaria como "transferência foi excluída com sucesso".
+
+  it('F2: transferência não vira "material transportado sem pedido"', () => {
+    const comum = { id: 'tr1', origem: 'Britam', insumoId: 'bgs', valorMaterial: 0 };
+    const transf = frete({ ...comum, tipo: 'transferencia' });
+    const material = frete({ ...comum, tipo: 'material' });
+
+    const semPedidoDeBgs = [pedido({})]; // só tem pedido de brita4
+
+    const resTransf = detectAnomaliasFrete(
+      base({ fretesNoPeriodo: [transf], fretesTodos: [transf], pedidos: semPedidoDeBgs }),
+    );
+    const resMaterial = detectAnomaliasFrete(
+      base({ fretesNoPeriodo: [material], fretesTodos: [material], pedidos: semPedidoDeBgs }),
+    );
+
+    expect(resTransf.filter((a) => a.detector === 'F2')).toHaveLength(0);
+    expect(resMaterial.filter((a) => a.detector === 'F2')).toHaveLength(1); // controle
+  });
+
+  it('F1: transferência não vira "preço de material fora do padrão"', () => {
+    // Preço bem fora do pedido (112,35 contra 106,73).
+    const comum = { id: 'tr2', insumoId: 'bgs', pesoToneladas: 60, valorMaterial: 60 * 112.35 };
+    const transf = frete({ ...comum, tipo: 'transferencia' });
+    const material = frete({ ...comum, tipo: 'material' });
+    const p = pedido({ itens: [{ insumoId: 'bgs', quantidade: 1000, valorUnitario: 106.73 }] });
+
+    const resTransf = detectAnomaliasFrete(base({ fretesNoPeriodo: [transf], fretesTodos: [transf], pedidos: [p] }));
+    const resMaterial = detectAnomaliasFrete(base({ fretesNoPeriodo: [material], fretesTodos: [material], pedidos: [p] }));
+
+    expect(resTransf.filter((a) => a.detector === 'F1')).toHaveLength(0);
+    expect(resMaterial.filter((a) => a.detector === 'F1')).toHaveLength(1); // controle
+  });
+
+  it('F3: transferência não puxa o saldo da pedreira para negativo', () => {
+    // Pedido de 100 t; a viagem leva 150 t. Como material, estoura o saldo.
+    const comum = { id: 'tr3', origem: 'Britam', insumoId: 'brita4', pesoToneladas: 150 };
+    const transf = frete({ ...comum, tipo: 'transferencia' });
+    const material = frete({ ...comum, tipo: 'material' });
+    const p = pedido({ itens: [{ insumoId: 'brita4', quantidade: 100, valorUnitario: 121.98 }] });
+
+    const resTransf = detectAnomaliasFrete(base({ fretesNoPeriodo: [transf], fretesTodos: [transf], pedidos: [p] }));
+    const resMaterial = detectAnomaliasFrete(base({ fretesNoPeriodo: [material], fretesTodos: [material], pedidos: [p] }));
+
+    expect(resTransf.filter((a) => a.detector === 'F3')).toHaveLength(0);
+    expect(resMaterial.filter((a) => a.detector === 'F3')).toHaveLength(1); // controle
+  });
+
+  it('F5: transferência não é cobrada por NF, valor de material nem origem-fornecedor', () => {
+    const transf = frete({
+      id: 'tr4', tipo: 'transferencia',
+      origem: 'Pátio da Usina', // não casa com nenhum fornecedor, de propósito
+      notaFiscal: '', valorMaterial: 0,
+    });
+    const res = detectAnomaliasFrete(base({ fretesNoPeriodo: [transf], fretesTodos: [transf], pedidos: [pedido({})] }));
+    expect(res.filter((a) => a.detector === 'F5')).toHaveLength(0);
+  });
+
+  it('F5: transferência ainda é cobrada por peso e por placa', () => {
+    const transf = frete({ id: 'tr5', tipo: 'transferencia', pesoToneladas: 0, placaCarreta: '' });
+    const res = detectAnomaliasFrete(base({ fretesNoPeriodo: [transf], fretesTodos: [transf], pedidos: [pedido({})] }));
+    const f5 = res.filter((a) => a.detector === 'F5');
+    expect(f5).toHaveLength(1);
+    expect(f5[0].description).toContain('sem peso');
+    expect(f5[0].description).toContain('sem placa');
+    expect(f5[0].title).toContain('Transferência');
+  });
+
+  it('F6: transferência não vira "sem chegada", mas o frete de material vira', () => {
+    const comum = { id: 'tr6', dataChegada: '', data: '2026-06-01' };
+    const transf = frete({ ...comum, tipo: 'transferencia' });
+    const material = frete({ ...comum, tipo: 'material' });
+
+    const resTransf = detectAnomaliasFrete(base({ fretesNoPeriodo: [transf], fretesTodos: [transf], pedidos: [pedido({})], hoje: '2026-06-30' }));
+    const resMaterial = detectAnomaliasFrete(base({ fretesNoPeriodo: [material], fretesTodos: [material], pedidos: [pedido({})], hoje: '2026-06-30' }));
+
+    expect(resTransf.filter((a) => a.detector === 'F6')).toHaveLength(0);
+    expect(resMaterial.filter((a) => a.detector === 'F6')).toHaveLength(1); // controle
+  });
+
+  it('F4: transferência duplicada continua sendo acusada', () => {
+    const a = frete({ id: 'tr7a', tipo: 'transferencia', notaFiscal: '' });
+    const b = frete({ id: 'tr7b', tipo: 'transferencia', notaFiscal: '' });
+    const res = detectAnomaliasFrete(base({ fretesNoPeriodo: [a, b], fretesTodos: [a, b], pedidos: [pedido({})] }));
+    expect(res.filter((x) => x.detector === 'F4').length).toBeGreaterThan(0);
+  });
+
+  it('frete legado (sem o campo tipo) continua sendo tratado como material', () => {
+    // 757 fretes em produção nasceram antes da coluna existir.
+    const legado = frete({ id: 'leg1', origem: 'Britam', insumoId: 'bgs', valorMaterial: 0 });
+    const res = detectAnomaliasFrete(base({ fretesNoPeriodo: [legado], fretesTodos: [legado], pedidos: [pedido({})] }));
+    expect(res.filter((a) => a.detector === 'F2')).toHaveLength(1);
+  });
+});
