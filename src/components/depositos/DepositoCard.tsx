@@ -12,6 +12,7 @@
 import { MapPin, User, ExternalLink, AlertTriangle } from 'lucide-react';
 import type { DepositoMaterial, Deposito, Obra } from '../../types';
 import BadgeTipoDeposito from './BadgeTipoDeposito';
+import { formatCapacidadeLitros, formatLitrosNumero } from '../../utils/formatters';
 
 type Props =
   | { tipo: 'material'; deposito: DepositoMaterial; obras: Obra[]; resumo?: { qtdInsumos: number; valorTotal: number }; onAbrir: () => void }
@@ -156,8 +157,8 @@ function CardCombustivel({ tanque, insumoNome, onAbrir }: { tanque: Deposito; in
       <div className="mb-3">
         <div className="flex items-baseline justify-between mb-1">
           <span className="text-lg font-bold text-[var(--color-fg)] tabular-nums">
-            {nivel.toLocaleString('pt-BR', { maximumFractionDigits: 0 })}
-            <span className="text-xs font-normal text-[var(--color-fg-muted)] ml-1">/ {cap.toLocaleString('pt-BR', { maximumFractionDigits: 0 })} L</span>
+            {formatLitrosNumero(nivel)}
+            <span className="text-xs font-normal text-[var(--color-fg-muted)] ml-1">/ {formatCapacidadeLitros(cap)} L</span>
           </span>
           <span className={`text-xs font-medium tabular-nums ${baixo ? 'text-rose-600' : cheio ? 'text-emerald-600' : 'text-[var(--color-fg-muted)]'}`}>
             {pct.toFixed(0)}%

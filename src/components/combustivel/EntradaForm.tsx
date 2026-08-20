@@ -16,6 +16,7 @@ import {
   type EntradaCombustivelFormValues,
 } from '../../schemas/combustivel/entradaCombustivel.schema';
 import { nowAsLocalInput } from './v2/shared/formatters';
+import { formatCapacidadeLitros, formatLitros, formatLitrosNumero } from '../../utils/formatters';
 
 interface EntradaFormProps {
   initial?: EntradaCombustivel | null;
@@ -301,7 +302,7 @@ export default function EntradaForm({
                 onChange={(e) => field.onChange(e.target.value)}
                 options={depositos.map((d) => ({
                   value: d.id,
-                  label: `${d.nome} (${d.nivelAtualLitros.toFixed(0)}/${d.capacidadeLitros.toFixed(0)} L)`,
+                  label: `${d.nome} (${formatLitrosNumero(d.nivelAtualLitros)}/${formatCapacidadeLitros(d.capacidadeLitros)} L)`,
                 }))}
                 placeholder={
                   depositos.length === 0
@@ -331,7 +332,7 @@ export default function EntradaForm({
                 />
               </div>
               <span className="text-xs text-gray-500">
-                Espaço livre: {espacoDisponivel.toFixed(0)} L
+                Espaço livre: {formatLitros(espacoDisponivel)}
               </span>
             </div>
           )}
@@ -341,7 +342,7 @@ export default function EntradaForm({
               <strong>
                 {listaCombustiveis.find((c) => c.id === conflitoCombustivel)?.nome ?? conflitoCombustivel}
               </strong>{' '}
-              ({depositoSelecionado?.nivelAtualLitros.toFixed(0)} L). Esvazie o tanque antes ou selecione o mesmo combustível.
+              ({formatLitros(depositoSelecionado?.nivelAtualLitros ?? 0)}). Esvazie o tanque antes ou selecione o mesmo combustível.
             </div>
           )}
         </div>
@@ -434,7 +435,7 @@ export default function EntradaForm({
             {...register('quantidadeLitros', { valueAsNumber: true })}
             error={
               excedeLimite
-                ? `Excede capacidade do tanque (${espacoDisponivel.toFixed(0)} L livres)`
+                ? `Excede capacidade do tanque (${formatLitrosNumero(espacoDisponivel)} L livres)`
                 : errors.quantidadeLitros?.message
             }
             required

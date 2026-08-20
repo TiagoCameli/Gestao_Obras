@@ -10,6 +10,7 @@ import Button from '../../ui/Button';
 import HistoricoTimeline from '../../combustivel/HistoricoTimeline';
 import FotoGaleria from '../../shared/FotoGaleria';
 import ArquivosLista from '../../shared/ArquivosLista';
+import { formatCapacidadeLitros, formatLitros } from '../../../utils/formatters';
 
 interface Props {
   tanque: Deposito | null;
@@ -151,16 +152,16 @@ export default function TanqueDetalhesDrawer({
               <div className={`h-3 rounded-full transition-all ${pctColor}`} style={{ width: `${pct}%` }} />
             </div>
             <div className="flex justify-between text-xs text-[var(--color-fg-muted)] mt-1.5 tabular-nums">
-              <span>{tanque.nivelAtualLitros.toLocaleString('pt-BR')} L</span>
-              <span>{tanque.capacidadeLitros.toLocaleString('pt-BR')} L</span>
+              <span>{formatLitros(tanque.nivelAtualLitros)}</span>
+              <span>{formatCapacidadeLitros(tanque.capacidadeLitros)} L</span>
             </div>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-4">
             <Field icon={Container} label="Nome" value={tanque.nome} />
             {tanque.apelido && <Field icon={Container} label="Apelido" value={tanque.apelido} />}
-            <Field icon={Droplet} label="Capacidade" value={`${tanque.capacidadeLitros.toLocaleString('pt-BR')} L`} />
-            <Field icon={Gauge} label="Nível atual" value={`${tanque.nivelAtualLitros.toLocaleString('pt-BR')} L`} />
+            <Field icon={Droplet} label="Capacidade" value={`${formatCapacidadeLitros(tanque.capacidadeLitros)} L`} />
+            <Field icon={Gauge} label="Nível atual" value={formatLitros(tanque.nivelAtualLitros)} />
             <Field
               icon={Building2}
               label="Tipo"

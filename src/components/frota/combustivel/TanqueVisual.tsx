@@ -12,6 +12,7 @@
 // Tanque externo (eh_externo) cai pra layout de lista — não passar pra cá.
 
 import { Droplet, FuelIcon } from 'lucide-react';
+import { formatCapacidadeLitros, formatLitrosNumero } from '../../../utils/formatters';
 
 interface TanqueVisualProps {
   nome: string;
@@ -105,7 +106,7 @@ export default function TanqueVisual({
         viewBox={`0 0 ${W} ${H}`}
         className="w-full h-auto"
         role="img"
-        aria-label={`Tanque ${nome}: ${nivel.toLocaleString('pt-BR')} de ${cap.toLocaleString('pt-BR')} litros`}
+        aria-label={`Tanque ${nome}: ${formatLitrosNumero(nivel)} de ${formatCapacidadeLitros(cap)} litros`}
       >
         <defs>
           <linearGradient id={corId} x1="0%" y1="0%" x2="0%" y2="100%">
@@ -155,7 +156,7 @@ export default function TanqueVisual({
         <g fontSize="9" fontFamily="ui-monospace, monospace" fill="var(--color-fg-muted, #64748b)" textAnchor="end">
           <text x={tankX - 6} y={tankY + tankH + 3}>0</text>
           <text x={tankX - 6} y={tankY + tankH / 2 + 3}>{Math.round(cap / 2).toLocaleString('pt-BR')}</text>
-          <text x={tankX - 6} y={tankY + 8}>{cap.toLocaleString('pt-BR')}</text>
+          <text x={tankX - 6} y={tankY + 8}>{formatCapacidadeLitros(cap)}</text>
         </g>
         {/* Ticks discretos na lateral esquerda do casco */}
         <g stroke="var(--color-border, #cbd5e1)" strokeWidth="1">
@@ -179,7 +180,7 @@ export default function TanqueVisual({
             stroke={vazio ? 'transparent' : 'rgba(0,0,0,0.25)'}
             strokeWidth="0.8"
           >
-            {nivel.toLocaleString('pt-BR', { maximumFractionDigits: 0 })} L
+            {formatLitrosNumero(nivel)} L
           </text>
           <text
             x={W / 2}
@@ -188,7 +189,7 @@ export default function TanqueVisual({
             fontWeight="600"
             fill={vazio ? 'var(--color-fg-muted, #64748b)' : 'rgba(255,255,255,0.9)'}
           >
-            {pctLabel}% de {cap.toLocaleString('pt-BR')} L
+            {pctLabel}% de {formatCapacidadeLitros(cap)} L
           </text>
         </g>
       </svg>

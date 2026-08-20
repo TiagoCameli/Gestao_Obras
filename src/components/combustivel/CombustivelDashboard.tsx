@@ -19,7 +19,7 @@ import { useInsumos } from '../../hooks/useInsumos';
 import { useEquipamentos } from '../../hooks/useEquipamentos';
 // Hook novo Fase 3 — fonte canônica de saídas pós-Fase 2.
 import { useSaidasCombustivel } from '../../hooks/useSaidasCombustivel';
-import { formatCurrency } from '../../utils/formatters';
+import { formatCapacidadeLitros, formatCurrency, formatLitros, formatLitrosNumero } from '../../utils/formatters';
 import SmartSelect from '../ui/SmartSelect';
 
 const card = 'bg-white dark:bg-slate-800 rounded-xl shadow-md px-6 py-5';
@@ -308,7 +308,7 @@ export default function CombustivelDashboard({
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
         <KpiCard label="Total Saídas" value={formatCurrency(totalValorSaidas)} sub={`${totalLitrosSaidas.toLocaleString('pt-BR', { maximumFractionDigits: 0 })} L`} color="text-red-600 dark:text-red-400" />
         <KpiCard label="Preço Médio/Litro" value={formatCurrency(precoMedioLitro)} sub="Baseado em todas as saídas" color="text-amber-600 dark:text-amber-400" />
-        <KpiCard label="Estoque Atual" value={`${estoqueAtual.toLocaleString('pt-BR', { maximumFractionDigits: 0 })} L`} sub={diasEstoque > 0 ? `~${Math.round(diasEstoque)} dias · ${totalTransferencias} transf.` : `${totalTransferencias} transferência${totalTransferencias !== 1 ? 's' : ''}`} color="text-blue-600 dark:text-blue-400" />
+        <KpiCard label="Estoque Atual" value={formatLitros(estoqueAtual)} sub={diasEstoque > 0 ? `~${Math.round(diasEstoque)} dias · ${totalTransferencias} transf.` : `${totalTransferencias} transferência${totalTransferencias !== 1 ? 's' : ''}`} color="text-blue-600 dark:text-blue-400" />
         <KpiCard label="Média Diária de Saídas" value={`${consumoMedioDiario.toLocaleString('pt-BR', { maximumFractionDigits: 0 })} L/dia`} sub={`${saidasUlt30.length} saída${saidasUlt30.length !== 1 ? 's' : ''} nos últimos 30 dias`} color="text-purple-600 dark:text-purple-400" />
       </div>
 
@@ -378,7 +378,7 @@ export default function CombustivelDashboard({
                     <div className={`h-4 rounded-full transition-all ${cor}`} style={{ width: `${Math.min(pct, 100)}%` }} />
                   </div>
                   <p className="text-sm text-gray-500 dark:text-slate-400">
-                    {dep.nivelAtualLitros.toLocaleString('pt-BR', { maximumFractionDigits: 0 })} / {dep.capacidadeLitros.toLocaleString('pt-BR', { maximumFractionDigits: 0 })} L
+                    {formatLitrosNumero(dep.nivelAtualLitros)} / {formatCapacidadeLitros(dep.capacidadeLitros)} L
                   </p>
                 </div>
               );

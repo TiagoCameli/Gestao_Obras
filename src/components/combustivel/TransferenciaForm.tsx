@@ -18,6 +18,7 @@ import {
   type TransferenciaCombustivelFormValues,
 } from '../../schemas/combustivel/transferenciaCombustivel.schema';
 import { nowAsLocalInput } from './v2/shared/formatters';
+import { formatCapacidadeLitros, formatLitrosNumero } from '../../utils/formatters';
 
 interface TransferenciaFormProps {
   initial?: TransferenciaCombustivel | null;
@@ -347,7 +348,7 @@ export default function TransferenciaForm({
                 onChange={(e) => field.onChange(e.target.value)}
                 options={depositos.map((d) => ({
                   value: d.id,
-                  label: `${d.nome} (${d.nivelAtualLitros.toFixed(0)}/${d.capacidadeLitros.toFixed(0)} L)`,
+                  label: `${d.nome} (${formatLitrosNumero(d.nivelAtualLitros)}/${formatCapacidadeLitros(d.capacidadeLitros)} L)`,
                 }))}
                 placeholder={
                   depositos.length === 0
@@ -378,7 +379,7 @@ export default function TransferenciaForm({
                 />
               </div>
               <span className="text-xs text-gray-500">
-                {estoqueOrigemNaData.toFixed(0)} L disponíveis{dataHora ? ' na data' : ''}
+                {formatLitrosNumero(estoqueOrigemNaData)} L disponíveis{dataHora ? ' na data' : ''}
               </span>
             </div>
           )}
@@ -406,7 +407,7 @@ export default function TransferenciaForm({
                 onChange={(e) => field.onChange(e.target.value)}
                 options={depositosDestino.map((d) => ({
                   value: d.id,
-                  label: `${d.nome} (${d.nivelAtualLitros.toFixed(0)}/${d.capacidadeLitros.toFixed(0)} L)`,
+                  label: `${d.nome} (${formatLitrosNumero(d.nivelAtualLitros)}/${formatCapacidadeLitros(d.capacidadeLitros)} L)`,
                 }))}
                 placeholder={
                   !depositoOrigemId
@@ -472,7 +473,7 @@ export default function TransferenciaForm({
           )}
           {semEstoqueOrigem && (
             <p className="mt-1 text-xs text-[var(--color-danger)]">
-              Estoque insuficiente ({estoqueOrigemNaData.toFixed(0)} L disponíveis{dataHora ? ' na data' : ''})
+              Estoque insuficiente ({formatLitrosNumero(estoqueOrigemNaData)} L disponíveis{dataHora ? ' na data' : ''})
             </p>
           )}
           {semEspacoDestino && !semEstoqueOrigem && (

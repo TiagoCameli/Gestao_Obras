@@ -22,8 +22,24 @@ export function formatDateTime(date: string): string {
   }).format(d);
 }
 
+// Litros de tanque: SEMPRE 2 casas decimais. O nível é medido (numeric(x,3) no
+// banco), então arredondar pra inteiro esconde volume real — 155,600 L aparecia
+// como "156 L" na tela.
+export function formatLitrosNumero(value: number): string {
+  return value.toLocaleString('pt-BR', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+}
+
 export function formatLitros(value: number): string {
-  return `${value.toFixed(1)} L`;
+  return `${formatLitrosNumero(value)} L`;
+}
+
+// Capacidade é campo de cadastro, não medição: mostra decimal só se existir
+// (15000 → "15.000", 4500.5 → "4.500,5").
+export function formatCapacidadeLitros(value: number): string {
+  return value.toLocaleString('pt-BR', { maximumFractionDigits: 2 });
 }
 
 export function formatCPF(value: string): string {

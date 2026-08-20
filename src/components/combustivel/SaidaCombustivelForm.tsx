@@ -55,6 +55,7 @@ import {
   type SaidaCombustivelFormValues,
 } from '../../schemas/combustivel/saidaCombustivel.schema';
 import { nowAsLocalInput } from './v2/shared/formatters';
+import { formatLitrosNumero } from '../../utils/formatters';
 
 const TIPO_MEDICAO_LABEL: Record<TipoMedicao, string> = {
   horimetro: 'Horímetro',
@@ -1215,7 +1216,7 @@ export default function SaidaCombustivelForm({
             {...register('litros', { valueAsNumber: true })}
             error={
               saldoInsuficiente
-                ? `Saldo insuficiente: ${saldoTanqueNaData.toLocaleString('pt-BR', { maximumFractionDigits: 0 })} L disponíveis${data ? ' na data selecionada' : ''}. Reduza os litros, escolha outro tanque ou ajuste a data.`
+                ? `Saldo insuficiente: ${formatLitrosNumero(saldoTanqueNaData)} L disponíveis${data ? ' na data selecionada' : ''}. Reduza os litros, escolha outro tanque ou ajuste a data.`
                 : errors.litros?.message
             }
             required

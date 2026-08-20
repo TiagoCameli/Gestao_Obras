@@ -10,6 +10,7 @@ import Button from '../../ui/Button';
 import SubmitButton from '../../ui/SubmitButton';
 import { useEsvaziarTanque } from '../../../hooks/useEsvaziamentosTanque';
 import { useAuth } from '../../../contexts/AuthContext';
+import { formatLitros } from '../../../utils/formatters';
 
 interface Props {
   open: boolean;
@@ -63,7 +64,7 @@ export default function EsvaziarTanqueModal({ open, onClose, tanque, combustivel
           <div>
             <p className="font-semibold mb-0.5">Atenção</p>
             <p>
-              Esta ação registra um descarte de <strong>{tanque.nivelAtualLitros.toLocaleString('pt-BR')} L</strong>
+              Esta ação registra um descarte de <strong>{formatLitros(tanque.nivelAtualLitros)}</strong>
               {combustivelNome ? <> de <strong>{combustivelNome}</strong></> : null} do tanque{' '}
               <strong>{tanque.nome}</strong> e libera o tanque pra receber outro combustível.
               Não pode ser desfeita.
