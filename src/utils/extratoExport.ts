@@ -112,7 +112,7 @@ const TEMA = {
 function renderColoredKPIs(
   ws: ExcelJS.Worksheet,
   startRow: number,
-  kpis: Array<{ label: string; value: number | string; numFmt?: string; color: string }>,
+  kpis: Array<{ label: string; value: number | string | ExcelJS.CellValue; numFmt?: string; color: string }>,
 ): number {
   let row = renderExcelSectionTitle(ws, startRow, 'INDICADORES');
   row++;
@@ -127,7 +127,7 @@ function renderColoredKPIs(
     labelCell.fill = fillSolid(k.color);
     labelCell.border = thinBorder();
     const valCell = ws.getCell(valueRow, col);
-    valCell.value = k.value;
+    valCell.value = k.value as ExcelJS.CellValue;
     if (k.numFmt) valCell.numFmt = k.numFmt;
     valCell.font = { name: 'Calibri', size: 14, bold: true, color: { argb: k.color } };
     valCell.alignment = { vertical: 'middle', horizontal: 'center' };
@@ -163,7 +163,7 @@ function renderThemedMiniTable(
   titulo: string,
   columns: ExcelMiniTableColumn[],
   rows: ExcelMiniTableRow[],
-  footer: (string | number)[],
+  footer: (string | number | ExcelJS.CellValue)[],
   tema: TemaAba,
 ): number {
   let row = renderColoredTitle(ws, startRow, titulo, tema.title);
@@ -200,7 +200,9 @@ function renderThemedMiniTable(
     const col = columns[i];
     const cell = ws.getCell(row, i + 1);
     cell.value = val as ExcelJS.CellValue;
-    if (col?.numFmt && typeof val === 'number') cell.numFmt = col.numFmt;
+    if (col?.numFmt && (typeof val === 'number' || (val !== null && typeof val === 'object'))) {
+      cell.numFmt = col.numFmt;
+    }
     cell.font = { name: 'Calibri', size: 10, bold: true, color: { argb: BRAND.branco } };
     const align = col?.align || (i === 0 ? 'left' : 'right');
     cell.alignment = { vertical: 'middle', horizontal: align, indent: align === 'left' ? 1 : 0 };
@@ -252,7 +254,7 @@ function renderAuditBadgeList(
 function renderFormulaEquation(
   ws: ExcelJS.Worksheet,
   row: number,
-  cells: Array<{ kind: 'pill' | 'op' | 'final'; label: string; valor?: number }>,
+  cells: Array<{ kind: 'pill' | 'op' | 'final'; label: string; valor?: number | ExcelJS.CellValue }>,
   finalSpansLastTwo: boolean = false,
 ): number {
   const labelRow = ws.getRow(row);
@@ -278,7 +280,7 @@ function renderFormulaEquation(
       lc.value = c.label;
       lc.font = { name: 'Calibri', size: 9, bold: true, color: { argb: TEMA.pillFg } };
       lc.fill = fillSolid(TEMA.pillBg);
-      vc.value = c.valor ?? 0;
+      vc.value = (c.valor ?? 0) as ExcelJS.CellValue;
       vc.numFmt = '"R$" #,##0.00';
       vc.font = { name: 'Calibri', size: 11, bold: true, color: { argb: TEMA.pillFg } };
       vc.fill = fillSolid(TEMA.pillBg);
@@ -287,7 +289,7 @@ function renderFormulaEquation(
       lc.value = c.label;
       lc.font = { name: 'Calibri', size: 9, bold: true, color: { argb: BRAND.branco } };
       lc.fill = fillSolid(BRAND.verdeEscuro);
-      vc.value = c.valor ?? 0;
+      vc.value = (c.valor ?? 0) as ExcelJS.CellValue;
       vc.numFmt = '"R$" #,##0.00';
       vc.font = { name: 'Calibri', size: 12, bold: true, color: { argb: BRAND.branco } };
       vc.fill = fillSolid(BRAND.verdeEscuro);
@@ -332,7 +334,9 @@ function fmtNumDec(n: number, dec: number): string {
   });
 }
 function fmtL(n: number): string {
-  return `${fmtNumDec(n, 0)} L`;
+  // 2 casas: litro de tanque é medido, e 330,14 L escrito como "330 L" faz a
+  // multiplicação da memória de cálculo dar diferente do valor lançado.
+  return `${fmtNumDec(n, 2)} L`;
 }
 function fmtTon(n: number): string {
   return `${fmtNumDec(n, 2)} t`;
@@ -381,18 +385,21 @@ export function formatBreakdown(m: TransportadoraMovimento): string {
 
     case 'debito_abastecimento_emt': {
       const litros = m.saidaLitros ?? 0;
-      // Em tanque EMT, preco_combustivel guarda preço médio + taxa (precoUnitario);
-      // preco_medio_tanque_snapshot guarda só o médio sem taxa.
-      const precoMedio = m.saidaPrecoMedioTanque ?? 0;
+      // O débito da transportadora é litros × preco_combustivel (+ taxa) — o
+      // preço COBRADO dela. `preco_medio_tanque_snapshot` é o custo FIFO do
+      // tanque da EMT, outra coisa, e quase nunca igual: em 29/07/2026 uma
+      // saída de 725 L tinha custo médio R$ 6,33 e foi cobrada a R$ 6,80, e a
+      // memória dizia R$ 4.589,25 num débito de R$ 4.930,00.
+      const preco = m.saidaPrecoCombustivel ?? 0;
       const taxa = m.saidaTaxaLitro ?? 0;
-      if (litros <= 0 || precoMedio <= 0) {
-        // Fallback: deriva preço pelo total / litros
-        if (litros > 0) return `${fmtL(litros)} × ${fmtPrecoL(m.valor / litros)} (preço médio)`;
+      if (litros <= 0 || preco <= 0) {
+        // Fallback: deriva o preço pelo próprio total, que é sempre verdade.
+        if (litros > 0) return `${fmtL(litros)} × ${fmtPrecoL(m.valor / litros)} (cobrado) = ${fmtBRL(m.valor)}`;
         return '';
       }
       return taxa > 0
-        ? `${fmtL(litros)} × (${fmtPrecoL(precoMedio)} médio + ${fmtPrecoL(taxa)} taxa) = ${fmtBRL(litros * (precoMedio + taxa))}`
-        : `${fmtL(litros)} × ${fmtPrecoL(precoMedio)} (preço médio do tanque) = ${fmtBRL(litros * precoMedio)}`;
+        ? `${fmtL(litros)} × (${fmtPrecoL(preco)} cobrado + ${fmtPrecoL(taxa)} taxa) = ${fmtBRL(litros * (preco + taxa))}`
+        : `${fmtL(litros)} × ${fmtPrecoL(preco)} (cobrado da transportadora) = ${fmtBRL(litros * preco)}`;
     }
 
     case 'debito_pagamento_frete': {
@@ -491,12 +498,17 @@ function filtrosToTuples(filtros: ExtratoFiltros): Array<[string, string]> {
 // mostra colunas detalhadas próprias (espelha as abas da UI).
 // ════════════════════════════════════════════════════════════════════
 
-export async function exportarExtratoExcel(
+/**
+ * Monta o workbook do extrato sem salvar. Existe separado de
+ * `exportarExtratoExcel` para poder ser inspecionado em teste: é aqui que se
+ * verifica se as células saíram como fórmula de verdade.
+ */
+export function montarExtratoWorkbook(
   transportadoraNome: string,
   movimentos: TransportadoraMovimento[],
   filtros: ExtratoFiltros,
   context?: ExtratoExportContext,
-): Promise<void> {
+): ExcelJS.Workbook {
   const insumoNome = resolverNome(context?.insumosMap);
   const obraNome = resolverNome(context?.obrasMap);
 
@@ -528,6 +540,28 @@ export async function exportarExtratoExcel(
     .filter((m) => m.tipo === 'ajuste_manual_credito' || m.tipo === 'ajuste_manual_debito')
     .sort(sortDesc);
 
+  // ────────────────────────────────────────────────────────────────────
+  // Referências entre abas — o Resumo não repete número calculado no
+  // JavaScript, ele APONTA para as células das abas de dados. Assim a
+  // planilha se sustenta sozinha: mexeu num litro lá, o Resumo acompanha.
+  //
+  // `celula` devolve a fórmula só quando a aba tem linhas; com zero linhas o
+  // intervalo seria inválido (ex.: E2:E1) e o Excel recusaria o arquivo, então
+  // aí vale o número puro (que é zero de qualquer jeito).
+  // ────────────────────────────────────────────────────────────────────
+  const ultimaLinha = (n: number) => n + 1; // linha 1 = cabeçalho
+  function celula(qtdLinhas: number, formula: string, resultado: number): ExcelJS.CellValue | number {
+    if (qtdLinhas <= 0) return resultado;
+    return { formula, result: resultado } as ExcelJS.CellValue;
+  }
+
+  const lTodos = ultimaLinha(dadosTodos.length);
+  const lFretes = ultimaLinha(fretes.length);
+  const lAbast = ultimaLinha(abastecimentos.length);
+  const lCredTq = ultimaLinha(creditosTanque.length);
+  const lPagto = ultimaLinha(pagamentos.length);
+  const lAjustes = ultimaLinha(ajustes.length);
+
   const { wb, wsResumo, wsDetalhe } = createWorkbook();
   wsDetalhe.name = 'Todos';
 
@@ -537,12 +571,36 @@ export async function exportarExtratoExcel(
   row = renderExcelFiltros(wsResumo, row, filtrosToTuples(filtros));
   row += 1;
   row = renderColoredKPIs(wsResumo, row, [
-    { label: 'SALDO DO PERÍODO', value: totais.saldoFinal, numFmt: '"R$" #,##0.00', color: TEMA.kpiSaldo },
-    { label: 'CRÉDITOS (A RECEBER)', value: totais.creditos, numFmt: '"R$" #,##0.00', color: TEMA.kpiCreditos },
-    { label: 'DÉBITOS (RECEBIDOS)', value: totais.debitos, numFmt: '"R$" #,##0.00', color: TEMA.kpiDebitos },
-    { label: 'TOTAL MOVIMENTOS', value: totais.qtd, color: TEMA.kpiTotal },
-    { label: 'FRETES NO MÊS', value: fretes.length, color: TEMA.kpiFretes },
-    { label: 'PAGAMENTOS NO MÊS', value: pagamentos.length, color: TEMA.kpiPagamentos },
+    {
+      label: 'SALDO DO PERÍODO',
+      value: celula(dadosTodos.length, `SUM(Todos!E2:E${lTodos})-SUM(Todos!F2:F${lTodos})`, totais.saldoFinal),
+      numFmt: '"R$" #,##0.00', color: TEMA.kpiSaldo,
+    },
+    {
+      label: 'CRÉDITOS (A RECEBER)',
+      value: celula(dadosTodos.length, `SUM(Todos!E2:E${lTodos})`, totais.creditos),
+      numFmt: '"R$" #,##0.00', color: TEMA.kpiCreditos,
+    },
+    {
+      label: 'DÉBITOS (RECEBIDOS)',
+      value: celula(dadosTodos.length, `SUM(Todos!F2:F${lTodos})`, totais.debitos),
+      numFmt: '"R$" #,##0.00', color: TEMA.kpiDebitos,
+    },
+    {
+      label: 'TOTAL MOVIMENTOS',
+      value: celula(dadosTodos.length, `COUNTA(Todos!A2:A${lTodos})`, totais.qtd),
+      color: TEMA.kpiTotal,
+    },
+    {
+      label: 'FRETES NO MÊS',
+      value: celula(fretes.length, `COUNTA(Fretes!A2:A${lFretes})`, fretes.length),
+      color: TEMA.kpiFretes,
+    },
+    {
+      label: 'PAGAMENTOS NO MÊS',
+      value: celula(pagamentos.length, `COUNTA(Pagamentos!A2:A${lPagto})`, pagamentos.length),
+      color: TEMA.kpiPagamentos,
+    },
   ]);
   row += 1;
 
@@ -567,14 +625,40 @@ export async function exportarExtratoExcel(
   row += 3;
 
   // AS 7 ABAS DA PLANILHA
+  // Registros e totais apontam para as abas de dados, não repetem número.
   const abasRows = [
     { cells: ['Resumo', 'Painel', 'Painel de bordo com os números finais do mês', '—', '—', '—'] },
-    { cells: ['Todos', 'Extrato', 'Extrato completo com todos os lançamentos do mês, em ordem cronológica decrescente', 'Consolida as demais abas', dadosTodos.length, totais.saldoFinal] },
-    { cells: ['Fretes', 'Crédito', 'Cada viagem de carreta (pedreira → usina), com NF, placa e motorista', 'Peso (t) × KM × R$/tkm', fretes.length, fretes.reduce((s, m) => s + m.valor, 0)] },
-    { cells: ['Abastecimentos', 'Débito', 'Abastecimentos da própria transportadora em tanques de terceiros e da EMT', 'Litros × Preço/L', abastecimentos.length, abastecimentos.reduce((s, m) => s + m.valor, 0)] },
-    { cells: ['Abast. Tanque', 'Crédito', 'Combustível fornecido pela transportadora no próprio tanque (quando aplicável)', 'Litros × Preço/L (tanque)', creditosTanque.length, creditosTanque.reduce((s, m) => s + m.valor, 0)] },
-    { cells: ['Pagamentos', 'Débito', 'Pagamentos recebidos da EMT Construtora', 'Valor da NF de cada pagamento', pagamentos.length, pagamentos.reduce((s, m) => s + m.valor, 0)] },
-    { cells: ['Ajustes', '—', 'Correções manuais (ex: diferença de preço de combustível de mês anterior)', 'Valor lançado manualmente', ajustes.length, ajustes.reduce((s, m) => s + (TIPOS_CREDITO.has(m.tipo) ? m.valor : -m.valor), 0)] },
+    { cells: [
+      'Todos', 'Extrato', 'Extrato completo com todos os lançamentos do mês, em ordem cronológica decrescente', 'Consolida as demais abas',
+      celula(dadosTodos.length, `COUNTA(Todos!A2:A${lTodos})`, dadosTodos.length),
+      celula(dadosTodos.length, `SUM(Todos!E2:E${lTodos})-SUM(Todos!F2:F${lTodos})`, totais.saldoFinal),
+    ] },
+    { cells: [
+      'Fretes', 'Crédito', 'Cada viagem de carreta (pedreira → usina), com NF, placa e motorista', 'Peso (t) × KM × R$/tkm',
+      celula(fretes.length, `COUNTA(Fretes!A2:A${lFretes})`, fretes.length),
+      celula(fretes.length, `SUM(Fretes!M2:M${lFretes})`, fretes.reduce((s, m) => s + m.valor, 0)),
+    ] },
+    { cells: [
+      'Abastecimentos', 'Débito', 'Abastecimentos da própria transportadora em tanques de terceiros e da EMT', 'Litros × (Preço/L cobrado + Taxa/L)',
+      celula(abastecimentos.length, `COUNTA(Abastecimentos!A2:A${lAbast})`, abastecimentos.length),
+      celula(abastecimentos.length, `SUM(Abastecimentos!J2:J${lAbast})`, abastecimentos.reduce((s, m) => s + m.valor, 0)),
+    ] },
+    { cells: [
+      'Abast. Tanque', 'Crédito', 'Combustível fornecido pela transportadora no próprio tanque (quando aplicável)', 'Litros × Preço/L (tanque)',
+      celula(creditosTanque.length, `COUNTA('Abast. Tanque'!A2:A${lCredTq})`, creditosTanque.length),
+      celula(creditosTanque.length, `SUM('Abast. Tanque'!H2:H${lCredTq})`, creditosTanque.reduce((s, m) => s + m.valor, 0)),
+    ] },
+    { cells: [
+      'Pagamentos', 'Débito', 'Pagamentos recebidos da EMT Construtora', 'Valor da NF de cada pagamento',
+      celula(pagamentos.length, `COUNTA(Pagamentos!A2:A${lPagto})`, pagamentos.length),
+      celula(pagamentos.length, `SUM(Pagamentos!I2:I${lPagto})`, pagamentos.reduce((s, m) => s + m.valor, 0)),
+    ] },
+    { cells: [
+      'Ajustes', '—', 'Correções manuais (ex: diferença de preço de combustível de mês anterior)', 'Valor lançado manualmente',
+      celula(ajustes.length, `COUNTA(Ajustes!A2:A${lAjustes})`, ajustes.length),
+      celula(ajustes.length, `SUM(Ajustes!F2:F${lAjustes})-SUM(Ajustes!G2:G${lAjustes})`,
+        ajustes.reduce((s, m) => s + (TIPOS_CREDITO.has(m.tipo) ? m.valor : -m.valor), 0)),
+    ] },
   ];
   row = renderThemedMiniTable(
     wsResumo,
@@ -589,7 +673,10 @@ export async function exportarExtratoExcel(
       { header: 'Total (R$)', align: 'right', width: 18, numFmt: '"R$" #,##0.00' },
     ],
     abasRows,
-    ['—', '—', '—', '—', dadosTodos.length, totais.saldoFinal],
+    ['—', '—', '—', '—',
+      celula(dadosTodos.length, `COUNTA(Todos!A2:A${lTodos})`, dadosTodos.length),
+      celula(dadosTodos.length, `SUM(Todos!E2:E${lTodos})-SUM(Todos!F2:F${lTodos})`, totais.saldoFinal),
+    ],
     { title: TEMA.abas7Title, header: TEMA.abas7Header, cell: BRAND.branco },
   );
   row += 1;
@@ -641,23 +728,27 @@ export async function exportarExtratoExcel(
   const totalCreditosCalc = totalFretes + totalAbastTanque + totalAjustesCredito;
 
   row = renderExcelSectionTitle(wsResumo, row, 'Fórmula do Saldo do Período');
-  // Eq 1: Fretes + Abast. Tanque + Ajustes = Créditos (6 colunas)
+  // As duas equações são vivas: as pílulas puxam o total de cada aba e o
+  // resultado soma as PRÓPRIAS pílulas da linha. Quem abrir a planilha e mudar
+  // um litro vê a conta inteira andar até o saldo.
+  const eq1ValorRow = row + 1;
   row = renderFormulaEquation(wsResumo, row, [
-    { kind: 'pill', label: 'Fretes', valor: totalFretes },
+    { kind: 'pill', label: 'Fretes', valor: celula(fretes.length, `SUM(Fretes!M2:M${lFretes})`, totalFretes) },
     { kind: 'op', label: '+' },
-    { kind: 'pill', label: 'Abast. Tanque', valor: totalAbastTanque },
+    { kind: 'pill', label: 'Abast. Tanque', valor: celula(creditosTanque.length, `SUM('Abast. Tanque'!H2:H${lCredTq})`, totalAbastTanque) },
     { kind: 'op', label: '+' },
-    { kind: 'pill', label: 'Ajustes', valor: totalAjustesCredito },
-    { kind: 'final', label: '= Créditos', valor: totalCreditosCalc },
+    { kind: 'pill', label: 'Ajustes', valor: celula(ajustes.length, `SUM(Ajustes!F2:F${lAjustes})`, totalAjustesCredito) },
+    { kind: 'final', label: '= Créditos', valor: { formula: `A${eq1ValorRow}+C${eq1ValorRow}+E${eq1ValorRow}`, result: totalCreditosCalc } as ExcelJS.CellValue },
   ]);
   row++;
   // Eq 2: Créditos − Pagamentos = Saldo do Período (E:F merged no final)
+  const eq2ValorRow = row + 1;
   row = renderFormulaEquation(wsResumo, row, [
-    { kind: 'pill', label: 'Créditos', valor: totalCreditosCalc },
+    { kind: 'pill', label: 'Créditos', valor: { formula: `F${eq1ValorRow}`, result: totalCreditosCalc } as ExcelJS.CellValue },
     { kind: 'op', label: '−' },
-    { kind: 'pill', label: 'Pagamentos', valor: totalPagamentos },
+    { kind: 'pill', label: 'Pagamentos', valor: celula(pagamentos.length, `SUM(Pagamentos!I2:I${lPagto})`, totalPagamentos) },
     { kind: 'op', label: '=' },
-    { kind: 'final', label: 'Saldo do Período', valor: totais.saldoFinal },
+    { kind: 'final', label: 'Saldo do Período', valor: { formula: `A${eq2ValorRow}-C${eq2ValorRow}`, result: totais.saldoFinal } as ExcelJS.CellValue },
   ], true);
   row += 2;
 
@@ -687,13 +778,13 @@ export async function exportarExtratoExcel(
         { header: 'Fórmula / explicação', align: 'left', width: 60 },
       ],
       [
-        { cells: ['Total de viagens', fretes.length, 'Conta as linhas da aba Fretes'] },
-        { cells: ['Total transportado (t)', totalToneladas, 'Soma da coluna "Peso (t)"'] },
-        { cells: ['Peso médio por viagem (t)', pesoMedio, 'Média da coluna "Peso (t)"'] },
-        { cells: ['Valor médio por viagem', valorMedioFrete, 'Média da coluna "Valor"'] },
-        { cells: ['KM total rodado', totalKm, 'Soma da coluna "KM"'] },
-        { cells: ['Tarifa (R$/tkm)', tarifaMedia, 'Média da coluna "R$/tkm"'] },
-        { cells: ['Valor total em fretes', totalFretes, 'Soma da coluna "Valor" (crédito)'] },
+        { cells: ['Total de viagens', celula(fretes.length, `COUNTA(Fretes!A2:A${lFretes})`, fretes.length), 'Conta as linhas da aba Fretes'] },
+        { cells: ['Total transportado (t)', celula(fretes.length, `SUM(Fretes!F2:F${lFretes})`, totalToneladas), 'Soma da coluna "Peso (t)"'] },
+        { cells: ['Peso médio por viagem (t)', celula(fretes.length, `AVERAGE(Fretes!F2:F${lFretes})`, pesoMedio), 'Média da coluna "Peso (t)"'] },
+        { cells: ['Valor médio por viagem', celula(fretes.length, `AVERAGE(Fretes!M2:M${lFretes})`, valorMedioFrete), 'Média da coluna "Valor"'] },
+        { cells: ['KM total rodado', celula(fretes.length, `SUM(Fretes!G2:G${lFretes})`, totalKm), 'Soma da coluna "KM"'] },
+        { cells: ['Tarifa (R$/tkm)', celula(fretes.length, `AVERAGE(Fretes!H2:H${lFretes})`, tarifaMedia), 'Média da coluna "R$/tkm"'] },
+        { cells: ['Valor total em fretes', celula(fretes.length, `SUM(Fretes!M2:M${lFretes})`, totalFretes), 'Soma da coluna "Valor" (crédito)'] },
       ],
       ['—', '—', '—'],
       TEMA.fretes,
@@ -717,11 +808,11 @@ export async function exportarExtratoExcel(
         { header: 'Fórmula / explicação', align: 'left', width: 60 },
       ],
       [
-        { cells: ['Total de abastecimentos', creditosTanque.length, 'Quantidade de lançamentos na aba'] },
-        { cells: ['Litros totais abastecidos', litrosTotalCT, 'Total da coluna "Litros" na aba'] },
-        { cells: ['Preço médio por litro', precoMedioCT, 'Valor total ÷ Litros totais'] },
+        { cells: ['Total de abastecimentos', celula(creditosTanque.length, `COUNTA('Abast. Tanque'!A2:A${lCredTq})`, creditosTanque.length), 'Quantidade de lançamentos na aba'] },
+        { cells: ['Litros totais abastecidos', celula(creditosTanque.length, `SUM('Abast. Tanque'!C2:C${lCredTq})`, litrosTotalCT), 'Total da coluna "Litros" na aba'] },
+        { cells: ['Preço médio por litro', celula(creditosTanque.length, `IFERROR(SUM('Abast. Tanque'!H2:H${lCredTq})/SUM('Abast. Tanque'!C2:C${lCredTq}),0)`, precoMedioCT), 'Valor total ÷ Litros totais'] },
         { cells: ['Qtd de placas diferentes', placasUnicas, 'Carretas distintas que abasteceram'] },
-        { cells: ['Valor total fornecido', totalAbastTanque, 'Total da coluna "Crédito"'] },
+        { cells: ['Valor total fornecido', celula(creditosTanque.length, `SUM('Abast. Tanque'!H2:H${lCredTq})`, totalAbastTanque), 'Total da coluna "Crédito"'] },
       ],
       ['—', '—', '—'],
       TEMA.tanque,
@@ -745,11 +836,11 @@ export async function exportarExtratoExcel(
         { header: 'Fórmula / explicação', align: 'left', width: 60 },
       ],
       [
-        { cells: ['Qtd de pagamentos', pagamentos.length, 'Notas fiscais recebidas no mês'] },
-        { cells: ['Litros totais pagos', litrosPagos, 'Soma da coluna "Combustível (L)"'] },
-        { cells: ['Valor médio por litro pago', valorMedioPorLPago, 'Valor total ÷ Litros totais pagos'] },
-        { cells: ['Valor médio por pagamento', valorMedioPagto, 'Média da coluna "Valor"'] },
-        { cells: ['Valor total recebido', totalPagamentos, 'Total da coluna "Valor" (débito)'] },
+        { cells: ['Qtd de pagamentos', celula(pagamentos.length, `COUNTA(Pagamentos!A2:A${lPagto})`, pagamentos.length), 'Notas fiscais recebidas no mês'] },
+        { cells: ['Litros totais pagos', celula(pagamentos.length, `SUM(Pagamentos!G2:G${lPagto})`, litrosPagos), 'Soma da coluna "Combustível (L)"'] },
+        { cells: ['Valor médio por litro pago', celula(pagamentos.length, `IFERROR(SUM(Pagamentos!I2:I${lPagto})/SUM(Pagamentos!G2:G${lPagto}),0)`, valorMedioPorLPago), 'Valor total ÷ Litros totais pagos'] },
+        { cells: ['Valor médio por pagamento', celula(pagamentos.length, `AVERAGE(Pagamentos!I2:I${lPagto})`, valorMedioPagto), 'Média da coluna "Valor"'] },
+        { cells: ['Valor total recebido', celula(pagamentos.length, `SUM(Pagamentos!I2:I${lPagto})`, totalPagamentos), 'Total da coluna "Valor" (débito)'] },
       ],
       ['—', '—', '—'],
       TEMA.pagamentos,
@@ -774,9 +865,9 @@ export async function exportarExtratoExcel(
         { header: 'Fórmula / explicação', align: 'left', width: 60 },
       ],
       [
-        { cells: ['Qtd de ajustes', ajustes.length, 'Lançamentos manuais no mês'] },
-        { cells: ['Total créditos (ajustes)', totalAjusteCred, `${ajustesCredito.length} lançamento(s) de crédito`] },
-        { cells: ['Total débitos (ajustes)', totalAjusteDeb, `${ajustesDebito.length} lançamento(s) de débito`] },
+        { cells: ['Qtd de ajustes', celula(ajustes.length, `COUNTA(Ajustes!A2:A${lAjustes})`, ajustes.length), 'Lançamentos manuais no mês'] },
+        { cells: ['Total créditos (ajustes)', celula(ajustes.length, `SUM(Ajustes!F2:F${lAjustes})`, totalAjusteCred), `${ajustesCredito.length} lançamento(s) de crédito`] },
+        { cells: ['Total débitos (ajustes)', celula(ajustes.length, `SUM(Ajustes!G2:G${lAjustes})`, totalAjusteDeb), `${ajustesDebito.length} lançamento(s) de débito`] },
       ],
       ['—', '—', '—'],
       TEMA.ajustes,
@@ -805,13 +896,19 @@ export async function exportarExtratoExcel(
         { header: 'Fórmula / explicação', align: 'left', width: 60 },
       ],
       [
-        { cells: ['Total de abastecimentos', abastecimentos.length, 'Quantidade de lançamentos na aba'] },
-        { cells: ['Categoria Tanque externo', transterraN, 'Abastecimentos em tanque de terceiro (Transterra/Areacre, Posto Progresso)'] },
-        { cells: ['Categoria EMT', emtN, 'Abastecimentos em tanque interno EMT'] },
-        { cells: ['Litros totais', litrosTotalAb, 'Soma da coluna "Litros"'] },
-        { cells: ['Preço médio por litro', precoMedioAb, 'Valor total ÷ Litros totais'] },
+        { cells: ['Total de abastecimentos', celula(abastecimentos.length, `COUNTA(Abastecimentos!A2:A${lAbast})`, abastecimentos.length), 'Quantidade de lançamentos na aba'] },
+        { cells: ['Categoria Tanque externo', celula(abastecimentos.length, `COUNTIF(Abastecimentos!B2:B${lAbast},"Tanque externo")`, transterraN), 'Abastecimentos em tanque de terceiro (Transterra/Areacre, Posto Progresso)'] },
+        { cells: ['Categoria EMT', celula(abastecimentos.length, `COUNTIF(Abastecimentos!B2:B${lAbast},"EMT")`, emtN), 'Abastecimentos em tanque interno EMT'] },
+        { cells: ['Litros totais', celula(abastecimentos.length, `SUM(Abastecimentos!D2:D${lAbast})`, litrosTotalAb), 'Soma da coluna "Litros"'] },
+        {
+          cells: [
+            'Preço médio por litro (cobrado)',
+            celula(abastecimentos.length, `IFERROR(SUM(Abastecimentos!J2:J${lAbast})/SUM(Abastecimentos!D2:D${lAbast}),0)`, precoMedioAb),
+            'Valor total ÷ Litros totais — sempre no preço COBRADO da transportadora, nunca no custo médio do tanque da EMT',
+          ],
+        },
         { cells: ['Qtd de placas diferentes', placasUnicasAb, 'Carretas distintas que abasteceram'] },
-        { cells: ['Valor total (débito)', totalAbDeb, 'Total da coluna "Valor"'] },
+        { cells: ['Valor total (débito)', celula(abastecimentos.length, `SUM(Abastecimentos!J2:J${lAbast})`, totalAbDeb), 'Total da coluna "Total"'] },
       ],
       ['—', '—', '—'],
       TEMA.abast,
@@ -852,6 +949,14 @@ export async function exportarExtratoExcel(
   );
 
   // ── Sheet "Todos" (cronológico com saldo acumulado) ──
+  // As linhas vêm em ordem DECRESCENTE de data, então o saldo de uma linha é o
+  // saldo da linha DE BAIXO mais o movimento dela. A última linha (a mais
+  // antiga) parte do zero.
+  //
+  // Uso SUM(E5) em vez de E5 porque as células de crédito/débito não usadas
+  // guardam string vazia, e aritmética direta sobre texto vira #VALUE! no
+  // Excel. SUM ignora texto.
+  const ultimaLinhaTodos = dadosTodos.length + 1;
   renderExcelDetalhamento<MovimentoComSaldo>(wsDetalhe, dadosTodos, [
     { header: 'Data', key: 'data', width: 14, value: (m) => formatDateBR(m.data) },
     { header: 'Tipo', key: 'tipo', width: 32, value: (m) => TIPO_LABEL[m.tipo] },
@@ -861,15 +966,26 @@ export async function exportarExtratoExcel(
       header: 'Crédito', key: 'credito', width: 16, align: 'right', numFmt: '"R$" #,##0.00',
       value: (m) => (TIPOS_CREDITO.has(m.tipo) ? m.valor : ''),
       footerValue: (items) => items.reduce((s, m) => s + (TIPOS_CREDITO.has(m.tipo) ? m.valor : 0), 0),
+      footerFormula: (a, b) => `SUM(E${a}:E${b})`,
     },
     {
       header: 'Débito', key: 'debito', width: 16, align: 'right', numFmt: '"R$" #,##0.00',
       value: (m) => (TIPOS_CREDITO.has(m.tipo) ? '' : m.valor),
       footerValue: (items) => items.reduce((s, m) => s + (TIPOS_CREDITO.has(m.tipo) ? 0 : m.valor), 0),
+      footerFormula: (a, b) => `SUM(F${a}:F${b})`,
     },
     {
       header: 'Saldo', key: 'saldo', width: 18, align: 'right', numFmt: '"R$" #,##0.00',
       value: (m) => m.saldoAcumulado,
+      formula: (_m, r) =>
+        r >= ultimaLinhaTodos
+          ? `SUM(E${r})-SUM(F${r})`
+          : `G${r + 1}+SUM(E${r})-SUM(F${r})`,
+      // Rodapé confere o encadeamento: créditos − débitos tem que dar o mesmo
+      // que o saldo da 1ª linha (G2).
+      footerValue: (items) =>
+        items.reduce((s, m) => s + (TIPOS_CREDITO.has(m.tipo) ? m.valor : -m.valor), 0),
+      footerFormula: (a, b) => `SUM(E${a}:E${b})-SUM(F${a}:F${b})`,
       emphasizeValue: true,
     },
   ]);
@@ -888,11 +1004,13 @@ export async function exportarExtratoExcel(
       header: 'Peso (t)', key: 'peso', width: 12, align: 'right', numFmt: '#,##0.00',
       value: (m) => m.fretePesoToneladas ?? 0,
       footerValue: (items) => items.reduce((s, m) => s + (m.fretePesoToneladas ?? 0), 0),
+      footerFormula: (a, b) => `SUM(F${a}:F${b})`,
     },
     {
       header: 'KM', key: 'km', width: 12, align: 'right', numFmt: '#,##0.0',
       value: (m) => m.freteKmRodados ?? 0,
       footerValue: (items) => items.reduce((s, m) => s + (m.freteKmRodados ?? 0), 0),
+      footerFormula: (a, b) => `SUM(G${a}:G${b})`,
     },
     {
       header: 'R$/tkm', key: 'tkm', width: 12, align: 'right', numFmt: '"R$" #,##0.0000',
@@ -905,7 +1023,10 @@ export async function exportarExtratoExcel(
     {
       header: 'Valor', key: 'valor', width: 16, align: 'right', numFmt: '"R$" #,##0.00',
       value: (m) => m.valor,
+      // Peso × KM × R$/tkm, apontando para as colunas da própria linha.
+      formula: (_m, r) => `F${r}*G${r}*H${r}`,
       footerValue: (items) => items.reduce((s, m) => s + m.valor, 0),
+      footerFormula: (a, b) => `SUM(M${a}:M${b})`,
       emphasizeValue: true,
     },
   ]);
@@ -919,16 +1040,26 @@ export async function exportarExtratoExcel(
     { header: 'Categoria', key: 'cat', width: 14, value: (m) => categoriaAbastecimento(m.tipo) },
     { header: 'Combustível', key: 'comb', width: 22, value: (m) => insumoNome(m.saidaTipoCombustivel) },
     {
-      header: 'Litros', key: 'litros', width: 12, align: 'right', numFmt: '#,##0',
+      header: 'Litros', key: 'litros', width: 12, align: 'right', numFmt: '#,##0.00',
       value: (m) => m.saidaLitros ?? 0,
       footerValue: (items) => items.reduce((s, m) => s + (m.saidaLitros ?? 0), 0),
+      footerFormula: (a, b) => `SUM(D${a}:D${b})`,
     },
     {
+      // Sempre o preço COBRADO da transportadora, inclusive em tanque EMT. O
+      // custo médio do tanque é interno da EMT e não cabe no extrato de quem
+      // está sendo cobrado.
       header: 'Preço/L', key: 'preco', width: 14, align: 'right', numFmt: '"R$" #,##0.0000',
-      value: (m) =>
-        m.tipo === 'debito_abastecimento_emt'
-          ? (m.saidaPrecoMedioTanque ?? m.saidaPrecoCombustivel ?? 0)
-          : (m.saidaPrecoCombustivel ?? 0),
+      value: (m) => m.saidaPrecoCombustivel ?? 0,
+      // Rodapé = PREÇO MÉDIO PONDERADO: total pago dividido pelo total de
+      // litros. Média simples dos preços mentiria, porque os abastecimentos
+      // têm volumes muito diferentes.
+      footerValue: (items) => {
+        const litros = items.reduce((s, m) => s + (m.saidaLitros ?? 0), 0);
+        const total = items.reduce((s, m) => s + m.valor, 0);
+        return litros > 0 ? total / litros : 0;
+      },
+      footerFormula: (_a, b) => `IFERROR(J${b + 1}/D${b + 1},0)`,
     },
     {
       header: 'Taxa/L', key: 'taxa', width: 12, align: 'right', numFmt: '"R$" #,##0.0000',
@@ -940,7 +1071,10 @@ export async function exportarExtratoExcel(
     {
       header: 'Total', key: 'total', width: 16, align: 'right', numFmt: '"R$" #,##0.00',
       value: (m) => m.valor,
+      // Litros × (preço cobrado + taxa) — a mesma conta que gera o débito.
+      formula: (_m, r) => `D${r}*(E${r}+F${r})`,
       footerValue: (items) => items.reduce((s, m) => s + m.valor, 0),
+      footerFormula: (a, b) => `SUM(J${a}:J${b})`,
       emphasizeValue: true,
     },
   ]);
@@ -954,14 +1088,22 @@ export async function exportarExtratoExcel(
     { header: 'Data', key: 'data', width: 14, value: (m) => formatDateBR(m.data) },
     { header: 'Combustível', key: 'comb', width: 22, value: (m) => insumoNome(m.saidaTipoCombustivel) },
     {
-      header: 'Litros', key: 'litros', width: 12, align: 'right', numFmt: '#,##0',
+      header: 'Litros', key: 'litros', width: 12, align: 'right', numFmt: '#,##0.00',
       value: (m) => m.saidaLitros ?? 0,
       footerValue: (items) => items.reduce((s, m) => s + (m.saidaLitros ?? 0), 0),
+      footerFormula: (a, b) => `SUM(C${a}:C${b})`,
     },
     {
       // Crédito vem do preço cobrado pela dona do tanque (preco_combustivel_areacre).
       header: 'Preço Tanque/L', key: 'preco', width: 16, align: 'right', numFmt: '"R$" #,##0.0000',
       value: (m) => m.saidaPrecoCombustivelAreacre ?? 0,
+      // Rodapé = preço médio ponderado (crédito total ÷ litros totais).
+      footerValue: (items) => {
+        const litros = items.reduce((s, m) => s + (m.saidaLitros ?? 0), 0);
+        const total = items.reduce((s, m) => s + m.valor, 0);
+        return litros > 0 ? total / litros : 0;
+      },
+      footerFormula: (_a, b) => `IFERROR(H${b + 1}/C${b + 1},0)`,
     },
     { header: 'Placa', key: 'placa', width: 12, value: (m) => m.saidaPlaca ?? '' },
     { header: 'Motorista', key: 'motorista', width: 22, value: (m) => m.saidaMotorista ?? '' },
@@ -969,7 +1111,9 @@ export async function exportarExtratoExcel(
     {
       header: 'Crédito', key: 'credito', width: 16, align: 'right', numFmt: '"R$" #,##0.00',
       value: (m) => m.valor,
+      formula: (_m, r) => `C${r}*D${r}`,
       footerValue: (items) => items.reduce((s, m) => s + m.valor, 0),
+      footerFormula: (a, b) => `SUM(H${a}:H${b})`,
       emphasizeValue: true,
     },
   ]);
@@ -992,15 +1136,17 @@ export async function exportarExtratoExcel(
     { header: 'Responsável', key: 'resp', width: 22, value: (m) => m.pagamentoResponsavel ?? '' },
     { header: 'Pago por', key: 'pago', width: 22, value: (m) => m.pagamentoPagoPor ?? '' },
     {
-      header: 'Combustível (L)', key: 'litros', width: 16, align: 'right', numFmt: '#,##0',
+      header: 'Combustível (L)', key: 'litros', width: 16, align: 'right', numFmt: '#,##0.00',
       value: (m) => m.pagamentoQuantidadeCombustivel ?? '',
       footerValue: (items) => items.reduce((s, m) => s + (m.pagamentoQuantidadeCombustivel ?? 0), 0),
+      footerFormula: (a, b) => `SUM(G${a}:G${b})`,
     },
     { header: 'Observações', key: 'obs', width: 32, value: (m) => m.pagamentoObservacoes ?? m.descricao ?? '' },
     {
       header: 'Valor', key: 'valor', width: 16, align: 'right', numFmt: '"R$" #,##0.00',
       value: (m) => m.valor,
       footerValue: (items) => items.reduce((s, m) => s + m.valor, 0),
+      footerFormula: (a, b) => `SUM(I${a}:I${b})`,
       emphasizeValue: true,
     },
   ]);
@@ -1023,15 +1169,27 @@ export async function exportarExtratoExcel(
       value: (m) => (m.tipo === 'ajuste_manual_credito' ? m.valor : ''),
       footerValue: (items) =>
         items.reduce((s, m) => s + (m.tipo === 'ajuste_manual_credito' ? m.valor : 0), 0),
+      footerFormula: (a, b) => `SUM(F${a}:F${b})`,
     },
     {
       header: 'Débito', key: 'debito', width: 16, align: 'right', numFmt: '"R$" #,##0.00',
       value: (m) => (m.tipo === 'ajuste_manual_debito' ? m.valor : ''),
       footerValue: (items) =>
         items.reduce((s, m) => s + (m.tipo === 'ajuste_manual_debito' ? m.valor : 0), 0),
+      footerFormula: (a, b) => `SUM(G${a}:G${b})`,
     },
   ]);
 
+  return wb;
+}
+
+export async function exportarExtratoExcel(
+  transportadoraNome: string,
+  movimentos: TransportadoraMovimento[],
+  filtros: ExtratoFiltros,
+  context?: ExtratoExportContext,
+): Promise<void> {
+  const wb = montarExtratoWorkbook(transportadoraNome, movimentos, filtros, context);
   await saveWorkbook(wb, makeFilename(`${SCOPE}_${transportadoraNome.toLowerCase().replace(/\s+/g, '_')}`, 'xlsx'));
 }
 

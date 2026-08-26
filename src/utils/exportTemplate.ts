@@ -281,8 +281,12 @@ export interface ExcelMiniTableColumn {
 }
 
 export interface ExcelMiniTableRow {
-  /** Values in column order matching `columns`. */
-  cells: (string | number | Date)[];
+  /**
+   * Values in column order matching `columns`. Aceita também `{ formula,
+   * result }` do ExcelJS, para a célula apontar para outra aba em vez de
+   * repetir um número já calculado.
+   */
+  cells: (string | number | Date | ExcelJS.CellValue)[];
 }
 
 /**
@@ -385,6 +389,21 @@ export interface DetalhamentoColumn {
  * is always added (verde-claro) even when all footerValue entries are blank,
  * matching the gold standard.
  */
+/**
+ * Letra da coluna do Excel a partir do índice 1-based (1 -> A, 27 -> AA).
+ * Necessária para montar fórmulas que apontam para as colunas de entrada.
+ */
+export function colLetter(index: number): string {
+  let n = index;
+  let out = '';
+  while (n > 0) {
+    const resto = (n - 1) % 26;
+    out = String.fromCharCode(65 + resto) + out;
+    n = Math.floor((n - 1) / 26);
+  }
+  return out;
+}
+
 export function renderExcelDetalhamento<T>(
   ws: ExcelJS.Worksheet,
   items: T[],
@@ -397,6 +416,18 @@ export function renderExcelDetalhamento<T>(
     value: (item: T) => string | number | Date;
     footerValue?: (items: readonly T[]) => string | number | undefined;
     emphasizeValue?: boolean;
+    /**
+     * Fórmula da célula de dados, SEM o "=", recebendo o item e o número da
+     * linha no Excel. O resultado de `value` vai junto como cache, para que
+     * visualizadores que não recalculam ainda mostrem o número certo.
+     */
+    formula?: (item: T, row: number) => string | undefined;
+    /**
+     * Fórmula da célula de rodapé, SEM o "=", recebendo o intervalo de linhas
+     * de dados. Não é chamada quando a lista está vazia (o intervalo seria
+     * inválido); nesse caso vale o `footerValue`.
+     */
+    footerFormula?: (primeiraLinha: number, ultimaLinha: number) => string | undefined;
   }>,
   footerLabelColIndex: number = 1,
   footerLabel: string = `TOTAL (${items.length} registros)`,
@@ -424,6 +455,11 @@ export function renderExcelDetalhamento<T>(
     row.height = 20;
     columns.forEach((col, i) => {
       const cell = row.getCell(i + 1);
+      const f = col.formula?.(item, row.number);
+      if (f) {
+        const cache = data[col.key];
+        cell.value = { formula: f, result: typeof cache === 'number' ? cache : undefined } as ExcelJS.CellValue;
+      }
       cell.font = col.emphasizeValue
         ? { name: 'Calibri', size: 10, bold: true, color: { argb: BRAND.verdeEscuro } }
         : { name: 'Calibri', size: 10, color: { argb: BRAND.cinzaEscuro } };
@@ -449,8 +485,18 @@ export function renderExcelDetalhamento<T>(
   });
   const totalRow = ws.addRow(totalData);
   totalRow.height = 24;
+  // Intervalo das linhas de dados: começam na 2 (a 1 é o cabeçalho).
+  const primeiraLinhaDados = 2;
+  const ultimaLinhaDados = items.length + 1;
   totalRow.eachCell((cell, colNumber) => {
     const col = columns[colNumber - 1];
+    if (col && items.length > 0) {
+      const f = col.footerFormula?.(primeiraLinhaDados, ultimaLinhaDados);
+      if (f) {
+        const cache = totalData[col.key];
+        cell.value = { formula: f, result: typeof cache === 'number' ? cache : undefined } as ExcelJS.CellValue;
+      }
+    }
     cell.font = { name: 'Calibri', size: 10, bold: true, color: { argb: BRAND.verdeEscuro } };
     cell.fill = fillSolid(BRAND.verdeClaro);
     cell.border = {
