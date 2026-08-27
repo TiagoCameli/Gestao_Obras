@@ -253,3 +253,85 @@ describe('montarExtratoWorkbook — fórmulas', () => {
     });
   });
 });
+
+// ────────────────────────────────────────────────────────────────────
+// Aba "Abast. Tanque" — o CRÉDITO da dona do tanque externo (Areacre).
+// A conta que gera o movimento é litros × (preço Areacre + taxa), a
+// mesma taxa que o débito da transportadora já cobra. A planilha
+// precisa mostrar as duas parcelas, senão a taxa some do relatório de
+// conferência e o crédito da Areacre aparece menor do que é.
+// Dados reais de julho/2026 na Transterra.
+// ────────────────────────────────────────────────────────────────────
+describe('montarExtratoWorkbook — crédito de tanque externo inclui a taxa', () => {
+  const filtros = { meses: [], tipos: [], busca: '' } as never;
+  const movimentos: TransportadoraMovimento[] = [
+    // COM taxa: 300 L × (5,80 + 0,30) = R$ 1.830,00.
+    // Sem a taxa daria R$ 1.740,00 — R$ 90,00 a menos.
+    mov({
+      id: 'ct1', tipo: 'credito_abastecimento_transterra', valor: 1830, data: '2026-07-08T12:00:00Z',
+      saidaLitros: 300, saidaPrecoCombustivelAreacre: 5.8, saidaPrecoCombustivel: 6.3939,
+      saidaTaxaLitro: 0.3, saidaPlaca: 'SQS7E01', saidaMotorista: 'NETO',
+    }),
+    // Linha de controle SEM taxa: 40 L × 7,50 = R$ 300,00. Tem que
+    // continuar batendo depois do conserto.
+    mov({
+      id: 'ct2', tipo: 'credito_abastecimento_transterra', valor: 300, data: '2026-07-01T12:00:00Z',
+      saidaLitros: 40, saidaPrecoCombustivelAreacre: 7.5, saidaPrecoCombustivel: 7.5,
+      saidaTaxaLitro: 0, saidaPlaca: 'RSX0D29', saidaMotorista: 'ARNILDON REIS ALVES',
+    }),
+  ];
+
+  const wb = montarExtratoWorkbook('Areacre', movimentos, filtros);
+  const aba = 'Abast. Tanque';
+
+  function celula(ref: string) {
+    return wb.getWorksheet(aba)!.getCell(ref).value as { formula?: string; result?: number } | number | string;
+  }
+  function formulaDe(ref: string): string {
+    const v = celula(ref);
+    if (v && typeof v === 'object' && 'formula' in v) return v.formula!;
+    throw new Error(`${aba}!${ref} não é fórmula, é ${JSON.stringify(v)}`);
+  }
+
+  it('tem coluna Taxa/L com o valor por litro', () => {
+    const header = wb.getWorksheet(aba)!.getRow(1).values as unknown[];
+    expect(header).toContain('Taxa/L');
+    expect(celula('E2')).toBe(0.3);
+    expect(celula('E3')).toBe(0);
+  });
+
+  it('Preço Tanque/L continua sendo só o preço da Areacre, sem a taxa embutida', () => {
+    expect(celula('D2')).toBe(5.8);
+    expect(celula('D3')).toBe(7.5);
+  });
+
+  it('Crédito é Litros × (Preço + Taxa) — a mesma conta do movimento', () => {
+    expect(formulaDe('I2')).toBe('C2*(D2+E2)');
+    expect(formulaDe('I3')).toBe('C3*(D3+E3)');
+  });
+
+  it('o resultado em cache bate com o crédito lançado, com e sem taxa', () => {
+    expect((celula('I2') as { result: number }).result).toBeCloseTo(1830, 2);
+    expect((celula('I3') as { result: number }).result).toBeCloseTo(300, 2);
+  });
+
+  it('o rodapé soma a coluna Crédito inteira', () => {
+    const f = formulaDe('I4');
+    expect(f).toBe('SUM(I2:I3)');
+    expect((celula('I4') as { result: number }).result).toBeCloseTo(2130, 2);
+  });
+
+  it('Resumo aponta pra coluna Crédito certa da aba', () => {
+    const ws = wb.getWorksheet('Resumo')!;
+    let achou = false;
+    ws.eachRow((linha) => {
+      linha.eachCell((c) => {
+        const v = c.value;
+        if (v && typeof v === 'object' && 'formula' in v && String(v.formula).includes(`'Abast. Tanque'!I2:I3`)) {
+          achou = true;
+        }
+      });
+    });
+    expect(achou).toBe(true);
+  });
+});

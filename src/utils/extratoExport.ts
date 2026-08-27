@@ -644,9 +644,9 @@ export function montarExtratoWorkbook(
       celula(abastecimentos.length, `SUM(Abastecimentos!J2:J${lAbast})`, abastecimentos.reduce((s, m) => s + m.valor, 0)),
     ] },
     { cells: [
-      'Abast. Tanque', 'Crédito', 'Combustível fornecido pela transportadora no próprio tanque (quando aplicável)', 'Litros × Preço/L (tanque)',
+      'Abast. Tanque', 'Crédito', 'Combustível fornecido pela transportadora no próprio tanque (quando aplicável)', 'Litros × (Preço/L do tanque + Taxa/L)',
       celula(creditosTanque.length, `COUNTA('Abast. Tanque'!A2:A${lCredTq})`, creditosTanque.length),
-      celula(creditosTanque.length, `SUM('Abast. Tanque'!H2:H${lCredTq})`, creditosTanque.reduce((s, m) => s + m.valor, 0)),
+      celula(creditosTanque.length, `SUM('Abast. Tanque'!I2:I${lCredTq})`, creditosTanque.reduce((s, m) => s + m.valor, 0)),
     ] },
     { cells: [
       'Pagamentos', 'Débito', 'Pagamentos recebidos da EMT Construtora', 'Valor da NF de cada pagamento',
@@ -715,7 +715,7 @@ export function montarExtratoWorkbook(
   // COMO AUDITAR / CONFERIR OS NÚMEROS — badges semânticos
   row = renderAuditBadgeList(wsResumo, row, [
     { num: '1º', titulo: 'Conferir um frete', texto: 'Abra a aba "Fretes", localize a NF, multiplique Peso (t) × KM × R$/tkm e confira a coluna Valor.', tom: 'emerald' },
-    { num: '2º', titulo: 'Conferir um abastecimento', texto: 'Abra a aba "Abast. Tanque" (ou "Abastecimentos"), multiplique Litros × Preço/L e confira a coluna Crédito (ou Total).', tom: 'emerald' },
+    { num: '2º', titulo: 'Conferir um abastecimento', texto: 'Abra a aba "Abast. Tanque" (ou "Abastecimentos"), multiplique Litros × (Preço/L + Taxa/L) e confira a coluna Crédito (ou Total).', tom: 'emerald' },
     { num: '3º', titulo: 'Conferir um pagamento', texto: 'Abra a aba "Pagamentos". Cada linha tem a NF, os litros pagos, o valor médio/L e o valor total.', tom: 'red' },
     { num: '4º', titulo: 'Conferir o saldo total', texto: 'Veja a 1ª linha de dados da aba "Todos" — a coluna "Saldo" da 1ª linha é o saldo final do mês.', tom: 'blue' },
   ]);
@@ -735,7 +735,7 @@ export function montarExtratoWorkbook(
   row = renderFormulaEquation(wsResumo, row, [
     { kind: 'pill', label: 'Fretes', valor: celula(fretes.length, `SUM(Fretes!M2:M${lFretes})`, totalFretes) },
     { kind: 'op', label: '+' },
-    { kind: 'pill', label: 'Abast. Tanque', valor: celula(creditosTanque.length, `SUM('Abast. Tanque'!H2:H${lCredTq})`, totalAbastTanque) },
+    { kind: 'pill', label: 'Abast. Tanque', valor: celula(creditosTanque.length, `SUM('Abast. Tanque'!I2:I${lCredTq})`, totalAbastTanque) },
     { kind: 'op', label: '+' },
     { kind: 'pill', label: 'Ajustes', valor: celula(ajustes.length, `SUM(Ajustes!F2:F${lAjustes})`, totalAjustesCredito) },
     { kind: 'final', label: '= Créditos', valor: { formula: `A${eq1ValorRow}+C${eq1ValorRow}+E${eq1ValorRow}`, result: totalCreditosCalc } as ExcelJS.CellValue },
@@ -810,9 +810,9 @@ export function montarExtratoWorkbook(
       [
         { cells: ['Total de abastecimentos', celula(creditosTanque.length, `COUNTA('Abast. Tanque'!A2:A${lCredTq})`, creditosTanque.length), 'Quantidade de lançamentos na aba'] },
         { cells: ['Litros totais abastecidos', celula(creditosTanque.length, `SUM('Abast. Tanque'!C2:C${lCredTq})`, litrosTotalCT), 'Total da coluna "Litros" na aba'] },
-        { cells: ['Preço médio por litro', celula(creditosTanque.length, `IFERROR(SUM('Abast. Tanque'!H2:H${lCredTq})/SUM('Abast. Tanque'!C2:C${lCredTq}),0)`, precoMedioCT), 'Valor total ÷ Litros totais'] },
+        { cells: ['Preço médio por litro', celula(creditosTanque.length, `IFERROR(SUM('Abast. Tanque'!I2:I${lCredTq})/SUM('Abast. Tanque'!C2:C${lCredTq}),0)`, precoMedioCT), 'Valor total ÷ Litros totais'] },
         { cells: ['Qtd de placas diferentes', placasUnicas, 'Carretas distintas que abasteceram'] },
-        { cells: ['Valor total fornecido', celula(creditosTanque.length, `SUM('Abast. Tanque'!H2:H${lCredTq})`, totalAbastTanque), 'Total da coluna "Crédito"'] },
+        { cells: ['Valor total fornecido', celula(creditosTanque.length, `SUM('Abast. Tanque'!I2:I${lCredTq})`, totalAbastTanque), 'Total da coluna "Crédito"'] },
       ],
       ['—', '—', '—'],
       TEMA.tanque,
@@ -1094,16 +1094,27 @@ export function montarExtratoWorkbook(
       footerFormula: (a, b) => `SUM(C${a}:C${b})`,
     },
     {
-      // Crédito vem do preço cobrado pela dona do tanque (preco_combustivel_areacre).
+      // Só o preço do combustível cobrado pela dona do tanque
+      // (preco_combustivel_areacre). A taxa vem na coluna ao lado — as duas
+      // somadas é que formam o crédito.
       header: 'Preço Tanque/L', key: 'preco', width: 16, align: 'right', numFmt: '"R$" #,##0.0000',
       value: (m) => m.saidaPrecoCombustivelAreacre ?? 0,
-      // Rodapé = preço médio ponderado (crédito total ÷ litros totais).
+      // Rodapé = preço EFETIVO médio ponderado (crédito total ÷ litros
+      // totais), então já embute a taxa. Mesma convenção da aba
+      // "Abastecimentos". Média simples mentiria: os volumes são desiguais.
       footerValue: (items) => {
         const litros = items.reduce((s, m) => s + (m.saidaLitros ?? 0), 0);
         const total = items.reduce((s, m) => s + m.valor, 0);
         return litros > 0 ? total / litros : 0;
       },
-      footerFormula: (_a, b) => `IFERROR(H${b + 1}/C${b + 1},0)`,
+      footerFormula: (_a, b) => `IFERROR(I${b + 1}/C${b + 1},0)`,
+    },
+    {
+      // Taxa da dona do tanque (Areacre), pass-through: entra no crédito dela
+      // e no débito da transportadora. Sem esta coluna a taxa sumia do
+      // relatório e o crédito aparecia menor do que o lançado.
+      header: 'Taxa/L', key: 'taxa', width: 12, align: 'right', numFmt: '"R$" #,##0.0000',
+      value: (m) => m.saidaTaxaLitro ?? 0,
     },
     { header: 'Placa', key: 'placa', width: 12, value: (m) => m.saidaPlaca ?? '' },
     { header: 'Motorista', key: 'motorista', width: 22, value: (m) => m.saidaMotorista ?? '' },
@@ -1111,9 +1122,10 @@ export function montarExtratoWorkbook(
     {
       header: 'Crédito', key: 'credito', width: 16, align: 'right', numFmt: '"R$" #,##0.00',
       value: (m) => m.valor,
-      formula: (_m, r) => `C${r}*D${r}`,
+      // Litros × (preço Areacre + taxa) — a mesma conta que gera o crédito.
+      formula: (_m, r) => `C${r}*(D${r}+E${r})`,
       footerValue: (items) => items.reduce((s, m) => s + m.valor, 0),
-      footerFormula: (a, b) => `SUM(H${a}:H${b})`,
+      footerFormula: (a, b) => `SUM(I${a}:I${b})`,
       emphasizeValue: true,
     },
   ]);
@@ -1267,7 +1279,7 @@ export function exportarExtratoPDF(
   if (creditosTanque.length > 0) {
     doc.addPage();
     drawPdfDetailPageHeader(doc, 'Abastecimentos no tanque (créditos)', creditosTanque.length);
-    const headCT = ['Data', 'Combustível', 'Litros', 'Preço Tanque/L', 'Placa', 'Motorista', 'Crédito'];
+    const headCT = ['Data', 'Combustível', 'Litros', 'Preço Tanque/L', 'Taxa/L', 'Placa', 'Motorista', 'Crédito'];
     const totalCT = creditosTanque.reduce((s, m) => s + m.valor, 0);
     const totalLitrosCT = creditosTanque.reduce((s, m) => s + (m.saidaLitros ?? 0), 0);
     const bodyCT = creditosTanque.map((m) => [
@@ -1278,11 +1290,14 @@ export function exportarExtratoPDF(
       m.saidaPrecoCombustivelAreacre != null
         ? `R$ ${m.saidaPrecoCombustivelAreacre.toLocaleString('pt-BR', { minimumFractionDigits: 4, maximumFractionDigits: 4 })}`
         : '—',
+      // Taxa da Areacre — pass-through que entra no crédito. Sem ela,
+      // Litros × Preço não fecha com a coluna Crédito.
+      `R$ ${(m.saidaTaxaLitro ?? 0).toLocaleString('pt-BR', { minimumFractionDigits: 4, maximumFractionDigits: 4 })}`,
       m.saidaPlaca ?? '',
       m.saidaMotorista ?? '',
       fmtBRL(m.valor),
     ]);
-    const footCT = ['', '', totalLitrosCT.toLocaleString('pt-BR', { maximumFractionDigits: 0 }), '', '', 'Total', fmtBRL(totalCT)];
+    const footCT = ['', '', totalLitrosCT.toLocaleString('pt-BR', { maximumFractionDigits: 0 }), '', '', '', 'Total', fmtBRL(totalCT)];
     drawPdfDetailTable(
       doc,
       20,
@@ -1291,12 +1306,13 @@ export function exportarExtratoPDF(
       footCT,
       {
         0: { halign: 'left', cellWidth: 24 },
-        1: { halign: 'left', cellWidth: 50 },
+        1: { halign: 'left', cellWidth: 46 },
         2: { halign: 'right', cellWidth: 22 },
-        3: { halign: 'right', cellWidth: 32 },
-        4: { halign: 'left', cellWidth: 26 },
-        5: { halign: 'left', cellWidth: 50 },
-        6: { halign: 'right', cellWidth: 32 },
+        3: { halign: 'right', cellWidth: 30 },
+        4: { halign: 'right', cellWidth: 22 },
+        5: { halign: 'left', cellWidth: 22 },
+        6: { halign: 'left', cellWidth: 46 },
+        7: { halign: 'right', cellWidth: 32 },
       },
       MARCA
     );
