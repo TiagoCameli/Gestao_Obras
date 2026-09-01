@@ -445,6 +445,50 @@ export async function upsertObra(o: Obra): Promise<void> {
 }
 
 /**
+ * Garante que a extensão `rodotracker_obras` exista para o id da obra.
+ *
+ * As tabelas filhas do tracker (`rodotracker_contract_items` e irmãs) têm FK
+ * para `rodotracker_obras(id)`, não para o cadastro mestre. Obra criada só no
+ * Cadastros aparece no seletor (o `listObras` sintetiza os defaults geo), mas
+ * qualquer gravação filha morre com 23503 antes de chegar na tela. Então quem
+ * grava filho cria a extensão sob demanda — mesma política do `upsertObra`.
+ */
+async function ensureObraExtension(obraId: string, userId: string): Promise<void> {
+  const { data: ext, error: errExt } = await supabase
+    .from("rodotracker_obras")
+    .select("id")
+    .eq("id", obraId)
+    .maybeSingle();
+  throwIfError(errExt, "ensureObraExtension:check");
+  if (ext) return;
+
+  const { data: master, error: errMaster } = await supabase
+    .from("obras")
+    .select("id, nome")
+    .eq("id", obraId)
+    .maybeSingle();
+  throwIfError(errMaster, "ensureObraExtension:master");
+  if (!master) {
+    unreachable(`ensureObraExtension: obra ${obraId} não existe no cadastro`);
+  }
+
+  const now = Date.now();
+  const nova: Obra = {
+    id: obraId,
+    name: (master as ObraMasterRow).nome,
+    ...DEFAULT_OBRA_GEO,
+    createdAt: now,
+    updatedAt: now,
+  };
+  // `ignoreDuplicates` cobre a corrida de duas telas criando o primeiro item
+  // da mesma obra ao mesmo tempo.
+  const { error: errIns } = await supabase
+    .from("rodotracker_obras")
+    .upsert(obraToRow(nova, userId), { onConflict: "id", ignoreDuplicates: true });
+  throwIfError(errIns, "ensureObraExtension:insert");
+}
+
+/**
  * Apaga a obra do cadastros (master) — cascade derruba a extensão e dados
  * filhos por FK quando configurado. Mantemos o delete na extensão por
  * segurança caso a FK ainda não esteja em vigor.
@@ -550,6 +594,7 @@ export async function listContractItems(obraId: string): Promise<ContractItem[]>
 
 export async function insertContractItem(item: ContractItem): Promise<void> {
   const userId = await currentUserId();
+  await ensureObraExtension(item.obraId, userId);
   const { error } = await supabase
     .from("rodotracker_contract_items")
     .insert(contractToRow(item, userId));
@@ -579,6 +624,7 @@ export async function replaceContractItems(
   items: ContractItem[]
 ): Promise<void> {
   const userId = await currentUserId();
+  await ensureObraExtension(obraId, userId);
   const del = await supabase
     .from("rodotracker_contract_items")
     .delete()

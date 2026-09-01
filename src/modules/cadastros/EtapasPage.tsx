@@ -12,6 +12,7 @@ import ImportExcelModal, {
 import Input from '../../components/ui/Input';
 import Select from '../../components/ui/Select';
 import SmartSelect from '../../components/ui/SmartSelect';
+import { useToast } from '../../components/ui/Toast';
 import { useObras } from '../../hooks/useObras';
 import {
   useContractItemsByObra,
@@ -76,6 +77,7 @@ function detectTypeFromCode(code: string): ItemType {
 export default function EtapasPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const { temAcao, usuario: _usuario } = useAuth();
+  const { showToast } = useToast();
   const canCreate = temAcao('criar_etapas');
   const canEdit = temAcao('editar_etapas');
   const canDelete = temAcao('excluir_etapas');
@@ -201,8 +203,16 @@ export default function EtapasPage() {
   const handleSubmit = useCallback(
     async (e: FormEvent) => {
       e.preventDefault();
-      if (!obraId) return;
-      if (!form.name.trim() || !form.unit.trim()) return;
+      // Nenhuma saída daqui pode ser silenciosa: botão que não faz nada e não
+      // avisa é o defeito que trouxe esta tela pro conserto.
+      if (!obraId) {
+        showToast({ kind: 'warning', message: 'Selecione uma obra antes de cadastrar.' });
+        return;
+      }
+      if (!form.name.trim() || !form.unit.trim()) {
+        showToast({ kind: 'warning', message: 'Preencha Nome e Unidade.' });
+        return;
+      }
       setSubmitting(true);
       try {
         const now = Date.now();
@@ -236,43 +246,83 @@ export default function EtapasPage() {
           await addMutation.mutateAsync(created);
         }
         setDrawerOpen(false);
+        showToast({
+          kind: 'success',
+          message: editing ? 'Etapa atualizada.' : 'Etapa cadastrada.',
+        });
+      } catch (err) {
+        showToast({
+          kind: 'error',
+          message: `Não foi possível salvar: ${err instanceof Error ? err.message : String(err)}`,
+          duration: 0,
+        });
       } finally {
         setSubmitting(false);
       }
     },
-    [obraId, form, editing, addMutation, updateMutation]
+    [obraId, form, editing, addMutation, updateMutation, showToast]
   );
 
   const confirmDelete = useCallback(async () => {
     if (!deleteId) return;
-    await deleteMutation.mutateAsync(deleteId);
-    setDeleteId(null);
-  }, [deleteId, deleteMutation]);
+    try {
+      await deleteMutation.mutateAsync(deleteId);
+      setDeleteId(null);
+      showToast({ kind: 'success', message: 'Etapa excluída.' });
+    } catch (err) {
+      showToast({
+        kind: 'error',
+        message: `Não foi possível excluir: ${err instanceof Error ? err.message : String(err)}`,
+        duration: 0,
+      });
+    }
+  }, [deleteId, deleteMutation, showToast]);
 
   // Excel import
   const handleImport = useCallback(
     async (rows: Record<string, unknown>[]) => {
-      if (!obraId) return;
-      const now = Date.now();
-      for (const row of rows) {
-        const item: ContractItem = {
-          id: gerarId(),
-          obraId,
-          type: (row.type as ItemType) || 'item',
-          code: (row.code as string) || undefined,
-          name: String(row.name ?? ''),
-          unit: String(row.unit ?? ''),
-          contractedQty: Number(row.contractedQty) || 0,
-          unitPrice: Number(row.unitPrice) || 0,
-          notes: (row.notes as string) || undefined,
-          createdAt: now,
-          updatedAt: now,
-        };
-        await addMutation.mutateAsync(item);
+      if (!obraId) {
+        showToast({ kind: 'warning', message: 'Selecione uma obra antes de importar.' });
+        return;
       }
-      setImportOpen(false);
+      const now = Date.now();
+      let importadas = 0;
+      try {
+        for (const row of rows) {
+          const item: ContractItem = {
+            id: gerarId(),
+            obraId,
+            type: (row.type as ItemType) || 'item',
+            code: (row.code as string) || undefined,
+            name: String(row.name ?? ''),
+            unit: String(row.unit ?? ''),
+            contractedQty: Number(row.contractedQty) || 0,
+            unitPrice: Number(row.unitPrice) || 0,
+            notes: (row.notes as string) || undefined,
+            createdAt: now,
+            updatedAt: now,
+          };
+          await addMutation.mutateAsync(item);
+          importadas++;
+        }
+        setImportOpen(false);
+        showToast({
+          kind: 'success',
+          message: `${importadas} ${importadas === 1 ? 'linha importada' : 'linhas importadas'}.`,
+        });
+      } catch (err) {
+        // O laço é linha a linha: as anteriores já entraram. Dizer quantas
+        // evita o usuário reimportar tudo e duplicar.
+        showToast({
+          kind: 'error',
+          message:
+            `Importação parou na linha ${importadas + 1} de ${rows.length} — ` +
+            `${err instanceof Error ? err.message : String(err)}`,
+          duration: 0,
+        });
+      }
     },
-    [obraId, addMutation]
+    [obraId, addMutation, showToast]
   );
 
   const parseRow = useCallback((row: unknown[], index: number): ParsedRow => {
