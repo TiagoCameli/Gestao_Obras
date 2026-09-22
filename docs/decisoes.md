@@ -146,3 +146,18 @@ EMT não bate por R$ 440,69, a menos que a origem seja corrigida antes. Decisão
   lista do que precisa ser portado.
 - Seção 6.1: JOHN DEERE não é a JD COMERCIO (Tiago, 22/09). Vira fornecedor novo no ERP, como a EMT TRANSPORTES.
 - Seção 11: a opção A do S10 não se sustenta sozinha (item 3), e a regra do FIFO (item 5) é pendência nova.
+
+## 22/09/2026 (noite) — S10 do Meloza Colorado consertado, e o FIFO fica como está
+
+O Tiago mandou consertar o S10 e decidiu que **o FIFO do ERP fica igual ao do Gestão Obras**: sem
+descontar transferência de saída nem esvaziamento (Fase 0, item 5). A diferença de R$ 440,69 no
+Meloza EMT deixa de existir porque o ERP vai calcular do mesmo jeito.
+
+`20260922230000_s10_meloza_colorado_tipo_preservado` (aplicada, com rollback ao lado):
+
+- `fn_validate_saida_combustivel` só deriva o tipo pelo tanque no INSERT e quando muda tanque,
+  data ou origem. Num UPDATE que só mexe em preço, como o do recálculo do FIFO, o tipo gravado
+  fica. É o que fazia o recarimbo à mão voltar a S10 (item 3).
+- `mfuelbkf31` e `mfuelbkf32` voltaram a S500. As duas baixam R$ 361,79, 71 saídas posteriores
+  sobem R$ 206,33 (cascata do FIFO), e o tanque fecha R$ 155,46 menor. Nível 905 L, nenhuma saída
+  sem suprimento, conta corrente igual em contagem e soma. Um segundo recálculo mantém o S500.
