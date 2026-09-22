@@ -4,8 +4,8 @@
 -- TRUNCATE (medido em information_schema.role_table_grants em 22/09). Esses backups são a
 -- única fonte dos rollbacks das correções de Andrade (placas, motoristas) e Arla (balde).
 --
--- Achado na Fase 0 da migração para o ERP-EMT (22/09/2026). NÃO APLICADA: é escrita em
--- produção e espera o ok do Tiago.
+-- Achado na Fase 0 da migração para o ERP-EMT (22/09/2026). Aplicada pelo MCP em
+-- 22/09/2026, com o ok do Tiago.
 --
 -- Não move de schema de propósito: fix_/rollback_ andrade, arla e motoristas na raiz do
 -- repo leem essas tabelas pelo nome em public, e rodam como postgres (MCP), que ignora RLS.

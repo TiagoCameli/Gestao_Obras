@@ -121,3 +121,47 @@ select s.id, s.data, s.equipamento_id, s.transportadora_id, s.litros,
 -- zero movimento na conta corrente. Somam 734 L do lote de 27/04 a 6,2332, que na física
 -- deviam ter saído do lote de 20/05 a 6,3448.
 -- Impacto: só custo por equipamento. Nenhum saldo de transportadora muda.
+
+------------------------------------------------------------------------------
+-- 4. Depois do ok do Tiago (22/09/2026, noite): as duas migrations aplicadas
+------------------------------------------------------------------------------
+-- 4a. Backups fechados: RLS ligada, zero grant para anon/authenticated, linhas intactas.
+select c.relname, c.relrowsecurity as rls,
+       has_table_privilege('anon', c.oid, 'select') as anon_le,
+       has_table_privilege('anon', c.oid, 'delete') as anon_apaga,
+       (select count(*) from information_schema.role_table_grants g
+         where g.table_schema = 'public' and g.table_name = c.relname
+           and g.grantee in ('anon', 'authenticated')) as grants_app
+  from pg_class c
+ where c.relname in ('saidas_andrade_backup2_20260826', 'saidas_arla_backup_20260826',
+                     'saidas_motorista_backup_20260826');
+-- rls true, anon_le false, anon_apaga false, grants_app 0 nas três. Linhas 212/81/212.
+-- Linha de controle: `set local role anon; select count(*) from public.saidas_arla_backup_20260826`
+-- dá 42501 permission denied.
+
+-- 4b. Cópia do banco aplicada sem mudar nada: md5(pg_get_functiondef) das 31 funções igual ao
+-- medido de manhã (31 de 31), e os 37 triggers das 7 tabelas do combustível seguem ligados.
+
+------------------------------------------------------------------------------
+-- 5. Ensaio do recarimbo S10 → S500 (opção A), em transação que aborta
+------------------------------------------------------------------------------
+-- do $ensaio$ ... update saidas_combustivel set tipo_combustivel = 'mlvjtpi8o1vmk'
+--   where id in ('mfuelbkf31','mfuelbkf32') ... raise exception ... $ensaio$;
+-- do $aborto$ begin raise exception 'ABORTO GARANTIDO'; end $aborto$;
+-- Resultado: as duas voltam a S10 no mesmo UPDATE. fn_validate_saida_combustivel (BEFORE
+-- UPDATE) recarimba pelo "combustível atual do tanque" na data, que às 15:00 de 01/05 é o S10
+-- que entrou às 13:27. Zero saída mudou. Recarimbo manual não se sustenta.
+
+------------------------------------------------------------------------------
+-- 6. FIFO do banco x FIFO dos 16 testes, simulado em transação que aborta
+------------------------------------------------------------------------------
+-- private.recompute_fifo_tanque drena os lotes só com saídas. O helper TypeScript (e os 16
+-- testes, desde 09/07) drena também com transferência de saída (mesmo tipo) e esvaziamento
+-- (qualquer tipo, só lote que já existia). O banco reprecifica toda saída de equipamento do
+-- tanque a cada mudança, então o que vale gravado é a regra do banco.
+-- Simulador (DO block, abortado) nos 6 tanques próprios com dreno:
+--   controle (sem drenos): 1.804 saídas de equipamento, 0 com diferença > 0,00005.
+--     O simulador é o algoritmo do banco.
+--   com drenos: só o Meloza EMT muda. 78 saídas, +R$ 440,6867 no total, maior +R$ 303,7866.
+--     ARLA GREGÓRIO, Meloza Colorado, Canteiro 1, Canteiro 2 e Pátio Colorado: 0.
+-- Carreta é precificada pelo preço digitado, não pelo FIFO: nenhuma conta corrente muda.

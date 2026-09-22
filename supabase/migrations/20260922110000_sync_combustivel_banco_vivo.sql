@@ -15,8 +15,8 @@
 -- 11 funções do combustível já batiam e ficam de fora. Os *_rollback.sql desta pasta nunca
 -- foram aplicados: quem ler a história tem que ignorá-los.
 --
--- NÃO APLICADA. Registrar no histórico de migrations do banco é escrita em produção e
--- espera o ok do Tiago. O arquivo sozinho já fecha o descompasso do lado do repo.
+-- Aplicada pelo MCP em 22/09/2026, com o ok do Tiago. Depois de aplicar, o md5 de cada
+-- função no banco foi comparado com o de antes: tem que ser idêntico.
 
 -- ============================================================================
 -- Lógica diferente do último arquivo do repo

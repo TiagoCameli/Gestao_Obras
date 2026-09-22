@@ -7,8 +7,9 @@ Registro do que foi decidido e por quê. A entrada mais nova fica no fim.
 Plano: `erp-emt/docs/PLANO-FRETE-COMBUSTIVEL-MANUTENCAO.md`, seção 7. Prova:
 `supabase/provas/fase0_origem_antes_de_copiar.sql` (só leitura).
 
-A Fase 0 tem quatro itens. Nenhum deles escreveu no banco de produção: o que precisa de
-escrita está versionado e espera o ok do Tiago.
+A Fase 0 tem quatro itens. O levantamento foi só leitura. Depois do ok do Tiago (22/09, noite),
+duas migrations foram aplicadas em produção: a cópia do combustível vivo (item 4, não muda
+comportamento) e o fechamento dos backups abertos (item 2).
 
 ### 1. Os 12 testes vermelhos do FIFO não existem mais
 
@@ -19,16 +20,15 @@ transferência-out e esvaziamento no custeio") reabilitou os 12 e diz na mensage
 "eram a spec". Em 22/09: 16 de 16 verdes no arquivo, suíte inteira 52 de 52 arquivos e
 396 testes.
 
-**Decisão:** o PEPS do ERP (Fase 3) é reescrito em SQL, e estes 16 testes viram a
-especificação dele, junto com a função viva `private.recompute_fifo_tanque`. Cada cenário
-do arquivo (lote único, 70/30, transferência-out e esvaziamento drenando, troca de
-combustível, sem suprimento parcial, consumos de outro tanque ignorados) vira um caso da
-prova SQL do ERP.
+**Decisão:** o PEPS do ERP (Fase 3) é reescrito em SQL, e cada cenário destes 16 testes
+(lote único, 70/30, transferência-out e esvaziamento drenando, troca de combustível, sem
+suprimento parcial, consumos de outro tanque ignorados) vira um caso da prova SQL do ERP.
 
-Cuidado registrado: o FIFO existe em dois lugares aqui. `calcularPrecoFIFO` (TypeScript, faz
-a prévia no formulário) e `private.recompute_fifo_tanque` (banco, é o autoritativo desde
-28/05 e regrava `consumos_lote` e o preço das saídas). A conferência 9.2 da virada compara
-com o banco, não com o helper.
+**Mas o FIFO existe em dois lugares aqui, e eles não concordam** (item 5). `calcularPrecoFIFO`
+(TypeScript, faz a prévia no formulário, é o que os 16 testes cobrem) desconta transferência de
+saída e esvaziamento. `private.recompute_fifo_tanque` (banco, autoritativo desde 28/05,
+reprecifica toda saída de equipamento do tanque a cada mudança) não desconta. O que está
+gravado é o do banco. Qual regra o ERP segue é decisão do Tiago.
 
 ### 2. Tabelas de backup ficam fora da migração
 
@@ -43,8 +43,8 @@ de origem, que não é apagado (Fase 5).
 e `anon` com SELECT, UPDATE, DELETE e TRUNCATE. Qualquer pessoa com a chave pública do site
 lê placa, motorista e valor, e pode apagar o backup que é a única fonte dos rollbacks das
 correções da Andrade e do Arla. Correção pronta em
-`supabase/migrations/20260922120000_backups_saidas_fora_do_anon.sql` (+ rollback), **não
-aplicada**, esperando o ok do Tiago. Liga RLS e revoga de `anon` e `authenticated`, sem mover
+`supabase/migrations/20260922120000_backups_saidas_fora_do_anon.sql` (+ rollback),
+**aplicada em 22/09 com o ok do Tiago**. Liga RLS e revoga de `anon` e `authenticated`, sem mover
 de schema, porque os `fix_`/`rollback_` da raiz leem essas tabelas pelo nome.
 
 Também ficou fora do inventário do plano, e não muda nada: `saidas_material` e
@@ -68,11 +68,17 @@ residual fantasma foi consumido por 9 saídas de 20/05 a 22/05 que, na física, 
 saído do lote de 20/05 (6,3448). As 9 são de equipamento: **nenhuma é de carreta e nenhuma
 tem movimento na conta corrente** (linha de controle: saída de carreta dá 1 movimento).
 
-Impacto: só custo por equipamento. Recarimbar as duas como S500 baixa elas em R$ 361,79
-(734 × (6,7261 − 6,2332)) e sobe as nove em R$ 81,91 (734 × (6,3448 − 6,2332)). O resto da
-cascata, nas saídas seguintes do tanque, só se mede rodando o recálculo. Nenhum saldo de
-transportadora muda. A decisão (corrigir na origem antes da carga, ou migrar como está) é
-do Tiago; ver o resumo da Fase 0.
+Impacto: só custo por equipamento. Recarimbar as duas como S500 baixaria elas em R$ 361,79
+(734 × (6,7261 − 6,2332)) e subiria as nove em R$ 81,91 (734 × (6,3448 − 6,2332)). Nenhum saldo
+de transportadora muda.
+
+**O Tiago escolheu recarimbar (opção A), e o ensaio mostrou que não dá.** Numa transação
+desfeita, o UPDATE para S500 volta a S10 na mesma linha: `fn_validate_saida_combustivel`
+(BEFORE UPDATE) recarimba todo UPDATE pelo "combustível atual do tanque" na data, e às 15:00
+de 01/05 esse combustível é o S10 das 13:27. E o recálculo do FIFO faz UPDATE em toda saída
+de equipamento do tanque a cada mudança, então mesmo com o gatilho desligado o S10 voltaria
+na primeira mexida no Meloza Colorado. Recarimbar exige mudar regra (o gatilho de
+derivação, ou a hora das saídas). Voltou para decisão do Tiago.
 
 ### 4. Descompasso entre banco e migrations do combustível
 
@@ -100,10 +106,37 @@ das 31 funções, copiado sem editar, e os 11 triggers. Conferido por md5 contra
 31. É daqui, e não das migrations antigas, que o ERP porta as regras do combustível na Fase 3.
 
 Aplicar esse arquivo no banco não muda comportamento (mesmo corpo, e `CREATE OR REPLACE`
-preserva os grants), só registra no histórico de migrations. Mesmo assim é escrita em
-produção, então **não foi aplicado** e espera o ok do Tiago.
+preserva os grants), só registra no histórico de migrations. **Aplicado em 22/09 com o ok do
+Tiago.** Depois de aplicar, o md5 das 31 funções no banco continuou o da manhã (31 de 31) e os
+37 triggers seguiram ligados. A correção dos backups (item 2) também foi aplicada, e `anon`
+recebe `permission denied`.
 
-### 5. O que isto muda no plano do ERP
+Advisors depois das duas: só apareceu o esperado (os três backups com "RLS sem policy", INFO).
+O resto já existia: 4 views SECURITY DEFINER (`transportadora_saldos` entre elas), 4 funções
+sem `search_path` e 14 funções SECURITY DEFINER executáveis por `anon`. Não mexi: é escrita
+fora do autorizado num sistema que vai virar só leitura. Fica listado para o ERP não repetir.
+
+### 5. O FIFO do banco não desconta transferência nem esvaziamento
+
+Achado ao preparar o ensaio do S10. `private.recompute_fifo_tanque` monta os lotes com
+entradas e transferências de entrada, e drena só com saídas. Transferência de saída e
+esvaziamento reduzem o nível do tanque (`recalcular_nivel_deposito`) mas não os lotes. O helper
+TypeScript foi corrigido para drenar em 09/07 (`afb245d`), mas ele só faz a prévia: o banco
+reprecifica tudo por cima.
+
+Medido com um simulador em transação desfeita (`supabase/provas/fase0_simulador_fifo_com_drenos.sql`),
+nos 6 tanques próprios que têm dreno:
+
+- Controle, sem drenos: as 1.804 saídas de equipamento batem com o `valor_total` gravado na
+  quarta casa. O simulador é o algoritmo do banco.
+- Com drenos: **só o Meloza EMT muda. 78 saídas, +R$ 440,69 no total, a maior +R$ 303,79.**
+  Os outros cinco não mudam nada.
+- Carreta é precificada pelo preço digitado, não pelo FIFO, então nenhuma conta corrente muda.
+
+A conferência 9.2 exige origem igual ao destino. Se o ERP seguir a regra dos testes, o Meloza
+EMT não bate por R$ 440,69, a menos que a origem seja corrigida antes. Decisão do Tiago.
+
+### 6. O que isto muda no plano do ERP
 
 - Seção 7, Fase 0: o item dos 12 testes vira "já resolvido em 09/07, os 16 testes são a spec".
 - Seção 9, conferência 5: dizer que conta sem as excluídas (164 concluídas + 3 canceladas; há
@@ -111,4 +144,5 @@ produção, então **não foi aplicado** e espera o ok do Tiago.
 - Seção 2: a regra portada vem de `20260922110000_sync_combustivel_banco_vivo.sql`, e as
   9 funções e 11 triggers só-do-banco (auditoria, capacidade, fornecedor da entrada) entram na
   lista do que precisa ser portado.
-- Seção 6.1 e usuários: nada mudou.
+- Seção 6.1: JOHN DEERE não é a JD COMERCIO (Tiago, 22/09). Vira fornecedor novo no ERP, como a EMT TRANSPORTES.
+- Seção 11: a opção A do S10 não se sustenta sozinha (item 3), e a regra do FIFO (item 5) é pendência nova.
