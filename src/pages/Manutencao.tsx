@@ -25,6 +25,7 @@ import DashboardManutencao from '../components/manutencao/DashboardManutencao';
 import AlmoxarifadoPage from '../components/manutencao/AlmoxarifadoPage';
 import TiposOleoPage from '../components/manutencao/TiposOleoPage';
 import MobileScanShortcut from '../components/MobileScanShortcut';
+import { AvisoMigradoErp } from '../components/shadcn/aviso-migrado-erp';
 
 const TIPO_OPTS: { value: TipoOS | ''; label: string }[] = [
   { value: '', label: 'Todos tipos' },
@@ -51,7 +52,12 @@ export default function ManutencaoPage() {
   }
   // /manutencao/os/:numero → detalhe (sem sub-nav)
   if (params.numero) {
-    return <OSDetalhe />;
+    return (
+      <div className="space-y-4">
+        <AvisoMigradoErp modulo="Manutenção" caminho="/manutencao" />
+        <OSDetalhe />
+      </div>
+    );
   }
   let inner: React.ReactNode;
   if (pathname === '/manutencao/dashboard') inner = <DashboardManutencao />;
@@ -61,6 +67,7 @@ export default function ManutencaoPage() {
 
   return (
     <div className="space-y-4">
+      <AvisoMigradoErp modulo="Manutenção" caminho="/manutencao" />
       <MobileScanShortcut />
       <SubNav pathname={pathname} />
       {inner}

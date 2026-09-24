@@ -4,6 +4,7 @@ import { supabase } from '../lib/supabase';
 import { dbToFuncionario, dbToPerfilPermissao } from '../lib/mappers';
 import { perfilPadraoPorCargo, acoesPadraoDoCargo } from '../utils/permissions';
 import { adicionarAuditLogAsync } from '../hooks/useAuditLog';
+import { acaoMigradaParaErp } from '../utils/modulosMigrados';
 
 interface AuthContextValue {
   usuario: SessaoUsuario | null;
@@ -226,6 +227,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // ninguém tem acesso. Isso evita que um usuário recém-criado sem
     // permissões configuradas acabe com acesso total.
     if (!usuario.acoesPermitidas || usuario.acoesPermitidas.length === 0) return false;
+    // Fase 5: Frete, Combustível e Manutenção migraram para o ERP-EMT e ficam só leitura aqui.
+    if (acaoMigradaParaErp(chave)) return false;
     return usuario.acoesPermitidas.includes(chave);
   }, [usuario]);
 

@@ -45,6 +45,7 @@ import { presetEstaSemana, presetEsteMes, presetMesPassado } from '../utils/date
 import { Truck, BarChart3, Wallet, Wallet2, PackageSearch, Trash2, AlertTriangle, ArrowLeftRight } from 'lucide-react';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '../components/shadcn/tabs';
 import AnomaliasFreteTab from '../components/frete/anomalias/AnomaliasFreteTab';
+import { AvisoMigradoErp } from '../components/shadcn/aviso-migrado-erp';
 import { useAnomaliasFreteChecks, useMarcarAnomaliaFreteVerificada, useDesfazerVerificacaoAnomaliaFrete } from '../hooks/useAnomaliasFreteChecks';
 
 type Tab = 'dashboard' | 'fretes' | 'pagamentos' | 'conta_corrente' | 'pedidos' | 'anomalias' | 'lixeira';
@@ -416,6 +417,9 @@ export default function Frete() {
         } as React.CSSProperties
       }
     >
+      <div className="mb-4">
+        <AvisoMigradoErp modulo="Frete" caminho="/frete" />
+      </div>
       <PageHeader
         eyebrow="Operations · Logística"
         title="Frete & Logística"
